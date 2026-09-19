@@ -1,30 +1,41 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+/// Smoke test of the application shell.
+library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:quizmo/main.dart';
+import 'package:quizmo/presentation/app.dart';
+import 'package:quizmo/presentation/common/role_selection_page.dart';
+import 'package:quizmo/presentation/player/player_page.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('starts on the role selection screen', (tester) async {
+    await tester.pumpWidget(const QuizmoApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.byType(RoleSelectionPage), findsOneWidget);
+    expect(find.text('Quizmo'), findsOneWidget);
+    expect(find.text('Host a quiz'), findsOneWidget);
+    expect(find.text('Join as player'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('opens the player join form', (tester) async {
+    await tester.pumpWidget(const QuizmoApp());
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Open player view'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlayerPage), findsOneWidget);
+    expect(find.text('Host address'), findsOneWidget);
+    expect(find.text('Your name'), findsOneWidget);
+  });
+
+  testWidgets('rejects an incomplete join form', (tester) async {
+    await tester.pumpWidget(const QuizmoApp());
+    await tester.tap(find.text('Open player view'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Connect and sync clock'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pick a name'), findsOneWidget);
   });
 }
+
