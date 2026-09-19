@@ -29,8 +29,11 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # Several classes intentionally expose a public constructor parameter that
+    # feeds a *private* field (for example `engine:` -> `_engine`). The lint's
+    # fix would force callers to write `_engine:`, leaking an implementation
+    # detail into the public API, so the rule is turned off deliberately.
+    prefer_initializing_formals: false
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
