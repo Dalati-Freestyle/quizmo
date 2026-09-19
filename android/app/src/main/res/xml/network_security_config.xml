@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Quizmo talks plain HTTP on purpose: it is a local-first LAN quiz, and no
+  certificate authority issues certificates for `http://192.168.2.188:8080`.
+  Android 9 (API 28) blocks cleartext traffic by default, which would stop this
+  device from joining a host as a player and would break the in-app "join as a
+  local player" shortcut over loopback.
+
+  Restricting this to RFC 1918 ranges is not possible here: `<domain>` only
+  accepts host names and IP literals, not CIDR blocks, and the host address is
+  only known at runtime. Cleartext is therefore permitted globally, which is
+  acceptable because the app only ever talks to a host address the user typed
+  in — or that served the page — on their own network.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+
+
+
