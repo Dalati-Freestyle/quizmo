@@ -25,7 +25,10 @@ lib/
 │   ├── embedded_server.dart      # dart:io implementation
 │   ├── server_contract.dart      # Web safe interface + ServerEndpoint
 │   ├── server_launcher*.dart     # Conditional export: io impl vs. web stub
-│   └── handlers/        # API, CORS and WebSocket message handlers
+│   ├── web_client_bundle*.dart   # Static web player sources (interface + io)
+│   ├── zip_web_client_bundle.dart# Zip backed bundle, lazily inflated
+│   ├── lan_addresses.dart        # Ranks local IPv4s by guest reachability
+│   └── handlers/        # API, CORS, static and WebSocket message handlers
 ├── presentation/        # Flutter UI Components & Screens
 │   ├── quizmaster/      # Quizmaster / Host Views
 │   ├── player/          # Player / Web Client Views
@@ -37,6 +40,7 @@ lib/
 * **Rule 2 (Polymorphism):** All question types, game modes, and scoring rules must use sealed classes / pattern matching (Dart 3 `sealed` hierarchies, or `freezed` unions). **Never use huge `switch-case` statements based on string IDs** for question rendering or scoring. The single permitted exception is a `fromJson` factory, i.e. the deserialization boundary.
 * **Rule 3 (Clock Sync):** Never sort real-time events (like buzzers) purely by server arrival time. All client events must supply a `calculatedHostTimestamp` derived from the initial NTP-style clock handshake (`clientTimestamp - clockOffset`).
 * **Rule 4 (Web Safety):** Nothing reachable from `main.dart` may import `dart:io` unconditionally. Platform specific capabilities are resolved through conditional exports (see `backend/server_launcher.dart`), because the player client ships as a Flutter Web bundle.
+* **Rule 5 (Address Selection):** Never announce "the first" local IP. A device commonly has several (Wi-Fi, mobile 464XLAT, VPN, virtual adapters) and only some are reachable by a guest — the wrong pick yields `ERR_CONNECTION_TIMED_OUT`, which is indistinguishable from a firewall problem. Route every choice through `sortLanAddresses` in `backend/lan_addresses.dart` and keep the alternatives visible in the UI.
 
 ---
 
@@ -65,6 +69,19 @@ lib/
 ### Adding Scoring Rules / Team Modes
 * Implement rules inside `lib/core/engine/scoring_rules.dart`.
 * Always write unit tests under `test/core/engine/` for any new scoring rule or team aggregation logic before connecting it to UI components.
+
+### Changing the Web Player
+The embedded host serves the Flutter Web player itself, so a guest only needs
+the LAN address — no install, no second web server.
+
+1. The build is packed into `assets/web_client/bundle.zip` by
+   `dart run tool/bundle_web_client.dart`; re-run it after every player UI change.
+2. Rebuild the host app afterwards so the updated archive is embedded.
+3. The zip is a build artifact (git-ignored). A missing archive must never break
+   the host: it degrades to a placeholder page plus a warning in the server log.
+4. **Never** list the nested Flutter Web output directories in `pubspec.yaml`.
+   `pubspec.yaml` only bundles files directly inside a declared asset folder, so
+   the single zip is what keeps that list from rotting.
 
 ---
 
