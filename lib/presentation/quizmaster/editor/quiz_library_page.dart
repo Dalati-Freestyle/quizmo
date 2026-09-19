@@ -1,0 +1,273 @@
+/// Local quiz library and entry point to the editor.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../core/data/quiz_repository.dart';
+import '../../../core/models/models.dart';
+import '../../common/adaptive_layout.dart';
+import 'quiz_editor_page.dart';
+import 'quiz_file_transfer.dart';
+import 'quiz_library_cubit.dart';
+import 'quiz_library_repository.dart';
+
+/// Lets the host choose, edit, import, and export a locally stored quiz.
+class QuizLibraryPage extends StatelessWidget {
+  /// Creates a library page, optionally with test-specific dependencies.
+  const QuizLibraryPage({
+    this.repository,
+    this.createId,
+    this.now,
+    this.selectForHosting = false,
+    super.key,
+  });
+
+  /// Optional repository override for widget tests.
+  final QuizRepository? repository;
+
+  /// Optional ID generator override for widget tests.
+  final String Function()? createId;
+
+  /// Optional clock override for widget tests.
+  final DateTime Function()? now;
+
+  /// Whether a card may return its quiz to start a new host session.
+  final bool selectForHosting;
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = createId ?? _newId;
+    return BlocProvider(
+      create: (_) => QuizLibraryCubit(
+        repository: repository ?? createQuizRepository(),
+        createId: ids,
+        now: now,
+      )..load(),
+      child: _QuizLibraryView(
+        createId: ids,
+        now: now ?? DateTime.now,
+        selectForHosting: selectForHosting,
+      ),
+    );
+  }
+}
+
+class _QuizLibraryView extends StatelessWidget {
+  const _QuizLibraryView({
+    required this.createId,
+    required this.now,
+    required this.selectForHosting,
+  });
+
+  final String Function() createId;
+  final DateTime Function() now;
+  final bool selectForHosting;
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocConsumer<QuizLibraryCubit, QuizLibraryState>(
+        listenWhen: (previous, current) =>
+            current.error != null && current.error != previous.error,
+        listener: (context, state) =>
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.error!))),
+        builder: (context, state) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Quiz library'),
+            actions: [
+              IconButton(
+                tooltip: 'Import quiz file',
+                onPressed: state.isBusy ? null : () => _importQuiz(context),
+                icon: const Icon(Icons.file_open_outlined),
+              ),
+              IconButton(
+                tooltip: 'Create quiz',
+                onPressed: state.isBusy ? null : () => _createQuiz(context),
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          body: state.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : AdaptivePanelGrid(
+                  panels: [
+                    for (final quiz in state.quizzes)
+                      _QuizCard(
+                        quiz: quiz,
+                        isBusy: state.isBusy,
+                        onHost: selectForHosting
+                            ? () => Navigator.of(context).pop(quiz)
+                            : null,
+                        onEdit: () => _editQuiz(context, quiz),
+                        onExport: () => _exportQuiz(context, quiz),
+                        onDelete: () => _deleteQuiz(context, quiz),
+                      ),
+                    if (state.quizzes.isEmpty)
+                      const PanelCard(
+                        title: 'No quizzes available',
+                        icon: Icons.quiz_outlined,
+                        child: EmptyHint(
+                          'Create or import a quiz to get started.',
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      );
+
+  Future<void> _createQuiz(BuildContext context) {
+    final timestamp = now().toUtc();
+    return _openEditor(
+      context,
+      Quiz(
+        id: createId(),
+        name: 'Untitled quiz',
+        description: 'A new Quizmo quiz.',
+        category: 'General knowledge',
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      ),
+    );
+  }
+
+  Future<void> _editQuiz(BuildContext context, Quiz quiz) =>
+      _openEditor(context, quiz);
+
+  Future<void> _openEditor(BuildContext context, Quiz quiz) async {
+    final repository = context.read<QuizLibraryCubit>().repository;
+    final saved = await Navigator.of(context).push<Quiz>(
+      MaterialPageRoute<Quiz>(
+        builder: (_) => QuizEditorPage(
+          repository: repository,
+          quiz: quiz,
+          createId: createId,
+        ),
+      ),
+    );
+    if (!context.mounted || saved == null) return;
+    await context.read<QuizLibraryCubit>().load();
+  }
+
+  Future<void> _importQuiz(BuildContext context) async {
+    try {
+      final contents = await pickQuizJson();
+      if (!context.mounted || contents == null) return;
+      final imported = await context.read<QuizLibraryCubit>().importContents(
+        contents,
+      );
+      if (!context.mounted || imported == null) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Imported "${imported.name}".')));
+    } on Object catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not import quiz: $error')));
+    }
+  }
+
+  Future<void> _exportQuiz(BuildContext context, Quiz quiz) async {
+    try {
+      await exportQuizFile(quiz);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export prepared for "${quiz.name}".')),
+      );
+    } on Object catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not export quiz: $error')));
+    }
+  }
+
+  Future<void> _deleteQuiz(BuildContext context, Quiz quiz) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete quiz?'),
+        content: Text('Delete "${quiz.name}" from this device?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || shouldDelete != true) return;
+    await context.read<QuizLibraryCubit>().delete(quiz);
+  }
+}
+
+class _QuizCard extends StatelessWidget {
+  const _QuizCard({
+    required this.quiz,
+    required this.isBusy,
+    required this.onHost,
+    required this.onEdit,
+    required this.onExport,
+    required this.onDelete,
+  });
+
+  final Quiz quiz;
+  final bool isBusy;
+  final VoidCallback? onHost;
+  final VoidCallback onEdit;
+  final VoidCallback onExport;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) => PanelCard(
+    title: quiz.name,
+    icon: Icons.quiz_outlined,
+    trailing: PopupMenuButton<_QuizAction>(
+      onSelected: (action) => switch (action) {
+        _QuizAction.edit => onEdit(),
+        _QuizAction.export => onExport(),
+        _QuizAction.delete => onDelete(),
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: _QuizAction.edit, child: Text('Edit')),
+        PopupMenuItem(value: _QuizAction.export, child: Text('Export file')),
+        PopupMenuItem(value: _QuizAction.delete, child: Text('Delete')),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(quiz.description.isEmpty ? 'No description.' : quiz.description),
+        const SizedBox(height: 12),
+        InfoRow(label: 'Category', value: quiz.category),
+        InfoRow(label: 'Questions', value: '${quiz.questions.length}'),
+        InfoRow(label: 'Teams', value: '${quiz.teams.length}'),
+        if (quiz.questions.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'First question: ${quiz.questions.first.prompt}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 12),
+        if (onHost != null)
+          FilledButton.icon(
+            onPressed: isBusy ? null : onHost,
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Host this quiz'),
+          ),
+      ],
+    ),
+  );
+}
+
+enum _QuizAction { edit, export, delete }
+
+String _newId() => DateTime.now().microsecondsSinceEpoch.toRadixString(36);

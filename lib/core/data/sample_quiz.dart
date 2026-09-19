@@ -10,7 +10,11 @@ import '../models/models.dart';
 /// Two coloured teams, enough to exercise team scoring end to end.
 const Map<String, Team> sampleTeams = {
   'team-red': Team(id: 'team-red', name: 'Red Foxes', colorValue: 0xFFE5484D),
-  'team-blue': Team(id: 'team-blue', name: 'Blue Whales', colorValue: 0xFF3E63DD),
+  'team-blue': Team(
+    id: 'team-blue',
+    name: 'Blue Whales',
+    colorValue: 0xFF3E63DD,
+  ),
 };
 
 /// The prototype quiz: one multiple choice round and two buzzer rounds.
@@ -40,7 +44,8 @@ const List<Question> sampleQuestionBank = [
   MultipleChoiceQuestion(
     id: 'q-dart',
     category: 'Tech',
-    prompt: 'Which Dart 3 feature makes a class hierarchy exhaustively '
+    prompt:
+        'Which Dart 3 feature makes a class hierarchy exhaustively '
         'switchable?',
     options: [
       AnswerOption(id: 'a', label: 'abstract'),
@@ -60,3 +65,14 @@ const List<Question> sampleQuestionBank = [
   ),
 ];
 
+/// Creates the bundled sample quiz for an empty local library.
+Quiz createSampleQuiz(DateTime timestamp) => Quiz(
+  id: 'quiz-sample',
+  name: 'Quizmo sample quiz',
+  description: 'A ready-to-host mix of multiple choice and buzzer rounds.',
+  category: 'Demo',
+  questions: sampleQuestionBank,
+  teams: sampleTeams.values.toList(growable: false),
+  createdAt: timestamp.toUtc(),
+  updatedAt: timestamp.toUtc(),
+);

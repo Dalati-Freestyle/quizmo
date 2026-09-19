@@ -7,7 +7,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/data/sample_quiz.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
@@ -19,8 +18,11 @@ import 'host_server_cubit.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
-  /// Creates the dashboard.
-  const HostDashboardPage({super.key});
+  /// Creates the dashboard for [quiz].
+  const HostDashboardPage({required this.quiz, super.key});
+
+  /// Quiz definition fixed for this hosted session.
+  final Quiz quiz;
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +30,9 @@ class HostDashboardPage extends StatelessWidget {
       providers: [
         BlocProvider<QuizEngineBloc>(
           create: (_) => QuizEngineBloc(
-            questionBank: sampleQuestionBank,
-            teams: sampleTeams,
-            mode: const TeamMode(),
+            questionBank: quiz.questions,
+            teams: quiz.teamsById,
+            mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
           ),
         ),
         BlocProvider<HostServerCubit>(
@@ -42,13 +44,15 @@ class HostDashboardPage extends StatelessWidget {
           ),
         ),
       ],
-      child: const _HostDashboardView(),
+      child: _HostDashboardView(quizName: quiz.name),
     );
   }
 }
 
 class _HostDashboardView extends StatelessWidget {
-  const _HostDashboardView();
+  const _HostDashboardView({required this.quizName});
+
+  final String quizName;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +66,7 @@ class _HostDashboardView extends StatelessWidget {
 
             return Scaffold(
               appBar: AppBar(
-                title: const Text('Quizmaster dashboard'),
+                title: Text('Quizmaster · $quizName'),
                 actions: [
                   IconButton(
                     tooltip: 'Join this session as a local player',
@@ -71,9 +75,8 @@ class _HostDashboardView extends StatelessWidget {
                         : () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => PlayerPage(
-                                initialHostUri: serverState
-                                    .endpoint!
-                                    .loopbackUri,
+                                initialHostUri:
+                                    serverState.endpoint!.loopbackUri,
                               ),
                             ),
                           ),
@@ -87,8 +90,7 @@ class _HostDashboardView extends StatelessWidget {
                   PopupMenuButton<GameMode>(
                     tooltip: 'Game mode',
                     icon: const Icon(Icons.tune),
-                    onSelected: (mode) =>
-                        engine.add(ChangeGameModeEvent(mode)),
+                    onSelected: (mode) => engine.add(ChangeGameModeEvent(mode)),
                     itemBuilder: (_) => const [
                       PopupMenuItem<GameMode>(
                         value: SoloMode(),
@@ -149,4 +151,3 @@ class _HostDashboardView extends StatelessWidget {
     );
   }
 }
-

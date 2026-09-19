@@ -54,6 +54,9 @@ dependencies:
   # The bundled Flutter Web player is shipped as a single zip asset and unpacked
   # lazily in memory, so nested asset folders never have to be listed by hand.
   archive: ^4.3.0
+  shared_preferences: ^2.5.5
+  file_picker: ^13.1.0
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:

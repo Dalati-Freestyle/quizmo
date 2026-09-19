@@ -1,0 +1,271 @@
+/// The persisted definition of a reusable quiz.
+library;
+
+import 'package:equatable/equatable.dart';
+
+import 'json.dart';
+import 'question.dart';
+import 'team.dart';
+
+/// Describes quiz content that cannot be saved or imported safely.
+final class QuizValidationException implements Exception {
+  /// Creates an exception containing all detected [messages].
+  const QuizValidationException(this.messages);
+
+  /// Human-readable validation failures.
+  final List<String> messages;
+
+  @override
+  String toString() => 'QuizValidationException: ${messages.join(' ')}';
+}
+
+/// A named, versioned question bank that can be edited and hosted repeatedly.
+final class Quiz extends Equatable {
+  /// Creates a quiz definition.
+  const Quiz({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.category,
+    required this.createdAt,
+    required this.updatedAt,
+    this.questions = const [],
+    this.teams = const [],
+    this.schemaVersion = currentSchemaVersion,
+  });
+
+  /// The newest file format this version of Quizmo can read and write.
+  static const int currentSchemaVersion = 1;
+
+  /// Restores and validates a quiz definition from [json].
+  factory Quiz.fromJson(JsonMap json) {
+    final schemaVersion = json.readInt('schemaVersion');
+    if (schemaVersion != currentSchemaVersion) {
+      throw JsonContractException(
+        'Unsupported quiz schemaVersion $schemaVersion. '
+        'Expected $currentSchemaVersion.',
+      );
+    }
+
+    final quiz = Quiz(
+      schemaVersion: schemaVersion,
+      id: json.readString('id'),
+      name: json.readString('name'),
+      description: json.readString('description'),
+      category: json.readString('category'),
+      questions: json.readList('questions', Question.fromJson),
+      teams: json.readList('teams', Team.fromJson),
+      createdAt: DateTime.fromMicrosecondsSinceEpoch(
+        json.readInt('createdAtMicros'),
+        isUtc: true,
+      ),
+      updatedAt: DateTime.fromMicrosecondsSinceEpoch(
+        json.readInt('updatedAtMicros'),
+        isUtc: true,
+      ),
+    );
+    quiz.validate();
+    return quiz;
+  }
+
+  /// File format version used to decode this quiz.
+  final int schemaVersion;
+
+  /// Stable identifier used by the local library.
+  final String id;
+
+  /// Short title rendered in the quiz library.
+  final String name;
+
+  /// Longer summary shown before hosting the quiz.
+  final String description;
+
+  /// Top-level grouping label for the quiz library.
+  final String category;
+
+  /// Ordered question bank presented to the host.
+  final List<Question> questions;
+
+  /// Optional teams offered to joining players.
+  final List<Team> teams;
+
+  /// Instant at which this quiz was first created.
+  final DateTime createdAt;
+
+  /// Instant at which this quiz was last changed.
+  final DateTime updatedAt;
+
+  /// Teams keyed by their stable IDs for the quiz engine.
+  Map<String, Team> get teamsById => {for (final team in teams) team.id: team};
+
+  /// Reports every content violation that prevents a safe save or import.
+  List<String> validationErrors() {
+    final errors = <String>[];
+    if (schemaVersion != currentSchemaVersion) {
+      errors.add(
+        'Unsupported quiz schemaVersion $schemaVersion. '
+        'Expected $currentSchemaVersion.',
+      );
+    }
+    if (id.trim().isEmpty) errors.add('Quiz ID must not be empty.');
+    if (name.trim().isEmpty) errors.add('Quiz name must not be empty.');
+    if (description.trim().isEmpty) {
+      errors.add('Quiz description must not be empty.');
+    }
+    if (category.trim().isEmpty) errors.add('Quiz category must not be empty.');
+    if (updatedAt.isBefore(createdAt)) {
+      errors.add('Quiz updatedAt must not be before createdAt.');
+    }
+    _addDuplicateIdError(errors, teams.map((team) => team.id), 'team');
+    _addDuplicateIdError(
+      errors,
+      questions.map((question) => question.id),
+      'question',
+    );
+
+    for (final team in teams) {
+      if (team.id.trim().isEmpty) errors.add('A team ID must not be empty.');
+      if (team.name.trim().isEmpty) {
+        errors.add('Team "${team.id}" needs a name.');
+      }
+    }
+    for (final question in questions) {
+      errors.addAll(_questionValidationErrors(question));
+    }
+    return List.unmodifiable(errors);
+  }
+
+  /// Throws a [QuizValidationException] when this quiz cannot be persisted.
+  void validate() {
+    final errors = validationErrors();
+    if (errors.isNotEmpty) throw QuizValidationException(errors);
+  }
+
+  /// Returns a copy with selected fields replaced.
+  Quiz copyWith({
+    int? schemaVersion,
+    String? id,
+    String? name,
+    String? description,
+    String? category,
+    List<Question>? questions,
+    List<Team>? teams,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Quiz(
+    schemaVersion: schemaVersion ?? this.schemaVersion,
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+    category: category ?? this.category,
+    questions: questions ?? this.questions,
+    teams: teams ?? this.teams,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
+  /// Serializes this complete quiz as one standalone document.
+  JsonMap toJson() => {
+    'schemaVersion': schemaVersion,
+    'id': id,
+    'name': name,
+    'description': description,
+    'category': category,
+    'questions': questions
+        .map((question) => question.toJson())
+        .toList(growable: false),
+    'teams': teams.map((team) => team.toJson()).toList(growable: false),
+    'createdAtMicros': createdAt.toUtc().microsecondsSinceEpoch,
+    'updatedAtMicros': updatedAt.toUtc().microsecondsSinceEpoch,
+  };
+
+  @override
+  List<Object?> get props => [
+    schemaVersion,
+    id,
+    name,
+    description,
+    category,
+    questions,
+    teams,
+    createdAt,
+    updatedAt,
+  ];
+}
+
+void _addDuplicateIdError(
+  List<String> errors,
+  Iterable<String> ids,
+  String itemLabel,
+) {
+  final seen = <String>{};
+  for (final id in ids) {
+    if (!seen.add(id)) errors.add('Duplicate $itemLabel ID "$id".');
+  }
+}
+
+List<String> _questionValidationErrors(Question question) => switch (question) {
+  MultipleChoiceQuestion(
+    :final id,
+    :final prompt,
+    :final timeLimit,
+    :final options,
+    :final correctOptionId,
+  ) =>
+    _multipleChoiceValidationErrors(
+      id: id,
+      prompt: prompt,
+      timeLimit: timeLimit,
+      options: options,
+      correctOptionId: correctOptionId,
+    ),
+  BuzzerQuestion(:final id, :final prompt, :final timeLimit) =>
+    _baseQuestionValidationErrors(id: id, prompt: prompt, timeLimit: timeLimit),
+};
+
+List<String> _multipleChoiceValidationErrors({
+  required String id,
+  required String prompt,
+  required Duration timeLimit,
+  required List<AnswerOption> options,
+  required String? correctOptionId,
+}) {
+  final errors = _baseQuestionValidationErrors(
+    id: id,
+    prompt: prompt,
+    timeLimit: timeLimit,
+  );
+  if (options.length < 2) {
+    errors.add('Multiple-choice question "$id" needs at least two options.');
+  }
+  _addDuplicateIdError(errors, options.map((option) => option.id), 'option');
+  for (final option in options) {
+    if (option.id.trim().isEmpty) {
+      errors.add('An option ID in question "$id" must not be empty.');
+    }
+    if (option.label.trim().isEmpty) {
+      errors.add('Option "${option.id}" in question "$id" needs a label.');
+    }
+  }
+  if (correctOptionId == null ||
+      !options.any((option) => option.id == correctOptionId)) {
+    errors.add(
+      'Multiple-choice question "$id" needs a correctOptionId from its options.',
+    );
+  }
+  return errors;
+}
+
+List<String> _baseQuestionValidationErrors({
+  required String id,
+  required String prompt,
+  required Duration timeLimit,
+}) {
+  final errors = <String>[];
+  if (id.trim().isEmpty) errors.add('A question ID must not be empty.');
+  if (prompt.trim().isEmpty) errors.add('Question "$id" needs a prompt.');
+  if (timeLimit <= Duration.zero) {
+    errors.add('Question "$id" needs a positive time limit.');
+  }
+  return errors;
+}

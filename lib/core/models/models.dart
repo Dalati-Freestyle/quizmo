@@ -9,7 +9,7 @@ export 'game_state.dart';
 export 'json.dart';
 export 'player.dart';
 export 'question.dart';
+export 'quiz.dart';
 export 'round.dart';
 export 'score.dart';
 export 'team.dart';
-

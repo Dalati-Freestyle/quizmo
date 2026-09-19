@@ -5,8 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../backend/server_launcher.dart';
+import '../../core/models/models.dart';
 import '../player/player_page.dart';
 import '../quizmaster/host_dashboard_page.dart';
+import '../quizmaster/editor/quiz_library_page.dart' deferred as quiz_library;
 import 'adaptive_layout.dart';
 
 /// Lets the user pick between the quizmaster and the player experience.
@@ -33,9 +35,7 @@ class RoleSelectionPage extends StatelessWidget {
                   'port. Run Quizmo on Android, iOS or desktop to host.',
         actionLabel: 'Open quizmaster dashboard',
         enabled: embeddedServerSupported,
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const HostDashboardPage()),
-        ),
+        onPressed: () => _chooseQuizAndHost(context),
       ),
       _RoleCard(
         icon: Icons.sports_esports,
@@ -45,9 +45,8 @@ class RoleSelectionPage extends StatelessWidget {
             'that is corrected for your network latency.',
         actionLabel: 'Open player view',
         enabled: true,
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const PlayerPage()),
-        ),
+        onPressed: () => Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => const PlayerPage())),
       ),
     ];
 
@@ -94,6 +93,12 @@ class RoleSelectionPage extends StatelessWidget {
                     const SizedBox(height: 16),
                     cards[1],
                   ],
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => _openQuizLibrary(context),
+                    icon: const Icon(Icons.library_books_outlined),
+                    label: const Text('Manage quiz library'),
+                  ),
                   const SizedBox(height: 24),
                   Text(
                     kIsWeb
@@ -111,6 +116,28 @@ class RoleSelectionPage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _chooseQuizAndHost(BuildContext context) async {
+    final quiz = await _openQuizLibrary(context, selectForHosting: true);
+    if (!context.mounted || quiz == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => HostDashboardPage(quiz: quiz)),
+    );
+  }
+
+  Future<Quiz?> _openQuizLibrary(
+    BuildContext context, {
+    bool selectForHosting = false,
+  }) async {
+    await quiz_library.loadLibrary();
+    if (!context.mounted) return null;
+    return Navigator.of(context).push<Quiz>(
+      MaterialPageRoute<Quiz>(
+        builder: (_) =>
+            quiz_library.QuizLibraryPage(selectForHosting: selectForHosting),
       ),
     );
   }
@@ -173,4 +200,3 @@ class _RoleCard extends StatelessWidget {
     );
   }
 }
-
