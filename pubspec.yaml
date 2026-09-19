@@ -48,6 +48,12 @@ dependencies:
   web_socket_channel: ^3.0.3
   http: ^1.6.0
   nsd: ^5.0.1
+  # `path` is used with `p.url` semantics to normalise request paths inside the
+  # static web-client handler, independent of the host platform separator.
+  path: ^1.9.1
+  # The bundled Flutter Web player is shipped as a single zip asset and unpacked
+  # lazily in memory, so nested asset folders never have to be listed by hand.
+  archive: ^4.3.0
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +79,14 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # The Flutter Web player bundle that the embedded host serves over LAN.
+  # `tool/bundle_web_client.dart` builds `build/web` and zips it into
+  # `assets/web_client/bundle.zip`. A directory entry is used on purpose: a
+  # missing zip then degrades to "web client not bundled" instead of breaking
+  # the build.
+  assets:
+    - assets/web_client/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

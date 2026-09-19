@@ -84,14 +84,20 @@ lib/
 │   ├── server_launcher.dart           # conditional export → io | stub
 │   ├── server_launcher_io.dart
 │   ├── server_launcher_stub.dart      # browsers cannot listen: fails loudly
+│   ├── web_client_bundle.dart         # WebClientBundle interface (web safe)
+│   ├── web_client_bundle_io.dart      # directory / zip-file sources (dart:io)
+│   ├── zip_web_client_bundle.dart     # zip backed bundle, inflated lazily
+│   ├── lan_addresses.dart             # ranks local IPv4s by reachability
 │   └── handlers/
 │       ├── api_handlers.dart          # /api/health, /api/sync-time, /api/state
 │       ├── cors_middleware.dart       # required for browser players
-│       └── socket_handlers.dart       # SocketHub: connections ⇄ engine events
+│       ├── socket_handlers.dart       # SocketHub: connections ⇄ engine events
+│       └── static_handlers.dart       # serves the bundled Flutter Web player
 ├── presentation/                      # Flutter UI.
 │   ├── app.dart                       # MaterialApp + Material 3 theme
 │   ├── common/
 │   │   ├── adaptive_layout.dart       # FormFactor, AdaptivePanelGrid, PanelCard
+│   │   ├── bundled_web_client.dart    # rootBundle → WebClientBundle adapter
 │   │   ├── buzzer_button.dart         # Listener.onPointerDown buzzer
 │   │   ├── role_selection_page.dart
 │   │   └── scoreboard_view.dart       # solo vs team standings
@@ -108,43 +114,60 @@ lib/
 └── main.dart
 
 test/
+├── backend/bundled_web_client_test.dart # real bundle.zip → HTTP (skips if absent)
 ├── backend/embedded_server_test.dart  # real server + 2 real clients over loopback
+├── backend/lan_addresses_test.dart    # which local IP to announce
+├── backend/static_handlers_test.dart  # MIME types, SPA fallback, traversal
 ├── core/engine/quiz_engine_bloc_test.dart
 ├── core/engine/scoring_rules_test.dart
 ├── core/protocol/messages_test.dart
 ├── core/sync/clock_sync_test.dart
 ├── presentation/buzzer_button_test.dart
 └── widget_test.dart
+
+tool/
+└── bundle_web_client.dart             # flutter build web → assets/web_client/bundle.zip
 ```
 
 ---
 
 ## 3. Running the prototype
 
+### 3.0 Bundle the web player (once, and after every player UI change)
+
+```powershell
+dart run tool/bundle_web_client.dart
+```
+
+This runs `flutter build web` and packs the result into
+`assets/web_client/bundle.zip`. The host then serves that build at `/`, so a
+guest joins by simply opening the LAN address in **any** browser — no install,
+no second web server, no `flutter run -d chrome` needed.
+
+Skip it and everything still works; the host just serves a placeholder page at
+`/` and says so in the dashboard and the server log.
+
 ### 3.1 Host + two browser players (recommended demo)
 
 ```powershell
 # Terminal 1 – the host (Windows / macOS / Linux / Android / iOS)
 flutter run -d windows
-
-# Terminal 2 – player A
-flutter run -d chrome
-
-# Terminal 3 – player B (or simply open a second tab of the URL from above)
-flutter run -d chrome
 ```
 
 1. On the host: **Host a quiz → Start server**. The dashboard shows the LAN URL,
    for example `http://192.168.1.42:8080` (tap to copy).
-2. In each browser tab: **Join as player**, paste the host URL, enter a name,
-   pick *Red Foxes* / *Blue Whales*, then **Connect and sync clock**.
-   The client runs five `POST /api/sync-time` probes before the socket opens.
+2. Open that URL on any phone or laptop on the same Wi-Fi. The bundled player
+   loads straight from the host and pre-fills its own origin as the host
+   address, so guests only enter a name and pick a team.
 3. On the host: start **“Which city is the capital of Australia?”** — both
    players answer, the round auto-reveals and speed bonuses are booked.
 4. Start **“Which chemical element has the symbol Au?”** — both players hammer
    the buzzer. After a 350 ms grace window the host shows the ranking with the
    millisecond gap and hands the floor to the true winner.
 5. Judge the spoken answer with **“… is right”** / **“Wrong”**.
+
+During UI development `flutter run -d chrome` still works as a player; it talks
+to the host over CORS instead of same-origin.
 
 ### 3.2 Everything on one device
 
@@ -157,13 +180,55 @@ open a second, loopback-connected player state inside the same app.
 the `host` query parameter, so a QR code or a Discord message is enough to get
 somebody into the game.
 
+### 3.3.1 “The address times out” — picking the right local IP
+
+A phone usually has **more than one** IPv4 address, and only one of them is
+routable for a guest. A Pixel on Wi-Fi *and* mobile data reports both:
+
+```text
+wlan0        192.168.2.188/24   ← the LAN address a guest can reach
+v4-rmnet16   192.0.0.4/32       ← RFC 7335 464XLAT translation address
+```
+
+Announcing the second one produces `ERR_CONNECTION_TIMED_OUT` on every guest —
+a *timeout*, not “connection refused”, because nothing routes there at all.
+`lan_addresses.dart` therefore ranks every discovered address (RFC 1918 space on
+a `wlan`/`eth` interface wins; CGNAT, link-local and the service-continuity
+prefix lose) and the dashboard announces the best one. The runner-ups stay
+visible as copy-to-clipboard chips, so an unusual setup is one tap away from
+working.
+
+If a guest still times out, check in this order:
+
+1. **Same network?** Guest on mobile data, or on a 5 GHz/guest SSID that is
+   isolated from the host, will always time out.
+2. **AP/client isolation** in the router — many guest networks block
+   device-to-device traffic by design.
+3. **Host firewall** when hosting from Windows: allow inbound TCP 8080 for
+   private networks.
+4. Try the alternative address chips on the dashboard.
+
 ### 3.4 Quality gates
 
 ```powershell
 flutter analyze          # 0 issues
-flutter test             # 57 tests
+flutter test             # 94 tests
 flutter build web        # proves the conditional dart:io import
 ```
+
+### 3.5 Android specifics
+
+`android/app/src/main/AndroidManifest.xml` carries two things a stock Flutter
+template does not:
+
+* **`INTERNET` permission.** Flutter only adds it to the *debug* and *profile*
+  manifests. Without it in `main`, a release build cannot open the listening
+  socket and hosting fails with a `SocketException`.
+* **`networkSecurityConfig` with cleartext enabled.** Android 9 (API 28) blocks
+  plain HTTP by default, which would stop this device from *joining* a host.
+  There are no certificates for `http://192.168.2.188:8080`, and `<domain>`
+  entries cannot express RFC 1918 ranges, so cleartext is allowed globally —
+  see the comment in `res/xml/network_security_config.xml`.
 
 ---
 
@@ -260,9 +325,16 @@ void _handlePointerDown(PointerDownEvent event) {
 | `POST` | `/api/sync-time` | in `{ clientSentAtMicros }` → out `{ clientSentAtMicros, hostTimeMicros }` |
 | `GET` | `/api/state` | redacted `GameState` snapshot (polling fallback) |
 | `GET` | `/ws` | WebSocket upgrade |
+| `GET`/`HEAD` | `/<anything>` | the bundled Flutter Web player (SPA fallback to `index.html`) |
 
-All responses carry permissive CORS headers because browser players load the
-Flutter bundle from a different origin than the hosting phone.
+The static catch-all is registered **last**, so `/api/**` and `/ws` always win.
+Requests that carry a file extension never fall back to `index.html` — a missing
+`main.dart.js` has to surface as a `404` instead of silently returning HTML.
+Encoded separators (`%2f`, `%2e`) are rejected with `403` rather than decoded.
+
+All responses carry permissive CORS headers because browser players may load the
+Flutter bundle from a different origin than the hosting phone (for example from
+a `flutter run -d chrome` dev server).
 
 ### WebSocket
 

@@ -6,6 +6,7 @@ library;
 
 import '../core/engine/quiz_engine_bloc.dart';
 import 'server_contract.dart';
+import 'web_client_bundle.dart';
 
 /// Whether this platform can host an embedded quiz server.
 const bool embeddedServerSupported = false;
@@ -17,6 +18,7 @@ const int defaultServerPort = 8080;
 EmbeddedQuizServer createEmbeddedServer({
   required QuizEngineBloc engine,
   String serverName = 'Quizmo Host',
+  WebClientBundle? webClient,
 }) => throw EmbeddedServerUnsupportedError(
   'Hosting is unavailable in the browser. Run the host on Android, iOS, '
   'macOS, Windows or Linux and join this browser tab as a player.',

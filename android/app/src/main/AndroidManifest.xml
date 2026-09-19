@@ -1,8 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required to open the embedded quiz server's listening socket and to
+         let this device join another host as a player. Flutter only adds this
+         to the debug/profile manifests, so a release build would fail to bind
+         without it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Reading the Wi-Fi state lets the host tell the user when Wi-Fi is off
+         and the announced LAN address would be unreachable. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
     <application
         android:label="quizmo"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"

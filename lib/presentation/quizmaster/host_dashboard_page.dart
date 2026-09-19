@@ -11,6 +11,7 @@ import '../../core/data/sample_quiz.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
+import '../common/bundled_web_client.dart';
 import '../common/scoreboard_view.dart';
 import '../player/player_page.dart';
 import 'dashboard_panels.dart';
@@ -33,8 +34,12 @@ class HostDashboardPage extends StatelessWidget {
           ),
         ),
         BlocProvider<HostServerCubit>(
-          create: (context) =>
-              HostServerCubit(engine: context.read<QuizEngineBloc>()),
+          create: (context) => HostServerCubit(
+            engine: context.read<QuizEngineBloc>(),
+            // Lets guests load the player client straight from this device, so
+            // the LAN address is all they need.
+            webClient: bundledWebClient(),
+          ),
         ),
       ],
       child: const _HostDashboardView(),

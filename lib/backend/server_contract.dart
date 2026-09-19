@@ -8,6 +8,8 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'lan_addresses.dart';
+
 /// Severity of a [ServerLogEntry].
 enum ServerLogLevel {
   /// Routine lifecycle information.
@@ -50,20 +52,32 @@ final class ServerEndpoint extends Equatable {
   /// TCP port the server is bound to.
   final int port;
 
-  /// Every IPv4 address the server answers on, loopback first.
+  /// Every IPv4 address the server answers on, **best candidate first** and
+  /// loopback last.
+  ///
+  /// The order is produced by `sortLanAddresses` in `lan_addresses.dart`: a
+  /// phone on Wi-Fi and mobile data at the same time reports several addresses
+  /// and only one of them is routable for a guest.
   final List<String> addresses;
 
   /// The address a phone on the same Wi-Fi should use.
   String get lanAddress => addresses.firstWhere(
-    (address) => address != '127.0.0.1',
-    orElse: () => addresses.isEmpty ? '127.0.0.1' : addresses.first,
+    (address) => address != kLoopbackAddress,
+    orElse: () => addresses.isEmpty ? kLoopbackAddress : addresses.first,
   );
+
+  /// Every address a guest could try, best first, without loopback.
+  ///
+  /// Rendered by the dashboard so the host can fall back to a second address
+  /// when the announced one turns out to be unreachable.
+  List<String> get joinableAddresses =>
+      addresses.where((address) => address != kLoopbackAddress).toList();
 
   /// Base URI for [lanAddress].
   Uri get lanUri => uriFor(lanAddress);
 
   /// Base URI for a client running on the hosting device itself.
-  Uri get loopbackUri => uriFor('127.0.0.1');
+  Uri get loopbackUri => uriFor(kLoopbackAddress);
 
   /// Returns the base URI for [address].
   Uri uriFor(String address) => Uri.parse('http://$address:$port');
@@ -94,6 +108,13 @@ abstract interface class EmbeddedQuizServer {
 
   /// Number of open web socket connections.
   int get connectionCount;
+
+  /// Whether a non-empty web player bundle is being served at `/`.
+  ///
+  /// When `true`, a guest can join by opening [endpoint] in a browser; when
+  /// `false`, they need the Quizmo app because `/` only answers with a
+  /// placeholder.
+  bool get servesWebClient;
 
   /// Diagnostic feed rendered on the host dashboard.
   Stream<ServerLogEntry> get logs;

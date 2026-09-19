@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../backend/server_contract.dart';
 import '../../backend/server_launcher.dart';
+import '../../backend/web_client_bundle.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 
 /// Lifecycle of the embedded server.
@@ -34,6 +35,7 @@ final class HostServerState extends Equatable {
     this.port = defaultServerPort,
     this.error,
     this.logs = const [],
+    this.servesWebClient = false,
   });
 
   /// Current lifecycle position.
@@ -51,6 +53,9 @@ final class HostServerState extends Equatable {
   /// Most recent diagnostic lines, newest last.
   final List<ServerLogEntry> logs;
 
+  /// Whether guests can join by simply opening [endpoint] in a browser.
+  final bool servesWebClient;
+
   /// Whether hosting is possible on this platform at all.
   bool get isSupported => embeddedServerSupported;
 
@@ -61,6 +66,7 @@ final class HostServerState extends Equatable {
     int? port,
     String? error,
     List<ServerLogEntry>? logs,
+    bool? servesWebClient,
     bool clearEndpoint = false,
     bool clearError = false,
   }) => HostServerState(
@@ -69,18 +75,33 @@ final class HostServerState extends Equatable {
     port: port ?? this.port,
     error: clearError ? null : error ?? this.error,
     logs: logs ?? this.logs,
+    servesWebClient: servesWebClient ?? this.servesWebClient,
   );
 
   @override
-  List<Object?> get props => [status, endpoint, port, error, logs];
+  List<Object?> get props => [
+    status,
+    endpoint,
+    port,
+    error,
+    logs,
+    servesWebClient,
+  ];
 }
 
 /// Starts and stops the embedded host and mirrors its log feed.
 class HostServerCubit extends Cubit<HostServerState> {
   /// Creates a controller that publishes the session owned by [engine].
-  HostServerCubit({required QuizEngineBloc engine, this.serverName = 'Quizmo Host'})
-    : _engine = engine,
-      super(const HostServerState());
+  ///
+  /// [webClient] is handed to the server so guests can load the Flutter Web
+  /// player straight from the host; `null` keeps the host API-only.
+  HostServerCubit({
+    required QuizEngineBloc engine,
+    this.serverName = 'Quizmo Host',
+    WebClientBundle? webClient,
+  }) : _engine = engine,
+       _webClient = webClient,
+       super(const HostServerState());
 
   /// Friendly name announced to clients.
   final String serverName;
@@ -89,6 +110,7 @@ class HostServerCubit extends Cubit<HostServerState> {
   static const int maxLogLines = 100;
 
   final QuizEngineBloc _engine;
+  final WebClientBundle? _webClient;
   EmbeddedQuizServer? _server;
   StreamSubscription<ServerLogEntry>? _logSubscription;
 
@@ -111,6 +133,7 @@ class HostServerCubit extends Cubit<HostServerState> {
       final server = createEmbeddedServer(
         engine: _engine,
         serverName: serverName,
+        webClient: _webClient,
       );
       _server = server;
       _logSubscription = server.logs.listen(_appendLog);
@@ -120,6 +143,7 @@ class HostServerCubit extends Cubit<HostServerState> {
           status: HostServerStatus.running,
           endpoint: endpoint,
           port: endpoint.port,
+          servesWebClient: server.servesWebClient,
         ),
       );
     } on Object catch (error) {
@@ -129,6 +153,7 @@ class HostServerCubit extends Cubit<HostServerState> {
           status: HostServerStatus.failed,
           error: '$error',
           clearEndpoint: true,
+          servesWebClient: false,
         ),
       );
     }
@@ -138,7 +163,11 @@ class HostServerCubit extends Cubit<HostServerState> {
   Future<void> stop() async {
     await _teardown();
     emit(
-      state.copyWith(status: HostServerStatus.stopped, clearEndpoint: true),
+      state.copyWith(
+        status: HostServerStatus.stopped,
+        clearEndpoint: true,
+        servesWebClient: false,
+      ),
     );
   }
 

@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/models/models.dart';
 import '../../core/net/quiz_client.dart';
 import '../../core/sync/clock.dart';
+import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/adaptive_layout.dart';
 import '../common/scoreboard_view.dart';
 import 'player_session_cubit.dart';
@@ -103,16 +104,23 @@ class _JoinFormState extends State<_JoinForm> {
 
   /// Guesses a sensible default host address.
   ///
-  /// On the web the page is very likely served from a dev server on the same
-  /// machine as the host, and `?host=` allows sharing a ready-made join link.
+  /// When the page was served by the embedded host itself — the normal case for
+  /// a guest who just opened the LAN address — its own origin *is* the host,
+  /// port included. `?host=` still wins so a ready-made join link can point at
+  /// a different device, and a dev server on port 5xxx falls back to the
+  /// default host port.
   String _defaultHost() {
     if (widget.initialHostUri != null) {
       return widget.initialHostUri.toString();
     }
     final fromQuery = Uri.base.queryParameters['host'];
     if (fromQuery != null && fromQuery.isNotEmpty) return fromQuery;
-    if (kIsWeb) return 'http://${Uri.base.host}:8080';
-    return 'http://127.0.0.1:8080';
+    if (kIsWeb) {
+      return Uri.base.port == defaultServerPort
+          ? Uri.base.origin
+          : 'http://${Uri.base.host}:$defaultServerPort';
+    }
+    return 'http://127.0.0.1:$defaultServerPort';
   }
 
   @override

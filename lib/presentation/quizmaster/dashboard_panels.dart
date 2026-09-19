@@ -83,6 +83,9 @@ class ServerControlPanel extends StatelessWidget {
               _CopyableUri(label: 'This device', uri: endpoint.loopbackUri),
               InfoRow(label: 'Port', value: '${endpoint.port}'),
               InfoRow(label: 'Joined players', value: '$connectedPlayers'),
+              _AlternativeAddresses(endpoint: endpoint),
+              const SizedBox(height: 8),
+              _WebClientHint(isServed: state.servesWebClient),
             ] else
               InfoRow(label: 'Port', value: '${state.port}'),
             if (state.error case final error?) ...[
@@ -97,6 +100,99 @@ class ServerControlPanel extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Offers the runner-up addresses when a device has more than one.
+///
+/// The announced address is the best *guess* — a phone on Wi-Fi and mobile data
+/// reports several, and a VPN or a second network card can still outrank the
+/// right one. Showing the alternatives turns a dead-end
+/// `ERR_CONNECTION_TIMED_OUT` into a one-tap retry.
+class _AlternativeAddresses extends StatelessWidget {
+  const _AlternativeAddresses({required this.endpoint});
+
+  final ServerEndpoint endpoint;
+
+  @override
+  Widget build(BuildContext context) {
+    final alternatives = endpoint.joinableAddresses
+        .where((address) => address != endpoint.lanAddress)
+        .toList();
+    if (alternatives.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'If the LAN address times out, try:',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final address in alternatives)
+                ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: const Icon(Icons.content_copy, size: 14),
+                  label: Text('$address:${endpoint.port}'),
+                  onPressed: () => Clipboard.setData(
+                    ClipboardData(text: endpoint.uriFor(address).toString()),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tells the host whether guests can join straight from a browser.
+///
+/// The player client is bundled into the app by
+/// `dart run tool/bundle_web_client.dart`; without it the host is API-only and
+/// guests need the Quizmo app.
+class _WebClientHint extends StatelessWidget {
+  const _WebClientHint({required this.isServed});
+
+  final bool isServed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colour = isServed
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          isServed ? Icons.public : Icons.public_off,
+          size: 16,
+          color: colour,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            isServed
+                ? 'Web player is hosted — guests can just open the LAN address '
+                      'in a browser.'
+                : 'Web player not bundled. Guests need the app, or run '
+                      '`dart run tool/bundle_web_client.dart` and rebuild.',
+            style: theme.textTheme.bodySmall?.copyWith(color: colour),
+          ),
+        ),
+      ],
     );
   }
 }
