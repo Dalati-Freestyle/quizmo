@@ -70,6 +70,13 @@ lib/
 * Implement rules inside `lib/core/engine/scoring_rules.dart`.
 * Always write unit tests under `test/core/engine/` for any new scoring rule or team aggregation logic before connecting it to UI components.
 
+### Adding/Editing a Quiz
+1. Keep the reusable aggregate in `lib/core/models/quiz.dart`: hand-write its JSON on top of `json.dart`, including its `schemaVersion`; do not introduce generated model code.
+2. Reuse `Question.fromJson` / `Question.toJson` and `Team.fromJson` / `Team.toJson`. The only string-to-subtype dispatch belongs at those deserialization boundaries; editor rendering and validation must exhaustively pattern-match the sealed hierarchy.
+3. Validate an imported file fully before calling the repository. A malformed file, an unknown tag or an invalid multiple-choice solution must leave the persisted library untouched; regenerate IDs on collision instead of overwriting an existing quiz.
+4. Keep persistent storage and file transfer behind conditional exports. Nothing reachable from `main.dart` may import `dart:io` unconditionally; browser persistence must work or fail loudly with an actionable explanation.
+5. The host must receive the selected `Quiz` before it creates its `QuizEngineBloc`. Never swap a question bank into an already running engine: keep the existing engine, clock-sync and buzzer guarantees intact.
+
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs
 the LAN address — no install, no second web server.

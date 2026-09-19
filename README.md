@@ -55,7 +55,9 @@ hosted by a Flutter app, by a `dart run` binary or by a Docker container.
 lib/
 ├── core/                              # Pure Dart. No Flutter. No dart:io.
 │   ├── data/
-│   │   └── sample_quiz.dart           # const demo question bank + teams
+│   │   ├── quiz_import_export.dart    # validated standalone *.quizmo.json files
+│   │   ├── quiz_repository.dart       # pure Dart library contract + JSON store
+│   │   └── sample_quiz.dart           # demo seed / fallback question bank + teams
 │   ├── engine/
 │   │   ├── quiz_engine_bloc.dart      # the state machine
 │   │   ├── quiz_engine_event.dart     # StartRound / SubmitAnswer / BuzzerPress / TimeSync / …
@@ -68,6 +70,7 @@ lib/
 │   │   ├── models.dart                # barrel
 │   │   ├── player.dart                # Player (name, team, clock quality)
 │   │   ├── question.dart              # sealed Question → MultipleChoiceQuestion | BuzzerQuestion
+│   │   ├── quiz.dart                  # reusable, versioned Quiz aggregate
 │   │   ├── round.dart                 # RoundState + RoundStatus
 │   │   ├── score.dart                 # ScoreState + ScoreEvent history
 │   │   └── team.dart                  # Team
@@ -109,6 +112,11 @@ lib/
 │   │       └── multiple_choice_question_view.dart
 │   └── quizmaster/
 │       ├── dashboard_panels.dart      # server / players / bank / live round / log
+│       ├── editor/
+│       │   ├── quiz_library_page.dart # choose, import, export, and manage quizzes
+│       │   ├── quiz_editor_page.dart  # metadata, teams, order, and question bank
+│       │   ├── question_editor.dart   # exhaustive MC / buzzer + scoring editor
+│       │   └── quiz_*_{io,web,stub}.dart # conditional persistence / transfer
 │       ├── host_dashboard_page.dart
 │       └── host_server_cubit.dart
 └── main.dart
@@ -120,9 +128,13 @@ test/
 ├── backend/static_handlers_test.dart  # MIME types, SPA fallback, traversal
 ├── core/engine/quiz_engine_bloc_test.dart
 ├── core/engine/scoring_rules_test.dart
+├── core/data/quiz_import_export_test.dart
+├── core/data/quiz_repository_test.dart
+├── core/models/quiz_test.dart
 ├── core/protocol/messages_test.dart
 ├── core/sync/clock_sync_test.dart
 ├── presentation/buzzer_button_test.dart
+├── presentation/quizmaster/editor/quiz_editor_page_test.dart
 └── widget_test.dart
 
 tool/
@@ -154,8 +166,10 @@ Skip it and everything still works; the host just serves a placeholder page at
 flutter run -d windows
 ```
 
-1. On the host: **Host a quiz → Start server**. The dashboard shows the LAN URL,
-   for example `http://192.168.1.42:8080` (tap to copy).
+1. On the host: **Host a quiz → choose a quiz → Host this quiz**, then start the
+   server. The library persists locally across restarts and seeds the bundled
+   sample quiz if it is empty. The dashboard shows the LAN URL, for example
+   `http://192.168.1.42:8080` (tap to copy).
 2. Open that URL on any phone or laptop on the same Wi-Fi. The bundled player
    loads straight from the host and pre-fills its own origin as the host
    address, so guests only enter a name and pick a team.
@@ -386,6 +400,27 @@ a client cannot buzz on somebody else's behalf.
 1. Add a subclass to `lib/core/engine/scoring_rules.dart` and register its tag.
 2. Add a unit test under `test/core/engine/` **before** wiring it into the UI.
 
+### Creating and editing a quiz
+
+1. Open **Manage quiz library** on the start screen. Create a quiz or edit the
+   seeded sample, then configure its name, description, category and optional
+   teams.
+2. Add, edit, delete or drag questions into order. The editor supports both
+   `MultipleChoiceQuestion` and `BuzzerQuestion`, their time limits and every
+   existing `ScoringRule` configuration.
+3. Use the menu on a library card to export one human-readable
+   `*.quizmo.json` document, or use the import button to select one. Imports
+   validate JSON, schema version, question/rule tags and multiple-choice
+   solutions before touching local storage. A colliding ID is regenerated, so
+   importing never overwrites an existing quiz.
+4. The library is stored locally with `shared_preferences`: on web it is
+   browser-local, while native platforms use their local application storage.
+   File picking and downloads/sharing are platform-aware; unsupported targets
+   fail with a visible explanation rather than silently discarding data.
+
+The quizmaster/editor route is defer-loaded from the role screen. Browser
+players therefore do not load host administration code on their initial path.
+
 ### Known gaps (deliberate for an MVP)
 
 * **`freezed` / `json_serializable`** are declared in `pubspec.yaml` but not yet
@@ -395,7 +430,6 @@ a client cannot buzz on somebody else's behalf.
   API of every model already matches what `freezed` would emit.
 * **`nsd` (mDNS auto discovery)** is declared but unused; players type or scan
   the LAN URL. The `ServerEndpoint` model is the natural place to plug it in.
-* No persistence: a host restart clears the session.
 * No authentication: anybody on the LAN can join, which is the point for a
   living-room quiz but not for the public internet.
 
