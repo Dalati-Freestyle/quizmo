@@ -1,0 +1,250 @@
+/// Player side controller wrapping the pure Dart [QuizClient].
+library;
+
+import 'dart:async';
+
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+
+import '../../core/models/models.dart';
+import '../../core/net/quiz_client.dart';
+import '../../core/protocol/messages.dart';
+
+/// UI state of the player screens.
+final class PlayerSessionState extends Equatable {
+  /// Creates a player session state.
+  const PlayerSessionState({
+    this.status = QuizClientStatus.disconnected,
+    this.game,
+    this.playerId,
+    this.serverName,
+    this.error,
+    this.clockOffsetMicros = 0,
+    this.roundTripMicros = 0,
+    this.lastSubmittedOptionId,
+    this.hasBuzzed = false,
+  });
+
+  /// Connection lifecycle.
+  final QuizClientStatus status;
+
+  /// Latest redacted snapshot pushed by the host.
+  final GameState? game;
+
+  /// Server assigned identifier of this player.
+  final String? playerId;
+
+  /// Friendly name of the host.
+  final String? serverName;
+
+  /// Message of the last failure.
+  final String? error;
+
+  /// Measured `client - host` clock offset.
+  final int clockOffsetMicros;
+
+  /// Round trip time backing the offset.
+  final int roundTripMicros;
+
+  /// Option this client already sent for the running round.
+  final String? lastSubmittedOptionId;
+
+  /// Whether this client already buzzed in the running round.
+  final bool hasBuzzed;
+
+  /// Whether the socket is open and the join was accepted.
+  bool get isConnected => status == QuizClientStatus.connected;
+
+  /// The question currently on stage.
+  Question? get question => game?.round.question;
+
+  /// The round lifecycle position reported by the host.
+  RoundStatus get roundStatus => game?.round.status ?? RoundStatus.idle;
+
+  /// This player's entry in the broadcast snapshot.
+  Player? get me {
+    final id = playerId;
+    return id == null ? null : game?.players[id];
+  }
+
+  /// Current score of this player.
+  int get myScore => playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0;
+
+  /// Estimated one way latency to the host.
+  Duration get latency => Duration(microseconds: roundTripMicros ~/ 2);
+
+  /// Returns a copy with the given fields replaced.
+  PlayerSessionState copyWith({
+    QuizClientStatus? status,
+    GameState? game,
+    String? playerId,
+    String? serverName,
+    String? error,
+    int? clockOffsetMicros,
+    int? roundTripMicros,
+    String? lastSubmittedOptionId,
+    bool? hasBuzzed,
+    bool clearError = false,
+    bool clearSubmission = false,
+  }) => PlayerSessionState(
+    status: status ?? this.status,
+    game: game ?? this.game,
+    playerId: playerId ?? this.playerId,
+    serverName: serverName ?? this.serverName,
+    error: clearError ? null : error ?? this.error,
+    clockOffsetMicros: clockOffsetMicros ?? this.clockOffsetMicros,
+    roundTripMicros: roundTripMicros ?? this.roundTripMicros,
+    lastSubmittedOptionId: clearSubmission
+        ? null
+        : lastSubmittedOptionId ?? this.lastSubmittedOptionId,
+    hasBuzzed: clearSubmission ? false : hasBuzzed ?? this.hasBuzzed,
+  );
+
+  @override
+  List<Object?> get props => [
+    status,
+    game,
+    playerId,
+    serverName,
+    error,
+    clockOffsetMicros,
+    roundTripMicros,
+    lastSubmittedOptionId,
+    hasBuzzed,
+  ];
+}
+
+/// Drives one player client: handshake, join, buzz and answer.
+class PlayerSessionCubit extends Cubit<PlayerSessionState> {
+  /// Creates a disconnected session controller.
+  PlayerSessionCubit() : super(const PlayerSessionState());
+
+  QuizClient? _client;
+  StreamSubscription<GameState>? _gameSubscription;
+  StreamSubscription<QuizClientStatus>? _statusSubscription;
+  StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
+  String? _lastQuestionId;
+
+  /// Connects to the host at [baseUri] and joins as [name].
+  Future<void> connect({
+    required Uri baseUri,
+    required String name,
+    String? teamId,
+  }) async {
+    await _teardown();
+    emit(
+      PlayerSessionState(
+        status: QuizClientStatus.connecting,
+        playerId: state.playerId,
+      ),
+    );
+
+    final client = QuizClient(baseUri: baseUri);
+    _client = client;
+
+    _gameSubscription = client.games.listen(_onSnapshot);
+    _statusSubscription = client.statuses.listen((status) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          status: status,
+          playerId: client.playerId,
+          serverName: client.serverName,
+          clockOffsetMicros: client.clock.clockOffsetMicros,
+          roundTripMicros: client.clock.roundTripMicros,
+        ),
+      );
+    });
+    _errorSubscription = client.errors.listen((error) {
+      if (isClosed) return;
+      emit(state.copyWith(error: error.message));
+    });
+
+    try {
+      await client.connect(name: name, teamId: teamId);
+    } on Object catch (error) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(status: QuizClientStatus.failed, error: '$error'),
+      );
+    }
+  }
+
+  /// Sends a buzzer press for the question on stage.
+  ///
+  /// Called from `Listener.onPointerDown`, so the timestamp is taken as close
+  /// to the physical touch as the framework allows.
+  void buzz() {
+    final question = state.question;
+    if (question is! BuzzerQuestion || state.hasBuzzed) return;
+    _client?.pressBuzzer(question.id);
+    emit(state.copyWith(hasBuzzed: true));
+  }
+
+  /// Sends the choice [optionId] for the question on stage.
+  void choose(String optionId) {
+    final question = state.question;
+    if (question is! MultipleChoiceQuestion ||
+        state.lastSubmittedOptionId != null) {
+      return;
+    }
+    _client?.submitChoice(questionId: question.id, optionId: optionId);
+    emit(state.copyWith(lastSubmittedOptionId: optionId));
+  }
+
+  /// Leaves the session.
+  Future<void> disconnect() async {
+    await _teardown();
+    if (isClosed) return;
+    emit(const PlayerSessionState());
+  }
+
+  @override
+  Future<void> close() async {
+    await _teardown();
+    return super.close();
+  }
+
+  void _onSnapshot(GameState game) {
+    if (isClosed) return;
+    final questionId = game.round.question?.id;
+    final isNewRound = questionId != _lastQuestionId;
+    _lastQuestionId = questionId;
+
+    final client = _client;
+    final id = client?.playerId ?? state.playerId;
+
+    // The buzzer reopens after a wrong steal, so the local "already buzzed"
+    // guard has to follow the authoritative queue instead of latching forever.
+    final stillQueued =
+        id != null &&
+        game.round.buzzerQueue.any((press) => press.playerId == id);
+    final hasBuzzed = isNewRound
+        ? false
+        : stillQueued || !game.round.status.acceptsInput && state.hasBuzzed;
+
+    emit(
+      state.copyWith(
+        game: game,
+        playerId: id,
+        clockOffsetMicros: client?.clock.clockOffsetMicros,
+        roundTripMicros: client?.clock.roundTripMicros,
+        clearSubmission: isNewRound,
+        hasBuzzed: hasBuzzed,
+      ),
+    );
+  }
+
+  Future<void> _teardown() async {
+    await _gameSubscription?.cancel();
+    await _statusSubscription?.cancel();
+    await _errorSubscription?.cancel();
+    _gameSubscription = null;
+    _statusSubscription = null;
+    _errorSubscription = null;
+    _lastQuestionId = null;
+    await _client?.dispose();
+    _client = null;
+  }
+}
+
