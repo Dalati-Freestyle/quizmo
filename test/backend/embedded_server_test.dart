@@ -7,9 +7,13 @@
 @TestOn('vm')
 library;
 
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:quizmo/backend/embedded_server.dart';
+import 'package:quizmo/backend/web_client_bundle.dart';
 import 'package:quizmo/core/data/sample_quiz.dart';
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';
@@ -46,7 +50,14 @@ void main() {
       teams: sampleTeams,
       buzzerGraceWindow: const Duration(milliseconds: 250),
     );
-    server = EmbeddedServer(engine: engine, serverName: 'Test Host');
+    server = EmbeddedServer(
+      engine: engine,
+      serverName: 'Test Host',
+      webClient: InMemoryWebClientBundle({
+        'index.html': Uint8List.fromList(utf8.encode('<html>player</html>')),
+        'main.dart.js': Uint8List.fromList(utf8.encode('console.log(1)')),
+      }),
+    );
     // Port 0 lets the OS pick a free port, so parallel test runs cannot clash.
     final endpoint = await server.start(port: 0);
     baseUri = endpoint.loopbackUri;
@@ -148,6 +159,44 @@ void main() {
 
     expect(engine.state.game.connectedPlayers, isEmpty);
     expect(engine.state.game.players, hasLength(1));
+  });
+
+  group('web client hosting', () {
+    test('serves the bundled player at the site root', () async {
+      expect(server.servesWebClient, isTrue);
+
+      final response = await http.get(baseUri);
+
+      expect(response.statusCode, 200);
+      expect(response.headers['content-type'], startsWith('text/html'));
+      expect(response.body, '<html>player</html>');
+    });
+
+    test('keeps the API reachable behind the catch-all route', () async {
+      final response = await http.get(baseUri.resolve('/api/health'));
+
+      expect(response.statusCode, 200);
+      expect(
+        (jsonDecode(response.body) as Map<String, dynamic>)['serverName'],
+        'Test Host',
+      );
+    });
+
+    test('serves a placeholder page when no bundle is configured', () async {
+      final bare = EmbeddedServer(engine: engine, serverName: 'Bare Host');
+      addTearDown(bare.dispose);
+      final endpoint = await bare.start(port: 0);
+
+      expect(bare.servesWebClient, isFalse);
+
+      final response = await http.get(endpoint.loopbackUri);
+
+      expect(response.statusCode, 200);
+      expect(response.body, contains('Bare Host'));
+
+      final missing = await http.get(endpoint.loopbackUri.resolve('/nope.js'));
+      expect(missing.statusCode, 404);
+    });
   });
 }
 
