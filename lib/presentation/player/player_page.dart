@@ -11,6 +11,7 @@ import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/adaptive_layout.dart';
 import '../common/scoreboard_view.dart';
+import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/multiple_choice_question_view.dart';
@@ -93,6 +94,7 @@ class _JoinFormState extends State<_JoinForm> {
   late final TextEditingController _hostController;
   late final TextEditingController _nameController;
   final _formKey = GlobalKey<FormState>();
+  final _hostKey = GlobalKey<FormFieldState<String>>();
   String? _teamId;
 
   @override
@@ -128,6 +130,21 @@ class _JoinFormState extends State<_JoinForm> {
     _hostController.dispose();
     _nameController.dispose();
     super.dispose();
+  }
+
+  /// Opens the read-only TV view for the entered host instead of joining.
+  ///
+  /// Only the host field is validated: a spectator needs neither a name nor a
+  /// team, and never shows up in the roster.
+  void _spectate() {
+    final uri = Uri.tryParse(_hostController.text.trim());
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      _hostKey.currentState?.validate();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => TvPage(hostUri: uri)),
+    );
   }
 
   Future<void> _submit() async {
@@ -173,6 +190,7 @@ class _JoinFormState extends State<_JoinForm> {
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
+                  key: _hostKey,
                   controller: _hostController,
                   keyboardType: TextInputType.url,
                   decoration: const InputDecoration(
@@ -230,6 +248,12 @@ class _JoinFormState extends State<_JoinForm> {
                   label: Text(
                     isBusy ? 'Syncing clock…' : 'Connect and sync clock',
                   ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: isBusy ? null : _spectate,
+                  icon: const Icon(Icons.tv),
+                  label: const Text('Just watch (TV view)'),
                 ),
                 if (widget.state.error case final error?) ...[
                   const SizedBox(height: 16),

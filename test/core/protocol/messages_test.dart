@@ -35,6 +35,7 @@ void main() {
             clockOffsetMicros: 25,
           ),
         ),
+        const WatchRequest(),
         const LeaveNotice(),
       ];
 
@@ -60,6 +61,7 @@ void main() {
           serverName: 'Quizmo Host',
         ),
         const JoinAcceptedMessage(playerId: 'p1', hostTimeMicros: 99),
+        const WatchAcceptedMessage(),
         const SyncPong(clientSentAtMicros: 1, hostTimeMicros: 2),
         const ProtocolErrorMessage(code: 'badRequest', message: 'nope'),
         GameSnapshotMessage(

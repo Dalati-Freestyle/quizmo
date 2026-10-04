@@ -161,6 +161,64 @@ void main() {
     expect(engine.state.game.players, hasLength(1));
   });
 
+  group('spectator (TV) clients', () {
+    Future<QuizClient> watchAsTv() async {
+      final client = QuizClient(baseUri: baseUri);
+      clients.add(client);
+      await client.watch();
+      return client;
+    }
+
+    test('watch without joining the roster and receive live snapshots', () async {
+      final tv = await watchAsTv();
+
+      expect(tv.status, QuizClientStatus.connected);
+      expect(tv.playerId, isNull);
+      expect(engine.state.game.players, isEmpty);
+
+      final snapshot = tv.games.firstWhere(
+        (game) => game.round.question?.id == 'q-capital',
+      );
+      engine.add(const StartRoundEvent('q-capital'));
+
+      final game = await snapshot.timeout(const Duration(seconds: 5));
+      final question = game.round.question! as MultipleChoiceQuestion;
+      expect(question.correctOptionId, isNull, reason: 'TV must stay redacted');
+      expect(game.questionBank, isEmpty);
+    });
+
+    test('cannot influence a round', () async {
+      final tv = await watchAsTv();
+      engine.add(const StartRoundEvent('q-buzzer-element'));
+      await waitFor((state) => state.game.round.question != null);
+
+      tv.pressBuzzer('q-buzzer-element');
+      tv.submitChoice(questionId: 'q-capital', optionId: 'a');
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      expect(engine.state.game.round.buzzerQueue, isEmpty);
+      expect(engine.state.game.round.answers, isEmpty);
+    });
+
+    test('leaving does not touch the player roster', () async {
+      final ada = await joinAs('Ada');
+      final tv = await watchAsTv();
+
+      await tv.disconnect();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(engine.state.game.connectedPlayers, hasLength(1));
+      expect(engine.state.game.players.containsKey(ada.playerId), isTrue);
+    });
+
+    test('is served at /tv through the single page app fallback', () async {
+      final response = await http.get(baseUri.resolve('/tv'));
+
+      expect(response.statusCode, 200);
+      expect(response.body, '<html>player</html>');
+    });
+  });
+
   group('web client hosting', () {
     test('serves the bundled player at the site root', () async {
       expect(server.servesWebClient, isTrue);

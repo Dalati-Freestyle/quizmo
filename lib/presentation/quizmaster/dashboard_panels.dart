@@ -19,6 +19,7 @@ class ServerControlPanel extends StatelessWidget {
     required this.onStart,
     required this.onStop,
     required this.connectedPlayers,
+    this.onOpenTvPreview,
     super.key,
   });
 
@@ -33,6 +34,12 @@ class ServerControlPanel extends StatelessWidget {
 
   /// Number of joined players, rendered next to the endpoint.
   final int connectedPlayers;
+
+  /// Opens the spectator (TV) screen in a full-screen preview on this device.
+  ///
+  /// Handy to cast the host screen itself, for example with a cable or
+  /// "Cast screen"; the preview is the same view a TV browser would show.
+  final VoidCallback? onOpenTvPreview;
 
   @override
   Widget build(BuildContext context) {
@@ -81,11 +88,22 @@ class ServerControlPanel extends StatelessWidget {
             if (endpoint != null) ...[
               _CopyableUri(label: 'LAN', uri: endpoint.lanUri),
               _CopyableUri(label: 'This device', uri: endpoint.loopbackUri),
+              _CopyableUri(label: 'TV screen', uri: endpoint.lanTvUri),
               InfoRow(label: 'Port', value: '${endpoint.port}'),
               InfoRow(label: 'Joined players', value: '$connectedPlayers'),
               _AlternativeAddresses(endpoint: endpoint),
               const SizedBox(height: 8),
               _WebClientHint(isServed: state.servesWebClient),
+              const SizedBox(height: 8),
+              _TvScreenHint(isServed: state.servesWebClient),
+              if (onOpenTvPreview != null) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: onOpenTvPreview,
+                  icon: const Icon(Icons.tv),
+                  label: const Text('Open TV screen preview'),
+                ),
+              ],
             ] else
               InfoRow(label: 'Port', value: '${state.port}'),
             if (state.error case final error?) ...[
@@ -189,6 +207,42 @@ class _WebClientHint extends StatelessWidget {
                       'in a browser.'
                 : 'Web player not bundled. Guests need the app, or run '
                       '`dart run tool/bundle_web_client.dart` and rebuild.',
+            style: theme.textTheme.bodySmall?.copyWith(color: colour),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Explains how to put the spectator screen on a TV.
+///
+/// The TV screen is a route of the bundled web player (`/tv`), so it needs the
+/// same bundle as web guests. Anything that can open a URL can show it.
+class _TvScreenHint extends StatelessWidget {
+  const _TvScreenHint({required this.isServed});
+
+  final bool isServed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colour = isServed
+        ? theme.colorScheme.primary
+        : theme.colorScheme.onSurfaceVariant;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.tv, size: 16, color: colour),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            isServed
+                ? 'TV screen: open the link above in the browser of a smart TV '
+                      'or streaming stick, or cast a Chrome tab showing it. '
+                      'It never shows solutions before the reveal.'
+                : 'TV screen needs the bundled web player (see above).',
             style: theme.textTheme.bodySmall?.copyWith(color: colour),
           ),
         ),

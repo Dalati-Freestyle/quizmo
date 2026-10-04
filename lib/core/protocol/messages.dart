@@ -28,6 +28,7 @@ sealed class ClientMessage extends Equatable {
         SyncPing._type => SyncPing.fromJson(json),
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
+        WatchRequest._type => const WatchRequest(),
         LeaveNotice._type => const LeaveNotice(),
         final unknown => throw JsonContractException(
           'Unknown client message "$unknown".',
@@ -175,6 +176,23 @@ final class SubmissionMessage extends ClientMessage {
   List<Object?> get props => [submission];
 }
 
+/// Registers the connection as a read-only spectator, for example a TV.
+///
+/// A spectator is **not** a player: it creates no roster entry, needs no clock
+/// handshake, cannot submit answers and only receives the redacted snapshots.
+final class WatchRequest extends ClientMessage {
+  /// Creates a watch request.
+  const WatchRequest();
+
+  static const String _type = 'watch';
+
+  @override
+  JsonMap toJson() => const {'type': _type};
+
+  @override
+  List<Object?> get props => const [];
+}
+
 /// Announces a graceful disconnect.
 final class LeaveNotice extends ClientMessage {
   /// Creates a leave notice.
@@ -205,6 +223,7 @@ sealed class ServerMessage extends Equatable {
       switch (json.readString('type')) {
         WelcomeMessage._type => WelcomeMessage.fromJson(json),
         JoinAcceptedMessage._type => JoinAcceptedMessage.fromJson(json),
+        WatchAcceptedMessage._type => const WatchAcceptedMessage(),
         SyncPong._type => SyncPong.fromJson(json),
         GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
         ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
@@ -288,6 +307,20 @@ final class JoinAcceptedMessage extends ServerMessage {
 
   @override
   List<Object?> get props => [playerId, hostTimeMicros];
+}
+
+/// Confirms a [WatchRequest]; the first snapshot follows immediately.
+final class WatchAcceptedMessage extends ServerMessage {
+  /// Creates a watch confirmation.
+  const WatchAcceptedMessage();
+
+  static const String _type = 'watchAccepted';
+
+  @override
+  JsonMap toJson() => const {'type': _type};
+
+  @override
+  List<Object?> get props => const [];
 }
 
 /// Answers a [SyncPing] and closes one clock probe.

@@ -82,6 +82,14 @@ final class ServerEndpoint extends Equatable {
   /// Returns the base URI for [address].
   Uri uriFor(String address) => Uri.parse('http://$address:$port');
 
+  /// Address of the spectator (TV) screen served by the host at [address].
+  ///
+  /// Open it in the browser of a smart TV, a streaming stick or a casted tab.
+  Uri tvUriFor(String address) => uriFor(address).replace(path: '/tv');
+
+  /// Spectator screen reachable from the local network.
+  Uri get lanTvUri => tvUriFor(lanAddress);
+
   @override
   List<Object?> get props => [port, addresses];
 }

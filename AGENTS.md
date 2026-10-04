@@ -90,6 +90,19 @@ the LAN address — no install, no second web server.
    `pubspec.yaml` only bundles files directly inside a declared asset folder, so
    the single zip is what keeps that list from rotting.
 
+### Changing the TV (Spectator) Screen
+`http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,
+streaming stick, casted tab). It is a route of the same web bundle, so rebuild
+it with `dart run tool/bundle_web_client.dart` after every change.
+
+1. A TV connects with `WatchRequest` (`QuizClient.watch`), **never** `JoinRequest`: no roster entry,
+   no clock sync, no submissions. The hub answers with `WatchAcceptedMessage` and the redacted snapshot.
+2. The TV only ever renders the redacted snapshot; never add host-only data to it.
+3. `lib/presentation/spectator/` renders on a fixed 1920×1080 canvas (`TvScreen`) scaled with `FittedBox`.
+   Keep text ≥ 22 px, show at most 8 leaderboard rows and switch exhaustively over the sealed `Question` hierarchy.
+4. `SpectatorSessionCubit` must keep reconnecting forever (the TV runs unattended) and keep the last snapshot.
+5. `main()` decides via `isTvLaunchUri(Uri.base)` *before* `runApp`, because Flutter Web rewrites the address bar.
+
 ---
 
 ## 5. Performance & UX Rules

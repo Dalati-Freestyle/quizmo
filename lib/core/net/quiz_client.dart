@@ -161,6 +161,45 @@ class QuizClient {
     }
   }
 
+  /// Watches the session as a read-only spectator, for example on a TV.
+  ///
+  /// Unlike [connect] this skips the clock handshake and never creates a
+  /// player: the host only streams redacted snapshots to this client, and
+  /// [pressBuzzer] / [submitChoice] stay no-ops because [playerId] is `null`.
+  Future<void> watch({
+    Duration joinTimeout = const Duration(seconds: 10),
+  }) async {
+    await disconnect();
+    _emitStatus(QuizClientStatus.connecting);
+    _lastError = null;
+
+    try {
+      final channel = WebSocketChannel.connect(_socketUri);
+      _channel = channel;
+      await channel.ready;
+
+      final accepted = Completer<void>();
+      _joinCompleter = accepted;
+
+      _socketSubscription = channel.stream.listen(
+        _onFrame,
+        onDone: _onSocketClosed,
+        onError: (Object error) {
+          _failJoin(error);
+          _lastError = error;
+          _emitStatus(QuizClientStatus.failed);
+        },
+      );
+
+      _send(const WatchRequest());
+      await accepted.future.timeout(joinTimeout);
+    } on Object catch (error) {
+      _lastError = error;
+      _emitStatus(QuizClientStatus.failed);
+      rethrow;
+    }
+  }
+
   /// Sends a buzzer press for [questionId].
   ///
   /// The press is stamped with the *local* clock; the host timeline value is
@@ -280,6 +319,10 @@ class QuizClient {
         _serverName = serverName;
       case JoinAcceptedMessage(:final playerId):
         _playerId = playerId;
+        _joinCompleter?.complete();
+        _joinCompleter = null;
+        _emitStatus(QuizClientStatus.connected);
+      case WatchAcceptedMessage():
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);

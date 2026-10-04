@@ -28,6 +28,9 @@ final class _Connection {
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
 
+  /// Whether this socket only watches (TV screen); it never owns a player.
+  bool isSpectator = false;
+
   void send(ServerMessage message) {
     try {
       channel.sink.add(message.encode());
@@ -152,6 +155,16 @@ class SocketHub {
           GameSnapshotMessage(_engine.state.game.redactedForPlayers()),
         );
         _log(ServerLogLevel.info, '$name joined as $playerId.');
+
+      case WatchRequest():
+        // Spectators are deliberately anonymous: no roster entry, no clock
+        // sync and no way to submit, so a TV can never influence a round.
+        connection.isSpectator = true;
+        connection.send(const WatchAcceptedMessage());
+        connection.send(
+          GameSnapshotMessage(_engine.state.game.redactedForPlayers()),
+        );
+        _log(ServerLogLevel.info, 'Spectator ${connection.id} is watching.');
 
       case SyncPing(:final clientSentAtMicros):
         // Stamped last so that parsing cost is not attributed to the network.

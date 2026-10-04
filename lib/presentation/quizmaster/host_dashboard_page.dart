@@ -13,6 +13,7 @@ import '../common/adaptive_layout.dart';
 import '../common/bundled_web_client.dart';
 import '../common/scoreboard_view.dart';
 import '../player/player_page.dart';
+import '../spectator/tv_page.dart';
 import 'dashboard_panels.dart';
 import 'host_server_cubit.dart';
 
@@ -64,10 +65,30 @@ class _HostDashboardView extends StatelessWidget {
           builder: (context, serverState) {
             final game = engineState.game;
 
+            // The preview connects through loopback (always reachable on this
+            // device) but tells players the LAN address they can really use.
+            VoidCallback? openTvPreview;
+            if (serverState.endpoint case final endpoint?) {
+              openTvPreview = () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  fullscreenDialog: true,
+                  builder: (_) => TvPage(
+                    hostUri: endpoint.loopbackUri,
+                    joinUri: endpoint.lanUri,
+                  ),
+                ),
+              );
+            }
+
             return Scaffold(
               appBar: AppBar(
                 title: Text('Quizmaster · $quizName'),
                 actions: [
+                  IconButton(
+                    tooltip: 'Preview the TV screen',
+                    onPressed: openTvPreview,
+                    icon: const Icon(Icons.tv),
+                  ),
                   IconButton(
                     tooltip: 'Join this session as a local player',
                     onPressed: serverState.endpoint == null
@@ -121,6 +142,7 @@ class _HostDashboardView extends StatelessWidget {
                   ServerControlPanel(
                     state: serverState,
                     connectedPlayers: game.connectedPlayers.length,
+                    onOpenTvPreview: openTvPreview,
                     onStart: () => context.read<HostServerCubit>().start(),
                     onStop: () => context.read<HostServerCubit>().stop(),
                   ),
