@@ -20,7 +20,8 @@ void main() {
 
   JeopardyBoard board() => switch (cubit.state.draft.format) {
     JeopardyFormat(:final board) => board,
-    StandardFormat() => throw StateError('Not a Jeopardy quiz.'),
+    StandardFormat() ||
+    PokerFormat() => throw StateError('Not a Jeopardy quiz.'),
   };
 
   setUp(() {
@@ -117,17 +118,19 @@ void main() {
     expect(board().cellAt(0, 0).isDailyDouble, isTrue);
   });
 
-  test('a half filled board saves, an invalid one reports the problem', () async {
-    cubit.saveCellQuestion(
-      category: 0,
-      row: 0,
-      question: const BuzzerQuestion(id: 'q1', prompt: 'One'),
-    );
-    expect(await cubit.save(), isNotNull);
+  test(
+    'a half filled board saves, an invalid one reports the problem',
+    () async {
+      cubit.saveCellQuestion(
+        category: 0,
+        row: 0,
+        question: const BuzzerQuestion(id: 'q1', prompt: 'One'),
+      );
+      expect(await cubit.save(), isNotNull);
 
-    cubit.setRowPoints(0, -5);
-    expect(await cubit.save(), isNull);
-    expect(cubit.state.error, contains('positive point value'));
-  });
+      cubit.setRowPoints(0, -5);
+      expect(await cubit.save(), isNull);
+      expect(cubit.state.error, contains('positive point value'));
+    },
+  );
 }
-

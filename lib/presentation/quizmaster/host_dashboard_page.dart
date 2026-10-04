@@ -34,9 +34,13 @@ class HostDashboardPage extends StatelessWidget {
             questionBank: quiz.questions,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
+            pokerStartingChips: switch (quiz.format) {
+              PokerFormat(:final startingChips) => startingChips,
+              StandardFormat() || JeopardyFormat() => null,
+            },
             jeopardyBoard: switch (quiz.format) {
               JeopardyFormat(:final board) => board,
-              StandardFormat() => null,
+              StandardFormat() || PokerFormat() => null,
             },
           ),
         ),
@@ -144,6 +148,31 @@ class _HostDashboardView extends StatelessWidget {
                     onNext: () => engine.add(const NextQuestionEvent()),
                     onCloseRound: () => engine.add(const CloseRoundEvent()),
                   ),
+                  if (game.poker case final poker?)
+                    PanelCard(
+                      title: 'Pokerchips',
+                      icon: Icons.casino_outlined,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            '${poker.startingChips} Startchips pro Team · ${poker.betting ? "Einsatzphase" : "Antwortphase"}',
+                          ),
+                          for (final team in game.teams.values)
+                            Text(
+                              '${team.name}: ${poker.chips[team.id] ?? 0} Chips · Einsatz: ${poker.wagers[team.id] ?? "–"}',
+                            ),
+                          if (poker.betting)
+                            FilledButton(
+                              onPressed: () =>
+                                  engine.add(const OpenPokerAnswersEvent()),
+                              child: const Text(
+                                'Einsätze schließen & Antworten öffnen',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   if (game.jeopardy case final jeopardy?)
                     JeopardyBoardPanel(
                       game: game,
@@ -165,7 +194,9 @@ class _HostDashboardView extends StatelessWidget {
                     onStop: () => context.read<HostServerCubit>().stop(),
                   ),
                   PanelCard(
-                    title: 'Scoreboard · ${game.mode.label}',
+                    title: game.poker == null
+                        ? 'Scoreboard · ${game.mode.label}'
+                        : 'Pokerchips · Teams',
                     icon: Icons.leaderboard_outlined,
                     child: ScoreboardView(game: game),
                   ),

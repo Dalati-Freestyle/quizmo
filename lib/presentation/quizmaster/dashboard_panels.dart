@@ -522,7 +522,9 @@ class QuestionBankPanel extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${question.kindLabel} · ${question.scoringRule.label}',
+                          game.poker == null
+                              ? '${question.kindLabel} · ${question.scoringRule.label}'
+                              : '${question.kindLabel} · Teameinsatz in Chips',
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -956,6 +958,11 @@ class _RoundActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = state.game;
     final round = game.round;
+    if (game.poker?.betting ?? false) {
+      return const Text(
+        'Einsatzphase: Einsätze im Pokerchips-Panel schließen.',
+      );
+    }
     final activeName = game.activePlayer?.name;
     final jeopardy = game.jeopardy;
     final passesToOthers =

@@ -284,3 +284,8 @@ ScoreDelta evaluateAccuracy(
         )
       : delta;
 }
+
+// The stake has already been deducted when betting. Only a fully correct
+// answer returns twice the stake; a miss or no answer returns nothing.
+int pokerChipPayout({required int wager, required bool isCorrect}) =>
+    isCorrect ? wager * 2 : 0;

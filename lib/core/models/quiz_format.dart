@@ -26,6 +26,7 @@ sealed class QuizFormat extends Equatable {
   /// Deserialization boundary: the only place that maps wire tags to types.
   static QuizFormat fromJson(JsonMap json) => switch (json.readString('type')) {
     StandardFormat._type => const StandardFormat(),
+    'poker' => PokerFormat(startingChips: json.readInt('startingChips')),
     JeopardyFormat._type => JeopardyFormat(
       JeopardyBoard.fromJson(json.readObject('board')),
     ),
@@ -70,4 +71,15 @@ final class JeopardyFormat extends QuizFormat {
 
   @override
   List<Object?> get props => [board];
+}
+
+final class PokerFormat extends QuizFormat {
+  const PokerFormat({this.startingChips = 100});
+  final int startingChips;
+  @override
+  String get label => 'Pokerchips';
+  @override
+  JsonMap toJson() => {'type': 'poker', 'startingChips': startingChips};
+  @override
+  List<Object?> get props => [startingChips];
 }

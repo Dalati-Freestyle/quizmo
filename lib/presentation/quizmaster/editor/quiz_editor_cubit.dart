@@ -144,6 +144,13 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     _replaceDraft(state.draft.copyWith(format: JeopardyFormat(board)));
   }
 
+  void usePokerFormat({int startingChips = 100}) {
+    if (_board case final board?) _stashedBoard = board;
+    _replaceDraft(
+      state.draft.copyWith(format: PokerFormat(startingChips: startingChips)),
+    );
+  }
+
   /// Switches the two board rules.
   void updateBoardRules({bool? penalizeWrongAnswers, bool? allowSteal}) =>
       _updateBoard(
@@ -302,7 +309,7 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
 
   JeopardyBoard? get _board => switch (state.draft.format) {
     JeopardyFormat(:final board) => board,
-    StandardFormat() => null,
+    StandardFormat() || PokerFormat() => null,
   };
 
   JeopardyBoard? _stashedBoard;

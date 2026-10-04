@@ -236,6 +236,11 @@ class QuizClient {
     );
   }
 
+  void placePokerWager({required String questionId, required int wager}) {
+    if (_playerId == null) return;
+    _send(PokerWagerMessage(questionId: questionId, wager: wager));
+  }
+
   void submitAnswer(
     AnswerSubmission Function(String playerId, int timestamp, int offset) build,
   ) {

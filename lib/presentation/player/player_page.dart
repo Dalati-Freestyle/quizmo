@@ -71,7 +71,9 @@ class _PlayerView extends StatelessWidget {
                     child: Chip(
                       visualDensity: VisualDensity.compact,
                       avatar: const Icon(Icons.star, size: 14),
-                      label: Text('${state.myScore}'),
+                      label: Text(
+                        '${state.myScore}${state.game?.poker == null ? "" : " Chips"}',
+                      ),
                     ),
                   ),
                 ),
@@ -321,7 +323,7 @@ class _GameBoard extends StatelessWidget {
             child: Column(
               children: [
                 PanelCard(
-                  title: 'Standings',
+                  title: game.poker == null ? 'Standings' : 'Pokerchips',
                   icon: Icons.leaderboard_outlined,
                   child: ScoreboardView(
                     game: game,
@@ -403,6 +405,13 @@ class _QuestionStage extends StatelessWidget {
     }
 
     final cubit = context.read<PlayerSessionCubit>();
+    if (state.game?.poker case final poker? when poker.betting) {
+      return PokerWagerView(
+        key: ValueKey(question.id),
+        state: state,
+        onWager: cubit.placePokerWager,
+      );
+    }
 
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
@@ -531,6 +540,20 @@ class _QuestionStage extends StatelessWidget {
         ],
       ],
     );
+    if (state.game?.poker case final poker?) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '${poker.chips[state.me?.teamId] ?? 0} Chips · Einsatz: ${poker.wagers[state.me?.teamId] ?? 0}',
+          ),
+          if (!state.mayAnswerPoker && state.roundStatus.acceptsInput)
+            const Text('Dein Team setzt aus oder wurde bereits gewertet.'),
+          const SizedBox(height: 12),
+          AbsorbPointer(absorbing: !state.mayAnswerPoker, child: view),
+        ],
+      );
+    }
     if (jeopardy == null || !jeopardy.hasActiveQuestion) return view;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -638,6 +661,72 @@ class _PlayerJeopardyBanner extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: mayAnswer ? scheme.primary : scheme.outline,
             ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class PokerWagerView extends StatefulWidget {
+  const PokerWagerView({required this.state, required this.onWager, super.key});
+  final PlayerSessionState state;
+  final ValueChanged<int> onWager;
+  @override
+  State<PokerWagerView> createState() => _PokerWagerViewState();
+}
+
+class _PokerWagerViewState extends State<PokerWagerView> {
+  final _controller = TextEditingController(text: '10');
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
+    final poker = state.game!.poker!;
+    final team = state.me?.teamId;
+    final chips = poker.chips[team] ?? 0;
+    final wager = poker.wagers[team];
+    final value = int.tryParse(_controller.text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          state.question!.prompt,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 16),
+        Text('Pokerchips · $chips Chips verfügbar'),
+        if (team == null)
+          const Text('Der Quizmaster muss dich einem Team zuweisen.')
+        else if (wager != null)
+          Text('Teameinsatz: $wager Chips. Warte auf die Antwortphase.')
+        else if (chips == 0)
+          const Text('Keine Chips mehr. Dein Team setzt aus.')
+        else ...[
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Einsatz (0–$chips)',
+              helperText: 'Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.',
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: value != null && value >= 0 && value <= chips
+                ? () => widget.onWager(value)
+                : null,
+            child: const Text('Teameinsatz bestätigen'),
+          ),
+          TextButton(
+            onPressed: () => widget.onWager(chips),
+            child: const Text('All-in'),
           ),
         ],
       ],

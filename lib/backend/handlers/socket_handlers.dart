@@ -211,6 +211,17 @@ class SocketHub {
             _engine.add(BuzzerPressEvent(trusted));
         }
 
+      case PokerWagerMessage(:final questionId, :final wager):
+        final playerId = connection.playerId;
+        if (playerId == null || connection.isSpectator) return;
+        _engine.add(
+          PlacePokerWagerEvent(
+            playerId: playerId,
+            questionId: questionId,
+            wager: wager,
+          ),
+        );
+
       case LeaveNotice():
         _onDisconnected(connection);
     }

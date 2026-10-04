@@ -119,25 +119,62 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                   const SizedBox(height: 8),
-                  SegmentedButton<bool>(
+                  SegmentedButton<int>(
                     showSelectedIcon: false,
                     segments: const [
                       ButtonSegment(
-                        value: false,
+                        value: 0,
                         icon: Icon(Icons.list_alt),
                         label: Text('Standard'),
                       ),
                       ButtonSegment(
-                        value: true,
+                        value: 1,
                         icon: Icon(Icons.grid_view),
                         label: Text('Jeopardy'),
                       ),
+                      ButtonSegment(
+                        value: 2,
+                        icon: Icon(Icons.casino_outlined),
+                        label: Text('Pokerchips'),
+                      ),
                     ],
-                    selected: {state.draft.format is JeopardyFormat},
-                    onSelectionChanged: (selection) => selection.first
-                        ? cubit.useJeopardyFormat()
-                        : cubit.useStandardFormat(),
+                    selected: {
+                      switch (state.draft.format) {
+                        StandardFormat() => 0,
+                        JeopardyFormat() => 1,
+                        PokerFormat() => 2,
+                      },
+                    },
+                    onSelectionChanged: (selection) {
+                      switch (selection.first) {
+                        case 0:
+                          cubit.useStandardFormat();
+                        case 1:
+                          cubit.useJeopardyFormat();
+                        case 2:
+                          cubit.usePokerFormat();
+                      }
+                    },
                   ),
+                  if (state.draft.format case PokerFormat(
+                    :final startingChips,
+                  )) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: '$startingChips',
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Startchips pro Team (1–1000000)',
+                      ),
+                      onChanged: (value) => cubit.usePokerFormat(
+                        startingChips: int.tryParse(value) ?? 0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -154,7 +191,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                 cubit: cubit,
                 createId: widget.createId,
               ),
-              StandardFormat() => _QuestionsPanel(
+              StandardFormat() || PokerFormat() => _QuestionsPanel(
                 questions: state.draft.questions,
                 onAddMultipleChoice: () => _editQuestion(
                   cubit,

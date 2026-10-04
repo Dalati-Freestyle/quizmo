@@ -66,10 +66,12 @@ final class TvStandings extends Equatable {
 /// Solo mode ranks players, team mode ranks teams. A large display cannot
 /// scroll, so at most [maxEntries] rows are returned and the rest is counted.
 TvStandings buildTvStandings(GameState game, {int maxEntries = 8}) {
-  final rows = switch (game.mode) {
-    SoloMode() => _playerRows(game),
-    TeamMode() => _teamRows(game),
-  };
+  final rows = game.poker != null
+      ? _teamRows(game)
+      : switch (game.mode) {
+          SoloMode() => _playerRows(game),
+          TeamMode() => _teamRows(game),
+        };
 
   final visible = rows.take(maxEntries).toList(growable: false);
   return TvStandings(

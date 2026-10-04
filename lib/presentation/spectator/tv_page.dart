@@ -679,7 +679,8 @@ class _LobbyStage extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final online = game.connectedPlayers;
-    final hasPlayed = game.scores.history.isNotEmpty;
+    final hasPlayed =
+        game.completedQuestionIds.isNotEmpty || game.scores.history.isNotEmpty;
     const maxChips = 14;
 
     return Column(
@@ -815,6 +816,13 @@ class _QuestionStage extends StatelessWidget {
                 spacing: 16,
                 runSpacing: 12,
                 children: [
+                  if (game.poker case final poker?)
+                    _Pill(
+                      label: poker.betting
+                          ? 'POKERCHIPS · EINSÄTZE'
+                          : 'POKERCHIPS · ANTWORTEN',
+                      color: scheme.primaryContainer,
+                    ),
                   if (boardCategory ?? question.category case final category?)
                     _Pill(label: category, color: scheme.tertiaryContainer),
                   if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
@@ -864,7 +872,9 @@ class _QuestionStage extends StatelessWidget {
         // clock disappears after the reveal.
         SizedBox(
           height: 56,
-          child: round.status == RoundStatus.acceptingAnswers
+          child:
+              round.status == RoundStatus.acceptingAnswers &&
+                  !(game.poker?.betting ?? false)
               ? _CountdownBar(state: state, limit: question.timeLimit)
               : null,
         ),
@@ -1488,7 +1498,7 @@ class _StandingsPanel extends StatelessWidget {
               Icon(Icons.leaderboard, size: 44, color: scheme.primary),
               const SizedBox(width: 16),
               Text(
-                'Standings',
+                game.poker == null ? 'Standings' : 'Pokerchips',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontSize: 44,
                   fontWeight: FontWeight.w800,

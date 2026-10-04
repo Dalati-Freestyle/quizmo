@@ -213,3 +213,22 @@ final class SetJeopardyTurnEvent extends QuizEngineEvent {
   @override
   List<Object?> get props => [teamId];
 }
+
+final class PlacePokerWagerEvent extends QuizEngineEvent {
+  const PlacePokerWagerEvent({
+    required this.playerId,
+    required this.questionId,
+    required this.wager,
+  });
+  final String playerId;
+  final String questionId;
+  final int wager;
+  @override
+  List<Object?> get props => [playerId, questionId, wager];
+}
+
+final class OpenPokerAnswersEvent extends QuizEngineEvent {
+  const OpenPokerAnswersEvent();
+  @override
+  List<Object?> get props => [];
+}

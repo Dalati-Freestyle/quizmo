@@ -46,6 +46,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     Map<String, Team> teams = const {},
     GameMode mode = const SoloMode(),
     JeopardyBoard? jeopardyBoard,
+    int? pokerStartingChips,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     NowMicros now = systemNowMicros,
   }) : _now = now,
@@ -57,10 +58,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
            game: GameState(
              questionBank: questionBank,
              teams: teams,
-             mode: mode,
+             mode: pokerStartingChips == null ? mode : const TeamMode(),
              jeopardy: jeopardyBoard == null
                  ? null
                  : JeopardyState.start(jeopardyBoard, teams.keys),
+             poker: pokerStartingChips == null
+                 ? null
+                 : PokerState.start(pokerStartingChips, teams.keys),
              hostTimeMicros: now(),
            ),
          ),
@@ -81,6 +85,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<SelectJeopardyCellEvent>(_onSelectJeopardyCell);
     on<PlaceDailyDoubleWagerEvent>(_onPlaceDailyDoubleWager);
     on<SetJeopardyTurnEvent>(_onSetJeopardyTurn);
+    if (pokerStartingChips != null &&
+        (pokerStartingChips < 1 ||
+            pokerStartingChips > 1000000 ||
+            teams.isEmpty ||
+            jeopardyBoard != null)) {
+      throw ArgumentError('Invalid poker configuration.');
+    }
+    on<PlacePokerWagerEvent>(_onPlacePokerWager);
+    on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
     on<ResetGameEvent>(_onResetGame);
   }
 
@@ -111,7 +124,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ? event.player
         : existing.copyWith(
             name: event.player.name,
-            teamId: event.player.teamId,
+            teamId: game.poker == null ? event.player.teamId : existing.teamId,
             isConnected: true,
             clockOffsetMicros: event.player.clockOffsetMicros,
             roundTripMicros: event.player.roundTripMicros,
@@ -170,6 +183,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final game = state.game;
     final player = game.players[event.playerId];
     if (player == null) return;
+    if (game.poker != null &&
+        (!(state.canStartRound || game.poker!.betting) ||
+            !game.teams.containsKey(event.teamId))) {
+      return;
+    }
 
     emit(
       _publish(
@@ -187,6 +205,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     ChangeGameModeEvent event,
     Emitter<QuizEngineState> emit,
   ) {
+    if (state.game.poker != null) return;
     emit(
       _publish(
         state.game.copyWith(mode: event.mode),
@@ -205,6 +224,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       _onSelectJeopardyCell(SelectJeopardyCellEvent(event.questionId), emit);
       return;
     }
+    if (game.poker != null &&
+        (!state.canStartRound ||
+            game.completedQuestionIds.contains(event.questionId))) {
+      return;
+    }
     final question = game.questionById(event.questionId);
     if (question == null) {
       emit(state.copyWith(notice: 'Unknown question "${event.questionId}".'));
@@ -215,6 +239,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         game.copyWith(
+          poker: game.poker?.copyWith(
+            wagers: const {},
+            settledTeamIds: const {},
+            betting: true,
+          ),
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -359,6 +388,32 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    if (game.poker != null) {
+      final teamId = game.players[activeId]!.teamId!;
+      final settled = _settlePoker(game, teamId, event.wasCorrect);
+      final locked = {
+        ...round.lockedOutPlayerIds,
+        ...game.players.values
+            .where((p) => p.teamId == teamId)
+            .map((p) => p.id),
+      };
+      final remaining = round.buzzerQueue
+          .where((p) => !locked.contains(p.playerId))
+          .toList();
+      final updated = settled.copyWith(
+        round: round.copyWith(
+          status: RoundStatus.acceptingAnswers,
+          activePlayerId: null,
+          buzzerQueue: remaining,
+          lockedOutPlayerIds: locked,
+        ),
+      );
+      final done = _pokerEveryoneSettled(updated);
+      emit(_publish(done ? _reveal(updated) : updated));
+      if (!done && remaining.isNotEmpty) add(const LockBuzzerEvent());
+      return;
+    }
+
     final rank = round.rankOf(activeId);
     final press = rank >= 0 ? round.buzzerQueue[rank] : null;
     final atHostMicros = press?.hostTimestampMicros ?? _now();
@@ -442,7 +497,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     _graceTimer?.cancel();
     final game = state.game;
     final question = game.round.question;
-    if (question == null || game.round.status == RoundStatus.revealed) return;
+    if (question == null ||
+        game.round.status == RoundStatus.revealed ||
+        (game.poker?.betting ?? false)) {
+      return;
+    }
 
     // Points are resolved per question kind — polymorphism, not a type switch
     // on a string identifier.
@@ -626,6 +685,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         game.copyWith(
+          poker: game.poker?.copyWith(
+            wagers: const {},
+            settledTeamIds: const {},
+            betting: true,
+          ),
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -691,7 +755,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// On a board only one answer per team counts, otherwise a big team would
   /// earn the row points once per member.
   bool _teamAlreadyAnswered(GameState game, String playerId) {
-    if (game.jeopardy == null) return false;
+    if (game.jeopardy == null && game.poker == null) return false;
     final teamId = game.players[playerId]?.teamId;
     if (teamId == null) return false;
     return game.round.answers.keys.any(
@@ -701,13 +765,27 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// Whether every player (on a board: every team) that may answer did.
   bool _everyoneAnswered(GameState game) {
+    if (game.poker case final poker?) {
+      final teams = poker.wagers.entries.where((entry) => entry.value > 0);
+      return teams.isNotEmpty &&
+          teams.every(
+            (entry) => game.round.answers.keys.any(
+              (id) => game.players[id]?.teamId == entry.key,
+            ),
+          );
+    }
     final jeopardy = game.jeopardy;
     final eligible = game.connectedPlayers
-        .where((player) => jeopardy?.mayAnswer(player.teamId) ?? true)
+        .where(
+          (player) =>
+              (jeopardy?.mayAnswer(player.teamId) ?? true) &&
+              (game.poker == null ||
+                  (game.poker!.wagers[player.teamId] ?? 0) > 0),
+        )
         .toList(growable: false);
     if (eligible.isEmpty) return false;
     return eligible.every((player) {
-      if (jeopardy != null && player.teamId != null) {
+      if ((jeopardy != null || game.poker != null) && player.teamId != null) {
         return game.round.answers.keys.any(
           (id) => game.players[id]?.teamId == player.teamId,
         );
@@ -733,6 +811,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       _publish(
         GameState(
           mode: game.mode,
+          poker: game.poker == null
+              ? null
+              : PokerState.start(game.poker!.startingChips, teams.keys),
           players: game.players,
           teams: teams,
           questionBank: _initialBank.isEmpty ? game.questionBank : _initialBank,
@@ -760,6 +841,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   ///
   /// A question played from the board also passes the pick on to the next team.
   GameState _reveal(GameState game) {
+    if (game.poker case final poker?) {
+      for (final teamId in poker.wagers.keys) {
+        game = _settlePoker(game, teamId, false);
+      }
+      game = game.copyWith(poker: game.poker!.copyWith(betting: false));
+    }
     final question = game.round.question;
     final jeopardy = game.jeopardy;
     return game.copyWith(
@@ -787,6 +874,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
     if (!state.game.players.containsKey(playerId)) return 'Unknown player.';
+    if (state.game.poker case final poker?) {
+      final teamId = state.game.players[playerId]?.teamId;
+      if (poker.betting) return 'Die Einsatzphase läuft noch.';
+      if ((poker.wagers[teamId] ?? 0) < 1) {
+        return 'Dein Team hat keinen Einsatz.';
+      }
+      if (poker.settledTeamIds.contains(teamId)) {
+        return 'Dein Team wurde bereits gewertet.';
+      }
+    }
     if (state.game.jeopardy case final jeopardy?) {
       final teamId = state.game.players[playerId]?.teamId;
       if (!jeopardy.mayAnswer(teamId)) {
@@ -817,6 +914,17 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// Books the points of every multiple choice submission of the round.
   GameState _scoreAnswers(GameState game, Question question) {
     final round = game.round;
+    if (game.poker != null) {
+      var result = game;
+      for (final answer in round.answers.values) {
+        result = _settlePoker(
+          result,
+          game.players[answer.playerId]!.teamId!,
+          question.accuracy(answer) == 1,
+        );
+      }
+      return result;
+    }
     final submissions = round.answers.values.toList(growable: false)
       ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
 
@@ -847,6 +955,72 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     return game.copyWith(scores: scores);
   }
+
+  void _onPlacePokerWager(
+    PlacePokerWagerEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final poker = game.poker;
+    final teamId = game.players[event.playerId]?.teamId;
+    if (poker == null ||
+        !poker.betting ||
+        teamId == null ||
+        !game.teams.containsKey(teamId) ||
+        game.round.question?.id != event.questionId ||
+        poker.wagers.containsKey(teamId) ||
+        event.wager < 0 ||
+        event.wager > (poker.chips[teamId] ?? 0)) {
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          poker: poker.copyWith(
+            chips: {...poker.chips, teamId: poker.chips[teamId]! - event.wager},
+            wagers: {...poker.wagers, teamId: event.wager},
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onOpenPokerAnswers(
+    OpenPokerAnswersEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final poker = game.poker;
+    if (poker == null || !poker.betting || game.round.question == null) return;
+    emit(
+      _publish(
+        game.copyWith(
+          poker: poker.copyWith(betting: false),
+          round: game.round.copyWith(startedAtHostMicros: _now()),
+        ),
+        notice: 'Einsätze geschlossen. Antworten sind jetzt offen.',
+      ),
+    );
+  }
+
+  GameState _settlePoker(GameState game, String teamId, bool correct) {
+    final poker = game.poker!;
+    if (poker.settledTeamIds.contains(teamId)) return game;
+    final payout = pokerChipPayout(
+      wager: poker.wagers[teamId] ?? 0,
+      isCorrect: correct,
+    );
+    return game.copyWith(
+      poker: poker.copyWith(
+        chips: {...poker.chips, teamId: (poker.chips[teamId] ?? 0) + payout},
+        settledTeamIds: {...poker.settledTeamIds, teamId},
+      ),
+    );
+  }
+
+  bool _pokerEveryoneSettled(GameState game) => game.poker!.wagers.entries
+      .where((entry) => entry.value > 0)
+      .every((entry) => game.poker!.settledTeamIds.contains(entry.key));
 
   void _startGraceWindow() {
     _graceTimer?.cancel();

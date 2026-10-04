@@ -29,6 +29,10 @@ sealed class ClientMessage extends Equatable {
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
         WatchRequest._type => const WatchRequest(),
+        'pokerWager' => PokerWagerMessage(
+          questionId: json.readString('questionId'),
+          wager: json.readInt('wager'),
+        ),
         LeaveNotice._type => const LeaveNotice(),
         final unknown => throw JsonContractException(
           'Unknown client message "$unknown".',
@@ -401,4 +405,18 @@ final class ProtocolErrorMessage extends ServerMessage {
 
   @override
   List<Object?> get props => [code, message];
+}
+
+final class PokerWagerMessage extends ClientMessage {
+  const PokerWagerMessage({required this.questionId, required this.wager});
+  final String questionId;
+  final int wager;
+  @override
+  JsonMap toJson() => {
+    'type': 'pokerWager',
+    'questionId': questionId,
+    'wager': wager,
+  };
+  @override
+  List<Object?> get props => [questionId, wager];
 }

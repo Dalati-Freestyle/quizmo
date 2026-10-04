@@ -9,6 +9,7 @@ export 'game_state.dart';
 export 'jeopardy.dart';
 export 'json.dart';
 export 'player.dart';
+export 'poker.dart';
 export 'question.dart';
 export 'quiz.dart';
 export 'quiz_format.dart';

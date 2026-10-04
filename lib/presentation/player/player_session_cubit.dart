@@ -68,8 +68,20 @@ final class PlayerSessionState extends Equatable {
   }
 
   /// Current score of this player.
-  int get myScore =>
-      playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0;
+  int get myScore => game?.poker == null
+      ? (playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0)
+      : game!.poker!.chips[me?.teamId] ?? 0;
+
+  bool get mayAnswerPoker {
+    final poker = game?.poker;
+    if (poker == null) return true;
+    return !poker.betting &&
+        (poker.wagers[me?.teamId] ?? 0) > 0 &&
+        !poker.settledTeamIds.contains(me?.teamId) &&
+        !game!.round.answers.keys.any(
+          (id) => game!.players[id]?.teamId == me?.teamId,
+        );
+  }
 
   /// Estimated one way latency to the host.
   Duration get latency => Duration(microseconds: roundTripMicros ~/ 2);
@@ -178,7 +190,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   /// to the physical touch as the framework allows.
   void buzz() {
     final question = state.question;
-    if (question is! BuzzerQuestion || state.hasBuzzed) return;
+    if (question is! BuzzerQuestion ||
+        state.hasBuzzed ||
+        !state.mayAnswerPoker) {
+      return;
+    }
     _client?.pressBuzzer(question.id);
     emit(state.copyWith(hasBuzzed: true));
   }
@@ -186,7 +202,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   /// Sends the choice [optionId] for the question on stage.
   void choose(String optionId) {
     final question = state.question;
-    if (question is! MultipleChoiceQuestion ||
+    if (!state.mayAnswerPoker ||
+        question is! MultipleChoiceQuestion ||
         state.lastSubmittedOptionId != null) {
       return;
     }
@@ -197,13 +214,20 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   void submit(
     AnswerSubmission Function(String playerId, int timestamp, int offset) build,
   ) {
-    if (!state.isConnected ||
+    if (!state.mayAnswerPoker ||
+        !state.isConnected ||
         state.lastSubmittedOptionId != null ||
         !state.roundStatus.acceptsInput) {
       return;
     }
     _client?.submitAnswer(build);
     emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
+  }
+
+  void placePokerWager(int wager) {
+    final question = state.question;
+    if (question == null || !(state.game?.poker?.betting ?? false)) return;
+    _client?.placePokerWager(questionId: question.id, wager: wager);
   }
 
   /// Leaves the session.

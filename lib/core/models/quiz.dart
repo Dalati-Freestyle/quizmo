@@ -158,6 +158,13 @@ final class Quiz extends Equatable {
       errors.addAll(_questionValidationErrors(question));
     }
     switch (format) {
+      case PokerFormat(:final startingChips):
+        if (startingChips < 1 || startingChips > 1000000) {
+          errors.add('Startchips müssen zwischen 1 und 1000000 liegen.');
+        }
+        if (teams.isEmpty) {
+          errors.add('Pokerchips benötigt mindestens ein Team.');
+        }
       case StandardFormat():
         break;
       case JeopardyFormat(:final board):

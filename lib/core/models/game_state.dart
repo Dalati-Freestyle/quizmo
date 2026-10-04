@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 import 'player.dart';
+import 'poker.dart';
 import 'question.dart';
 import 'round.dart';
 import 'score.dart';
@@ -92,6 +93,7 @@ final class GameState extends Equatable {
     this.questionBank = const [],
     this.completedQuestionIds = const {},
     this.jeopardy,
+    this.poker,
     this.hostTimeMicros = 0,
   });
 
@@ -106,6 +108,10 @@ final class GameState extends Equatable {
     completedQuestionIds: json.readStringList('completedQuestionIds').toSet(),
     jeopardy: switch (json.readObjectOrNull('jeopardy')) {
       final JsonMap value => JeopardyState.fromJson(value),
+      null => null,
+    },
+    poker: switch (json.readObjectOrNull('poker')) {
+      final JsonMap value => PokerState.fromJson(value),
       null => null,
     },
     hostTimeMicros: json.readInt('hostTimeMicros'),
@@ -135,6 +141,8 @@ final class GameState extends Equatable {
   /// Board bookkeeping when the session plays a Jeopardy quiz, else `null`.
   final JeopardyState? jeopardy;
 
+  final PokerState? poker;
+
   /// Host wall clock at the moment the snapshot was produced.
   ///
   /// Clients use it as a coarse freshness check and as a fallback when their
@@ -159,7 +167,8 @@ final class GameState extends Equatable {
   }
 
   /// Team totals derived from the player totals.
-  Map<String, int> get teamScores => scores.teamTotals(players.values);
+  Map<String, int> get teamScores =>
+      poker?.chips ?? scores.teamTotals(players.values);
 
   /// Returns the question with [id], or `null` when it is not in the bank.
   Question? questionById(String id) {
@@ -188,7 +197,10 @@ final class GameState extends Equatable {
     return copyWith(
       questionBank: const [],
       jeopardy: jeopardy?.redacted(),
-      round: round.copyWith(question: question?.forWire(reveal: keepSolution)),
+      round: round.copyWith(
+        question: question?.forWire(reveal: keepSolution),
+        answers: poker != null && !keepSolution ? const {} : round.answers,
+      ),
     );
   }
 
@@ -202,6 +214,7 @@ final class GameState extends Equatable {
     List<Question>? questionBank,
     Set<String>? completedQuestionIds,
     Object? jeopardy = _unset,
+    Object? poker = _unset,
     Object? hostTimeMicros = _unset,
   }) => GameState(
     mode: mode ?? this.mode,
@@ -214,6 +227,7 @@ final class GameState extends Equatable {
     jeopardy: identical(jeopardy, _unset)
         ? this.jeopardy
         : jeopardy as JeopardyState?,
+    poker: identical(poker, _unset) ? this.poker : poker as PokerState?,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -231,6 +245,7 @@ final class GameState extends Equatable {
         .toList(growable: false),
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
     'jeopardy': jeopardy?.toJson(),
+    'poker': poker?.toJson(),
     'hostTimeMicros': hostTimeMicros,
   };
 
@@ -244,6 +259,7 @@ final class GameState extends Equatable {
     questionBank,
     completedQuestionIds,
     jeopardy,
+    poker,
     hostTimeMicros,
   ];
 }

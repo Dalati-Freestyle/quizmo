@@ -29,6 +29,9 @@ class ScoreboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (game.poker != null) {
+      return _TeamStandings(game: game, highlightPlayerId: highlightPlayerId);
+    }
     return switch (game.mode) {
       TeamMode() => _TeamStandings(
         game: game,

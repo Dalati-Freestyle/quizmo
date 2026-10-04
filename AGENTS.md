@@ -131,3 +131,14 @@ it with `dart run tool/bundle_web_client.dart` after every change.
 * **Bundle Size:** Keep web player assets lightweight. Defer-load host or admin tools so web players joining via QR/Discord load instantly.
 
 * `StartRoundEvent` / `NextQuestionEvent` are routed through the board in a Jeopardy session; do not bypass it.
+
+
+## 6. Required Feature Delivery
+* Every new feature MUST finish with a fresh Android release APK build (`flutter build apk --release`). Run the relevant tests and static analysis first.
+* If the player or TV UI changes, rebuild `assets/web_client/bundle.zip` with `dart run tool/bundle_web_client.dart` BEFORE building the APK so the embedded clients match the host.
+* Report the APK path and the verification results. If a build is blocked, report the concrete failure; never present an older APK as the new feature build.
+
+### Pokerchips format
+* `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.
+* Stakes are deducted once per team. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips the question; chip balances never become negative.
+* All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
