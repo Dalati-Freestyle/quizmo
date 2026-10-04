@@ -236,6 +236,14 @@ class QuizClient {
     );
   }
 
+  void submitAnswer(
+    AnswerSubmission Function(String playerId, int timestamp, int offset) build,
+  ) {
+    final id = _playerId;
+    if (id == null) return;
+    _send(SubmissionMessage(build(id, _now(), clock.clockOffsetMicros)));
+  }
+
   /// Closes the socket and stops the re-sync timer.
   Future<void> disconnect() async {
     _resyncTimer?.cancel();
@@ -286,9 +294,7 @@ class QuizClient {
       );
       final receivedAt = _now();
       if (response.statusCode != 200) {
-        throw StateError(
-          'Clock sync failed with HTTP ${response.statusCode}.',
-        );
+        throw StateError('Clock sync failed with HTTP ${response.statusCode}.');
       }
       clock.add(
         ClockSample.fromResponse(
@@ -371,5 +377,3 @@ class QuizClient {
     if (!_statuses.isClosed) _statuses.add(status);
   }
 }
-
-

@@ -42,4 +42,3 @@ final class QuizEngineState extends Equatable {
   @override
   List<Object?> get props => [game, notice];
 }
-

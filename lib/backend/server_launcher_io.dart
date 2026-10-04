@@ -25,4 +25,3 @@ EmbeddedQuizServer createEmbeddedServer({
   serverName: serverName,
   webClient: webClient,
 );
-

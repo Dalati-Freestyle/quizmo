@@ -178,7 +178,12 @@ class PanelCard extends StatelessWidget {
 /// A compact label/value row used inside panels.
 class InfoRow extends StatelessWidget {
   /// Creates an info row.
-  const InfoRow({required this.label, required this.value, this.icon, super.key});
+  const InfoRow({
+    required this.label,
+    required this.value,
+    this.icon,
+    super.key,
+  });
 
   /// Left hand label.
   final String label;
@@ -256,4 +261,3 @@ class EmptyHint extends StatelessWidget {
     );
   }
 }
-

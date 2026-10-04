@@ -134,10 +134,11 @@ final class ClockSyncEstimator {
   /// A large jitter is a good hint for the UI that the estimate is shaky.
   int get jitterMicros {
     if (_samples.length < 2) return 0;
-    final offsets = _samples
-        .map((sample) => sample.clockOffsetMicros)
-        .toList(growable: false)
-      ..sort();
+    final offsets =
+        _samples
+            .map((sample) => sample.clockOffsetMicros)
+            .toList(growable: false)
+          ..sort();
     return offsets.last - offsets.first;
   }
 
@@ -153,4 +154,3 @@ final class ClockSyncEstimator {
     _best = null;
   }
 }
-

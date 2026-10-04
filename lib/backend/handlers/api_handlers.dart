@@ -12,6 +12,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
+import 'media_handlers.dart';
 
 /// Builds the `/api` router for [engine].
 ///
@@ -23,6 +24,10 @@ Router buildApiRouter({
   NowMicros now = systemNowMicros,
 }) {
   final router = Router();
+  router.all(
+    '/api/media/<id>',
+    (Request request, String id) => serveMedia(request, id, engine),
+  );
 
   /// Liveness probe and server identification.
   router.get('/api/health', (Request request) {
@@ -49,10 +54,7 @@ Router buildApiRouter({
       final json = jsonDecode(body) as JsonMap;
       clientSentAtMicros = json.readInt('clientSentAtMicros');
     } on Object catch (error) {
-      return _json({
-        'error': 'badRequest',
-        'message': '$error',
-      }, status: 400);
+      return _json({'error': 'badRequest', 'message': '$error'}, status: 400);
     }
     return _json({
       'clientSentAtMicros': clientSentAtMicros,
@@ -73,4 +75,3 @@ Response _json(JsonMap payload, {int status = 200}) => Response(
   body: jsonEncode(payload),
   headers: const {'content-type': 'application/json; charset=utf-8'},
 );
-

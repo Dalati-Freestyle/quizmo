@@ -118,7 +118,7 @@ final class SubmitAnswerEvent extends QuizEngineEvent {
   const SubmitAnswerEvent(this.answer);
 
   /// The submission, carrying the latency adjusted timestamp.
-  final MultipleChoiceAnswer answer;
+  final AnswerSubmission answer;
 
   @override
   List<Object?> get props => [answer];

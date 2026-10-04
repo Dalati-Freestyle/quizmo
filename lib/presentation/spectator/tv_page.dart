@@ -21,6 +21,10 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/question_media_view.dart';
+import '../common/quizmo_logo.dart';
+import '../common/question_result_view.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -305,15 +309,7 @@ class _Header extends StatelessWidget {
       height: 72,
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: scheme.primary,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(Icons.bolt, size: 40, color: scheme.onPrimary),
-          ),
+          const QuizmoLogo(size: 64),
           const SizedBox(width: 20),
           Text(
             'Quizmo',
@@ -876,13 +872,36 @@ class _QuestionStage extends StatelessWidget {
         Expanded(
           // Exhaustive over the sealed hierarchy: a new question type does not
           // compile until the TV knows how to render it.
-          child: switch (current) {
-            MultipleChoiceQuestion() => _ChoiceBoard(
-              question: current,
-              game: game,
-            ),
-            BuzzerQuestion() => _BuzzerBoard(question: current, game: game),
-          },
+          child:
+              question.media.isNotEmpty ||
+                  (isRevealed && question.solutionMedia.isNotEmpty)
+              ? SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      QuestionMediaView(media: question.media),
+                      if (isRevealed)
+                        QuestionMediaView(media: question.solutionMedia),
+                      QuestionResultView(question: question, game: game),
+                    ],
+                  ),
+                )
+              : switch (current) {
+                  MultipleChoiceQuestion() => _ChoiceBoard(
+                    question: current,
+                    game: game,
+                  ),
+                  ShortAnswerQuestion() ||
+                  OrderingQuestion() ||
+                  MatchingQuestion() ||
+                  EstimationQuestion() ||
+                  TrueFalseQuestion() => SingleChildScrollView(
+                    child: QuestionResultView(question: current, game: game),
+                  ),
+                  BuzzerQuestion() => _BuzzerBoard(
+                    question: current,
+                    game: game,
+                  ),
+                },
         ),
         if (isRevealed) _AwardsRow(game: game, questionId: question.id),
       ],
@@ -1023,7 +1042,8 @@ class _ChoiceBoard extends StatelessWidget {
     final options = question.options;
 
     final tally = <String, int>{};
-    for (final answer in round.answers.values) {
+    for (final answer
+        in round.answers.values.whereType<MultipleChoiceAnswer>()) {
       tally[answer.optionId] = (tally[answer.optionId] ?? 0) + 1;
     }
 

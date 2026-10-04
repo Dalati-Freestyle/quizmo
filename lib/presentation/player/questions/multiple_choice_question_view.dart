@@ -62,9 +62,10 @@ class MultipleChoiceQuestionView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           switch (status) {
-            RoundStatus.revealed => question.correctOptionId == selectedOptionId
-                ? 'Correct!'
-                : 'Not this time.',
+            RoundStatus.revealed =>
+              question.correctOptionId == selectedOptionId
+                  ? 'Correct!'
+                  : 'Not this time.',
             _ when selectedOptionId != null =>
               'Answer locked in. Waiting for the quizmaster…',
             _ => 'Pick one answer — faster answers score more.',
@@ -103,7 +104,10 @@ class _OptionTile extends StatelessWidget {
       (true, _) => (scheme.tertiaryContainer, scheme.tertiary),
       (false, true) => (scheme.errorContainer, scheme.error),
       (_, true) => (scheme.primaryContainer, scheme.primary),
-      _ => (scheme.surfaceContainerHighest.withValues(alpha: 0.4), scheme.outlineVariant),
+      _ => (
+        scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        scheme.outlineVariant,
+      ),
     };
 
     return Material(
@@ -140,4 +144,3 @@ class _OptionTile extends StatelessWidget {
     );
   }
 }
-

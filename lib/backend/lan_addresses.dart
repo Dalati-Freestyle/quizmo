@@ -133,4 +133,3 @@ List<String> sortLanAddresses(Iterable<LanAddressCandidate> candidates) {
   if (!seen.contains(kLoopbackAddress)) addresses.add(kLoopbackAddress);
   return addresses;
 }
-

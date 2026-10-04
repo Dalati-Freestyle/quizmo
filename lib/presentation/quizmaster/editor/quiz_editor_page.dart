@@ -179,6 +179,11 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                   ),
                   isNew: true,
                 ),
+                onAddTemplate: (template) => _editQuestion(
+                  cubit,
+                  template.create(widget.createId()),
+                  isNew: true,
+                ),
                 onEdit: (question) => _editQuestion(cubit, question),
                 onRemove: cubit.removeQuestion,
                 onReorder: cubit.reorderQuestions,
@@ -294,6 +299,7 @@ class _QuestionsPanel extends StatelessWidget {
     required this.questions,
     required this.onAddMultipleChoice,
     required this.onAddBuzzer,
+    required this.onAddTemplate,
     required this.onEdit,
     required this.onRemove,
     required this.onReorder,
@@ -302,6 +308,7 @@ class _QuestionsPanel extends StatelessWidget {
   final List<Question> questions;
   final VoidCallback onAddMultipleChoice;
   final VoidCallback onAddBuzzer;
+  final ValueChanged<QuestionTemplate> onAddTemplate;
   final ValueChanged<Question> onEdit;
   final ValueChanged<String> onRemove;
   final ReorderCallback onReorder;
@@ -327,6 +334,17 @@ class _QuestionsPanel extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: const Text('Add buzzer question'),
             ),
+            PopupMenuButton<QuestionTemplate>(
+              onSelected: onAddTemplate,
+              itemBuilder: (_) => [
+                for (final t in kQuestionTemplates)
+                  PopupMenuItem(value: t, child: Text(t.label)),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('Neuer Fragetyp'),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -346,6 +364,11 @@ class _QuestionsPanel extends StatelessWidget {
                 leading: Icon(switch (question) {
                   MultipleChoiceQuestion() => Icons.checklist,
                   BuzzerQuestion() => Icons.bolt,
+                  ShortAnswerQuestion() => Icons.text_fields,
+                  OrderingQuestion() => Icons.sort,
+                  MatchingQuestion() => Icons.compare_arrows,
+                  EstimationQuestion() => Icons.numbers,
+                  TrueFalseQuestion() => Icons.rule,
                 }),
                 title: Text(
                   question.prompt.isEmpty

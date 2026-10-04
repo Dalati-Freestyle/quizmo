@@ -81,32 +81,30 @@ TvStandings buildTvStandings(GameState game, {int maxEntries = 8}) {
 List<TvStanding> _playerRows(GameState game) {
   final players = game.players.values.toList(growable: false)
     ..sort((a, b) {
-      final byScore = game.scores.scoreOf(b.id).compareTo(
-        game.scores.scoreOf(a.id),
-      );
+      final byScore = game.scores
+          .scoreOf(b.id)
+          .compareTo(game.scores.scoreOf(a.id));
       return byScore != 0
           ? byScore
           : a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
-  return _ranked(
-    [
-      for (final player in players)
-        (
+  return _ranked([
+    for (final player in players)
+      (
+        points: game.scores.scoreOf(player.id),
+        build: (int rank) => TvStanding(
+          rank: rank,
+          label: player.name,
           points: game.scores.scoreOf(player.id),
-          build: (int rank) => TvStanding(
-            rank: rank,
-            label: player.name,
-            points: game.scores.scoreOf(player.id),
-            colorValue: switch (game.teams[player.teamId]) {
-              final Team team => team.colorValue,
-              null => null,
-            },
-            isOnline: player.isConnected,
-          ),
+          colorValue: switch (game.teams[player.teamId]) {
+            final Team team => team.colorValue,
+            null => null,
+          },
+          isOnline: player.isConnected,
         ),
-    ],
-  );
+      ),
+  ]);
 }
 
 List<TvStanding> _teamRows(GameState game) {
@@ -119,29 +117,27 @@ List<TvStanding> _teamRows(GameState game) {
           : a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
 
-  return _ranked(
-    [
-      for (final team in teams)
-        (
-          points: totals[team.id] ?? 0,
-          build: (int rank) {
-            final members = game.players.values
-                .where((player) => player.teamId == team.id)
-                .toList(growable: false);
-            return TvStanding(
-              rank: rank,
-              label: team.name,
-              points: totals[team.id] ?? 0,
-              colorValue: team.colorValue,
-              subtitle: members.isEmpty
-                  ? null
-                  : members.map((player) => player.name).join(' · '),
-              isOnline: members.any((player) => player.isConnected),
-            );
-          },
-        ),
-    ],
-  );
+  return _ranked([
+    for (final team in teams)
+      (
+        points: totals[team.id] ?? 0,
+        build: (int rank) {
+          final members = game.players.values
+              .where((player) => player.teamId == team.id)
+              .toList(growable: false);
+          return TvStanding(
+            rank: rank,
+            label: team.name,
+            points: totals[team.id] ?? 0,
+            colorValue: team.colorValue,
+            subtitle: members.isEmpty
+                ? null
+                : members.map((player) => player.name).join(' · '),
+            isOnline: members.any((player) => player.isConnected),
+          );
+        },
+      ),
+  ]);
 }
 
 /// Assigns competition ranks (1, 1, 3, …) to rows that are already sorted.
@@ -159,4 +155,3 @@ List<TvStanding> _ranked(
   }
   return result;
 }
-

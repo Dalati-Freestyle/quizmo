@@ -73,4 +73,3 @@ final class ZipWebClientBundle implements WebClientBundle {
     return archive.files.where((file) => file.isFile).length;
   }
 }
-

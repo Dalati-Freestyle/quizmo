@@ -56,11 +56,8 @@ class QuizmoApp extends StatelessWidget {
         isDense: true,
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(44),
-        ),
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
       ),
     );
   }
 }
-

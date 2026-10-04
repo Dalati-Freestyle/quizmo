@@ -10,6 +10,7 @@ import '../player/player_page.dart';
 import '../quizmaster/host_dashboard_page.dart';
 import '../quizmaster/editor/quiz_library_page.dart' deferred as quiz_library;
 import 'adaptive_layout.dart';
+import 'quizmo_logo.dart';
 
 /// Lets the user pick between the quizmaster and the player experience.
 ///
@@ -60,6 +61,8 @@ class RoleSelectionPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Center(child: QuizmoLogo(size: 112)),
+                  const SizedBox(height: 16),
                   Text(
                     'Quizmo',
                     textAlign: TextAlign.center,

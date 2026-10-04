@@ -23,4 +23,3 @@ EmbeddedQuizServer createEmbeddedServer({
   'Hosting is unavailable in the browser. Run the host on Android, iOS, '
   'macOS, Windows or Linux and join this browser tab as a player.',
 );
-

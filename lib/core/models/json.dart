@@ -118,3 +118,26 @@ extension JsonMapReader on JsonMap {
     };
   }
 }
+
+double readFiniteDouble(JsonMap json, String key) {
+  final value = json[key];
+  if (value is! num || !value.isFinite) {
+    throw JsonContractException('Field "$key" must be a finite number.');
+  }
+  return value.toDouble();
+}
+
+Map<String, String> readStringMap(JsonMap json, String key) {
+  final raw = json.readObject(key);
+  return {
+    for (final entry in raw.entries) entry.key: _cast<String>(key, entry.value),
+  };
+}
+
+bool readRequiredBool(JsonMap json, String key) {
+  final value = json[key];
+  if (value is! bool) {
+    throw JsonContractException('Field "$key" must be a boolean.');
+  }
+  return value;
+}

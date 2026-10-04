@@ -56,7 +56,7 @@ final class RoundState extends Equatable {
     status: RoundStatus.fromName(json.readString('status')),
     startedAtHostMicros: json.readIntOrNull('startedAtHostMicros'),
     buzzerQueue: json.readList('buzzerQueue', BuzzerPress.fromJson),
-    answers: json.readMap('answers', MultipleChoiceAnswer.fromJson),
+    answers: json.readMap('answers', AnswerSubmission.fromJson),
     activePlayerId: json.readStringOrNull('activePlayerId'),
     lockedOutPlayerIds: json.readStringList('lockedOutPlayerIds').toSet(),
     resolvedAttempts: json.readInt('resolvedAttempts'),
@@ -81,7 +81,7 @@ final class RoundState extends Equatable {
   final List<BuzzerPress> buzzerQueue;
 
   /// Multiple choice submissions keyed by player id; the first one counts.
-  final Map<String, MultipleChoiceAnswer> answers;
+  final Map<String, AnswerSubmission> answers;
 
   /// Player that currently holds the floor, if any.
   final String? activePlayerId;
@@ -138,7 +138,7 @@ final class RoundState extends Equatable {
     RoundStatus? status,
     Object? startedAtHostMicros = _unset,
     List<BuzzerPress>? buzzerQueue,
-    Map<String, MultipleChoiceAnswer>? answers,
+    Map<String, AnswerSubmission>? answers,
     Object? activePlayerId = _unset,
     Set<String>? lockedOutPlayerIds,
     int? resolvedAttempts,
@@ -185,5 +185,3 @@ final class RoundState extends Equatable {
     resolvedAttempts,
   ];
 }
-
-

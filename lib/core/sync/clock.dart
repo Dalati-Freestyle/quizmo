@@ -35,4 +35,3 @@ String newId(String prefix) {
   final noise = _random.nextInt(1 << 20).toRadixString(36).padLeft(4, '0');
   return '$prefix-$stamp$noise';
 }
-

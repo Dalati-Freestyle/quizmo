@@ -68,7 +68,8 @@ final class PlayerSessionState extends Equatable {
   }
 
   /// Current score of this player.
-  int get myScore => playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0;
+  int get myScore =>
+      playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0;
 
   /// Estimated one way latency to the host.
   Duration get latency => Duration(microseconds: roundTripMicros ~/ 2);
@@ -120,10 +121,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   PlayerSessionCubit() : super(const PlayerSessionState());
 
   QuizClient? _client;
+  Uri? mediaBaseUri;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   String? _lastQuestionId;
+  int? _lastRoundStart;
 
   /// Connects to the host at [baseUri] and joins as [name].
   Future<void> connect({
@@ -139,6 +142,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       ),
     );
 
+    mediaBaseUri = baseUri;
     final client = QuizClient(baseUri: baseUri);
     _client = client;
 
@@ -164,9 +168,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       await client.connect(name: name, teamId: teamId);
     } on Object catch (error) {
       if (isClosed) return;
-      emit(
-        state.copyWith(status: QuizClientStatus.failed, error: '$error'),
-      );
+      emit(state.copyWith(status: QuizClientStatus.failed, error: '$error'));
     }
   }
 
@@ -192,6 +194,18 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     emit(state.copyWith(lastSubmittedOptionId: optionId));
   }
 
+  void submit(
+    AnswerSubmission Function(String playerId, int timestamp, int offset) build,
+  ) {
+    if (!state.isConnected ||
+        state.lastSubmittedOptionId != null ||
+        !state.roundStatus.acceptsInput) {
+      return;
+    }
+    _client?.submitAnswer(build);
+    emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
+  }
+
   /// Leaves the session.
   Future<void> disconnect() async {
     await _teardown();
@@ -208,7 +222,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   void _onSnapshot(GameState game) {
     if (isClosed) return;
     final questionId = game.round.question?.id;
-    final isNewRound = questionId != _lastQuestionId;
+    final isNewRound =
+        questionId != _lastQuestionId ||
+        game.round.startedAtHostMicros != _lastRoundStart;
+    _lastRoundStart = game.round.startedAtHostMicros;
     _lastQuestionId = questionId;
 
     final client = _client;
@@ -247,4 +264,3 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _client = null;
   }
 }
-

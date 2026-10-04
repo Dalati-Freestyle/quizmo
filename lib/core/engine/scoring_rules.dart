@@ -27,10 +27,7 @@ final class ScoreDelta extends Equatable {
   /// Combines two deltas, concatenating their reasons.
   ScoreDelta operator +(ScoreDelta other) => ScoreDelta(
     points + other.points,
-    reason: [
-      reason,
-      other.reason,
-    ].where((part) => part.isNotEmpty).join(' + '),
+    reason: [reason, other.reason].where((part) => part.isNotEmpty).join(' + '),
   );
 
   @override
@@ -75,7 +72,10 @@ final class ScoringContext extends Equatable {
     if (timeLimit <= Duration.zero) return 0;
     final remaining = timeLimit - elapsed;
     if (remaining <= Duration.zero) return 0;
-    return (remaining.inMicroseconds / timeLimit.inMicroseconds).clamp(0.0, 1.0);
+    return (remaining.inMicroseconds / timeLimit.inMicroseconds).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   @override
@@ -248,7 +248,9 @@ final class FirstBuzzerRule extends ScoringRule {
     if (!context.isCorrect) {
       return ScoreDelta(penalty, reason: 'buzzed but missed');
     }
-    final awarded = (points - rankDecay * context.rank).clamp(0, points).toInt();
+    final awarded = (points - rankDecay * context.rank)
+        .clamp(0, points)
+        .toInt();
     return ScoreDelta(
       awarded,
       reason: context.rank == 0
@@ -269,3 +271,16 @@ final class FirstBuzzerRule extends ScoringRule {
   List<Object?> get props => [points, penalty, rankDecay];
 }
 
+ScoreDelta evaluateAccuracy(
+  ScoringRule rule,
+  ScoringContext context,
+  double accuracy,
+) {
+  final delta = rule.evaluate(context);
+  return accuracy > 0 && accuracy < 1
+      ? ScoreDelta(
+          (delta.points * accuracy).round(),
+          reason: '${(accuracy * 100).round()}% accuracy',
+        )
+      : delta;
+}

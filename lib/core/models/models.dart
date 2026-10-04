@@ -15,3 +15,5 @@ export 'quiz_format.dart';
 export 'round.dart';
 export 'score.dart';
 export 'team.dart';
+
+export 'media_attachment.dart';

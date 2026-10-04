@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
+import 'new_question_fields.dart';
+import 'media_editor.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
@@ -34,6 +36,55 @@ final class QuestionTemplate {
 /// Add one entry here when a new question type is introduced, so that it can
 /// be used in every quiz format right away.
 final List<QuestionTemplate> kQuestionTemplates = [
+  QuestionTemplate(
+    label: 'Freitext',
+    icon: Icons.text_fields,
+    create: (id) => ShortAnswerQuestion(
+      id: id,
+      prompt: '',
+      acceptedAnswers: const ['Antwort'],
+    ),
+  ),
+  QuestionTemplate(
+    label: 'Reihenfolge',
+    icon: Icons.sort,
+    create: (id) => OrderingQuestion(
+      id: id,
+      prompt: '',
+      items: const [
+        AnswerOption(id: 'a', label: 'Erstes'),
+        AnswerOption(id: 'b', label: 'Zweites'),
+      ],
+      correctOrder: const ['a', 'b'],
+    ),
+  ),
+  QuestionTemplate(
+    label: 'Zuordnung',
+    icon: Icons.compare_arrows,
+    create: (id) => MatchingQuestion(
+      id: id,
+      prompt: '',
+      leftItems: const [
+        AnswerOption(id: 'a', label: 'Deutschland'),
+        AnswerOption(id: 'b', label: 'Frankreich'),
+      ],
+      rightItems: const [
+        AnswerOption(id: 'x', label: 'Berlin'),
+        AnswerOption(id: 'y', label: 'Paris'),
+      ],
+      correctPairs: const {'a': 'x', 'b': 'y'},
+    ),
+  ),
+  QuestionTemplate(
+    label: 'Schätzfrage',
+    icon: Icons.numbers,
+    create: (id) => EstimationQuestion(id: id, prompt: '', correctValue: 100),
+  ),
+  QuestionTemplate(
+    label: 'Wahr / Falsch',
+    icon: Icons.rule,
+    create: (id) => TrueFalseQuestion(id: id, prompt: '', correctAnswer: true),
+  ),
   QuestionTemplate(
     label: 'Multiple choice',
     icon: Icons.checklist,
@@ -78,6 +129,9 @@ class QuestionEditorPage extends StatefulWidget {
 
 class _QuestionEditorPageState extends State<QuestionEditorPage> {
   final _formKey = GlobalKey<FormState>();
+  Map<String, Object?> _contentFields = {};
+  late List<MediaAttachment> _media;
+  late List<MediaAttachment> _solutionMedia;
   late final TextEditingController _promptController;
   late final TextEditingController _categoryController;
   late final TextEditingController _timeLimitController;
@@ -94,6 +148,8 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   void initState() {
     super.initState();
     final question = widget.question;
+    _media = question.media;
+    _solutionMedia = question.solutionMedia;
     _promptController = TextEditingController(text: question.prompt);
     _categoryController = TextEditingController(text: question.category ?? '');
     _timeLimitController = TextEditingController(
@@ -101,7 +157,12 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     );
     _expectedAnswerController = TextEditingController(
       text: switch (question) {
-        MultipleChoiceQuestion() => '',
+        MultipleChoiceQuestion() ||
+        ShortAnswerQuestion() ||
+        OrderingQuestion() ||
+        MatchingQuestion() ||
+        EstimationQuestion() ||
+        TrueFalseQuestion() => '',
         BuzzerQuestion(:final expectedAnswer) => expectedAnswer ?? '',
       },
     );
@@ -109,14 +170,29 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       MultipleChoiceQuestion(:final options) => [
         for (final option in options) _OptionDraft(option.id, option.label),
       ],
-      BuzzerQuestion() => [],
+      BuzzerQuestion() ||
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => [],
     };
     _correctOptionId = switch (question) {
       MultipleChoiceQuestion(:final correctOptionId) => correctOptionId,
-      BuzzerQuestion() => null,
+      BuzzerQuestion() ||
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => null,
     };
     _lockOutOnMiss = switch (question) {
-      MultipleChoiceQuestion() => true,
+      MultipleChoiceQuestion() ||
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => true,
       BuzzerQuestion(:final lockOutOnMiss) => lockOutOnMiss,
     };
 
@@ -162,7 +238,12 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   Widget build(BuildContext context) {
     final isMultipleChoice = switch (widget.question) {
       MultipleChoiceQuestion() => true,
-      BuzzerQuestion() => false,
+      BuzzerQuestion() ||
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => false,
     };
 
     return Scaffold(
@@ -215,8 +296,26 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
             switch (widget.question) {
               MultipleChoiceQuestion() => _multipleChoicePanel(),
               BuzzerQuestion() => _buzzerPanel(),
+              ShortAnswerQuestion() ||
+              OrderingQuestion() ||
+              MatchingQuestion() ||
+              EstimationQuestion() ||
+              TrueFalseQuestion() => NewQuestionFields(
+                question: widget.question,
+                onChanged: (fields) => _contentFields = fields,
+              ),
             },
             if (!widget.usesBoardPoints) _scoringPanel(),
+            MediaEditor(
+              media: _media,
+              onChanged: (media) => _media = media,
+              title: 'Fragemedien',
+            ),
+            MediaEditor(
+              media: _solutionMedia,
+              onChanged: (media) => _solutionMedia = media,
+              title: 'Lösungsmedien (erst bei Auflösung)',
+            ),
           ],
         ),
       ),
@@ -370,12 +469,22 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   }
 
   void _save() {
+    try {
+      _saveValid();
+    } on Object catch (error) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Bitte Eingaben prüfen: $error')));
+    }
+  }
+
+  void _saveValid() {
     if (!_formKey.currentState!.validate()) return;
     final timeLimit = Duration(seconds: int.parse(_timeLimitController.text));
     final rule = widget.usesBoardPoints
         ? widget.question.scoringRule
         : _buildScoringRule();
-    final question = switch (widget.question) {
+    var question = switch (widget.question) {
       MultipleChoiceQuestion(:final id) => MultipleChoiceQuestion(
         id: id,
         prompt: _promptController.text.trim(),
@@ -388,6 +497,18 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         ],
         correctOptionId: _correctOptionId,
       ),
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => Question.fromJson({
+        ...widget.question.toJson(),
+        ..._contentFields,
+        'prompt': _promptController.text.trim(),
+        'category': _nullableText(_categoryController.text),
+        'timeLimitMs': timeLimit.inMilliseconds,
+        'scoringRule': rule.toJson(),
+      }),
       BuzzerQuestion(:final id) => BuzzerQuestion(
         id: id,
         prompt: _promptController.text.trim(),
@@ -398,6 +519,20 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         lockOutOnMiss: _lockOutOnMiss,
       ),
     };
+    question = Question.fromJson({
+      ...question.toJson(),
+      'media': _media.map((m) => m.toJson()).toList(),
+      'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
+    });
+    final errors = [
+      ...question.contentErrors,
+      for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
+    ];
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(errors.join(' '))));
+      return;
+    }
     Navigator.of(context).pop(question);
   }
 

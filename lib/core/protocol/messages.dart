@@ -402,4 +402,3 @@ final class ProtocolErrorMessage extends ServerMessage {
   @override
   List<Object?> get props => [code, message];
 }
-

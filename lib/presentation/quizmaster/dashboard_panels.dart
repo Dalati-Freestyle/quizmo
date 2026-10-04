@@ -1,6 +1,9 @@
 /// Panels of the quizmaster dashboard.
 library;
 
+import '../common/question_media_view.dart';
+import '../common/question_result_view.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -493,6 +496,11 @@ class QuestionBankPanel extends StatelessWidget {
                     switch (question) {
                       MultipleChoiceQuestion() => Icons.checklist,
                       BuzzerQuestion() => Icons.bolt,
+                      ShortAnswerQuestion() => Icons.text_fields,
+                      OrderingQuestion() => Icons.sort,
+                      MatchingQuestion() => Icons.compare_arrows,
+                      EstimationQuestion() => Icons.numbers,
+                      TrueFalseQuestion() => Icons.rule,
                     },
                     size: 16,
                     color: theme.colorScheme.primary,
@@ -830,16 +838,28 @@ class LiveRoundPanel extends StatelessWidget {
                 const SizedBox(height: 10),
                 // Polymorphic host controls: the analyzer enforces that every
                 // question kind has a renderer here.
+                QuestionMediaView(media: question.media),
                 switch (question) {
                   MultipleChoiceQuestion() => _MultipleChoiceMonitor(
                     question: question,
                     game: game,
+                  ),
+                  ShortAnswerQuestion() ||
+                  OrderingQuestion() ||
+                  MatchingQuestion() ||
+                  EstimationQuestion() ||
+                  TrueFalseQuestion() => QuestionResultView(
+                    question: question,
+                    game: game,
+                    host: true,
                   ),
                   BuzzerQuestion() => _BuzzerMonitor(
                     question: question,
                     game: game,
                   ),
                 },
+                if (game.round.status == RoundStatus.revealed)
+                  QuestionMediaView(media: question.solutionMedia),
                 const SizedBox(height: 12),
                 _RoundActions(
                   state: state,
@@ -1016,7 +1036,8 @@ class _MultipleChoiceMonitor extends StatelessWidget {
     final tally = <String, int>{
       for (final option in question.options) option.id: 0,
     };
-    for (final answer in round.answers.values) {
+    for (final answer
+        in round.answers.values.whereType<MultipleChoiceAnswer>()) {
       tally[answer.optionId] = (tally[answer.optionId] ?? 0) + 1;
     }
     final total = round.answers.length;

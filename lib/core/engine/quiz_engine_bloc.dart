@@ -253,8 +253,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: rejection));
       return;
     }
-    if (round.question is! MultipleChoiceQuestion) {
-      emit(state.copyWith(notice: 'This round does not take choices.'));
+    if (round.question is BuzzerQuestion ||
+        !(round.question?.accepts(answer) ?? false)) {
+      emit(state.copyWith(notice: 'Invalid answer for this question.'));
       return;
     }
     if (round.answers.containsKey(answer.playerId)) {
@@ -446,7 +447,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     // Points are resolved per question kind — polymorphism, not a type switch
     // on a string identifier.
     final scored = switch (question) {
-      MultipleChoiceQuestion() => _scoreMultipleChoice(game, question),
+      MultipleChoiceQuestion() ||
+      ShortAnswerQuestion() ||
+      OrderingQuestion() ||
+      MatchingQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() => _scoreAnswers(game, question),
       BuzzerQuestion() => game,
     };
 
@@ -809,10 +815,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   }
 
   /// Books the points of every multiple choice submission of the round.
-  GameState _scoreMultipleChoice(
-    GameState game,
-    MultipleChoiceQuestion question,
-  ) {
+  GameState _scoreAnswers(GameState game, Question question) {
     final round = game.round;
     final submissions = round.answers.values.toList(growable: false)
       ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
@@ -822,14 +825,17 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final rule = _ruleFor(game, question);
     for (var index = 0; index < submissions.length; index++) {
       final answer = submissions[index];
-      final isCorrect = question.isCorrect(answer.optionId);
-      final delta = rule.evaluate(
+      final accuracy = question.accuracy(answer);
+      final isCorrect = accuracy > 0;
+      final delta = evaluateAccuracy(
+        rule,
         ScoringContext(
           isCorrect: isCorrect,
           elapsed: round.elapsedAt(answer.hostTimestampMicros),
           timeLimit: question.timeLimit,
           rank: isCorrect ? correctRank : index,
         ),
+        accuracy,
       );
       if (isCorrect) correctRank++;
       scores = scores.apply(

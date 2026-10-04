@@ -103,7 +103,11 @@ Handler createWebClientHandler(WebClientBundle bundle) {
       );
     }
 
-    return _fileResponse(path: path, bytes: bytes, isHead: request.method == 'HEAD');
+    return _fileResponse(
+      path: path,
+      bytes: bytes,
+      isHead: request.method == 'HEAD',
+    );
   };
 }
 
@@ -153,4 +157,3 @@ Response _fileResponse({
   };
   return Response.ok(isHead ? null : bytes, headers: headers);
 }
-

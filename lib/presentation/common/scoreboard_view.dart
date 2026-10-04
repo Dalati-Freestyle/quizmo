@@ -209,4 +209,3 @@ class _ScoreRow extends StatelessWidget {
     );
   }
 }
-

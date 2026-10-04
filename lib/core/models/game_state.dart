@@ -188,11 +188,7 @@ final class GameState extends Equatable {
     return copyWith(
       questionBank: const [],
       jeopardy: jeopardy?.redacted(),
-      round: round.copyWith(
-        question: question == null || keepSolution
-            ? question
-            : question.redacted(),
-      ),
+      round: round.copyWith(question: question?.forWire(reveal: keepSolution)),
     );
   }
 

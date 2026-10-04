@@ -28,11 +28,11 @@ bool isTvLaunchUri(Uri uri) {
 
 /// Colour scheme requested by `?theme=light` / `?theme=dark`; dark by default,
 /// because a bright panel in a dark living room is hard on the eyes.
-Brightness tvBrightnessFor(Uri uri) =>
-    uri.queryParameters['theme'] == 'light' ? Brightness.light : Brightness.dark;
+Brightness tvBrightnessFor(Uri uri) => uri.queryParameters['theme'] == 'light'
+    ? Brightness.light
+    : Brightness.dark;
 
 bool _endsWithTv(List<String> segments) {
   final meaningful = segments.where((segment) => segment.isNotEmpty);
   return meaningful.isNotEmpty && meaningful.last == kTvPathSegment;
 }
-

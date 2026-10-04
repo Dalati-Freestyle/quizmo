@@ -144,4 +144,3 @@ class _LatencyBadge extends StatelessWidget {
     );
   }
 }
-

@@ -21,7 +21,7 @@ final class QuizFileTransferException implements Exception {
   String toString() => 'QuizFileTransferException: $message';
 }
 
-const int _maxQuizFileBytes = 5 * 1024 * 1024;
+const int _maxQuizFileBytes = 100 * 1024 * 1024;
 
 /// Opens the browser picker and returns the selected quiz JSON, or `null` on cancel.
 Future<String?> pickQuizJson() async {
@@ -35,7 +35,7 @@ Future<String?> pickQuizJson() async {
   final bytes = await file.readAsBytes();
   if (bytes.length > _maxQuizFileBytes) {
     throw const QuizFileTransferException(
-      'The selected file is larger than the 5 MiB quiz import limit.',
+      'The selected file is larger than the 100 MiB quiz import limit.',
     );
   }
   try {

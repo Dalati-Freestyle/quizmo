@@ -200,7 +200,12 @@ class SocketHub {
         // Never trust the client's self reported identity.
         final trusted = submission.withPlayerId(playerId);
         switch (trusted) {
-          case MultipleChoiceAnswer():
+          case MultipleChoiceAnswer() ||
+              ShortAnswer() ||
+              OrderingAnswer() ||
+              MatchingAnswer() ||
+              EstimationAnswer() ||
+              TrueFalseAnswer():
             _engine.add(SubmitAnswerEvent(trusted));
           case BuzzerPress():
             _engine.add(BuzzerPressEvent(trusted));
@@ -231,4 +236,3 @@ class SocketHub {
     ServerLogEntry(level: level, message: message, atMicros: _now()),
   );
 }
-

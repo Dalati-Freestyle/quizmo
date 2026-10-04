@@ -196,4 +196,3 @@ class HostServerCubit extends Cubit<HostServerState> {
     );
   }
 }
-

@@ -30,10 +30,7 @@ WebClientBundle bundledWebClient({
     loadArchive: () async {
       try {
         final data = await assets.load(assetKey);
-        return data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        );
+        return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
       } on FlutterError {
         // Asset not declared or not present in this build flavour.
         return Uint8List(0);
@@ -42,4 +39,3 @@ WebClientBundle bundledWebClient({
     description: 'app asset $assetKey',
   );
 }
-

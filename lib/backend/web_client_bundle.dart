@@ -57,4 +57,3 @@ final class InMemoryWebClientBundle implements WebClientBundle {
   @override
   Future<Uint8List?> read(String path) async => files[path];
 }
-

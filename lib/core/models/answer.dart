@@ -52,6 +52,11 @@ sealed class AnswerSubmission extends Equatable {
       switch (json.readString('kind')) {
         MultipleChoiceAnswer._kind => MultipleChoiceAnswer.fromJson(json),
         BuzzerPress._kind => BuzzerPress.fromJson(json),
+        'shortAnswer' => ShortAnswer.fromJson(json),
+        'ordering' => OrderingAnswer.fromJson(json),
+        'matching' => MatchingAnswer.fromJson(json),
+        'estimation' => EstimationAnswer.fromJson(json),
+        'trueFalse' => TrueFalseAnswer.fromJson(json),
         final unknown => throw JsonContractException(
           'Unknown submission kind "$unknown".',
         ),
@@ -159,3 +164,182 @@ final class BuzzerPress extends AnswerSubmission {
   ];
 }
 
+final class ShortAnswer extends AnswerSubmission {
+  const ShortAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.text,
+  });
+  final String text;
+  factory ShortAnswer.fromJson(JsonMap json) => ShortAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    text: json.readString('text'),
+  );
+  @override
+  ShortAnswer withPlayerId(String id) => ShortAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    text: text,
+  );
+  @override
+  JsonMap toJson() => {...baseJson('shortAnswer'), 'text': text};
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    text,
+  ];
+}
+
+final class OrderingAnswer extends AnswerSubmission {
+  const OrderingAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.itemIds,
+  });
+  final List<String> itemIds;
+  factory OrderingAnswer.fromJson(JsonMap json) => OrderingAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    itemIds: json.readStringList('itemIds'),
+  );
+  @override
+  OrderingAnswer withPlayerId(String id) => OrderingAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    itemIds: itemIds,
+  );
+  @override
+  JsonMap toJson() => {...baseJson('ordering'), 'itemIds': itemIds};
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    itemIds,
+  ];
+}
+
+final class MatchingAnswer extends AnswerSubmission {
+  const MatchingAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.pairs,
+  });
+  final Map<String, String> pairs;
+  factory MatchingAnswer.fromJson(JsonMap json) => MatchingAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    pairs: readStringMap(json, 'pairs'),
+  );
+  @override
+  MatchingAnswer withPlayerId(String id) => MatchingAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    pairs: pairs,
+  );
+  @override
+  JsonMap toJson() => {...baseJson('matching'), 'pairs': pairs};
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    pairs,
+  ];
+}
+
+final class EstimationAnswer extends AnswerSubmission {
+  const EstimationAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.value,
+  });
+  final double value;
+  factory EstimationAnswer.fromJson(JsonMap json) => EstimationAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    value: readFiniteDouble(json, 'value'),
+  );
+  @override
+  EstimationAnswer withPlayerId(String id) => EstimationAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    value: value,
+  );
+  @override
+  JsonMap toJson() => {...baseJson('estimation'), 'value': value};
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    value,
+  ];
+}
+
+final class TrueFalseAnswer extends AnswerSubmission {
+  const TrueFalseAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.value,
+  });
+  final bool value;
+  factory TrueFalseAnswer.fromJson(JsonMap json) => TrueFalseAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    value: readRequiredBool(json, 'value'),
+  );
+  @override
+  TrueFalseAnswer withPlayerId(String id) => TrueFalseAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    value: value,
+  );
+  @override
+  JsonMap toJson() => {...baseJson('trueFalse'), 'value': value};
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    value,
+  ];
+}

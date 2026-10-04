@@ -62,7 +62,7 @@ void main() {
   test('rejects an unknown question type', () {
     final json = _jsonFor(quiz)
       ..['questions'] = [
-        {...quiz.questions.single.toJson(), 'type': 'estimation'},
+        {...quiz.questions.single.toJson(), 'type': 'futureUnknownType'},
       ];
 
     expect(
@@ -71,7 +71,7 @@ void main() {
         isA<QuizImportException>().having(
           (error) => error.message,
           'message',
-          contains('Unknown question type "estimation"'),
+          contains('Unknown question type "futureUnknownType"'),
         ),
       ),
     );

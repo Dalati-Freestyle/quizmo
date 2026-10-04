@@ -88,10 +88,7 @@ final class ScoreState extends Equatable {
   /// Returns a board that contains a zero entry for [playerId].
   ScoreState withParticipant(String playerId) => byPlayer.containsKey(playerId)
       ? this
-      : ScoreState(
-          byPlayer: {...byPlayer, playerId: 0},
-          history: history,
-        );
+      : ScoreState(byPlayer: {...byPlayer, playerId: 0}, history: history);
 
   /// Books [delta] on [playerId] and appends a matching [ScoreEvent].
   ScoreState apply({
@@ -144,4 +141,3 @@ final class ScoreState extends Equatable {
   @override
   List<Object?> get props => [byPlayer, history];
 }
-

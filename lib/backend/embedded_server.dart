@@ -283,6 +283,3 @@ class EmbeddedServer implements EmbeddedQuizServer {
     if (!_logs.isClosed) _logs.add(entry);
   }
 }
-
-
-

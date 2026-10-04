@@ -51,8 +51,7 @@ final class Player extends Equatable {
   final int roundTripMicros;
 
   /// Estimated one way latency between this client and the host.
-  Duration get latency =>
-      Duration(microseconds: roundTripMicros ~/ 2);
+  Duration get latency => Duration(microseconds: roundTripMicros ~/ 2);
 
   /// Whether the client completed at least one clock handshake.
   bool get isClockSynced => roundTripMicros > 0;
@@ -93,6 +92,3 @@ final class Player extends Equatable {
     roundTripMicros,
   ];
 }
-
-
-

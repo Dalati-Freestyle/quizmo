@@ -140,6 +140,20 @@ final class Quiz extends Equatable {
         errors.add('Team "${team.id}" needs a name.');
       }
     }
+    final encodedMediaSize = questions.fold<int>(
+      0,
+      (total, q) =>
+          total +
+          [
+            ...q.media,
+            ...q.solutionMedia,
+          ].fold<int>(0, (sum, m) => sum + (m.asset?.data?.length ?? 0)),
+    );
+    if (encodedMediaSize > 90 * 1024 * 1024) {
+      errors.add(
+        'Medien im Quiz dürfen zusammen maximal 90 MiB im Export belegen.',
+      );
+    }
     for (final question in questions) {
       errors.addAll(_questionValidationErrors(question));
     }
@@ -239,24 +253,49 @@ List<String> _jeopardyValidationErrors(
   return errors;
 }
 
-List<String> _questionValidationErrors(Question question) => switch (question) {
-  MultipleChoiceQuestion(
-    :final id,
-    :final prompt,
-    :final timeLimit,
-    :final options,
-    :final correctOptionId,
-  ) =>
-    _multipleChoiceValidationErrors(
-      id: id,
-      prompt: prompt,
-      timeLimit: timeLimit,
-      options: options,
-      correctOptionId: correctOptionId,
-    ),
-  BuzzerQuestion(:final id, :final prompt, :final timeLimit) =>
-    _baseQuestionValidationErrors(id: id, prompt: prompt, timeLimit: timeLimit),
-};
+List<String> _questionValidationErrors(Question question) => [
+  if (question.media.length + question.solutionMedia.length > 10)
+    'Maximal zehn Medien pro Frage.',
+  for (final media in [...question.media, ...question.solutionMedia]) ...[
+    ...media.validationErrors,
+    if (media.asset != null && media.asset!.data == null)
+      'Medien-Datei fehlt im Quiz.',
+  ],
+  ...switch (question) {
+    MultipleChoiceQuestion(
+      :final id,
+      :final prompt,
+      :final timeLimit,
+      :final options,
+      :final correctOptionId,
+    ) =>
+      _multipleChoiceValidationErrors(
+        id: id,
+        prompt: prompt,
+        timeLimit: timeLimit,
+        options: options,
+        correctOptionId: correctOptionId,
+      ),
+    ShortAnswerQuestion() ||
+    OrderingQuestion() ||
+    MatchingQuestion() ||
+    EstimationQuestion() ||
+    TrueFalseQuestion() => [
+      ..._baseQuestionValidationErrors(
+        id: question.id,
+        prompt: question.prompt,
+        timeLimit: question.timeLimit,
+      ),
+      ...question.contentErrors,
+    ],
+    BuzzerQuestion(:final id, :final prompt, :final timeLimit) =>
+      _baseQuestionValidationErrors(
+        id: id,
+        prompt: prompt,
+        timeLimit: timeLimit,
+      ),
+  },
+];
 
 List<String> _multipleChoiceValidationErrors({
   required String id,

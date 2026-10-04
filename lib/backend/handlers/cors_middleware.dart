@@ -24,4 +24,3 @@ Middleware corsMiddleware() => (Handler inner) {
     return response.change(headers: _corsHeaders);
   };
 };
-

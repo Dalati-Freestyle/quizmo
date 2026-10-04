@@ -130,4 +130,3 @@ abstract interface class EmbeddedQuizServer {
   /// Releases the resources owned by this instance.
   Future<void> dispose();
 }
-

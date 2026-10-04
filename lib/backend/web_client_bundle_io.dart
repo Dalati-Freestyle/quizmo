@@ -38,7 +38,9 @@ final class DirectoryWebClientBundle implements WebClientBundle {
     // `path` arrives normalised from the handler, but a defensive check keeps
     // a crafted request from reaching outside the root.
     final absoluteRoot = p.normalize(root.absolute.path);
-    final target = p.normalize(p.join(absoluteRoot, p.joinAll(path.split('/'))));
+    final target = p.normalize(
+      p.join(absoluteRoot, p.joinAll(path.split('/'))),
+    );
     if (!p.isWithin(absoluteRoot, target)) return null;
 
     final file = File(target);
@@ -56,4 +58,3 @@ WebClientBundle? zipWebClientBundleFromFile(String path) {
     description: 'zip $path',
   );
 }
-

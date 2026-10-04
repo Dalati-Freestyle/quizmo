@@ -10,11 +10,14 @@ import '../../core/net/quiz_client.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/adaptive_layout.dart';
+import '../common/quizmo_logo.dart';
 import '../common/jeopardy_board_view.dart';
 import '../common/scoreboard_view.dart';
 import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
 import 'questions/buzzer_question_view.dart';
+import 'questions/new_question_views.dart';
+import '../common/question_media_view.dart';
 import 'questions/multiple_choice_question_view.dart';
 
 /// Player facing screen.
@@ -48,7 +51,18 @@ class _PlayerView extends StatelessWidget {
       builder: (context, state) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(state.serverName ?? 'Join a quiz'),
+            title: Row(
+              children: [
+                const QuizmoLogo(size: 32),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    state.serverName ?? 'Join a quiz',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             actions: [
               if (state.isConnected)
                 Padding(
@@ -392,12 +406,94 @@ class _QuestionStage extends StatelessWidget {
 
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
-    final view = switch (question) {
+    final enabled =
+        state.roundStatus.acceptsInput && state.lastSubmittedOptionId == null;
+    final input = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
         question: question,
         status: state.roundStatus,
         selectedOptionId: state.lastSubmittedOptionId,
         onSelect: cubit.choose,
+      ),
+      ShortAnswerQuestion() => ShortAnswerQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        question: question,
+        enabled: enabled,
+        onSubmit: (value) => cubit.submit(
+          (id, timestamp, offset) => ShortAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            text: value,
+          ),
+        ),
+      ),
+      OrderingQuestion() => OrderingQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        question: question,
+        enabled: enabled,
+        onSubmit: (value) => cubit.submit(
+          (id, timestamp, offset) => OrderingAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            itemIds: value,
+          ),
+        ),
+      ),
+      MatchingQuestion() => MatchingQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        question: question,
+        enabled: enabled,
+        onSubmit: (value) => cubit.submit(
+          (id, timestamp, offset) => MatchingAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            pairs: value,
+          ),
+        ),
+      ),
+      EstimationQuestion() => EstimationQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        question: question,
+        enabled: enabled,
+        onSubmit: (value) => cubit.submit(
+          (id, timestamp, offset) => EstimationAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            value: value,
+          ),
+        ),
+      ),
+      TrueFalseQuestion() => TrueFalseQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        question: question,
+        enabled: enabled,
+        onSubmit: (value) => cubit.submit(
+          (id, timestamp, offset) => TrueFalseAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            value: value,
+          ),
+        ),
       ),
       BuzzerQuestion() => BuzzerQuestionView(
         question: question,
@@ -410,6 +506,31 @@ class _QuestionStage extends StatelessWidget {
       ),
     };
 
+    final view = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (question is! MultipleChoiceQuestion &&
+            question is! BuzzerQuestion) ...[
+          Text(
+            question.prompt,
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          if (state.lastSubmittedOptionId != null)
+            const Text('Antwort gesendet'),
+        ],
+        QuestionMediaView(media: question.media, baseUri: cubit.mediaBaseUri),
+        input,
+        if (state.roundStatus == RoundStatus.revealed) ...[
+          if (question is! MultipleChoiceQuestion &&
+              question is! BuzzerQuestion)
+            Text('Lösung: ${question.solutionLabel}'),
+          QuestionMediaView(
+            media: question.solutionMedia,
+            baseUri: cubit.mediaBaseUri,
+          ),
+        ],
+      ],
+    );
     if (jeopardy == null || !jeopardy.hasActiveQuestion) return view;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

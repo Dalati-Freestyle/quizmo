@@ -1,11 +1,11 @@
 {
-    "name": "quizmo",
-    "short_name": "quizmo",
+    "name": "Quizmo",
+    "short_name": "Quizmo",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#343e44",
+    "theme_color": "#343e44",
+    "description": "Local-first, multi-device quiz platform.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

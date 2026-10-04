@@ -215,10 +215,13 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     if (isClosed || _retryTimer != null) return;
     _attempt++;
     final delay = reconnectDelay * _attempt;
-    _retryTimer = Timer(delay > maxReconnectDelay ? maxReconnectDelay : delay, () {
-      _retryTimer = null;
-      unawaited(_connect());
-    });
+    _retryTimer = Timer(
+      delay > maxReconnectDelay ? maxReconnectDelay : delay,
+      () {
+        _retryTimer = null;
+        unawaited(_connect());
+      },
+    );
   }
 
   Future<void> _teardown() async {
@@ -231,4 +234,3 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     await client?.dispose();
   }
 }
-
