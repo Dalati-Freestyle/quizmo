@@ -8,6 +8,7 @@ import '../../../core/data/quiz_repository.dart';
 import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
+import 'jeopardy_board_editor.dart';
 import 'question_editor.dart';
 import 'quiz_editor_cubit.dart';
 
@@ -112,6 +113,31 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     decoration: const InputDecoration(labelText: 'Category'),
                     onChanged: (_) => _updateMetadata(cubit),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Quiz type',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: false,
+                        icon: Icon(Icons.list_alt),
+                        label: Text('Standard'),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        icon: Icon(Icons.grid_view),
+                        label: Text('Jeopardy'),
+                      ),
+                    ],
+                    selected: {state.draft.format is JeopardyFormat},
+                    onSelectionChanged: (selection) => selection.first
+                        ? cubit.useJeopardyFormat()
+                        : cubit.useStandardFormat(),
+                  ),
                 ],
               ),
             ),
@@ -121,35 +147,43 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
               onEdit: (team) => _editTeam(cubit, team),
               onRemove: cubit.removeTeam,
             ),
-            _QuestionsPanel(
-              questions: state.draft.questions,
-              onAddMultipleChoice: () => _editQuestion(
-                cubit,
-                MultipleChoiceQuestion(
-                  id: widget.createId(),
-                  prompt: '',
-                  options: const [
-                    AnswerOption(id: 'option-a', label: 'Option A'),
-                    AnswerOption(id: 'option-b', label: 'Option B'),
-                  ],
-                  correctOptionId: 'option-a',
-                  scoringRule: const SpeedBonusRule(),
-                ),
-                isNew: true,
+            switch (state.draft.format) {
+              JeopardyFormat(:final board) => JeopardyBoardEditorPanel(
+                quiz: state.draft,
+                board: board,
+                cubit: cubit,
+                createId: widget.createId,
               ),
-              onAddBuzzer: () => _editQuestion(
-                cubit,
-                BuzzerQuestion(
-                  id: widget.createId(),
-                  prompt: '',
-                  scoringRule: const FirstBuzzerRule(),
+              StandardFormat() => _QuestionsPanel(
+                questions: state.draft.questions,
+                onAddMultipleChoice: () => _editQuestion(
+                  cubit,
+                  MultipleChoiceQuestion(
+                    id: widget.createId(),
+                    prompt: '',
+                    options: const [
+                      AnswerOption(id: 'option-a', label: 'Option A'),
+                      AnswerOption(id: 'option-b', label: 'Option B'),
+                    ],
+                    correctOptionId: 'option-a',
+                    scoringRule: const SpeedBonusRule(),
+                  ),
+                  isNew: true,
                 ),
-                isNew: true,
+                onAddBuzzer: () => _editQuestion(
+                  cubit,
+                  BuzzerQuestion(
+                    id: widget.createId(),
+                    prompt: '',
+                    scoringRule: const FirstBuzzerRule(),
+                  ),
+                  isNew: true,
+                ),
+                onEdit: (question) => _editQuestion(cubit, question),
+                onRemove: cubit.removeQuestion,
+                onReorder: cubit.reorderQuestions,
               ),
-              onEdit: (question) => _editQuestion(cubit, question),
-              onRemove: cubit.removeQuestion,
-              onReorder: cubit.reorderQuestions,
-            ),
+            },
             if (state.error case final error?)
               PanelCard(
                 title: 'Cannot save quiz',

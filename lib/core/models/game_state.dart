@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'jeopardy.dart';
 import 'json.dart';
 import 'player.dart';
 import 'question.dart';
@@ -90,6 +91,7 @@ final class GameState extends Equatable {
     this.round = RoundState.idle,
     this.questionBank = const [],
     this.completedQuestionIds = const {},
+    this.jeopardy,
     this.hostTimeMicros = 0,
   });
 
@@ -102,6 +104,10 @@ final class GameState extends Equatable {
     round: RoundState.fromJson(json.readObject('round')),
     questionBank: json.readList('questionBank', Question.fromJson),
     completedQuestionIds: json.readStringList('completedQuestionIds').toSet(),
+    jeopardy: switch (json.readObjectOrNull('jeopardy')) {
+      final JsonMap value => JeopardyState.fromJson(value),
+      null => null,
+    },
     hostTimeMicros: json.readInt('hostTimeMicros'),
   );
 
@@ -126,6 +132,9 @@ final class GameState extends Equatable {
   /// Questions that were already revealed.
   final Set<String> completedQuestionIds;
 
+  /// Board bookkeeping when the session plays a Jeopardy quiz, else `null`.
+  final JeopardyState? jeopardy;
+
   /// Host wall clock at the moment the snapshot was produced.
   ///
   /// Clients use it as a coarse freshness check and as a fallback when their
@@ -133,8 +142,9 @@ final class GameState extends Equatable {
   final int hostTimeMicros;
 
   /// Players with an open socket.
-  List<Player> get connectedPlayers =>
-      players.values.where((player) => player.isConnected).toList(growable: false);
+  List<Player> get connectedPlayers => players.values
+      .where((player) => player.isConnected)
+      .toList(growable: false);
 
   /// The player that currently holds the floor.
   Player? get activePlayer {
@@ -177,6 +187,7 @@ final class GameState extends Equatable {
     final keepSolution = round.status == RoundStatus.revealed;
     return copyWith(
       questionBank: const [],
+      jeopardy: jeopardy?.redacted(),
       round: round.copyWith(
         question: question == null || keepSolution
             ? question
@@ -194,6 +205,7 @@ final class GameState extends Equatable {
     RoundState? round,
     List<Question>? questionBank,
     Set<String>? completedQuestionIds,
+    Object? jeopardy = _unset,
     Object? hostTimeMicros = _unset,
   }) => GameState(
     mode: mode ?? this.mode,
@@ -203,6 +215,9 @@ final class GameState extends Equatable {
     round: round ?? this.round,
     questionBank: questionBank ?? this.questionBank,
     completedQuestionIds: completedQuestionIds ?? this.completedQuestionIds,
+    jeopardy: identical(jeopardy, _unset)
+        ? this.jeopardy
+        : jeopardy as JeopardyState?,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -219,6 +234,7 @@ final class GameState extends Equatable {
         .map((question) => question.toJson())
         .toList(growable: false),
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
+    'jeopardy': jeopardy?.toJson(),
     'hostTimeMicros': hostTimeMicros,
   };
 
@@ -231,7 +247,7 @@ final class GameState extends Equatable {
     round,
     questionBank,
     completedQuestionIds,
+    jeopardy,
     hostTimeMicros,
   ];
 }
-

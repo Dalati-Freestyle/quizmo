@@ -27,23 +27,40 @@ export 'quiz_engine_state.dart';
 /// arrive inside that window are merged into the queue and the whole queue is
 /// sorted by the latency adjusted host timestamp. Only then is the floor handed
 /// out. That is what lets a player on a slow link win a race they actually won.
+///
+/// ## Jeopardy
+///
+/// When a [JeopardyBoard] is supplied the session plays the Jeopardy format.
+/// Questions are still ordinary [Question]s of any kind; the engine only
+///
+/// * lets the quizmaster pick them from the board
+///   ([SelectJeopardyCellEvent]), rotating the pick between the teams,
+/// * replaces their scoring rule by the points of the row (or the wager of a
+///   Daily Double), and
+/// * restricts who may answer: the picking team first, and — if the board
+///   allows stealing — the other teams after a miss.
 class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// Creates an engine seeded with [questionBank], [teams] and [mode].
   QuizEngineBloc({
     List<Question> questionBank = const [],
     Map<String, Team> teams = const {},
     GameMode mode = const SoloMode(),
+    JeopardyBoard? jeopardyBoard,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     NowMicros now = systemNowMicros,
   }) : _now = now,
        _initialBank = questionBank,
        _initialTeams = teams,
+       _initialBoard = jeopardyBoard,
        super(
          QuizEngineState(
            game: GameState(
              questionBank: questionBank,
              teams: teams,
              mode: mode,
+             jeopardy: jeopardyBoard == null
+                 ? null
+                 : JeopardyState.start(jeopardyBoard, teams.keys),
              hostTimeMicros: now(),
            ),
          ),
@@ -60,6 +77,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
     on<RevealRoundEvent>(_onRevealRound);
+    on<CloseRoundEvent>(_onCloseRound);
+    on<SelectJeopardyCellEvent>(_onSelectJeopardyCell);
+    on<PlaceDailyDoubleWagerEvent>(_onPlaceDailyDoubleWager);
+    on<SetJeopardyTurnEvent>(_onSetJeopardyTurn);
     on<ResetGameEvent>(_onResetGame);
   }
 
@@ -69,6 +90,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   final NowMicros _now;
   final List<Question> _initialBank;
   final Map<String, Team> _initialTeams;
+  final JeopardyBoard? _initialBoard;
   Timer? _graceTimer;
 
   /// The host clock, exposed so the UI can render latency relative to it.
@@ -177,6 +199,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   void _onStartRound(StartRoundEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
+    if (game.jeopardy != null) {
+      // On a board every round starts by picking a cell, so that the points,
+      // the turn rotation and the answer restrictions cannot be bypassed.
+      _onSelectJeopardyCell(SelectJeopardyCellEvent(event.questionId), emit);
+      return;
+    }
     final question = game.questionById(event.questionId);
     if (question == null) {
       emit(state.copyWith(notice: 'Unknown question "${event.questionId}".'));
@@ -198,10 +226,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
   }
 
-  void _onNextQuestion(
-    NextQuestionEvent event,
-    Emitter<QuizEngineState> emit,
-  ) {
+  void _onNextQuestion(NextQuestionEvent event, Emitter<QuizEngineState> emit) {
+    if (state.game.jeopardy != null) {
+      emit(state.copyWith(notice: 'Pick the next question on the board.'));
+      return;
+    }
     final next = state.game.nextPendingQuestion;
     if (next == null) {
       emit(state.copyWith(notice: 'No pending questions left.'));
@@ -215,7 +244,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final round = game.round;
     final answer = event.answer;
 
-    final rejection = _rejectSubmission(round, answer.playerId, answer.questionId);
+    final rejection = _rejectSubmission(
+      round,
+      answer.playerId,
+      answer.questionId,
+    );
     if (rejection != null) {
       emit(state.copyWith(notice: rejection));
       return;
@@ -228,6 +261,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'Only the first answer counts.'));
       return;
     }
+    if (_teamAlreadyAnswered(game, answer.playerId)) {
+      emit(state.copyWith(notice: 'Your team already answered.'));
+      return;
+    }
 
     final updated = game.copyWith(
       round: round.copyWith(
@@ -235,14 +272,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
     );
 
-    // Everybody answered — no reason to keep the room waiting.
-    final everyoneAnswered = updated.connectedPlayers.isNotEmpty &&
-        updated.connectedPlayers.every(
-          (player) => updated.round.answers.containsKey(player.id),
-        );
-
     emit(_publish(updated));
-    if (everyoneAnswered) add(const RevealRoundEvent());
+    // Everybody answered — no reason to keep the room waiting.
+    if (_everyoneAnswered(updated)) add(const RevealRoundEvent());
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -250,7 +282,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final round = game.round;
     final press = event.press;
 
-    final rejection = _rejectSubmission(round, press.playerId, press.questionId);
+    final rejection = _rejectSubmission(
+      round,
+      press.playerId,
+      press.questionId,
+    );
     if (rejection != null) {
       emit(state.copyWith(notice: rejection));
       return;
@@ -269,9 +305,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     final wasEmpty = round.buzzerQueue.isEmpty;
     final queue = [...round.buzzerQueue, press]
-      ..sort(
-        (a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros),
-      );
+      ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
 
     emit(
       _publish(
@@ -328,7 +362,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final press = rank >= 0 ? round.buzzerQueue[rank] : null;
     final atHostMicros = press?.hostTimestampMicros ?? _now();
 
-    final delta = question.scoringRule.evaluate(
+    final delta = _ruleFor(game, question).evaluate(
       ScoringContext(
         isCorrect: event.wasCorrect,
         elapsed: round.elapsedAt(atHostMicros),
@@ -353,6 +387,27 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       );
       return;
+    }
+
+    // Wrong answer on the board: the picking team's miss either hands the
+    // question to the other teams or ends it.
+    if (game.jeopardy case final jeopardy? when jeopardy.hasActiveQuestion) {
+      if (!jeopardy.isStealRound) {
+        final missed = game.copyWith(scores: scores);
+        if (_canOpenSteal(missed)) {
+          emit(
+            _publish(
+              _openStealRound(missed),
+              notice: '$playerName missed ($delta). The other teams may steal.',
+            ),
+          );
+        } else {
+          emit(
+            _publish(_reveal(missed), notice: '$playerName missed ($delta).'),
+          );
+        }
+        return;
+      }
     }
 
     // Wrong answer: drop that press and offer the floor to the next in line.
@@ -395,19 +450,289 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       BuzzerQuestion() => game,
     };
 
+    // Nobody of the picking team got it right: the others may try.
+    if (_canOpenSteal(scored)) {
+      emit(
+        _publish(
+          _openStealRound(scored),
+          notice: 'Nobody scored. The other teams may steal.',
+        ),
+      );
+      return;
+    }
+
     emit(_publish(_reveal(scored), notice: 'Round revealed.'));
+  }
+
+  void _onCloseRound(CloseRoundEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    if (game.round.status != RoundStatus.revealed) {
+      emit(state.copyWith(notice: 'Reveal the round before closing it.'));
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          round: RoundState.idle,
+          jeopardy: game.jeopardy?.copyWith(
+            activePoints: null,
+            activeIsDailyDouble: false,
+            isStealRound: false,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------- jeopardy ---
+
+  void _onSelectJeopardyCell(
+    SelectJeopardyCellEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final jeopardy = game.jeopardy;
+    if (jeopardy == null) {
+      emit(state.copyWith(notice: 'This session has no Jeopardy board.'));
+      return;
+    }
+    if (!state.canStartRound) {
+      emit(state.copyWith(notice: 'Finish the current question first.'));
+      return;
+    }
+    final id = event.questionId;
+    final question = game.questionById(id);
+    final points = jeopardy.board.pointsFor(id);
+    if (question == null || points == null) {
+      emit(state.copyWith(notice: 'That question is not on the board.'));
+      return;
+    }
+    if (game.completedQuestionIds.contains(id)) {
+      emit(state.copyWith(notice: 'That question was already played.'));
+      return;
+    }
+
+    if (jeopardy.board.isDailyDouble(id)) {
+      _graceTimer?.cancel();
+      emit(
+        _publish(
+          game.copyWith(
+            round: RoundState.idle,
+            jeopardy: jeopardy.copyWith(
+              pendingDailyDoubleId: id,
+              activePoints: null,
+              activeIsDailyDouble: false,
+              isStealRound: false,
+            ),
+          ),
+          notice: 'Daily Double! Place the wager.',
+        ),
+      );
+      return;
+    }
+
+    _beginBoardRound(
+      game,
+      question,
+      points: points,
+      isDailyDouble: false,
+      emit: emit,
+    );
+  }
+
+  void _onPlaceDailyDoubleWager(
+    PlaceDailyDoubleWagerEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final jeopardy = game.jeopardy;
+    final pendingId = jeopardy?.pendingDailyDoubleId;
+    final question = pendingId == null ? null : game.questionById(pendingId);
+    if (jeopardy == null || question == null) {
+      emit(state.copyWith(notice: 'No Daily Double is waiting for a wager.'));
+      return;
+    }
+
+    final maxWager = maxDailyDoubleWager(game);
+    if (event.wager < 1 || event.wager > maxWager) {
+      emit(
+        state.copyWith(notice: 'The wager must be between 1 and $maxWager.'),
+      );
+      return;
+    }
+
+    _beginBoardRound(
+      game,
+      question,
+      points: event.wager,
+      isDailyDouble: true,
+      emit: emit,
+    );
+  }
+
+  void _onSetJeopardyTurn(
+    SetJeopardyTurnEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final jeopardy = game.jeopardy;
+    if (jeopardy == null) {
+      emit(state.copyWith(notice: 'This session has no Jeopardy board.'));
+      return;
+    }
+    if (!game.teams.containsKey(event.teamId)) {
+      emit(state.copyWith(notice: 'Unknown team.'));
+      return;
+    }
+    if (!state.canStartRound) {
+      emit(state.copyWith(notice: 'The turn cannot change during a question.'));
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(jeopardy: jeopardy.copyWith(currentTeamId: event.teamId)),
+        notice: '${game.teams[event.teamId]!.name} picks next.',
+      ),
+    );
+  }
+
+  /// The highest wager the picking team may place on a Daily Double.
+  ///
+  /// Classic rule: the team's own score, but never less than the most
+  /// valuable row so that a team in the red can still take part.
+  int maxDailyDoubleWager(GameState game) {
+    final jeopardy = game.jeopardy;
+    if (jeopardy == null) return 0;
+    final teamScore = game.teamScores[jeopardy.currentTeamId] ?? 0;
+    final highest = jeopardy.board.highestRowPoints;
+    return teamScore > highest ? teamScore : highest;
+  }
+
+  void _beginBoardRound(
+    GameState game,
+    Question question, {
+    required int points,
+    required bool isDailyDouble,
+    required Emitter<QuizEngineState> emit,
+  }) {
+    _graceTimer?.cancel();
+    final jeopardy = game.jeopardy!;
+    emit(
+      _publish(
+        game.copyWith(
+          round: RoundState(
+            question: question,
+            status: RoundStatus.acceptingAnswers,
+            startedAtHostMicros: _now(),
+          ),
+          jeopardy: jeopardy.copyWith(
+            pendingDailyDoubleId: null,
+            activePoints: points,
+            activeIsDailyDouble: isDailyDouble,
+            isStealRound: false,
+          ),
+        ),
+        notice: 'Round started: ${question.prompt}',
+      ),
+    );
+  }
+
+  /// Whether the picking team failed and the board lets the others try.
+  bool _canOpenSteal(GameState game) {
+    final jeopardy = game.jeopardy;
+    final question = game.round.question;
+    if (jeopardy == null || question == null) return false;
+    if (!jeopardy.hasActiveQuestion || jeopardy.isStealRound) return false;
+    if (!jeopardy.canSteal || jeopardy.currentTeamId == null) return false;
+    if (game.teams.length < 2) return false;
+    return !game.scores.history.any(
+      (event) => event.questionId == question.id && event.points > 0,
+    );
+  }
+
+  /// Restarts the question on stage for the teams other than the picker.
+  GameState _openStealRound(GameState game) {
+    _graceTimer?.cancel();
+    return game.copyWith(
+      round: RoundState(
+        question: game.round.question,
+        status: RoundStatus.acceptingAnswers,
+        startedAtHostMicros: _now(),
+      ),
+      jeopardy: game.jeopardy!.copyWith(isStealRound: true),
+    );
+  }
+
+  /// The rule that scores [question] in [game].
+  ///
+  /// On a board the points come from the row (or the wager) instead of the
+  /// rule stored on the question, which keeps every question kind usable on
+  /// every row.
+  ScoringRule _ruleFor(GameState game, Question question) {
+    final jeopardy = game.jeopardy;
+    final points = jeopardy?.activePoints;
+    if (jeopardy == null || points == null) return question.scoringRule;
+    final risksPoints =
+        jeopardy.activeIsDailyDouble || jeopardy.board.penalizeWrongAnswers;
+    return FixedPointsRule(
+      correctPoints: points,
+      wrongPoints: risksPoints ? -points : 0,
+    );
+  }
+
+  /// Whether the team of [playerId] already gave an answer this round.
+  ///
+  /// On a board only one answer per team counts, otherwise a big team would
+  /// earn the row points once per member.
+  bool _teamAlreadyAnswered(GameState game, String playerId) {
+    if (game.jeopardy == null) return false;
+    final teamId = game.players[playerId]?.teamId;
+    if (teamId == null) return false;
+    return game.round.answers.keys.any(
+      (answeredId) => game.players[answeredId]?.teamId == teamId,
+    );
+  }
+
+  /// Whether every player (on a board: every team) that may answer did.
+  bool _everyoneAnswered(GameState game) {
+    final jeopardy = game.jeopardy;
+    final eligible = game.connectedPlayers
+        .where((player) => jeopardy?.mayAnswer(player.teamId) ?? true)
+        .toList(growable: false);
+    if (eligible.isEmpty) return false;
+    return eligible.every((player) {
+      if (jeopardy != null && player.teamId != null) {
+        return game.round.answers.keys.any(
+          (id) => game.players[id]?.teamId == player.teamId,
+        );
+      }
+      return game.round.answers.containsKey(player.id);
+    });
+  }
+
+  /// The team that picks after [currentId], following the roster order.
+  String? _nextTeamId(GameState game, String? currentId) {
+    final ids = game.teams.keys.toList(growable: false);
+    if (ids.isEmpty) return null;
+    final index = currentId == null ? -1 : ids.indexOf(currentId);
+    return ids[(index + 1) % ids.length];
   }
 
   void _onResetGame(ResetGameEvent event, Emitter<QuizEngineState> emit) {
     _graceTimer?.cancel();
     final game = state.game;
+    final teams = _initialTeams.isEmpty ? game.teams : _initialTeams;
+    final board = _initialBoard;
     emit(
       _publish(
         GameState(
           mode: game.mode,
           players: game.players,
-          teams: _initialTeams.isEmpty ? game.teams : _initialTeams,
+          teams: teams,
           questionBank: _initialBank.isEmpty ? game.questionBank : _initialBank,
+          jeopardy: board == null
+              ? null
+              : JeopardyState.start(board, teams.keys),
           scores: ScoreState(
             byPlayer: {for (final id in game.players.keys) id: 0},
           ),
@@ -426,13 +751,22 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   );
 
   /// Marks the round revealed and files the question as played.
+  ///
+  /// A question played from the board also passes the pick on to the next team.
   GameState _reveal(GameState game) {
     final question = game.round.question;
+    final jeopardy = game.jeopardy;
     return game.copyWith(
       round: game.round.copyWith(status: RoundStatus.revealed),
       completedQuestionIds: question == null
           ? game.completedQuestionIds
           : {...game.completedQuestionIds, question.id},
+      jeopardy: jeopardy == null || !jeopardy.hasActiveQuestion
+          ? jeopardy
+          : jeopardy.copyWith(
+              currentTeamId: _nextTeamId(game, jeopardy.currentTeamId),
+              isStealRound: false,
+            ),
     );
   }
 
@@ -447,6 +781,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
     if (!state.game.players.containsKey(playerId)) return 'Unknown player.';
+    if (state.game.jeopardy case final jeopardy?) {
+      final teamId = state.game.players[playerId]?.teamId;
+      if (!jeopardy.mayAnswer(teamId)) {
+        return jeopardy.isStealRound
+            ? 'Only the other teams may steal this question.'
+            : 'The picking team answers first.';
+      }
+    }
     return null;
   }
 
@@ -477,10 +819,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     var scores = game.scores;
     var correctRank = 0;
+    final rule = _ruleFor(game, question);
     for (var index = 0; index < submissions.length; index++) {
       final answer = submissions[index];
       final isCorrect = question.isCorrect(answer.optionId);
-      final delta = question.scoringRule.evaluate(
+      final delta = rule.evaluate(
         ScoringContext(
           isCorrect: isCorrect,
           elapsed: round.elapsedAt(answer.hostTimestampMicros),
@@ -506,6 +849,3 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     });
   }
 }
-
-
-

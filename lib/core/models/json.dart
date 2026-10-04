@@ -73,8 +73,7 @@ extension JsonMapReader on JsonMap {
       this[key] == null ? orElse : _cast<bool>(key, this[key]);
 
   /// Returns the [Duration] stored under [key] as milliseconds.
-  Duration readDurationMs(String key) =>
-      Duration(milliseconds: readInt(key));
+  Duration readDurationMs(String key) => Duration(milliseconds: readInt(key));
 
   /// Returns the nested object stored under [key].
   JsonMap readObject(String key) => _cast<JsonMap>(key, _required(key));
@@ -90,10 +89,16 @@ extension JsonMapReader on JsonMap {
           .toList(growable: false);
 
   /// Returns the list of strings stored under [key].
-  List<String> readStringList(String key) =>
-      _cast<List<Object?>>(key, _required(key))
-          .map((element) => _cast<String>(key, element))
-          .toList(growable: false);
+  List<String> readStringList(String key) => _cast<List<Object?>>(
+    key,
+    _required(key),
+  ).map((element) => _cast<String>(key, element)).toList(growable: false);
+
+  /// Returns the list of integers stored under [key].
+  List<int> readIntList(String key) => _cast<List<Object?>>(
+    key,
+    _required(key),
+  ).map((element) => _cast<num>(key, element).toInt()).toList(growable: false);
 
   /// Decodes the `<id, object>` map stored under [key] with [decode].
   Map<String, T> readMap<T>(String key, T Function(JsonMap json) decode) {
@@ -113,4 +118,3 @@ extension JsonMapReader on JsonMap {
     };
   }
 }
-

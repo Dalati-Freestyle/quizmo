@@ -245,6 +245,7 @@ class _QuizCard extends StatelessWidget {
         Text(quiz.description.isEmpty ? 'No description.' : quiz.description),
         const SizedBox(height: 12),
         InfoRow(label: 'Category', value: quiz.category),
+        InfoRow(label: 'Type', value: quiz.format.label),
         InfoRow(label: 'Questions', value: '${quiz.questions.length}'),
         InfoRow(label: 'Teams', value: '${quiz.teams.length}'),
         if (quiz.questions.isNotEmpty) ...[

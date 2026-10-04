@@ -33,6 +33,7 @@ import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
 import '../app.dart';
+import '../common/jeopardy_board_view.dart';
 import 'spectator_session_cubit.dart';
 import 'tv_launch.dart';
 import 'tv_standings.dart';
@@ -127,7 +128,9 @@ class _TvViewState extends State<_TvView> {
           DeviceOrientation.landscapeRight,
         ]),
       );
-      unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
+      unawaited(
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+      );
     }
   }
 
@@ -195,9 +198,8 @@ class _TvViewState extends State<_TvView> {
               Positioned.fill(
                 child: MediaQuery(
                   // Device text scaling would break the fixed canvas.
-                  data: MediaQuery.of(
-                    context,
-                  ).copyWith(textScaler: TextScaler.noScaling),
+                  data: MediaQuery.of(context)
+                      .copyWith(textScaler: TextScaler.noScaling),
                   child: FittedBox(
                     fit: BoxFit.contain,
                     child: SizedBox(
@@ -278,10 +280,7 @@ class TvScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 40),
-                      SizedBox(
-                        width: 620,
-                        child: _StandingsPanel(game: game),
-                      ),
+                      SizedBox(width: 620, child: _StandingsPanel(game: game)),
                     ],
                   ),
           ),
@@ -517,21 +516,157 @@ class _MainStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final question = game.round.question;
+    final jeopardy = game.jeopardy;
     return _TvPanel(
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
-        child: question == null
-            ? _LobbyStage(
-                key: const ValueKey('lobby'),
-                game: game,
-                joinUri: joinUri,
+        child: switch ((question, jeopardy)) {
+          (final Question current, _) => _QuestionStage(
+            key: ValueKey(current.id),
+            game: game,
+            question: current,
+            state: state,
+          ),
+          (null, final JeopardyState board)
+              when board.pendingDailyDoubleId != null =>
+            _DailyDoubleStage(
+              key: ValueKey('daily-${board.pendingDailyDoubleId}'),
+              game: game,
+              jeopardy: board,
+            ),
+          (null, final JeopardyState board) => _JeopardyBoardStage(
+            key: const ValueKey('board'),
+            game: game,
+            jeopardy: board,
+            joinUri: joinUri,
+          ),
+          (null, null) => _LobbyStage(
+            key: const ValueKey('lobby'),
+            game: game,
+            joinUri: joinUri,
+          ),
+        },
+      ),
+    );
+  }
+}
+
+// --------------------------------------------------------------- jeopardy ---
+
+/// The board between two questions: whose turn it is and what is left.
+class _JeopardyBoardStage extends StatelessWidget {
+  const _JeopardyBoardStage({
+    required this.game,
+    required this.jeopardy,
+    required this.joinUri,
+    super.key,
+  });
+
+  final GameState game;
+  final JeopardyState jeopardy;
+  final Uri joinUri;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final picker = game.teams[jeopardy.currentTeamId];
+    final remaining = jeopardy.board.questionIds
+        .where((id) => !game.completedQuestionIds.contains(id))
+        .length;
+    final isOpening = game.completedQuestionIds.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 32,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (remaining == 0)
+              Text(
+                'Board cleared — check the standings!',
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w800,
+                ),
               )
-            : _QuestionStage(
-                key: ValueKey(question.id),
-                game: game,
-                question: question,
-                state: state,
+            else if (picker != null)
+              _Pill(
+                label: '${picker.name} picks the next question',
+                color: Color(picker.colorValue).withValues(alpha: 0.35),
+                dotColor: Color(picker.colorValue),
               ),
+            if (isOpening)
+              Text(
+                'Join: ${joinUri.authority}',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.primary,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: JeopardyBoardView(
+            board: jeopardy.board,
+            completedQuestionIds: game.completedQuestionIds,
+            style: JeopardyBoardStyle.tv,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyDoubleStage extends StatelessWidget {
+  const _DailyDoubleStage({
+    required this.game,
+    required this.jeopardy,
+    super.key,
+  });
+
+  final GameState game;
+  final JeopardyState jeopardy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final id = jeopardy.pendingDailyDoubleId;
+    final category = id == null ? null : jeopardy.board.categoryNameOf(id);
+    final picker = game.teams[jeopardy.currentTeamId];
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star, size: 200, color: scheme.tertiary),
+          const SizedBox(height: 16),
+          Text(
+            'DAILY DOUBLE',
+            style: theme.textTheme.displayLarge?.copyWith(
+              fontSize: 120,
+              fontWeight: FontWeight.w900,
+              color: scheme.tertiary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (category != null)
+            _Pill(label: category, color: scheme.tertiaryContainer),
+          const SizedBox(height: 32),
+          Text(
+            '${picker?.name ?? 'The picking team'}, place your wager!',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontSize: 56,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -669,18 +804,51 @@ class _QuestionStage extends StatelessWidget {
     final isRevealed = round.status == RoundStatus.revealed;
     // Local copy: public fields are not promoted by the switch below.
     final current = question;
+    final jeopardy = game.jeopardy;
+    final boardCategory = jeopardy?.board.categoryNameOf(question.id);
+    final picker = game.teams[jeopardy?.currentTeamId];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (question.category case final category?) ...[
-              _Pill(label: category, color: scheme.tertiaryContainer),
-              const SizedBox(width: 16),
-            ],
-            _Pill(label: question.kindLabel, color: scheme.secondaryContainer),
-            const Spacer(),
+            Expanded(
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                children: [
+                  if (boardCategory ?? question.category case final category?)
+                    _Pill(label: category, color: scheme.tertiaryContainer),
+                  if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
+                    _Pill(
+                      label: '${jeopardy.activePoints} pts',
+                      color: scheme.primaryContainer,
+                    ),
+                    if (jeopardy.activeIsDailyDouble)
+                      _Pill(
+                        label: 'DAILY DOUBLE',
+                        color: scheme.tertiary.withValues(alpha: 0.4),
+                        dotColor: scheme.tertiary,
+                      ),
+                    if (picker != null && !isRevealed)
+                      _Pill(
+                        label: jeopardy.isStealRound
+                            ? 'STEAL: everyone but ${picker.name}'
+                            : '${picker.name} answers',
+                        color: Color(picker.colorValue).withValues(alpha: 0.35),
+                        dotColor: Color(picker.colorValue),
+                      ),
+                  ] else
+                    _Pill(
+                      label: question.kindLabel,
+                      color: scheme.secondaryContainer,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
             _RoundStatusPill(status: round.status),
           ],
         ),
@@ -1052,11 +1220,17 @@ class _BuzzerBoard extends StatelessWidget {
               width: 1060,
               child: Column(
                 children: [
-                  for (var index = 0; index < round.buzzerQueue.length && index < 5; index++)
+                  for (
+                    var index = 0;
+                    index < round.buzzerQueue.length && index < 5;
+                    index++
+                  )
                     _BuzzRow(
                       index: index,
                       name:
-                          game.players[round.buzzerQueue[index].playerId]?.name ??
+                          game
+                              .players[round.buzzerQueue[index].playerId]
+                              ?.name ??
                           'Player',
                       gap: round.gapToFastest(round.buzzerQueue[index]),
                       isActive:
@@ -1155,7 +1329,9 @@ class _BuzzRow extends StatelessWidget {
             ),
           ),
           Text(
-            index == 0 ? 'FASTEST' : '+${formatMicrosAsMillis(gap.inMicroseconds)}',
+            index == 0
+                ? 'FASTEST'
+                : '+${formatMicrosAsMillis(gap.inMicroseconds)}',
             style: theme.textTheme.titleLarge?.copyWith(
               fontSize: 30,
               fontWeight: FontWeight.w700,
@@ -1305,9 +1481,7 @@ class _StandingsPanel extends StatelessWidget {
             child: standings.entries.isEmpty
                 ? Center(
                     child: Text(
-                      game.mode is TeamMode
-                          ? 'No teams yet'
-                          : 'No players yet',
+                      game.mode is TeamMode ? 'No teams yet' : 'No players yet',
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontSize: 32,
                         color: scheme.onSurfaceVariant,
@@ -1438,4 +1612,3 @@ class _StandingRow extends StatelessWidget {
     );
   }
 }
-

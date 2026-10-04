@@ -9,6 +9,7 @@ import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
 import '../common/adaptive_layout.dart';
+import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
 
 /// Start/stop control and reachability information of the embedded server.
@@ -72,14 +73,12 @@ class ServerControlPanel extends StatelessWidget {
                           ? Icons.stop
                           : Icons.play_arrow,
                     ),
-                    label: Text(
-                      switch (state.status) {
-                        HostServerStatus.running => 'Stop server',
-                        HostServerStatus.starting => 'Starting…',
-                        HostServerStatus.failed => 'Retry',
-                        HostServerStatus.stopped => 'Start server',
-                      },
-                    ),
+                    label: Text(switch (state.status) {
+                      HostServerStatus.running => 'Stop server',
+                      HostServerStatus.starting => 'Starting…',
+                      HostServerStatus.failed => 'Retry',
+                      HostServerStatus.stopped => 'Start server',
+                    }),
                   ),
                 ),
               ],
@@ -265,9 +264,8 @@ class _CopyableUri extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: uri.toString()));
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Copied $uri')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Copied $uri')));
         }
       },
       child: Padding(
@@ -538,6 +536,213 @@ class QuestionBankPanel extends StatelessWidget {
   }
 }
 
+/// The Jeopardy board of a hosted session.
+///
+/// The quizmaster clicks the cell the picking team asked for. A Daily Double
+/// does not open its question right away: the panel first asks for the wager.
+class JeopardyBoardPanel extends StatelessWidget {
+  /// Creates the board panel.
+  const JeopardyBoardPanel({
+    required this.game,
+    required this.jeopardy,
+    required this.canPick,
+    required this.maxWager,
+    required this.onSelect,
+    required this.onPlaceWager,
+    required this.onSetTurn,
+    super.key,
+  });
+
+  /// Current session snapshot.
+  final GameState game;
+
+  /// The board bookkeeping of [game].
+  final JeopardyState jeopardy;
+
+  /// Whether a cell may be picked right now.
+  final bool canPick;
+
+  /// Highest wager the picking team may place on a Daily Double.
+  final int maxWager;
+
+  /// Opens the cell of the given question id.
+  final ValueChanged<String> onSelect;
+
+  /// Fixes the wager of the pending Daily Double.
+  final ValueChanged<int> onPlaceWager;
+
+  /// Hands the next pick to the given team id.
+  final ValueChanged<String> onSetTurn;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final picker = game.teams[jeopardy.currentTeamId];
+    final pending = jeopardy.pendingDailyDoubleId;
+
+    return PanelCard(
+      title: 'Jeopardy board',
+      icon: Icons.grid_view,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (game.teams.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Text('Picks next:', style: theme.textTheme.bodySmall),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        for (final team in game.teams.values)
+                          ChoiceChip(
+                            visualDensity: VisualDensity.compact,
+                            avatar: CircleAvatar(
+                              backgroundColor: Color(team.colorValue),
+                            ),
+                            label: Text(team.name),
+                            selected: team.id == jeopardy.currentTeamId,
+                            onSelected: canPick
+                                ? (_) => onSetTurn(team.id)
+                                : null,
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (pending != null)
+            _WagerForm(
+              key: ValueKey(pending),
+              teamName: picker?.name,
+              maxWager: maxWager,
+              onPlace: onPlaceWager,
+            ),
+          JeopardyBoardView(
+            board: jeopardy.board,
+            completedQuestionIds: game.completedQuestionIds,
+            showDailyDoubles: true,
+            highlightQuestionId: pending,
+            onSelect: canPick ? onSelect : null,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            canPick
+                ? 'Click the cell the picking team asked for. '
+                      'Stars mark Daily Doubles — only you can see them.'
+                : 'Finish the current question to pick the next cell.',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WagerForm extends StatefulWidget {
+  const _WagerForm({
+    required this.teamName,
+    required this.maxWager,
+    required this.onPlace,
+    super.key,
+  });
+
+  final String? teamName;
+  final int maxWager;
+  final ValueChanged<int> onPlace;
+
+  @override
+  State<_WagerForm> createState() => _WagerFormState();
+}
+
+class _WagerFormState extends State<_WagerForm> {
+  late final TextEditingController _controller = TextEditingController(
+    text: '${widget.maxWager}',
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final wager = int.tryParse(_controller.text.trim());
+    if (wager == null || wager < 1 || wager > widget.maxWager) {
+      setState(
+        () => _error = 'Enter a wager between 1 and ${widget.maxWager}.',
+      );
+      return;
+    }
+    setState(() => _error = null);
+    widget.onPlace(wager);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.star, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Daily Double! ${widget.teamName ?? 'The picking team'} '
+                  'places a wager.',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    labelText: 'Wager (max ${widget.maxWager})',
+                    errorText: _error,
+                  ),
+                  onSubmitted: (_) => _submit(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _submit,
+                child: const Text('Open question'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Live view of the running round, including the latency adjusted buzzer race.
 class LiveRoundPanel extends StatelessWidget {
   /// Creates the live round panel.
@@ -547,6 +752,7 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onReveal,
     required this.onLock,
     required this.onNext,
+    required this.onCloseRound,
     super.key,
   });
 
@@ -565,12 +771,16 @@ class LiveRoundPanel extends StatelessWidget {
   /// Starts the next pending question.
   final VoidCallback onNext;
 
+  /// Takes a revealed question off the stage and returns to the Jeopardy board.
+  final VoidCallback onCloseRound;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final game = state.game;
     final round = game.round;
     final question = round.question;
+    final jeopardy = game.jeopardy;
 
     return PanelCard(
       title: 'Live round',
@@ -583,21 +793,34 @@ class LiveRoundPanel extends StatelessWidget {
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const EmptyHint(
-                  'No question on stage. Pick one from the bank.',
-                  icon: Icons.play_circle_outline,
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: onNext,
-                  icon: const Icon(Icons.skip_next),
-                  label: const Text('Start next pending question'),
-                ),
+                if (jeopardy != null)
+                  EmptyHint(
+                    jeopardy.pendingDailyDoubleId != null
+                        ? 'Daily Double! Place the wager on the board panel.'
+                        : 'No question on stage. Pick a cell on the board.',
+                    icon: Icons.grid_view,
+                  )
+                else ...[
+                  const EmptyHint(
+                    'No question on stage. Pick one from the bank.',
+                    icon: Icons.play_circle_outline,
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: onNext,
+                    icon: const Icon(Icons.skip_next),
+                    label: const Text('Start next pending question'),
+                  ),
+                ],
               ],
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
+                  _JeopardyRoundBanner(game: game, jeopardy: jeopardy),
+                  const SizedBox(height: 10),
+                ],
                 Text(
                   question.prompt,
                   style: theme.textTheme.titleSmall?.copyWith(
@@ -624,6 +847,7 @@ class LiveRoundPanel extends StatelessWidget {
                   onReveal: onReveal,
                   onLock: onLock,
                   onNext: onNext,
+                  onCloseRound: onCloseRound,
                 ),
                 if (state.notice case final notice?) ...[
                   const SizedBox(height: 10),
@@ -640,6 +864,57 @@ class LiveRoundPanel extends StatelessWidget {
   }
 }
 
+/// Shows what is at stake in the board question on stage.
+class _JeopardyRoundBanner extends StatelessWidget {
+  const _JeopardyRoundBanner({required this.game, required this.jeopardy});
+
+  final GameState game;
+  final JeopardyState jeopardy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final questionId = game.round.question?.id;
+    final category = questionId == null
+        ? null
+        : jeopardy.board.categoryNameOf(questionId);
+    final picker = game.teams[jeopardy.currentTeamId]?.name;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: [
+        if (category != null)
+          Chip(
+            visualDensity: VisualDensity.compact,
+            label: Text(category, style: theme.textTheme.labelSmall),
+          ),
+        Chip(
+          visualDensity: VisualDensity.compact,
+          avatar: jeopardy.activeIsDailyDouble
+              ? const Icon(Icons.star, size: 14)
+              : null,
+          label: Text(
+            '${jeopardy.activePoints} pts'
+            '${jeopardy.activeIsDailyDouble ? ' · Daily Double' : ''}',
+            style: theme.textTheme.labelSmall,
+          ),
+        ),
+        if (picker != null)
+          Chip(
+            visualDensity: VisualDensity.compact,
+            label: Text(
+              jeopardy.isStealRound
+                  ? 'Steal round · other teams than $picker'
+                  : '$picker answers first',
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _RoundActions extends StatelessWidget {
   const _RoundActions({
     required this.state,
@@ -647,6 +922,7 @@ class _RoundActions extends StatelessWidget {
     required this.onReveal,
     required this.onLock,
     required this.onNext,
+    required this.onCloseRound,
   });
 
   final QuizEngineState state;
@@ -654,22 +930,32 @@ class _RoundActions extends StatelessWidget {
   final VoidCallback onReveal;
   final VoidCallback onLock;
   final VoidCallback onNext;
+  final VoidCallback onCloseRound;
 
   @override
   Widget build(BuildContext context) {
-    final round = state.game.round;
-    final activeName = state.game.activePlayer?.name;
+    final game = state.game;
+    final round = game.round;
+    final activeName = game.activePlayer?.name;
+    final jeopardy = game.jeopardy;
+    final passesToOthers =
+        jeopardy != null &&
+        jeopardy.hasActiveQuestion &&
+        !jeopardy.isStealRound &&
+        jeopardy.canSteal &&
+        game.teams.length > 1;
 
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: switch (round.status) {
         RoundStatus.idle => [
-          FilledButton.icon(
-            onPressed: onNext,
-            icon: const Icon(Icons.skip_next),
-            label: const Text('Next question'),
-          ),
+          if (jeopardy == null)
+            FilledButton.icon(
+              onPressed: onNext,
+              icon: const Icon(Icons.skip_next),
+              label: const Text('Next question'),
+            ),
         ],
         RoundStatus.acceptingAnswers => [
           if (round.buzzerQueue.isNotEmpty)
@@ -680,8 +966,10 @@ class _RoundActions extends StatelessWidget {
             ),
           OutlinedButton.icon(
             onPressed: onReveal,
-            icon: const Icon(Icons.visibility),
-            label: const Text('Close & reveal'),
+            icon: Icon(passesToOthers ? Icons.swap_horiz : Icons.visibility),
+            label: Text(
+              passesToOthers ? 'Close & pass to other teams' : 'Close & reveal',
+            ),
           ),
         ],
         RoundStatus.locked => [
@@ -697,11 +985,18 @@ class _RoundActions extends StatelessWidget {
           ),
         ],
         RoundStatus.revealed => [
-          FilledButton.icon(
-            onPressed: onNext,
-            icon: const Icon(Icons.skip_next),
-            label: const Text('Next question'),
-          ),
+          if (jeopardy == null)
+            FilledButton.icon(
+              onPressed: onNext,
+              icon: const Icon(Icons.skip_next),
+              label: const Text('Next question'),
+            )
+          else
+            FilledButton.icon(
+              onPressed: onCloseRound,
+              icon: const Icon(Icons.grid_view),
+              label: const Text('Back to the board'),
+            ),
         ],
       },
     );
@@ -785,7 +1080,10 @@ class _BuzzerMonitor extends StatelessWidget {
     final round = game.round;
 
     if (round.buzzerQueue.isEmpty) {
-      return const EmptyHint('Buzzer armed — nobody pressed yet.', icon: Icons.bolt);
+      return const EmptyHint(
+        'Buzzer armed — nobody pressed yet.',
+        icon: Icons.bolt,
+      );
     }
 
     return Column(
@@ -823,10 +1121,7 @@ class _BuzzerMonitor extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      '${index + 1}.',
-                      style: theme.textTheme.labelMedium,
-                    ),
+                    Text('${index + 1}.', style: theme.textTheme.labelMedium),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -905,4 +1200,3 @@ class ServerLogPanel extends StatelessWidget {
     );
   }
 }
-

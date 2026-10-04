@@ -3,8 +3,10 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'jeopardy.dart';
 import 'json.dart';
 import 'question.dart';
+import 'quiz_format.dart';
 import 'team.dart';
 
 /// Describes quiz content that cannot be saved or imported safely.
@@ -31,6 +33,7 @@ final class Quiz extends Equatable {
     required this.updatedAt,
     this.questions = const [],
     this.teams = const [],
+    this.format = const StandardFormat(),
     this.schemaVersion = currentSchemaVersion,
   });
 
@@ -55,6 +58,11 @@ final class Quiz extends Equatable {
       category: json.readString('category'),
       questions: json.readList('questions', Question.fromJson),
       teams: json.readList('teams', Team.fromJson),
+      // Files written before formats existed have no entry: plain quiz.
+      format: switch (json.readObjectOrNull('format')) {
+        final JsonMap value => QuizFormat.fromJson(value),
+        null => const StandardFormat(),
+      },
       createdAt: DateTime.fromMicrosecondsSinceEpoch(
         json.readInt('createdAtMicros'),
         isUtc: true,
@@ -88,6 +96,9 @@ final class Quiz extends Equatable {
 
   /// Optional teams offered to joining players.
   final List<Team> teams;
+
+  /// How the question bank is played; see [QuizFormat].
+  final QuizFormat format;
 
   /// Instant at which this quiz was first created.
   final DateTime createdAt;
@@ -132,6 +143,12 @@ final class Quiz extends Equatable {
     for (final question in questions) {
       errors.addAll(_questionValidationErrors(question));
     }
+    switch (format) {
+      case StandardFormat():
+        break;
+      case JeopardyFormat(:final board):
+        errors.addAll(_jeopardyValidationErrors(board, questions));
+    }
     return List.unmodifiable(errors);
   }
 
@@ -150,6 +167,7 @@ final class Quiz extends Equatable {
     String? category,
     List<Question>? questions,
     List<Team>? teams,
+    QuizFormat? format,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Quiz(
@@ -160,6 +178,7 @@ final class Quiz extends Equatable {
     category: category ?? this.category,
     questions: questions ?? this.questions,
     teams: teams ?? this.teams,
+    format: format ?? this.format,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -175,6 +194,7 @@ final class Quiz extends Equatable {
         .map((question) => question.toJson())
         .toList(growable: false),
     'teams': teams.map((team) => team.toJson()).toList(growable: false),
+    'format': format.toJson(),
     'createdAtMicros': createdAt.toUtc().microsecondsSinceEpoch,
     'updatedAtMicros': updatedAt.toUtc().microsecondsSinceEpoch,
   };
@@ -188,6 +208,7 @@ final class Quiz extends Equatable {
     category,
     questions,
     teams,
+    format,
     createdAt,
     updatedAt,
   ];
@@ -202,6 +223,20 @@ void _addDuplicateIdError(
   for (final id in ids) {
     if (!seen.add(id)) errors.add('Duplicate $itemLabel ID "$id".');
   }
+}
+
+List<String> _jeopardyValidationErrors(
+  JeopardyBoard board,
+  List<Question> questions,
+) {
+  final errors = [...board.validationErrors()];
+  final known = {for (final question in questions) question.id};
+  for (final id in board.questionIds) {
+    if (!known.contains(id)) {
+      errors.add('The Jeopardy board references unknown question "$id".');
+    }
+  }
+  return errors;
 }
 
 List<String> _questionValidationErrors(Question question) => switch (question) {

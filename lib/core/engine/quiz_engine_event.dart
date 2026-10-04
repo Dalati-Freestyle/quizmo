@@ -169,3 +169,47 @@ final class ResetGameEvent extends QuizEngineEvent {
   const ResetGameEvent();
 }
 
+/// Takes a revealed question off the stage and returns to the board.
+final class CloseRoundEvent extends QuizEngineEvent {
+  /// Closes the revealed round.
+  const CloseRoundEvent();
+}
+
+/// The quizmaster clicked the Jeopardy cell that holds [questionId].
+///
+/// A Daily Double does not start the round yet: it waits for
+/// [PlaceDailyDoubleWagerEvent].
+final class SelectJeopardyCellEvent extends QuizEngineEvent {
+  /// Picks the cell of [questionId] for the team whose turn it is.
+  const SelectJeopardyCellEvent(this.questionId);
+
+  /// Identifier of the question the cell references.
+  final String questionId;
+
+  @override
+  List<Object?> get props => [questionId];
+}
+
+/// Fixes the wager of the pending Daily Double and opens its question.
+final class PlaceDailyDoubleWagerEvent extends QuizEngineEvent {
+  /// Risks [wager] points.
+  const PlaceDailyDoubleWagerEvent(this.wager);
+
+  /// Points the picking team bets.
+  final int wager;
+
+  @override
+  List<Object?> get props => [wager];
+}
+
+/// Hands the next pick to [teamId], overriding the automatic rotation.
+final class SetJeopardyTurnEvent extends QuizEngineEvent {
+  /// Gives [teamId] the pick.
+  const SetJeopardyTurnEvent(this.teamId);
+
+  /// The team that picks next.
+  final String teamId;
+
+  @override
+  List<Object?> get props => [teamId];
+}

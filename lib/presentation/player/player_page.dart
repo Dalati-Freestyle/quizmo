@@ -10,6 +10,7 @@ import '../../core/net/quiz_client.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/adaptive_layout.dart';
+import '../common/jeopardy_board_view.dart';
 import '../common/scoreboard_view.dart';
 import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
@@ -142,9 +143,8 @@ class _JoinFormState extends State<_JoinForm> {
       _hostKey.currentState?.validate();
       return;
     }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => TvPage(hostUri: uri)),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => TvPage(hostUri: uri)));
   }
 
   Future<void> _submit() async {
@@ -332,10 +332,7 @@ class _GameBoard extends StatelessWidget {
                           state.clockOffsetMicros,
                         ),
                       ),
-                      InfoRow(
-                        label: 'Player',
-                        value: state.me?.name ?? '—',
-                      ),
+                      InfoRow(label: 'Player', value: state.me?.name ?? '—'),
                     ],
                   ),
                 ),
@@ -357,6 +354,11 @@ class _QuestionStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final question = state.question;
+    final jeopardy = state.game?.jeopardy;
+
+    if (question == null && jeopardy != null) {
+      return _PlayerBoard(state: state, jeopardy: jeopardy);
+    }
 
     if (question == null) {
       return Column(
@@ -390,7 +392,7 @@ class _QuestionStage extends StatelessWidget {
 
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
-    return switch (question) {
+    final view = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
         question: question,
         status: state.roundStatus,
@@ -407,6 +409,117 @@ class _QuestionStage extends StatelessWidget {
         roundTripMicros: state.roundTripMicros,
       ),
     };
+
+    if (jeopardy == null || !jeopardy.hasActiveQuestion) return view;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _PlayerJeopardyBanner(state: state, jeopardy: jeopardy),
+        const SizedBox(height: 16),
+        view,
+      ],
+    );
   }
 }
 
+/// The board between two questions, as seen on a player's phone.
+class _PlayerBoard extends StatelessWidget {
+  const _PlayerBoard({required this.state, required this.jeopardy});
+
+  final PlayerSessionState state;
+  final JeopardyState jeopardy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final game = state.game!;
+    final picker = game.teams[jeopardy.currentTeamId];
+    final isDailyDouble = jeopardy.pendingDailyDoubleId != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          isDailyDouble
+              ? 'Daily Double! ${picker?.name ?? 'The picking team'} '
+                    'is placing a wager…'
+              : picker == null
+              ? 'Waiting for the next question…'
+              : '${picker.name} picks the next question',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 16),
+        JeopardyBoardView(
+          board: jeopardy.board,
+          completedQuestionIds: game.completedQuestionIds,
+          highlightQuestionId: jeopardy.pendingDailyDoubleId,
+        ),
+      ],
+    );
+  }
+}
+
+/// Says what a board question is worth and whether this player may answer.
+class _PlayerJeopardyBanner extends StatelessWidget {
+  const _PlayerJeopardyBanner({required this.state, required this.jeopardy});
+
+  final PlayerSessionState state;
+  final JeopardyState jeopardy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final game = state.game!;
+    final questionId = game.round.question?.id;
+    final category = questionId == null
+        ? null
+        : jeopardy.board.categoryNameOf(questionId);
+    final picker = game.teams[jeopardy.currentTeamId];
+    final mayAnswer = jeopardy.mayAnswer(state.me?.teamId);
+    final isOpen = state.roundStatus.acceptsInput;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            if (category != null) Chip(label: Text(category)),
+            Chip(
+              avatar: jeopardy.activeIsDailyDouble
+                  ? const Icon(Icons.star, size: 16)
+                  : null,
+              label: Text(
+                '${jeopardy.activePoints} pts'
+                '${jeopardy.activeIsDailyDouble ? ' · Daily Double' : ''}',
+              ),
+            ),
+          ],
+        ),
+        if (isOpen && picker != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            mayAnswer
+                ? (jeopardy.isStealRound
+                      ? 'Steal! Your team may answer now.'
+                      : 'Your team answers.')
+                : (jeopardy.isStealRound
+                      ? 'Steal round: only the other teams answer.'
+                      : '${picker.name} answers first.'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: mayAnswer ? scheme.primary : scheme.outline,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}

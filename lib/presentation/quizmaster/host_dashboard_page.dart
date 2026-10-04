@@ -34,6 +34,10 @@ class HostDashboardPage extends StatelessWidget {
             questionBank: quiz.questions,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
+            jeopardyBoard: switch (quiz.format) {
+              JeopardyFormat(:final board) => board,
+              StandardFormat() => null,
+            },
           ),
         ),
         BlocProvider<HostServerCubit>(
@@ -138,7 +142,21 @@ class _HostDashboardView extends StatelessWidget {
                     onReveal: () => engine.add(const RevealRoundEvent()),
                     onLock: () => engine.add(const LockBuzzerEvent()),
                     onNext: () => engine.add(const NextQuestionEvent()),
+                    onCloseRound: () => engine.add(const CloseRoundEvent()),
                   ),
+                  if (game.jeopardy case final jeopardy?)
+                    JeopardyBoardPanel(
+                      game: game,
+                      jeopardy: jeopardy,
+                      canPick: engineState.canStartRound,
+                      maxWager: engine.maxDailyDoubleWager(game),
+                      onSelect: (questionId) =>
+                          engine.add(SelectJeopardyCellEvent(questionId)),
+                      onPlaceWager: (wager) =>
+                          engine.add(PlaceDailyDoubleWagerEvent(wager)),
+                      onSetTurn: (teamId) =>
+                          engine.add(SetJeopardyTurnEvent(teamId)),
+                    ),
                   ServerControlPanel(
                     state: serverState,
                     connectedPlayers: game.connectedPlayers.length,
@@ -157,12 +175,13 @@ class _HostDashboardView extends StatelessWidget {
                       AssignTeamEvent(playerId: playerId, teamId: teamId),
                     ),
                   ),
-                  QuestionBankPanel(
-                    game: game,
-                    canStart: engineState.canStartRound,
-                    onStart: (questionId) =>
-                        engine.add(StartRoundEvent(questionId)),
-                  ),
+                  if (game.jeopardy == null)
+                    QuestionBankPanel(
+                      game: game,
+                      canStart: engineState.canStartRound,
+                      onStart: (questionId) =>
+                          engine.add(StartRoundEvent(questionId)),
+                    ),
                   ServerLogPanel(logs: serverState.logs),
                 ],
               ),

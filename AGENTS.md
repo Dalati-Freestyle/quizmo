@@ -66,6 +66,27 @@ lib/
 3. Add a dedicated widget inside `lib/presentation/player/questions/` that accepts this specific question model.
 4. Add a dedicated renderer in `lib/presentation/quizmaster/` if special host controls are needed.
 
+### Questions are format independent (Jeopardy and future formats)
+A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFormat`, `JeopardyFormat`) only decides **how the question bank is presented and played**. It never owns question content.
+
+* **Every question kind must work in every format.** A Jeopardy cell references a `Question` by id and may hold *any* subtype — multiple choice, buzzer and every kind added later. Format code (`jeopardy.dart`, the Jeopardy parts of `QuizEngineBloc`, `JeopardyBoardView`, the editor board panel) must **never** `switch` on or special-case a concrete question type. Behaviour that differs per kind belongs to the `Question` hierarchy or to the existing exhaustive switches (round monitor, TV stage, player view).
+* **Everything that hangs on a question belongs on `Question`, not on a format.** Future attachments such as audio, video or images (question *and* solution side) are fields of the `Question` base class, are serialized in `Question.toJson` / `baseJson` and must be redacted in `Question.redacted()` until the reveal. Because they sit on the question, every format gets them for free; do not add per-format media fields.
+* **Formats only override what is format specific.** On a board the points come from the *row* (or the Daily Double wager) and replace the question's own `ScoringRule` (`QuizEngineBloc._ruleFor`); everything else (time limit, solution, buzzer fairness, clock sync) stays the question's business.
+* A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
+
+### Adding a New Quiz Format
+1. Add a case to the sealed `QuizFormat` (plus its `fromJson` tag). A file without a `format` entry stays a standard quiz, so `schemaVersion` does not change for purely additive formats.
+2. Put its static layout/rules in a pure Dart model and its live bookkeeping in a nullable field of `GameState` (see `JeopardyState`). Strip everything secret in its `redacted()` (e.g. Daily Double positions); `GameState.redactedForPlayers` must call it.
+3. Drive it through new `QuizEngineEvent`s in `QuizEngineBloc`; cover the rules with tests under `test/core/engine/` before wiring UI.
+4. Validate it in `Quiz.validationErrors()` (the sealed `switch` forces you to).
+5. Add the host panel, the TV stage and the player view; TV and player screens render from the redacted snapshot only.
+
+### Jeopardy format
+* Board = categories (columns) × rows; `rowPoints` gives the points per row, categories may hold different numbers of cells (missing cells are empty). Rules per quiz: `penalizeWrongAnswers`, `allowSteal`; optional Daily Double flag per cell.
+* The quizmaster clicks the cell the picking team asked for (`SelectJeopardyCellEvent`); the pick rotates through the teams after every question (`SetJeopardyTurnEvent` overrides it). A Daily Double first waits for `PlaceDailyDoubleWagerEvent`; the wager is capped by `QuizEngineBloc.maxDailyDoubleWager`, a miss always costs the wager and a Daily Double can never be stolen.
+* The picking team answers first; with `allowSteal` a miss (or an unanswered question) restarts the question for the *other* teams (`JeopardyState.isStealRound`). On a board only the first answer of a team counts.
+* `StartRoundEvent` / `NextQuestionEvent` are routed through the board in a Jeopardy session; do not bypass it.
+
 ### Adding Scoring Rules / Team Modes
 * Implement rules inside `lib/core/engine/scoring_rules.dart`.
 * Always write unit tests under `test/core/engine/` for any new scoring rule or team aggregation logic before connecting it to UI components.
@@ -108,3 +129,5 @@ it with `dart run tool/bundle_web_client.dart` after every change.
 ## 5. Performance & UX Rules
 * **Buzzer Responsiveness:** Always bind buzzer buttons to `Listener.onPointerDown` instead of `GestureDetector.onTap` to bypass gesture delay.
 * **Bundle Size:** Keep web player assets lightweight. Defer-load host or admin tools so web players joining via QR/Discord load instantly.
+
+* `StartRoundEvent` / `NextQuestionEvent` are routed through the board in a Jeopardy session; do not bypass it.

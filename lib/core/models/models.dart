@@ -6,10 +6,12 @@ library;
 
 export 'answer.dart';
 export 'game_state.dart';
+export 'jeopardy.dart';
 export 'json.dart';
 export 'player.dart';
 export 'question.dart';
 export 'quiz.dart';
+export 'quiz_format.dart';
 export 'round.dart';
 export 'score.dart';
 export 'team.dart';

@@ -123,6 +123,246 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     _replaceDraft(state.draft.copyWith(questions: questions));
   }
 
+  // ---------------------------------------------------------------- format ---
+
+  /// Plays the quiz as a plain list of questions.
+  ///
+  /// The questions stay; the board layout is remembered in case the host
+  /// switches back to Jeopardy.
+  void useStandardFormat() {
+    if (_board case final board?) _stashedBoard = board;
+    _replaceDraft(state.draft.copyWith(format: const StandardFormat()));
+  }
+
+  /// Plays the quiz as a Jeopardy board.
+  ///
+  /// Reuses the previous board of this editing session or starts a blank
+  /// 5 × 5 one.
+  void useJeopardyFormat() {
+    if (_board != null) return;
+    final board = _stashedBoard ?? JeopardyBoard.blank();
+    _replaceDraft(state.draft.copyWith(format: JeopardyFormat(board)));
+  }
+
+  /// Switches the two board rules.
+  void updateBoardRules({bool? penalizeWrongAnswers, bool? allowSteal}) =>
+      _updateBoard(
+        (board) => board.copyWith(
+          penalizeWrongAnswers: penalizeWrongAnswers,
+          allowSteal: allowSteal,
+        ),
+      );
+
+  /// Appends an empty category.
+  void addCategory() => _updateBoard(
+    (board) => board.copyWith(
+      categories: [
+        ...board.categories,
+        JeopardyCategory(
+          name: 'Category ${board.categories.length + 1}',
+          cells: _emptyCells(board.rowCount),
+        ),
+      ],
+    ),
+  );
+
+  /// Renames the category in column [index].
+  void renameCategory(int index, String name) => _updateBoard(
+    (board) => board.copyWith(
+      categories: [
+        for (var i = 0; i < board.categories.length; i++)
+          if (i == index)
+            board.categories[i].copyWith(name: name)
+          else
+            board.categories[i],
+      ],
+    ),
+  );
+
+  /// Removes the category in column [index] together with its questions.
+  void removeCategory(int index) => _updateBoard((board) {
+    if (board.categories.length <= 1) return board;
+    return board.copyWith(categories: [...board.categories]..removeAt(index));
+  }, dropQuestionsOf: (board) => [...board.categories[index].cells]);
+
+  /// Appends a row worth one more step than the current last row.
+  void addRow() => _updateBoard((board) {
+    final points = board.rowPoints;
+    final last = points.isEmpty ? 0 : points.last;
+    final step = points.length >= 2 ? last - points[points.length - 2] : 100;
+    final nextPoints = last + (step > 0 ? step : 100);
+    return board.copyWith(
+      rowPoints: [...points, nextPoints],
+      categories: [
+        for (final category in board.categories)
+          category.copyWith(
+            cells: [
+              ..._padded(category.cells, board.rowCount),
+              JeopardyCell.empty,
+            ],
+          ),
+      ],
+    );
+  });
+
+  /// Sets the points of the row at [row].
+  void setRowPoints(int row, int points) => _updateBoard(
+    (board) => board.copyWith(
+      rowPoints: [
+        for (var i = 0; i < board.rowPoints.length; i++)
+          if (i == row) points else board.rowPoints[i],
+      ],
+    ),
+  );
+
+  /// Removes the row at [row] together with its questions.
+  void removeRow(int row) => _updateBoard(
+    (board) {
+      if (board.rowCount <= 1) return board;
+      return board.copyWith(
+        rowPoints: [...board.rowPoints]..removeAt(row),
+        categories: [
+          for (final category in board.categories)
+            category.copyWith(
+              cells: [
+                for (var i = 0; i < category.cells.length; i++)
+                  if (i != row) category.cells[i],
+              ],
+            ),
+        ],
+      );
+    },
+    dropQuestionsOf: (board) => [
+      for (final category in board.categories) category.cellAt(row),
+    ],
+  );
+
+  /// Stores [question] in the cell at [category]/[row].
+  ///
+  /// A new question is appended to the quiz; an existing one is replaced.
+  void saveCellQuestion({
+    required int category,
+    required int row,
+    required Question question,
+  }) {
+    final board = _board;
+    if (board == null) return;
+    final known = state.draft.questions.any((q) => q.id == question.id);
+    final questions = known
+        ? [
+            for (final existing in state.draft.questions)
+              if (existing.id == question.id) question else existing,
+          ]
+        : [...state.draft.questions, question];
+    final updated = board.copyWith(
+      categories: [
+        for (var c = 0; c < board.categories.length; c++)
+          if (c == category)
+            board.categories[c].copyWith(
+              cells: [
+                for (final (index, cell) in _padded(
+                  board.categories[c].cells,
+                  board.rowCount,
+                ).indexed)
+                  if (index == row)
+                    cell.copyWith(questionId: question.id)
+                  else
+                    cell,
+              ],
+            )
+          else
+            board.categories[c],
+      ],
+    );
+    _replaceDraft(
+      state.draft.copyWith(
+        questions: questions,
+        format: JeopardyFormat(updated),
+      ),
+    );
+  }
+
+  /// Flips the Daily Double flag of the cell at [category]/[row].
+  void toggleDailyDouble(int category, int row) => _updateBoard(
+    (board) => _replaceCell(
+      board,
+      category,
+      row,
+      (cell) => cell.isEmpty
+          ? cell
+          : cell.copyWith(isDailyDouble: !cell.isDailyDouble),
+    ),
+  );
+
+  /// Empties the cell at [category]/[row] and deletes its question.
+  void clearCell(int category, int row) => _updateBoard(
+    (board) => _replaceCell(board, category, row, (_) => JeopardyCell.empty),
+    dropQuestionsOf: (board) => [board.cellAt(category, row)],
+  );
+
+  JeopardyBoard? get _board => switch (state.draft.format) {
+    JeopardyFormat(:final board) => board,
+    StandardFormat() => null,
+  };
+
+  JeopardyBoard? _stashedBoard;
+
+  /// Applies [update] to the board; questions of the cells returned by
+  /// [dropQuestionsOf] (evaluated on the old board) leave the quiz.
+  void _updateBoard(
+    JeopardyBoard Function(JeopardyBoard board) update, {
+    List<JeopardyCell> Function(JeopardyBoard board)? dropQuestionsOf,
+  }) {
+    final board = _board;
+    if (board == null) return;
+    final updated = update(board);
+    if (identical(updated, board)) return;
+    final dropped = {
+      for (final cell in dropQuestionsOf?.call(board) ?? const <JeopardyCell>[])
+        ?cell.questionId,
+    };
+    _replaceDraft(
+      state.draft.copyWith(
+        questions: [
+          for (final question in state.draft.questions)
+            if (!dropped.contains(question.id)) question,
+        ],
+        format: JeopardyFormat(updated),
+      ),
+    );
+  }
+
+  static JeopardyBoard _replaceCell(
+    JeopardyBoard board,
+    int category,
+    int row,
+    JeopardyCell Function(JeopardyCell cell) transform,
+  ) => board.copyWith(
+    categories: [
+      for (var c = 0; c < board.categories.length; c++)
+        if (c == category)
+          board.categories[c].copyWith(
+            cells: [
+              for (final (index, cell) in _padded(
+                board.categories[c].cells,
+                board.rowCount,
+              ).indexed)
+                if (index == row) transform(cell) else cell,
+            ],
+          )
+        else
+          board.categories[c],
+    ],
+  );
+
+  static List<JeopardyCell> _emptyCells(int count) =>
+      List.filled(count, JeopardyCell.empty);
+
+  static List<JeopardyCell> _padded(List<JeopardyCell> cells, int length) => [
+    ...cells,
+    for (var i = cells.length; i < length; i++) JeopardyCell.empty,
+  ];
+
   /// Validates and stores the current draft, returning the saved quiz on success.
   Future<Quiz?> save() async {
     emit(state.copyWith(isSaving: true, clearError: true));

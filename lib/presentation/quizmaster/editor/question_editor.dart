@@ -9,13 +9,68 @@ import '../../common/adaptive_layout.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
+/// A question kind the host can start from, with sensible starting values.
+final class QuestionTemplate {
+  /// Creates a template that builds a blank question of one kind.
+  const QuestionTemplate({
+    required this.label,
+    required this.icon,
+    required this.create,
+  });
+
+  /// Menu label.
+  final String label;
+
+  /// Menu icon.
+  final IconData icon;
+
+  /// Builds a fresh question with the given [id].
+  final Question Function(String id) create;
+}
+
+/// Every question kind that can be created from a menu, for example for a
+/// Jeopardy cell.
+///
+/// Add one entry here when a new question type is introduced, so that it can
+/// be used in every quiz format right away.
+final List<QuestionTemplate> kQuestionTemplates = [
+  QuestionTemplate(
+    label: 'Multiple choice',
+    icon: Icons.checklist,
+    create: (id) => MultipleChoiceQuestion(
+      id: id,
+      prompt: '',
+      options: const [
+        AnswerOption(id: 'option-a', label: 'Option A'),
+        AnswerOption(id: 'option-b', label: 'Option B'),
+      ],
+      correctOptionId: 'option-a',
+    ),
+  ),
+  QuestionTemplate(
+    label: 'Fast buzzer',
+    icon: Icons.bolt,
+    create: (id) => BuzzerQuestion(id: id, prompt: ''),
+  ),
+];
+
 /// Edits [question] and returns a replacement when the host saves it.
 class QuestionEditorPage extends StatefulWidget {
   /// Creates an editor for [question].
-  const QuestionEditorPage({required this.question, super.key});
+  ///
+  /// With [usesBoardPoints] the scoring rule is neither shown nor changed: the
+  /// question sits on a Jeopardy board, where the row decides the points.
+  const QuestionEditorPage({
+    required this.question,
+    this.usesBoardPoints = false,
+    super.key,
+  });
 
   /// Question variant being edited.
   final Question question;
+
+  /// Whether the points come from a Jeopardy row instead of the question.
+  final bool usesBoardPoints;
 
   @override
   State<QuestionEditorPage> createState() => _QuestionEditorPageState();
@@ -161,7 +216,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               MultipleChoiceQuestion() => _multipleChoicePanel(),
               BuzzerQuestion() => _buzzerPanel(),
             },
-            _scoringPanel(),
+            if (!widget.usesBoardPoints) _scoringPanel(),
           ],
         ),
       ),
@@ -317,7 +372,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     final timeLimit = Duration(seconds: int.parse(_timeLimitController.text));
-    final rule = _buildScoringRule();
+    final rule = widget.usesBoardPoints
+        ? widget.question.scoringRule
+        : _buildScoringRule();
     final question = switch (widget.question) {
       MultipleChoiceQuestion(:final id) => MultipleChoiceQuestion(
         id: id,
