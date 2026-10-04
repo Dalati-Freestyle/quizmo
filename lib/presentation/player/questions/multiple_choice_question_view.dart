@@ -133,6 +133,7 @@ class _OptionTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (isCorrect == true || isSelected) const SizedBox(width: 12),
               if (isCorrect == true)
                 const Icon(Icons.check_circle, size: 20)
               else if (isSelected)

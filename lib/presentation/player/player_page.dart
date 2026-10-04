@@ -539,11 +539,19 @@ class _QuestionStage extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           if (state.lastSubmittedOptionId != null)
-            const Text('Antwort gesendet'),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Antwort gesendet'),
+            ),
+          const SizedBox(height: 24),
         ],
-        QuestionMediaView(media: question.media, baseUri: cubit.mediaBaseUri),
+        if (question.media.isNotEmpty) ...[
+          QuestionMediaView(media: question.media, baseUri: cubit.mediaBaseUri),
+          const SizedBox(height: 16),
+        ],
         input,
         if (state.roundStatus == RoundStatus.revealed) ...[
+          const SizedBox(height: 24),
           if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
             Text('Lösung: ${question.solutionLabel}'),
@@ -715,6 +723,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
         ),
         const SizedBox(height: 16),
         Text('Pokerchips · $chips Chips verfügbar'),
+        const SizedBox(height: 16),
         if (team == null)
           const Text('Der Quizmaster muss dich einem Team zuweisen.')
         else if (wager != null)
@@ -728,6 +737,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
             decoration: InputDecoration(
               labelText: 'Einsatz (0–$chips)',
               helperText: 'Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.',
+              helperMaxLines: 4,
             ),
             onChanged: (_) => setState(() {}),
           ),

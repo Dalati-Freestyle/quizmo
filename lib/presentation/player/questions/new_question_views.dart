@@ -29,6 +29,7 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
 
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       TextField(
         controller: controller,
@@ -38,6 +39,7 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
         onChanged: (_) => setState(() {}),
         onSubmitted: (_) => submit(),
       ),
+      const SizedBox(height: 16),
       FilledButton(
         onPressed: widget.enabled && controller.text.trim().isNotEmpty
             ? submit
@@ -82,26 +84,33 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
   });
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       for (final (i, item) in items.indexed)
-        Row(
-          children: [
-            Text('${i + 1}. '),
-            Expanded(child: Text(item.label)),
-            IconButton(
-              tooltip: '${item.label} nach oben',
-              onPressed: widget.enabled && i > 0 ? () => move(i, -1) : null,
-              icon: const Icon(Icons.arrow_upward),
-            ),
-            IconButton(
-              tooltip: '${item.label} nach unten',
-              onPressed: widget.enabled && i < items.length - 1
-                  ? () => move(i, 1)
-                  : null,
-              icon: const Icon(Icons.arrow_downward),
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Text('${i + 1}.'),
+              const SizedBox(width: 12),
+              Expanded(child: Text(item.label)),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: '${item.label} nach oben',
+                onPressed: widget.enabled && i > 0 ? () => move(i, -1) : null,
+                icon: const Icon(Icons.arrow_upward),
+              ),
+              IconButton(
+                tooltip: '${item.label} nach unten',
+                onPressed: widget.enabled && i < items.length - 1
+                    ? () => move(i, 1)
+                    : null,
+                icon: const Icon(Icons.arrow_downward),
+              ),
+            ],
+          ),
         ),
+      const SizedBox(height: 16),
       FilledButton(
         onPressed: widget.enabled
             ? () => widget.onSubmit(items.map((i) => i.id).toList())
@@ -129,51 +138,82 @@ class MatchingQuestionView extends StatefulWidget {
 class _MatchingQuestionViewState extends State<MatchingQuestionView> {
   final pairs = <String, String>{};
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      for (final left in widget.question.leftItems)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              Expanded(child: Text(left.label)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey('${left.id}-${pairs[left.id]}'),
-                  initialValue: pairs[left.id],
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Zuordnen'),
-                  items: [
-                    for (final right in widget.question.rightItems)
-                      DropdownMenuItem(
-                        value: right.id,
-                        child: Text(right.label),
-                      ),
-                  ],
-                  onChanged: widget.enabled
-                      ? (value) => setState(() {
-                          pairs.removeWhere(
-                            (id, partner) => id != left.id && partner == value,
-                          );
-                          pairs[left.id] = value!;
-                        })
-                      : null,
-                ),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final stacked =
+          constraints.maxWidth / MediaQuery.textScalerOf(context).scale(1) <
+          480;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final left in widget.question.leftItems)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Builder(
+                builder: (context) {
+                  final label = Text(left.label);
+                  final field = DropdownButtonFormField<String>(
+                    key: ValueKey('${left.id}-${pairs[left.id]}'),
+                    initialValue: pairs[left.id],
+                    isExpanded: true,
+                    isDense: false,
+                    itemHeight: null,
+                    decoration: const InputDecoration(labelText: 'Zuordnen'),
+                    selectedItemBuilder: (context) => [
+                      for (final right in widget.question.rightItems)
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text(right.label),
+                        ),
+                    ],
+                    items: [
+                      for (final right in widget.question.rightItems)
+                        DropdownMenuItem(
+                          value: right.id,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(right.label),
+                          ),
+                        ),
+                    ],
+                    onChanged: widget.enabled
+                        ? (value) => setState(() {
+                            pairs.removeWhere(
+                              (id, partner) =>
+                                  id != left.id && partner == value,
+                            );
+                            pairs[left.id] = value!;
+                          })
+                        : null,
+                  );
+                  return stacked
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [label, const SizedBox(height: 12), field],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(child: label),
+                            const SizedBox(width: 16),
+                            Expanded(child: field),
+                          ],
+                        );
+                },
               ),
-            ],
+            ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed:
+                widget.enabled &&
+                    pairs.length == widget.question.leftItems.length &&
+                    pairs.values.toSet().length == pairs.length
+                ? () => widget.onSubmit({...pairs})
+                : null,
+            child: const Text('Zuordnung senden'),
           ),
-        ),
-      FilledButton(
-        onPressed:
-            widget.enabled &&
-                pairs.length == widget.question.leftItems.length &&
-                pairs.values.toSet().length == pairs.length
-            ? () => widget.onSubmit({...pairs})
-            : null,
-        child: const Text('Zuordnung senden'),
-      ),
-    ],
+        ],
+      );
+    },
   );
 }
 
@@ -200,6 +240,7 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
 
   @override
   Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       TextField(
         enabled: widget.enabled,
@@ -213,7 +254,7 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
         ),
         onChanged: (v) => setState(() => text = v),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 16),
       FilledButton(
         onPressed: widget.enabled && value != null
             ? () => widget.onSubmit(value!)
