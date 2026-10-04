@@ -32,10 +32,9 @@ void main() {
     await tester.tap(find.text('Open player view'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Connect and sync clock'));
+    await tester.tap(find.text('Weiter zur Teamauswahl'));
     await tester.pumpAndSettle();
 
     expect(find.text('Pick a name'), findsOneWidget);
   });
 }
-

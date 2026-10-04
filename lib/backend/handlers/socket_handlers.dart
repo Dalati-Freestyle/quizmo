@@ -30,6 +30,7 @@ final class _Connection {
 
   /// Whether this socket only watches (TV screen); it never owns a player.
   bool isSpectator = false;
+  bool isLobby = false;
 
   void send(ServerMessage message) {
     try {
@@ -131,21 +132,72 @@ class SocketHub {
       case JoinRequest(
         :final name,
         :final teamId,
+        :final newTeamName,
         :final resumePlayerId,
         :final clockOffsetMicros,
         :final roundTripMicros,
       ):
+        if (connection.playerId != null || connection.isSpectator) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'alreadyJoined',
+              message: 'This connection has already joined.',
+            ),
+          );
+          return;
+        }
+        final game = _engine.state.game;
+        if (name.trim().isEmpty ||
+            name.trim().length > 60 ||
+            (newTeamName != null &&
+                (newTeamName.trim().isEmpty ||
+                    newTeamName.trim().length > 60 ||
+                    teamId != null))) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidName',
+              message: 'Names must contain 1 to 60 characters. Choose an existing team or create one.',
+            ),
+          );
+          return;
+        }
+        if ((teamId != null && !game.teams.containsKey(teamId)) ||
+            (game.poker != null && teamId == null && newTeamName == null)) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidTeam',
+              message: 'Choose an available team or create a new one.',
+            ),
+          );
+          return;
+        }
+        final createdTeam = newTeamName == null
+            ? null
+            : Team(id: newId('team'), name: newTeamName.trim());
+        if (createdTeam != null &&
+            resumePlayerId != null &&
+            game.players.containsKey(resumePlayerId)) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidTeam',
+              message: 'A returning player cannot create another team.',
+            ),
+          );
+          return;
+        }
         final playerId = resumePlayerId ?? newId('player');
         connection.playerId = playerId;
+        connection.isLobby = false;
         _engine.add(
           PlayerJoinedEvent(
             Player(
               id: playerId,
-              name: name,
-              teamId: teamId,
+              name: name.trim(),
+              teamId: createdTeam?.id ?? teamId,
               clockOffsetMicros: clockOffsetMicros,
               roundTripMicros: roundTripMicros,
             ),
+            createdTeam: createdTeam,
           ),
         );
         connection.send(
@@ -156,7 +208,35 @@ class SocketHub {
         );
         _log(ServerLogLevel.info, '$name joined as $playerId.');
 
+      case LobbyRequest():
+        if (connection.playerId != null || connection.isSpectator) return;
+        connection.isLobby = true;
+        connection.send(_lobbySnapshot());
+
+      case RenameTeamMessage(:final name):
+        final player = _engine.state.game.players[connection.playerId];
+        if (player?.teamId == null || connection.isSpectator) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'notInTeam',
+              message: 'Join a team before renaming it.',
+            ),
+          );
+          return;
+        }
+        if (name.trim().isEmpty || name.trim().length > 60) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidName',
+              message: 'Team names must contain 1 to 60 characters.',
+            ),
+          );
+          return;
+        }
+        _engine.add(RenameTeamEvent(playerId: player!.id, name: name));
+
       case WatchRequest():
+        if (connection.playerId != null || connection.isLobby) return;
         // Spectators are deliberately anonymous: no roster entry, no clock
         // sync and no way to submit, so a TV can never influence a round.
         connection.isSpectator = true;
@@ -239,9 +319,18 @@ class SocketHub {
     if (_connections.isEmpty) return;
     final message = GameSnapshotMessage(state.game.redactedForPlayers());
     for (final connection in _connections.values.toList(growable: false)) {
-      connection.send(message);
+      if (connection.isLobby) {
+        connection.send(_lobbySnapshot());
+      } else if (connection.playerId != null || connection.isSpectator) {
+        connection.send(message);
+      }
     }
   }
+
+  LobbySnapshotMessage _lobbySnapshot() => LobbySnapshotMessage(
+    teams: _engine.state.game.teams,
+    requiresTeam: _engine.state.game.poker != null,
+  );
 
   void _log(ServerLogLevel level, String message) => _onLog?.call(
     ServerLogEntry(level: level, message: message, atMicros: _now()),

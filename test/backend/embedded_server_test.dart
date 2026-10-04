@@ -82,6 +82,99 @@ void main() {
     expect(client.clock.roundTripMicros, greaterThan(0));
   });
 
+  test('lobby supplies actual teams without registering a player, then joins on the same socket', () async {
+    final client = QuizClient(baseUri: baseUri);
+    clients.add(client);
+    final lobby = client.lobbies.first;
+    await client.browseLobby();
+    expect((await lobby).teams, sampleTeams);
+    expect(engine.state.game.players, isEmpty);
+    expect(client.playerId, isNull);
+    await client.connect(
+      name: 'Ada',
+      teamId: sampleTeams.keys.last,
+      handshakeProbes: 1,
+    );
+    await waitFor(
+      (state) =>
+          state.game.players[client.playerId]?.teamId == sampleTeams.keys.last,
+    );
+    expect(client.clock.isSynced, isTrue);
+      expect(server.connectionCount, 1);
+  });
+
+  test(
+    'new teams and member renames reach the lobby, players and TV',
+    () async {
+      final lobbyClient = QuizClient(baseUri: baseUri);
+      final creator = QuizClient(baseUri: baseUri);
+      final tv = QuizClient(baseUri: baseUri);
+      clients.addAll([lobbyClient, creator, tv]);
+      await lobbyClient.browseLobby();
+      await creator.browseLobby();
+      await tv.watch();
+      final newTeam = lobbyClient.lobbies.firstWhere(
+        (message) => message.teams.values.any((team) => team.name == 'Owls'),
+      );
+      await creator.connect(
+        name: 'Ada',
+        newTeamName: ' Owls ',
+        handshakeProbes: 1,
+      );
+      final team = (await newTeam).teams.values.singleWhere(
+        (team) => team.name == 'Owls',
+      );
+      await waitFor(
+        (state) => state.game.players[creator.playerId]?.teamId == team.id,
+      );
+      final member = await joinAs('Linus', teamId: team.id);
+      final renamedLobby = lobbyClient.lobbies.firstWhere(
+        (message) => message.teams[team.id]?.name == 'Night Owls',
+      );
+      final renamedPlayer = creator.games.firstWhere(
+        (game) => game.teams[team.id]?.name == 'Night Owls',
+      );
+      final renamedTv = tv.games.firstWhere(
+        (game) => game.teams[team.id]?.name == 'Night Owls',
+      );
+      member.renameTeam('Night Owls');
+      await Future.wait([renamedLobby, renamedPlayer, renamedTv])
+          .timeout(const Duration(seconds: 5));
+      creator.renameTeam('Ada Owls');
+      await waitFor((state) => state.game.teams[team.id]?.name == 'Ada Owls');
+      expect(engine.state.game.teams[team.id]?.id, team.id);
+    },
+  );
+
+  test(
+    'invalid team selection can be corrected without reconnecting',
+    () async {
+      final client = QuizClient(baseUri: baseUri);
+      clients.add(client);
+      await client.browseLobby();
+      await expectLater(
+        client.connect(name: 'Ada', teamId: 'missing', handshakeProbes: 1),
+        throwsStateError,
+      );
+      expect(engine.state.game.players, isEmpty);
+      expect(client.playerId, isNull);
+      await client.connect(
+        name: 'Ada',
+        teamId: sampleTeams.keys.first,
+        handshakeProbes: 1,
+      );
+      await waitFor((state) => state.game.players.containsKey(client.playerId));
+    },
+  );
+
+  test('solo players cannot rename another team', () async {
+    final solo = await joinAs('Solo');
+    final rejected = solo.errors.first;
+    solo.renameTeam('Stolen');
+    expect((await rejected).code, 'notInTeam');
+    expect(engine.state.game.teams, sampleTeams);
+  });
+
   test('broadcasts a redacted snapshot to every player', () async {
     final ada = await joinAs('Ada');
     await joinAs('Linus');
@@ -155,7 +248,9 @@ void main() {
     final playerId = ada.playerId!;
 
     await ada.disconnect();
-    await waitFor((state) => state.game.players[playerId]?.isConnected == false);
+    await waitFor(
+      (state) => state.game.players[playerId]?.isConnected == false,
+    );
 
     expect(engine.state.game.connectedPlayers, isEmpty);
     expect(engine.state.game.players, hasLength(1));
@@ -169,23 +264,30 @@ void main() {
       return client;
     }
 
-    test('watch without joining the roster and receive live snapshots', () async {
-      final tv = await watchAsTv();
+    test(
+      'watch without joining the roster and receive live snapshots',
+      () async {
+        final tv = await watchAsTv();
 
-      expect(tv.status, QuizClientStatus.connected);
-      expect(tv.playerId, isNull);
-      expect(engine.state.game.players, isEmpty);
+        expect(tv.status, QuizClientStatus.connected);
+        expect(tv.playerId, isNull);
+        expect(engine.state.game.players, isEmpty);
 
-      final snapshot = tv.games.firstWhere(
-        (game) => game.round.question?.id == 'q-capital',
-      );
-      engine.add(const StartRoundEvent('q-capital'));
+        final snapshot = tv.games.firstWhere(
+          (game) => game.round.question?.id == 'q-capital',
+        );
+        engine.add(const StartRoundEvent('q-capital'));
 
-      final game = await snapshot.timeout(const Duration(seconds: 5));
-      final question = game.round.question! as MultipleChoiceQuestion;
-      expect(question.correctOptionId, isNull, reason: 'TV must stay redacted');
-      expect(game.questionBank, isEmpty);
-    });
+        final game = await snapshot.timeout(const Duration(seconds: 5));
+        final question = game.round.question! as MultipleChoiceQuestion;
+        expect(
+          question.correctOptionId,
+          isNull,
+          reason: 'TV must stay redacted',
+        );
+        expect(game.questionBank, isEmpty);
+      },
+    );
 
     test('cannot influence a round', () async {
       final tv = await watchAsTv();
@@ -257,4 +359,3 @@ void main() {
     });
   });
 }
-

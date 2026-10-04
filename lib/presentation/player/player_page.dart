@@ -15,6 +15,7 @@ import '../common/jeopardy_board_view.dart';
 import '../common/scoreboard_view.dart';
 import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
+import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
@@ -47,7 +48,14 @@ class _PlayerView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PlayerSessionCubit, PlayerSessionState>(
+    return BlocConsumer<PlayerSessionCubit, PlayerSessionState>(
+      listenWhen: (previous, current) =>
+          current.isConnected &&
+          current.error != null &&
+          previous.error != current.error,
+      listener: (context, state) =>
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(state.error!))),
       builder: (context, state) {
         return Scaffold(
           appBar: AppBar(
@@ -64,6 +72,18 @@ class _PlayerView extends StatelessWidget {
               ],
             ),
             actions: [
+              if (state.game?.teams[state.me?.teamId] case final team?
+                  when state.isConnected)
+                IconButton(
+                  tooltip: 'Team umbenennen: ${team.name}',
+                  icon: const Icon(Icons.drive_file_rename_outline),
+                  onPressed: () async {
+                    final name = await showTeamNameDialog(context, team.name);
+                    if (name != null && context.mounted) {
+                      context.read<PlayerSessionCubit>().renameTeam(name);
+                    }
+                  },
+                ),
               if (state.isConnected)
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
@@ -77,7 +97,7 @@ class _PlayerView extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (state.isConnected)
+              if (state.isConnected || state.isChoosingTeam)
                 IconButton(
                   tooltip: 'Leave',
                   icon: const Icon(Icons.logout),
@@ -89,6 +109,19 @@ class _PlayerView extends StatelessWidget {
           body: SafeArea(
             child: state.isConnected
                 ? _GameBoard(state: state)
+                : state.isChoosingTeam
+                ? TeamJoinView(
+                    lobby: state.lobby!,
+                    busy: state.status == QuizClientStatus.connecting,
+                    error: state.error,
+                    onJoin: (id) =>
+                        context.read<PlayerSessionCubit>().joinTeam(teamId: id),
+                    onCreate: (name) => context
+                        .read<PlayerSessionCubit>()
+                        .joinTeam(newTeamName: name),
+                    onBack: () =>
+                        context.read<PlayerSessionCubit>().disconnect(),
+                  )
                 : _JoinForm(state: state, initialHostUri: initialHostUri),
           ),
         );
@@ -112,7 +145,6 @@ class _JoinFormState extends State<_JoinForm> {
   late final TextEditingController _nameController;
   final _formKey = GlobalKey<FormState>();
   final _hostKey = GlobalKey<FormFieldState<String>>();
-  String? _teamId;
 
   @override
   void initState() {
@@ -169,7 +201,7 @@ class _JoinFormState extends State<_JoinForm> {
     await context.read<PlayerSessionCubit>().connect(
       baseUri: uri,
       name: _nameController.text.trim(),
-      teamId: _teamId,
+      lobbyOnly: true,
     );
   }
 
@@ -177,9 +209,6 @@ class _JoinFormState extends State<_JoinForm> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isBusy = widget.state.status == QuizClientStatus.connecting;
-    // The team roster is only known after the first snapshot, so the join form
-    // offers the two demo teams the sample quiz ships with.
-    const teams = {'team-red': 'Red Foxes', 'team-blue': 'Blue Whales'};
 
     return Center(
       child: SingleChildScrollView(
@@ -235,23 +264,6 @@ class _JoinFormState extends State<_JoinForm> {
                   onFieldSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String?>(
-                  initialValue: _teamId,
-                  decoration: const InputDecoration(
-                    labelText: 'Team',
-                    prefixIcon: Icon(Icons.flag_outlined),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String?>(child: Text('Solo')),
-                    for (final entry in teams.entries)
-                      DropdownMenuItem<String?>(
-                        value: entry.key,
-                        child: Text(entry.value),
-                      ),
-                  ],
-                  onChanged: (value) => setState(() => _teamId = value),
-                ),
-                const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: isBusy ? null : _submit,
                   icon: isBusy
@@ -262,7 +274,9 @@ class _JoinFormState extends State<_JoinForm> {
                         )
                       : const Icon(Icons.login),
                   label: Text(
-                    isBusy ? 'Syncing clock…' : 'Connect and sync clock',
+                    isBusy
+                        ? 'Verbindung wird hergestellt …'
+                        : 'Weiter zur Teamauswahl',
                   ),
                 ),
                 const SizedBox(height: 12),

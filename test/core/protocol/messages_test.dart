@@ -36,6 +36,9 @@ void main() {
           ),
         ),
         const WatchRequest(),
+        const LobbyRequest(),
+        const JoinRequest(name: 'Ada', newTeamName: 'New team'),
+        const RenameTeamMessage(name: 'New name'),
         const LeaveNotice(),
       ];
 
@@ -62,6 +65,7 @@ void main() {
         ),
         const JoinAcceptedMessage(playerId: 'p1', hostTimeMicros: 99),
         const WatchAcceptedMessage(),
+        LobbySnapshotMessage(teams: sampleTeams, requiresTeam: true),
         const SyncPong(clientSentAtMicros: 1, hostTimeMicros: 2),
         const ProtocolErrorMessage(code: 'badRequest', message: 'nope'),
         GameSnapshotMessage(
@@ -138,14 +142,11 @@ void main() {
 
     test('keeps the solution once the round is revealed', () {
       const game = GameState(
-        round: RoundState(
-          question: buzzerSample,
-          status: RoundStatus.revealed,
-        ),
+        round: RoundState(question: buzzerSample, status: RoundStatus.revealed),
       );
 
-      final onStage = game.redactedForPlayers().round.question!
-          as BuzzerQuestion;
+      final onStage =
+          game.redactedForPlayers().round.question! as BuzzerQuestion;
 
       expect(onStage.expectedAnswer, 'Gold');
     });
@@ -157,4 +158,3 @@ const BuzzerQuestion buzzerSample = BuzzerQuestion(
   prompt: 'Symbol Au?',
   expectedAnswer: 'Gold',
 );
-

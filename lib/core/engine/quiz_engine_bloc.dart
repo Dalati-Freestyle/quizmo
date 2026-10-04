@@ -51,7 +51,6 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     NowMicros now = systemNowMicros,
   }) : _now = now,
        _initialBank = questionBank,
-       _initialTeams = teams,
        _initialBoard = jeopardyBoard,
        super(
          QuizEngineState(
@@ -70,6 +69,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
          ),
        ) {
     on<PlayerJoinedEvent>(_onPlayerJoined);
+    on<RenameTeamEvent>(_onRenameTeam);
     on<PlayerLeftEvent>(_onPlayerLeft);
     on<TimeSyncEvent>(_onTimeSync);
     on<AssignTeamEvent>(_onAssignTeam);
@@ -102,7 +102,6 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   final NowMicros _now;
   final List<Question> _initialBank;
-  final Map<String, Team> _initialTeams;
   final JeopardyBoard? _initialBoard;
   Timer? _graceTimer;
 
@@ -118,7 +117,29 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   // ---------------------------------------------------------------- lobby ---
 
   void _onPlayerJoined(PlayerJoinedEvent event, Emitter<QuizEngineState> emit) {
-    final game = state.game;
+    var game = state.game;
+    if (event.createdTeam case final team?) {
+      if (game.players.containsKey(event.player.id) ||
+          game.teams.containsKey(team.id) ||
+          event.player.teamId != team.id ||
+          team.name.trim().isEmpty ||
+          team.name.trim().length > 60) {
+        return;
+      }
+      game = game.copyWith(
+        teams: {...game.teams, team.id: team},
+        poker: game.poker?.copyWith(
+          chips: {...game.poker!.chips, team.id: game.poker!.startingChips},
+        ),
+        jeopardy: game.jeopardy?.currentTeamId == null
+            ? game.jeopardy?.copyWith(currentTeamId: team.id)
+            : game.jeopardy,
+      );
+    }
+    if (event.player.teamId != null &&
+        !game.teams.containsKey(event.player.teamId)) {
+      return;
+    }
     final existing = game.players[event.player.id];
     final player = existing == null
         ? event.player
@@ -155,6 +176,30 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           },
         ),
         notice: '${player.name} left.',
+      ),
+    );
+  }
+
+  void _onRenameTeam(RenameTeamEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final player = game.players[event.playerId];
+    final team = game.teams[player?.teamId];
+    final name = event.name.trim();
+    if (player == null ||
+        !player.isConnected ||
+        team == null ||
+        name.isEmpty ||
+        name.length > 60) {
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          teams: {
+            ...game.teams,
+            team.id: Team(id: team.id, name: name, colorValue: team.colorValue),
+          },
+        ),
       ),
     );
   }
@@ -805,7 +850,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   void _onResetGame(ResetGameEvent event, Emitter<QuizEngineState> emit) {
     _graceTimer?.cancel();
     final game = state.game;
-    final teams = _initialTeams.isEmpty ? game.teams : _initialTeams;
+    final teams = game.teams;
     final board = _initialBoard;
     emit(
       _publish(

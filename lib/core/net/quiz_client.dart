@@ -69,6 +69,10 @@ class QuizClient {
       StreamController<QuizClientStatus>.broadcast();
   final StreamController<ProtocolErrorMessage> _errors =
       StreamController<ProtocolErrorMessage>.broadcast();
+  final StreamController<LobbySnapshotMessage> _lobbies =
+      StreamController<LobbySnapshotMessage>.broadcast();
+  bool _inLobby = false;
+  bool _awaitingLobby = false;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -87,6 +91,7 @@ class QuizClient {
 
   /// Protocol level rejections that did not close the socket.
   Stream<ProtocolErrorMessage> get errors => _errors.stream;
+  Stream<LobbySnapshotMessage> get lobbies => _lobbies.stream;
 
   /// Current lifecycle position.
   QuizClientStatus get status => _status;
@@ -114,38 +119,28 @@ class QuizClient {
   Future<void> connect({
     required String name,
     String? teamId,
+    String? newTeamName,
     String? resumePlayerId,
     int handshakeProbes = 5,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
-    await disconnect();
+    final joiningFromLobby = _inLobby && _channel != null;
+    if (!joiningFromLobby) await disconnect();
     _emitStatus(QuizClientStatus.connecting);
     _lastError = null;
 
     try {
       await _handshake(probes: handshakeProbes);
 
-      final channel = WebSocketChannel.connect(_socketUri);
-      _channel = channel;
-      await channel.ready;
-
+      if (!joiningFromLobby) await _openSocket();
       final joined = Completer<void>();
       _joinCompleter = joined;
-
-      _socketSubscription = channel.stream.listen(
-        _onFrame,
-        onDone: _onSocketClosed,
-        onError: (Object error) {
-          _failJoin(error);
-          _lastError = error;
-          _emitStatus(QuizClientStatus.failed);
-        },
-      );
 
       _send(
         JoinRequest(
           name: name,
           teamId: teamId,
+          newTeamName: newTeamName,
           resumePlayerId: resumePlayerId,
           clockOffsetMicros: clock.clockOffsetMicros,
           roundTripMicros: clock.roundTripMicros,
@@ -156,9 +151,41 @@ class QuizClient {
       _resyncTimer = Timer.periodic(resyncInterval, (_) => _probeOverSocket());
     } on Object catch (error) {
       _lastError = error;
+      _joinCompleter = null;
+      _emitStatus(
+        _inLobby && _channel != null
+            ? QuizClientStatus.connected
+            : QuizClientStatus.failed,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> browseLobby({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    await disconnect();
+    _emitStatus(QuizClientStatus.connecting);
+    _lastError = null;
+    try {
+      await _openSocket();
+      final accepted = Completer<void>();
+      _joinCompleter = accepted;
+      _inLobby = true;
+      _awaitingLobby = true;
+      _send(const LobbyRequest());
+      await accepted.future.timeout(timeout);
+    } on Object catch (error) {
+      _joinCompleter = null;
+      _lastError = error;
       _emitStatus(QuizClientStatus.failed);
       rethrow;
     }
+  }
+
+  void renameTeam(String name) {
+    if (_playerId == null) return;
+    _send(RenameTeamMessage(name: name));
   }
 
   /// Watches the session as a read-only spectator, for example on a TV.
@@ -267,6 +294,9 @@ class QuizClient {
     await _socketSubscription?.cancel();
     _socketSubscription = null;
     _channel = null;
+    _playerId = null;
+    _inLobby = false;
+    _awaitingLobby = false;
     if (_status != QuizClientStatus.disconnected) {
       _emitStatus(QuizClientStatus.disconnected);
     }
@@ -279,6 +309,7 @@ class QuizClient {
     await _games.close();
     await _statuses.close();
     await _errors.close();
+    await _lobbies.close();
   }
 
   // --------------------------------------------------------------- internals ---
@@ -287,6 +318,21 @@ class QuizClient {
     scheme: baseUri.scheme == 'https' ? 'wss' : 'ws',
     path: '/ws',
   );
+
+  Future<void> _openSocket() async {
+    final channel = WebSocketChannel.connect(_socketUri);
+    _channel = channel;
+    await channel.ready;
+    _socketSubscription = channel.stream.listen(
+      _onFrame,
+      onDone: _onSocketClosed,
+      onError: (Object error) {
+        _failJoin(error);
+        _lastError = error;
+        _emitStatus(QuizClientStatus.failed);
+      },
+    );
+  }
 
   Future<void> _handshake({required int probes}) async {
     final endpoint = baseUri.replace(path: '/api/sync-time');
@@ -329,6 +375,7 @@ class QuizClient {
       case WelcomeMessage(:final serverName):
         _serverName = serverName;
       case JoinAcceptedMessage(:final playerId):
+        _inLobby = false;
         _playerId = playerId;
         _joinCompleter?.complete();
         _joinCompleter = null;
@@ -337,6 +384,14 @@ class QuizClient {
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);
+      case LobbySnapshotMessage():
+        if (!_lobbies.isClosed) _lobbies.add(message);
+        if (_awaitingLobby) {
+          _awaitingLobby = false;
+          _joinCompleter?.complete();
+          _joinCompleter = null;
+          _emitStatus(QuizClientStatus.connected);
+        }
       case SyncPong(:final clientSentAtMicros, :final hostTimeMicros):
         clock.add(
           ClockSample(
@@ -355,6 +410,7 @@ class QuizClient {
         if (!_games.isClosed) _games.add(game);
       case ProtocolErrorMessage():
         if (!_errors.isClosed) _errors.add(message);
+        _failJoin(StateError(message.message));
     }
   }
 

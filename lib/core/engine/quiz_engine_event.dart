@@ -24,13 +24,23 @@ sealed class QuizEngineEvent extends Equatable {
 /// connected, which is what makes a browser refresh survivable.
 final class PlayerJoinedEvent extends QuizEngineEvent {
   /// Registers [player].
-  const PlayerJoinedEvent(this.player);
+  const PlayerJoinedEvent(this.player, {this.createdTeam});
 
   /// The joining participant.
   final Player player;
 
+  final Team? createdTeam;
+
   @override
-  List<Object?> get props => [player];
+  List<Object?> get props => [player, createdTeam];
+}
+
+final class RenameTeamEvent extends QuizEngineEvent {
+  const RenameTeamEvent({required this.playerId, required this.name});
+  final String playerId;
+  final String name;
+  @override
+  List<Object?> get props => [playerId, name];
 }
 
 /// A client's socket closed.

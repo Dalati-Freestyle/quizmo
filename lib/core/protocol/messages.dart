@@ -25,6 +25,8 @@ sealed class ClientMessage extends Equatable {
   static ClientMessage fromJson(JsonMap json) =>
       switch (json.readString('type')) {
         JoinRequest._type => JoinRequest.fromJson(json),
+        'lobby' => const LobbyRequest(),
+        'renameTeam' => RenameTeamMessage(name: json.readString('name')),
         SyncPing._type => SyncPing.fromJson(json),
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
@@ -50,6 +52,7 @@ final class JoinRequest extends ClientMessage {
   const JoinRequest({
     required this.name,
     this.teamId,
+    this.newTeamName,
     this.resumePlayerId,
     this.clockOffsetMicros = 0,
     this.roundTripMicros = 0,
@@ -59,6 +62,7 @@ final class JoinRequest extends ClientMessage {
   factory JoinRequest.fromJson(JsonMap json) => JoinRequest(
     name: json.readString('name'),
     teamId: json.readStringOrNull('teamId'),
+    newTeamName: json.readStringOrNull('newTeamName'),
     resumePlayerId: json.readStringOrNull('resumePlayerId'),
     clockOffsetMicros: json.readInt('clockOffsetMicros'),
     roundTripMicros: json.readInt('roundTripMicros'),
@@ -71,6 +75,8 @@ final class JoinRequest extends ClientMessage {
 
   /// Optional team to score for.
   final String? teamId;
+
+  final String? newTeamName;
 
   /// Previously assigned player id, used to survive a reconnect.
   final String? resumePlayerId;
@@ -86,6 +92,7 @@ final class JoinRequest extends ClientMessage {
     'type': _type,
     'name': name,
     'teamId': teamId,
+    'newTeamName': newTeamName,
     'resumePlayerId': resumePlayerId,
     'clockOffsetMicros': clockOffsetMicros,
     'roundTripMicros': roundTripMicros,
@@ -95,6 +102,7 @@ final class JoinRequest extends ClientMessage {
   List<Object?> get props => [
     name,
     teamId,
+    newTeamName,
     resumePlayerId,
     clockOffsetMicros,
     roundTripMicros,
@@ -226,6 +234,10 @@ sealed class ServerMessage extends Equatable {
   static ServerMessage fromJson(JsonMap json) =>
       switch (json.readString('type')) {
         WelcomeMessage._type => WelcomeMessage.fromJson(json),
+        'lobbySnapshot' => LobbySnapshotMessage(
+          teams: json.readMap('teams', Team.fromJson),
+          requiresTeam: json.readBool('requiresTeam'),
+        ),
         JoinAcceptedMessage._type => JoinAcceptedMessage.fromJson(json),
         WatchAcceptedMessage._type => const WatchAcceptedMessage(),
         SyncPong._type => SyncPong.fromJson(json),
@@ -405,6 +417,37 @@ final class ProtocolErrorMessage extends ServerMessage {
 
   @override
   List<Object?> get props => [code, message];
+}
+
+final class LobbyRequest extends ClientMessage {
+  const LobbyRequest();
+  @override
+  JsonMap toJson() => const {'type': 'lobby'};
+  @override
+  List<Object?> get props => const [];
+}
+
+final class RenameTeamMessage extends ClientMessage {
+  const RenameTeamMessage({required this.name});
+  final String name;
+  @override
+  JsonMap toJson() => {'type': 'renameTeam', 'name': name};
+  @override
+  List<Object?> get props => [name];
+}
+
+final class LobbySnapshotMessage extends ServerMessage {
+  const LobbySnapshotMessage({required this.teams, this.requiresTeam = false});
+  final Map<String, Team> teams;
+  final bool requiresTeam;
+  @override
+  JsonMap toJson() => {
+    'type': 'lobbySnapshot',
+    'teams': teams.map((id, team) => MapEntry(id, team.toJson())),
+    'requiresTeam': requiresTeam,
+  };
+  @override
+  List<Object?> get props => [teams, requiresTeam];
 }
 
 final class PokerWagerMessage extends ClientMessage {
