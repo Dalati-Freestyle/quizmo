@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/data/quiz_repository.dart';
-import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'jeopardy_board_editor.dart';
 import 'question_editor.dart';
 import 'quiz_editor_cubit.dart';
+import 'selection_dropdown.dart';
+
+enum _QuizFormatKind { standard, jeopardy, poker }
 
 /// Lets the host edit [quiz] and returns its saved replacement.
 class QuizEditorPage extends StatelessWidget {
@@ -75,6 +77,11 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
   ) => BlocBuilder<QuizEditorCubit, QuizEditorState>(
     builder: (context, state) {
       final cubit = context.read<QuizEditorCubit>();
+      final formatKind = switch (state.draft.format) {
+        StandardFormat() => _QuizFormatKind.standard,
+        JeopardyFormat() => _QuizFormatKind.jeopardy,
+        PokerFormat() => _QuizFormatKind.poker,
+      };
       return Scaffold(
         appBar: AppBar(
           title: Text('Edit ${state.draft.name}'),
@@ -114,44 +121,49 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     onChanged: (_) => _updateMetadata(cubit),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Quiz type',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<int>(
-                    showSelectedIcon: false,
-                    segments: const [
-                      ButtonSegment(
-                        value: 0,
-                        icon: Icon(Icons.list_alt),
-                        label: Text('Standard'),
+                  SelectionDropdown<_QuizFormatKind>(
+                    label: 'Quiz type',
+                    value: formatKind,
+                    items: const [
+                      DropdownMenuItem(
+                        value: _QuizFormatKind.standard,
+                        child: Row(
+                          children: [
+                            Icon(Icons.list_alt),
+                            SizedBox(width: 8),
+                            Text('Standard'),
+                          ],
+                        ),
                       ),
-                      ButtonSegment(
-                        value: 1,
-                        icon: Icon(Icons.grid_view),
-                        label: Text('Jeopardy'),
+                      DropdownMenuItem(
+                        value: _QuizFormatKind.jeopardy,
+                        child: Row(
+                          children: [
+                            Icon(Icons.grid_view),
+                            SizedBox(width: 8),
+                            Text('Jeopardy'),
+                          ],
+                        ),
                       ),
-                      ButtonSegment(
-                        value: 2,
-                        icon: Icon(Icons.casino_outlined),
-                        label: Text('Pokerchips'),
+                      DropdownMenuItem(
+                        value: _QuizFormatKind.poker,
+                        child: Row(
+                          children: [
+                            Icon(Icons.casino_outlined),
+                            SizedBox(width: 8),
+                            Text('Pokerchips'),
+                          ],
+                        ),
                       ),
                     ],
-                    selected: {
-                      switch (state.draft.format) {
-                        StandardFormat() => 0,
-                        JeopardyFormat() => 1,
-                        PokerFormat() => 2,
-                      },
-                    },
-                    onSelectionChanged: (selection) {
-                      switch (selection.first) {
-                        case 0:
+                    onChanged: (selection) {
+                      if (selection == null || selection == formatKind) return;
+                      switch (selection) {
+                        case _QuizFormatKind.standard:
                           cubit.useStandardFormat();
-                        case 1:
+                        case _QuizFormatKind.jeopardy:
                           cubit.useJeopardyFormat();
-                        case 2:
+                        case _QuizFormatKind.poker:
                           cubit.usePokerFormat();
                       }
                     },
@@ -193,29 +205,6 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
               ),
               StandardFormat() || PokerFormat() => _QuestionsPanel(
                 questions: state.draft.questions,
-                onAddMultipleChoice: () => _editQuestion(
-                  cubit,
-                  MultipleChoiceQuestion(
-                    id: widget.createId(),
-                    prompt: '',
-                    options: const [
-                      AnswerOption(id: 'option-a', label: 'Option A'),
-                      AnswerOption(id: 'option-b', label: 'Option B'),
-                    ],
-                    correctOptionId: 'option-a',
-                    scoringRule: const SpeedBonusRule(),
-                  ),
-                  isNew: true,
-                ),
-                onAddBuzzer: () => _editQuestion(
-                  cubit,
-                  BuzzerQuestion(
-                    id: widget.createId(),
-                    prompt: '',
-                    scoringRule: const FirstBuzzerRule(),
-                  ),
-                  isNew: true,
-                ),
                 onAddTemplate: (template) => _editQuestion(
                   cubit,
                   template.create(widget.createId()),
@@ -331,11 +320,9 @@ class _TeamsPanel extends StatelessWidget {
   );
 }
 
-class _QuestionsPanel extends StatelessWidget {
+class _QuestionsPanel extends StatefulWidget {
   const _QuestionsPanel({
     required this.questions,
-    required this.onAddMultipleChoice,
-    required this.onAddBuzzer,
     required this.onAddTemplate,
     required this.onEdit,
     required this.onRemove,
@@ -343,12 +330,17 @@ class _QuestionsPanel extends StatelessWidget {
   });
 
   final List<Question> questions;
-  final VoidCallback onAddMultipleChoice;
-  final VoidCallback onAddBuzzer;
   final ValueChanged<QuestionTemplate> onAddTemplate;
   final ValueChanged<Question> onEdit;
   final ValueChanged<String> onRemove;
   final ReorderCallback onReorder;
+
+  @override
+  State<_QuestionsPanel> createState() => _QuestionsPanelState();
+}
+
+class _QuestionsPanelState extends State<_QuestionsPanel> {
+  QuestionTemplate? _selectedTemplate;
 
   @override
   Widget build(BuildContext context) => PanelCard(
@@ -357,44 +349,32 @@ class _QuestionsPanel extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: onAddMultipleChoice,
-              icon: const Icon(Icons.add),
-              label: const Text('Add multiple-choice question'),
-            ),
-            OutlinedButton.icon(
-              onPressed: onAddBuzzer,
-              icon: const Icon(Icons.add),
-              label: const Text('Add buzzer question'),
-            ),
-            PopupMenuButton<QuestionTemplate>(
-              onSelected: onAddTemplate,
-              itemBuilder: (_) => [
-                for (final t in kQuestionTemplates)
-                  PopupMenuItem(value: t, child: Text(t.label)),
-              ],
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text('Neuer Fragetyp'),
-              ),
-            ),
-          ],
+        QuestionTemplateDropdown(
+          value: _selectedTemplate,
+          onChanged: (template) => setState(() => _selectedTemplate = template),
         ),
         const SizedBox(height: 12),
-        if (questions.isEmpty)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _selectedTemplate == null
+                ? null
+                : () => widget.onAddTemplate(_selectedTemplate!),
+            icon: const Icon(Icons.add),
+            label: const Text('Add question'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (widget.questions.isEmpty)
           const EmptyHint('Add questions before hosting this quiz.')
         else
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: questions.length,
-            onReorderItem: onReorder,
+            itemCount: widget.questions.length,
+            onReorderItem: widget.onReorder,
             itemBuilder: (context, index) {
-              final question = questions[index];
+              final question = widget.questions[index];
               return ListTile(
                 key: ValueKey(question.id),
                 contentPadding: EdgeInsets.zero,
@@ -416,14 +396,14 @@ class _QuestionsPanel extends StatelessWidget {
                   '${question.kindLabel} · ${question.timeLimit.inSeconds}s · '
                   '${question.scoringRule.label}',
                 ),
-                onTap: () => onEdit(question),
+                onTap: () => widget.onEdit(question),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.drag_handle),
                     IconButton(
                       tooltip: 'Delete question',
-                      onPressed: () => onRemove(question.id),
+                      onPressed: () => widget.onRemove(question.id),
                       icon: const Icon(Icons.delete_outline),
                     ),
                   ],

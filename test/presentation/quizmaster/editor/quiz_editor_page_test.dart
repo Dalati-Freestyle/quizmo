@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/data/quiz_repository.dart';
 import 'package:quizmo/presentation/quizmaster/editor/quiz_library_page.dart';
+import 'package:quizmo/presentation/quizmaster/editor/question_editor.dart';
 
 void main() {
   testWidgets('adds a question and finds it after saving the quiz', (
@@ -29,7 +30,15 @@ void main() {
 
     await tester.tap(find.byTooltip('Create quiz'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add multiple-choice question'));
+    final questionType = find.byType(QuestionTemplateDropdown);
+    await tester.ensureVisible(questionType);
+    await tester.tap(questionType);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Multiple choice').last);
+    await tester.pumpAndSettle();
+    final addQuestion = find.text('Add question');
+    await tester.ensureVisible(addQuestion);
+    await tester.tap(addQuestion);
     await tester.pumpAndSettle();
 
     await tester.enterText(

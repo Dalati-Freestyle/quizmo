@@ -8,6 +8,7 @@ import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'new_question_fields.dart';
 import 'media_editor.dart';
+import 'selection_dropdown.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
@@ -96,14 +97,57 @@ final List<QuestionTemplate> kQuestionTemplates = [
         AnswerOption(id: 'option-b', label: 'Option B'),
       ],
       correctOptionId: 'option-a',
+      scoringRule: const SpeedBonusRule(),
     ),
   ),
   QuestionTemplate(
     label: 'Fast buzzer',
     icon: Icons.bolt,
-    create: (id) => BuzzerQuestion(id: id, prompt: ''),
+    create: (id) => BuzzerQuestion(
+      id: id,
+      prompt: '',
+      scoringRule: const FirstBuzzerRule(),
+    ),
   ),
 ];
+
+/// Selects a question kind from the templates shared by every quiz format.
+class QuestionTemplateDropdown extends StatelessWidget {
+  /// Creates a selector for [value] that reports changes to [onChanged].
+  const QuestionTemplateDropdown({
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  /// The selected template, or `null` before a kind is chosen.
+  final QuestionTemplate? value;
+
+  /// Receives the selected template.
+  final ValueChanged<QuestionTemplate?> onChanged;
+
+  @override
+  Widget build(BuildContext context) => SelectionDropdown<QuestionTemplate>(
+    label: 'Fragenart',
+    value: value,
+    items: [
+      for (final template in kQuestionTemplates)
+        DropdownMenuItem(
+          value: template,
+          child: Row(
+            children: [
+              Icon(template.icon),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(template.label, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+        ),
+    ],
+    onChanged: onChanged,
+  );
+}
 
 /// Edits [question] and returns a replacement when the host saves it.
 class QuestionEditorPage extends StatefulWidget {

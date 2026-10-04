@@ -32,9 +32,20 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('Pokerchips'));
+    await tester.tap(
+      find.byWidgetPredicate((widget) => widget is DropdownButton).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pokerchips').last);
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '250');
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byWidgetPredicate((widget) => widget is DropdownButton).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pokerchips').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save quiz'));
     await tester.pumpAndSettle();
     expect(

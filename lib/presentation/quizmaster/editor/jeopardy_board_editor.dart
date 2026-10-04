@@ -209,21 +209,32 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
   }
 
   Future<Question?> _chooseNewQuestion(BuildContext context) async {
+    QuestionTemplate? selected;
     final template = await showDialog<QuestionTemplate>(
       context: context,
-      builder: (dialogContext) => SimpleDialog(
-        title: const Text('What kind of question?'),
-        children: [
-          for (final template in kQuestionTemplates)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(dialogContext).pop(template),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(template.icon),
-                title: Text(template.label),
-              ),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add question'),
+          content: SizedBox(
+            width: 360,
+            child: QuestionTemplateDropdown(
+              value: selected,
+              onChanged: (value) => setState(() => selected = value),
             ),
-        ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: selected == null
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(selected),
+              child: const Text('Add question'),
+            ),
+          ],
+        ),
       ),
     );
     return template?.create(createId());
