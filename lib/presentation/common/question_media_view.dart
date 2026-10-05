@@ -362,10 +362,16 @@ class _YoutubeView extends StatefulWidget {
 }
 
 class _YoutubeViewState extends State<_YoutubeView> {
-  late final YoutubePlayerController controller;
+  YoutubePlayerController? controller;
+  bool get _openInBrowser =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
+
   @override
   void initState() {
     super.initState();
+    if (_openInBrowser) return;
     controller = YoutubePlayerController.fromVideoId(
       videoId: widget.id,
       autoPlay: false,
@@ -378,15 +384,12 @@ class _YoutubeViewState extends State<_YoutubeView> {
 
   @override
   void dispose() {
-    controller.close();
+    controller?.close();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      !kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.windows ||
-              defaultTargetPlatform == TargetPlatform.linux)
+  Widget build(BuildContext context) => _openInBrowser
       ? TextButton.icon(
           onPressed: () => launchUrl(
             Uri.https('www.youtube.com', '/watch', {'v': widget.id}),
@@ -394,5 +397,5 @@ class _YoutubeViewState extends State<_YoutubeView> {
           icon: const Icon(Icons.open_in_new),
           label: const Text('YouTube-Video öffnen'),
         )
-      : YoutubePlayer(controller: controller);
+      : YoutubePlayer(controller: controller!);
 }

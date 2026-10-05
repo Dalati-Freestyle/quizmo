@@ -188,6 +188,38 @@ to the host over CORS instead of same-origin.
 Start the server, then use the *person-add* icon in the dashboard app bar to
 open a second, loopback-connected player state inside the same app.
 
+### Windows desktop app
+
+The native Windows app includes the quiz library and editor, all question
+types and quiz formats, the host dashboard, local persistence, file import and
+export, and the embedded server for browser players and the TV screen. Audio
+uploads (including playback limits) and MP4 video play inside the app; YouTube
+attachments open in the default browser. Video codecs come from Windows.
+
+To build it, install Flutter and Visual Studio 2022 or newer with the
+**Desktop development with C++** workload, including MSVC, CMake tools and
+the Windows SDK. Enable Windows Developer Mode if Flutter reports that plugin
+symlinks are unavailable. Check the setup with `flutter doctor -v`.
+
+```powershell
+flutter pub get
+dart run tool/bundle_web_client.dart
+flutter run -d windows
+```
+
+For a distributable release, run `flutter build windows --release` after
+bundling the web client. Launch
+`build/windows/x64/runner/Release/quizmo.exe`. Distribute the **entire Release
+folder**, including its DLLs and `data` folder. The target PC needs the
+Microsoft Visual C++ Redistributable for x64, but does not need Flutter or
+Visual Studio.
+
+Start hosting from **Host a quiz**, then let guests open the LAN address shown
+on the dashboard. The TV uses the same address with `/tv` appended. Allow Quizmo
+through Windows Firewall on private networks for the chosen server port
+(8080 by default); keep the alternative LAN addresses visible when using VPNs
+or multiple network adapters.
+
 ### 3.3 Deep link for players
 
 `http://localhost:port/#/?host=http://192.168.1.42:8080` — the join form reads
