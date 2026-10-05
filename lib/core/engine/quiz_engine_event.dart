@@ -191,25 +191,32 @@ final class CloseRoundEvent extends QuizEngineEvent {
 /// [PlaceDailyDoubleWagerEvent].
 final class SelectJeopardyCellEvent extends QuizEngineEvent {
   /// Picks the cell of [questionId] for the team whose turn it is.
-  const SelectJeopardyCellEvent(this.questionId);
+  const SelectJeopardyCellEvent(this.questionId, {this.playerId});
+  final String? playerId;
 
   /// Identifier of the question the cell references.
   final String questionId;
 
   @override
-  List<Object?> get props => [questionId];
+  List<Object?> get props => [questionId, playerId];
 }
 
 /// Fixes the wager of the pending Daily Double and opens its question.
 final class PlaceDailyDoubleWagerEvent extends QuizEngineEvent {
   /// Risks [wager] points.
-  const PlaceDailyDoubleWagerEvent(this.wager);
+  const PlaceDailyDoubleWagerEvent(
+    this.wager, {
+    this.playerId,
+    this.questionId,
+  });
+  final String? playerId;
+  final String? questionId;
 
   /// Points the picking team bets.
   final int wager;
 
   @override
-  List<Object?> get props => [wager];
+  List<Object?> get props => [wager, playerId, questionId];
 }
 
 /// Hands the next pick to [teamId], overriding the automatic rotation.
@@ -241,4 +248,20 @@ final class OpenPokerAnswersEvent extends QuizEngineEvent {
   const OpenPokerAnswersEvent();
   @override
   List<Object?> get props => [];
+}
+
+final class SetJeopardyOrderEvent extends QuizEngineEvent {
+  const SetJeopardyOrderEvent(this.teamIds);
+  final List<String> teamIds;
+  @override
+  List<Object?> get props => [teamIds];
+}
+
+enum TvMediaAction { play, pause, restart }
+
+final class ControlTvMediaEvent extends QuizEngineEvent {
+  const ControlTvMediaEvent(this.action);
+  final TvMediaAction action;
+  @override
+  List<Object?> get props => [action];
 }

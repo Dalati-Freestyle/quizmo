@@ -583,6 +583,10 @@ class _QuestionStage extends StatelessWidget {
         _PlayerJeopardyBanner(state: state, jeopardy: jeopardy),
         const SizedBox(height: 16),
         view,
+        if (state.roundStatus == RoundStatus.revealed) ...[
+          const SizedBox(height: 24),
+          _PlayerBoard(state: state, jeopardy: jeopardy),
+        ],
       ],
     );
   }
@@ -601,6 +605,15 @@ class _PlayerBoard extends StatelessWidget {
     final game = state.game!;
     final picker = game.teams[jeopardy.currentTeamId];
     final isDailyDouble = jeopardy.pendingDailyDoubleId != null;
+    final mayPick =
+        state.isConnected &&
+        (jeopardy.currentTeamId == null ||
+            state.me?.teamId == jeopardy.currentTeamId);
+    final score = game.teamScores[jeopardy.currentTeamId] ?? 0;
+    final maxWager = score > jeopardy.board.highestRowPoints
+        ? score
+        : jeopardy.board.highestRowPoints;
+    final cubit = context.read<PlayerSessionCubit>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -618,10 +631,21 @@ class _PlayerBoard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        if (isDailyDouble && mayPick)
+          DailyDoubleWagerView(
+            key: ValueKey(jeopardy.pendingDailyDoubleId),
+            maxWager: maxWager,
+            onWager: (wager) => cubit.placeDailyDoubleWager(
+              jeopardy.pendingDailyDoubleId!,
+              wager,
+            ),
+          ),
         JeopardyBoardView(
           board: jeopardy.board,
           completedQuestionIds: game.completedQuestionIds,
+          winners: game.questionWinners,
           highlightQuestionId: jeopardy.pendingDailyDoubleId,
+          onSelect: mayPick && !isDailyDouble ? cubit.selectJeopardyCell : null,
         ),
       ],
     );
@@ -754,6 +778,58 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           ),
         ],
       ],
+    );
+  }
+}
+
+class DailyDoubleWagerView extends StatefulWidget {
+  const DailyDoubleWagerView({
+    required this.maxWager,
+    required this.onWager,
+    super.key,
+  });
+  final int maxWager;
+  final ValueChanged<int> onWager;
+  @override
+  State<DailyDoubleWagerView> createState() => _DailyDoubleWagerViewState();
+}
+
+class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
+  late final controller = TextEditingController(text: '${widget.maxWager}');
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wager = int.tryParse(controller.text.trim());
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'Daily Double: Einsatz (1–${widget.maxWager})',
+              helperText:
+                  'Bei einer falschen Antwort verliert dein Team den Einsatz.',
+              helperMaxLines: 3,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: wager != null && wager >= 1 && wager <= widget.maxWager
+                ? () => widget.onWager(wager)
+                : null,
+            child: const Text('Einsatz bestätigen & Frage öffnen'),
+          ),
+        ],
+      ),
     );
   }
 }

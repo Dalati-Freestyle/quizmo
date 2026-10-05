@@ -17,6 +17,7 @@ final class QuizLibraryState extends Equatable {
     this.isLoading = true,
     this.isBusy = false,
     this.error,
+    this.requiredSchemaVersion,
   });
 
   /// Current quizzes available for editing or hosting.
@@ -31,22 +32,35 @@ final class QuizLibraryState extends Equatable {
   /// Most recent recoverable operation error.
   final String? error;
 
+  /// Newer file schema that requires the user to update Quizmo.
+  final int? requiredSchemaVersion;
+
   /// Returns a copy with selected fields replaced.
   QuizLibraryState copyWith({
     List<Quiz>? quizzes,
     bool? isLoading,
     bool? isBusy,
     String? error,
+    int? requiredSchemaVersion,
     bool clearError = false,
   }) => QuizLibraryState(
     quizzes: quizzes ?? this.quizzes,
     isLoading: isLoading ?? this.isLoading,
     isBusy: isBusy ?? this.isBusy,
     error: clearError ? null : error ?? this.error,
+    requiredSchemaVersion: clearError
+        ? null
+        : requiredSchemaVersion ?? this.requiredSchemaVersion,
   );
 
   @override
-  List<Object?> get props => [quizzes, isLoading, isBusy, error];
+  List<Object?> get props => [
+    quizzes,
+    isLoading,
+    isBusy,
+    error,
+    requiredSchemaVersion,
+  ];
 }
 
 /// Loads, seeds, imports, and deletes local quizzes.
@@ -105,7 +119,15 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
       );
       return imported;
     } on Object catch (error) {
-      emit(state.copyWith(isBusy: false, error: _errorMessage(error)));
+      emit(
+        state.copyWith(
+          isBusy: false,
+          error: _errorMessage(error),
+          requiredSchemaVersion: error is QuizImportUpdateRequiredException
+              ? error.requiredSchemaVersion
+              : null,
+        ),
+      );
       return null;
     }
   }

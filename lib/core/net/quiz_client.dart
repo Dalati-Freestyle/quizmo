@@ -263,6 +263,11 @@ class QuizClient {
     );
   }
 
+  void selectJeopardyCell(String questionId) =>
+      _send(JeopardyPickMessage(questionId));
+  void placeDailyDoubleWager(String questionId, int wager) =>
+      _send(DailyDoubleWagerMessage(questionId: questionId, wager: wager));
+
   void placePokerWager({required String questionId, required int wager}) {
     if (_playerId == null) return;
     _send(PokerWagerMessage(questionId: questionId, wager: wager));

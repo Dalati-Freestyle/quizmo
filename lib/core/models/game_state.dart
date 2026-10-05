@@ -95,6 +95,8 @@ final class GameState extends Equatable {
     this.jeopardy,
     this.poker,
     this.hostTimeMicros = 0,
+    this.tvMediaPaused = false,
+    this.tvMediaRevision = 0,
   });
 
   /// Restores a snapshot from [json].
@@ -115,6 +117,10 @@ final class GameState extends Equatable {
       null => null,
     },
     hostTimeMicros: json.readInt('hostTimeMicros'),
+    tvMediaPaused: json.readBool('tvMediaPaused', orElse: false),
+    tvMediaRevision: json['tvMediaRevision'] == null
+        ? 0
+        : json.readInt('tvMediaRevision'),
   );
 
   /// Active competition mode.
@@ -148,6 +154,25 @@ final class GameState extends Equatable {
   /// Clients use it as a coarse freshness check and as a fallback when their
   /// own sync handshake has not completed yet.
   final int hostTimeMicros;
+  final bool tvMediaPaused;
+  final int tvMediaRevision;
+
+  Map<String, String> get questionWinners {
+    final winners = <String, Set<String>>{};
+    for (final entry in scores.history) {
+      if (entry.points <= 0 ||
+          !completedQuestionIds.contains(entry.questionId)) {
+        continue;
+      }
+      final player = players[entry.playerId];
+      final name =
+          (mode is TeamMode ? teams[player?.teamId]?.name : null) ??
+          player?.name ??
+          entry.playerId;
+      (winners[entry.questionId] ??= {}).add(name);
+    }
+    return winners.map((id, names) => MapEntry(id, names.join(", ")));
+  }
 
   /// Players with an open socket.
   List<Player> get connectedPlayers => players.values
@@ -216,6 +241,8 @@ final class GameState extends Equatable {
     Object? jeopardy = _unset,
     Object? poker = _unset,
     Object? hostTimeMicros = _unset,
+    bool? tvMediaPaused,
+    int? tvMediaRevision,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -228,6 +255,8 @@ final class GameState extends Equatable {
         ? this.jeopardy
         : jeopardy as JeopardyState?,
     poker: identical(poker, _unset) ? this.poker : poker as PokerState?,
+    tvMediaPaused: tvMediaPaused ?? this.tvMediaPaused,
+    tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -247,6 +276,8 @@ final class GameState extends Equatable {
     'jeopardy': jeopardy?.toJson(),
     'poker': poker?.toJson(),
     'hostTimeMicros': hostTimeMicros,
+    'tvMediaPaused': tvMediaPaused,
+    'tvMediaRevision': tvMediaRevision,
   };
 
   @override
@@ -261,5 +292,7 @@ final class GameState extends Equatable {
     jeopardy,
     poker,
     hostTimeMicros,
+    tvMediaPaused,
+    tvMediaRevision,
   ];
 }

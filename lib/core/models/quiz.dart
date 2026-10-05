@@ -22,6 +22,8 @@ final class QuizValidationException implements Exception {
 }
 
 /// A named, versioned question bank that can be edited and hosted repeatedly.
+///
+/// Historical schema importers convert files into the current quiz model.
 final class Quiz extends Equatable {
   /// Creates a quiz definition.
   const Quiz({
@@ -38,20 +40,37 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 1;
+  static const int currentSchemaVersion = 2;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
-    final schemaVersion = json.readInt('schemaVersion');
-    if (schemaVersion != currentSchemaVersion) {
-      throw JsonContractException(
-        'Unsupported quiz schemaVersion $schemaVersion. '
-        'Expected $currentSchemaVersion.',
+    final version = json['schemaVersion'];
+    if (version is! num || !version.isFinite || version != version.toInt()) {
+      throw const JsonContractException(
+        'A quiz file must include an integer "schemaVersion".',
       );
     }
+    if (version > currentSchemaVersion) {
+      throw QuizSchemaUpdateRequiredException(
+        requiredVersion: version.toInt(),
+        supportedVersion: currentSchemaVersion,
+      );
+    }
+    return switch (version.toInt()) {
+      1 => Quiz._fromJsonV1(json),
+      2 => Quiz._fromJsonV2(json),
+      final unsupported => throw JsonContractException(
+        'Unsupported quiz schemaVersion $unsupported. '
+        'This app supports schema versions 1 through $currentSchemaVersion.',
+      ),
+    };
+  }
 
+  factory Quiz._fromJsonV1(JsonMap json) => Quiz._fromJsonV2(json);
+
+  factory Quiz._fromJsonV2(JsonMap json) {
     final quiz = Quiz(
-      schemaVersion: schemaVersion,
+      schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
       name: json.readString('name'),
       description: json.readString('description'),
@@ -76,7 +95,7 @@ final class Quiz extends Equatable {
     return quiz;
   }
 
-  /// File format version used to decode this quiz.
+  /// Current schema version of the in-memory quiz after migration.
   final int schemaVersion;
 
   /// Stable identifier used by the local library.
@@ -233,6 +252,25 @@ final class Quiz extends Equatable {
     createdAt,
     updatedAt,
   ];
+}
+
+/// A quiz file that requires a newer version of Quizmo.
+final class QuizSchemaUpdateRequiredException extends JsonContractException {
+  /// Creates an update request for an unsupported newer schema.
+  QuizSchemaUpdateRequiredException({
+    required this.requiredVersion,
+    required this.supportedVersion,
+  }) : super(
+         'Unsupported quiz schemaVersion $requiredVersion. '
+         'This app supports up to $supportedVersion. '
+         'Update Quizmo, then import this file again.',
+       );
+
+  /// Schema version required by the file.
+  final int requiredVersion;
+
+  /// Newest schema version supported by the installed app.
+  final int supportedVersion;
 }
 
 void _addDuplicateIdError(

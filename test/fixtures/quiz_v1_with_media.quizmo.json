@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "id": "legacy-v1-with-media",
+  "name": "Legacy quiz",
+  "description": "Version 1 quiz with question and solution media before the details setting.",
+  "category": "History",
+  "createdAtMicros": 0,
+  "updatedAtMicros": 0,
+  "teams": [
+    {
+      "id": "red",
+      "name": "Red",
+      "colorValue": 4293216333
+    }
+  ],
+  "questions": [
+    {
+      "type": "multipleChoice",
+      "id": "legacy-mc",
+      "prompt": "Which answer is correct?",
+      "timeLimitMs": 30000,
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": -2
+      },
+      "options": [
+        {
+          "id": "a",
+          "label": "A"
+        },
+        {
+          "id": "b",
+          "label": "B"
+        }
+      ],
+      "correctOptionId": "a",
+      "media": [
+        {
+          "type": "image",
+          "caption": "legacy.png",
+          "zoom": false,
+          "asset": {
+            "id": "275f1bcbbb585c71e3b2184304eccfa0e37de92022ca3b6f4e9c10df32318d85",
+            "mimeType": "image/png",
+            "data": "iVBORw0KGgoB"
+          }
+        }
+      ],
+      "solutionMedia": [
+        {
+          "type": "audio",
+          "caption": "solution.mp3",
+          "playbackLimitSeconds": 5,
+          "asset": {
+            "id": "0c243aeeff20838dc9e65155fb90d9411f7ec9d2d9b018e931e91c3157648a48",
+            "mimeType": "audio/mpeg",
+            "data": "SUQzAQ=="
+          }
+        }
+      ]
+    },
+    {
+      "type": "buzzer",
+      "id": "legacy-buzzer",
+      "prompt": "Name a precious metal.",
+      "timeLimitMs": 20000,
+      "scoringRule": {
+        "type": "firstBuzzer",
+        "points": 15,
+        "penalty": -5,
+        "rankDecay": 0
+      },
+      "expectedAnswer": "Gold"
+    }
+  ]
+}

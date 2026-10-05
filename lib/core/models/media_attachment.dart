@@ -123,7 +123,14 @@ bool _safeSvg(String svg) =>
     );
 
 sealed class MediaAttachment extends Equatable {
-  const MediaAttachment({this.caption = ''});
+  const MediaAttachment({this.caption = '', this.hideDetails = false});
+  final bool hideDetails;
+  MediaAttachment withHiddenDetails(bool value) =>
+      MediaAttachment.fromJson({...toJson(), 'hideDetails': value});
+  JsonMap forWire() => {
+    ...toJson(includeData: false),
+    if (hideDetails) 'caption': '',
+  };
   final String caption;
   MediaAsset? get asset => null;
   JsonMap toJson({bool includeData = true});
@@ -133,11 +140,13 @@ sealed class MediaAttachment extends Equatable {
     'image' => ImageAttachment(
       asset: MediaAsset.fromJson(json.readObject('asset')),
       caption: json.readString('caption'),
+      hideDetails: json.readBool('hideDetails', orElse: false),
       zoom: json.readBool('zoom', orElse: true),
     ),
     'audio' => AudioAttachment(
       asset: MediaAsset.fromJson(json.readObject('asset')),
       caption: json.readString('caption'),
+      hideDetails: json.readBool('hideDetails', orElse: false),
       playbackLimitSeconds: json.readIntOrNull('playbackLimitSeconds'),
     ),
     'video' => VideoAttachment(
@@ -146,17 +155,20 @@ sealed class MediaAttachment extends Equatable {
           : MediaAsset.fromJson(json.readObject('asset')),
       youtubeId: json.readStringOrNull('youtubeId'),
       caption: json.readString('caption'),
+      hideDetails: json.readBool('hideDetails', orElse: false),
     ),
     'code' => CodeAttachment(
       code: json.readString('code'),
       language: json.readString('language'),
       caption: json.readString('caption'),
+      hideDetails: json.readBool('hideDetails', orElse: false),
     ),
     'geo' => GeoAttachment(
       latitude: readFiniteDouble(json, 'latitude'),
       longitude: readFiniteDouble(json, 'longitude'),
       zoom: readFiniteDouble(json, 'zoom'),
       caption: json.readString('caption'),
+      hideDetails: json.readBool('hideDetails', orElse: false),
     ),
     final tag => throw JsonContractException('Unbekannter Medientyp "$tag".'),
   };
@@ -198,7 +210,12 @@ sealed class MediaAttachment extends Equatable {
 }
 
 final class ImageAttachment extends MediaAttachment {
-  const ImageAttachment({required this.asset, this.zoom = true, super.caption});
+  const ImageAttachment({
+    required this.asset,
+    this.zoom = true,
+    super.caption,
+    super.hideDetails,
+  });
   @override
   final MediaAsset asset;
   final bool zoom;
@@ -206,11 +223,12 @@ final class ImageAttachment extends MediaAttachment {
   JsonMap toJson({bool includeData = true}) => {
     'type': 'image',
     'caption': caption,
+    'hideDetails': hideDetails,
     'zoom': zoom,
     'asset': asset.toJson(includeData: includeData),
   };
   @override
-  List<Object?> get props => [asset, zoom, caption];
+  List<Object?> get props => [asset, zoom, caption, hideDetails];
 }
 
 final class AudioAttachment extends MediaAttachment {
@@ -218,6 +236,7 @@ final class AudioAttachment extends MediaAttachment {
     required this.asset,
     this.playbackLimitSeconds,
     super.caption,
+    super.hideDetails,
   });
   @override
   final MediaAsset asset;
@@ -226,15 +245,26 @@ final class AudioAttachment extends MediaAttachment {
   JsonMap toJson({bool includeData = true}) => {
     'type': 'audio',
     'caption': caption,
+    'hideDetails': hideDetails,
     'playbackLimitSeconds': playbackLimitSeconds,
     'asset': asset.toJson(includeData: includeData),
   };
   @override
-  List<Object?> get props => [asset, playbackLimitSeconds, caption];
+  List<Object?> get props => [
+    asset,
+    playbackLimitSeconds,
+    caption,
+    hideDetails,
+  ];
 }
 
 final class VideoAttachment extends MediaAttachment {
-  const VideoAttachment({this.asset, this.youtubeId, super.caption});
+  const VideoAttachment({
+    this.asset,
+    this.youtubeId,
+    super.caption,
+    super.hideDetails,
+  });
   @override
   final MediaAsset? asset;
   final String? youtubeId;
@@ -242,11 +272,12 @@ final class VideoAttachment extends MediaAttachment {
   JsonMap toJson({bool includeData = true}) => {
     'type': 'video',
     'caption': caption,
+    'hideDetails': hideDetails,
     'asset': asset?.toJson(includeData: includeData),
     'youtubeId': youtubeId,
   };
   @override
-  List<Object?> get props => [asset, youtubeId, caption];
+  List<Object?> get props => [asset, youtubeId, caption, hideDetails];
 }
 
 final class CodeAttachment extends MediaAttachment {
@@ -254,6 +285,7 @@ final class CodeAttachment extends MediaAttachment {
     required this.code,
     this.language = 'dart',
     super.caption,
+    super.hideDetails,
   });
   final String code;
   final String language;
@@ -261,11 +293,12 @@ final class CodeAttachment extends MediaAttachment {
   JsonMap toJson({bool includeData = true}) => {
     'type': 'code',
     'caption': caption,
+    'hideDetails': hideDetails,
     'code': code,
     'language': language,
   };
   @override
-  List<Object?> get props => [code, language, caption];
+  List<Object?> get props => [code, language, caption, hideDetails];
 }
 
 final class GeoAttachment extends MediaAttachment {
@@ -274,6 +307,7 @@ final class GeoAttachment extends MediaAttachment {
     required this.longitude,
     this.zoom = 8,
     super.caption,
+    super.hideDetails,
   });
   final double latitude;
   final double longitude;
@@ -282,12 +316,13 @@ final class GeoAttachment extends MediaAttachment {
   JsonMap toJson({bool includeData = true}) => {
     'type': 'geo',
     'caption': caption,
+    'hideDetails': hideDetails,
     'latitude': latitude,
     'longitude': longitude,
     'zoom': zoom,
   };
   @override
-  List<Object?> get props => [latitude, longitude, zoom, caption];
+  List<Object?> get props => [latitude, longitude, zoom, caption, hideDetails];
 }
 
 List<MediaAttachment> readMedia(JsonMap json, String key) =>

@@ -291,6 +291,20 @@ class SocketHub {
             _engine.add(BuzzerPressEvent(trusted));
         }
 
+      case JeopardyPickMessage(:final questionId):
+        final id = connection.playerId;
+        if (id == null || connection.isSpectator) return;
+        _engine.add(SelectJeopardyCellEvent(questionId, playerId: id));
+      case DailyDoubleWagerMessage(:final questionId, :final wager):
+        final id = connection.playerId;
+        if (id == null || connection.isSpectator) return;
+        _engine.add(
+          PlaceDailyDoubleWagerEvent(
+            wager,
+            playerId: id,
+            questionId: questionId,
+          ),
+        );
       case PokerWagerMessage(:final questionId, :final wager):
         final playerId = connection.playerId;
         if (playerId == null || connection.isSpectator) return;

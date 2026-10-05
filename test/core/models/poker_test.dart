@@ -16,7 +16,7 @@ void main() {
   test('quiz import and export preserve poker configuration', () {
     final original = quiz(250);
     expect(Quiz.fromJson(original.toJson()), original);
-    expect(original.schemaVersion, 1);
+    expect(original.schemaVersion, Quiz.currentSchemaVersion);
   });
   test('invalid poker settings cannot be imported', () {
     for (final original in [

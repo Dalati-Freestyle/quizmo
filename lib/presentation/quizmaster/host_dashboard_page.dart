@@ -148,6 +148,50 @@ class _HostDashboardView extends StatelessWidget {
                     onNext: () => engine.add(const NextQuestionEvent()),
                     onCloseRound: () => engine.add(const CloseRoundEvent()),
                   ),
+                  if (game.round.question case final question?)
+                    if ([
+                      ...question.media,
+                      if (game.round.status == RoundStatus.revealed)
+                        ...question.solutionMedia,
+                    ].any((m) => m is AudioAttachment || m is VideoAttachment))
+                      PanelCard(
+                        title: 'TV-Medienwiedergabe',
+                        icon: Icons.live_tv,
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: () => engine.add(
+                                const ControlTvMediaEvent(TvMediaAction.play),
+                              ),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Abspielen'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => engine.add(
+                                const ControlTvMediaEvent(TvMediaAction.pause),
+                              ),
+                              icon: const Icon(Icons.pause),
+                              label: const Text('Pause'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => engine.add(
+                                const ControlTvMediaEvent(
+                                  TvMediaAction.restart,
+                                ),
+                              ),
+                              icon: const Icon(Icons.replay),
+                              label: const Text('Neu starten'),
+                            ),
+                            Text(
+                              game.tvMediaPaused
+                                  ? 'TV: pausiert'
+                                  : 'TV: Wiedergabe angefordert',
+                            ),
+                          ],
+                        ),
+                      ),
                   if (game.poker case final poker?)
                     PanelCard(
                       title: 'Pokerchips',
@@ -183,6 +227,8 @@ class _HostDashboardView extends StatelessWidget {
                           engine.add(SelectJeopardyCellEvent(questionId)),
                       onPlaceWager: (wager) =>
                           engine.add(PlaceDailyDoubleWagerEvent(wager)),
+                      onSetOrder: (ids) =>
+                          engine.add(SetJeopardyOrderEvent(ids)),
                       onSetTurn: (teamId) =>
                           engine.add(SetJeopardyTurnEvent(teamId)),
                     ),

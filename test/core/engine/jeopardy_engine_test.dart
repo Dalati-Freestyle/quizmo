@@ -125,6 +125,108 @@ void main() {
       engine = build(board());
     });
 
+    test(
+      'only the picking team can select and wager; pending picks stay fixed',
+      () async {
+        await join();
+        await send(const SelectJeopardyCellEvent('q-mc-daily', playerId: 'p2'));
+        expect(game().jeopardy!.pendingDailyDoubleId, isNull);
+        await send(const SelectJeopardyCellEvent('q-mc-daily', playerId: 'p1'));
+        await send(const SelectJeopardyCellEvent('q-mc-low', playerId: 'p1'));
+        await send(const SetJeopardyTurnEvent('blue'));
+        expect(game().jeopardy!.pendingDailyDoubleId, 'q-mc-daily');
+        expect(game().jeopardy!.currentTeamId, 'red');
+        await send(
+          const PlaceDailyDoubleWagerEvent(
+            100,
+            playerId: 'p2',
+            questionId: 'q-mc-daily',
+          ),
+        );
+        await send(
+          const PlaceDailyDoubleWagerEvent(
+            100,
+            playerId: 'p1',
+            questionId: 'stale',
+          ),
+        );
+        await send(
+          const PlaceDailyDoubleWagerEvent(
+            201,
+            playerId: 'p1',
+            questionId: 'q-mc-daily',
+          ),
+        );
+        expect(game().round.question, isNull);
+        await send(
+          const PlaceDailyDoubleWagerEvent(
+            100,
+            playerId: 'p1',
+            questionId: 'q-mc-daily',
+          ),
+        );
+        expect(game().round.question!.id, 'q-mc-daily');
+        expect(game().jeopardy!.activePoints, 100);
+        await send(
+          const PlaceDailyDoubleWagerEvent(
+            200,
+            playerId: 'p1',
+            questionId: 'q-mc-daily',
+          ),
+        );
+        expect(game().jeopardy!.activePoints, 100);
+      },
+    );
+
+    test(
+      'configured rotation rejects invalid orders and survives the wire',
+      () async {
+        await join();
+        await send(
+          const PlayerJoinedEvent(
+            Player(id: 'p3', name: 'Grace', teamId: 'green'),
+            createdTeam: Team(id: 'green', name: 'Green'),
+          ),
+        );
+        await send(const SetJeopardyOrderEvent(['blue', 'red', 'green']));
+        await send(const SetJeopardyOrderEvent(['red', 'red']));
+        expect(GameState.fromJson(game().toJson()).jeopardy!.turnOrder, [
+          'blue',
+          'red',
+          'green',
+        ]);
+        await send(const SelectJeopardyCellEvent('q-mc-low'));
+        await choose('p1', 'q-mc-low', 'b');
+        expect(game().jeopardy!.currentTeamId, 'green');
+        await send(const ResetGameEvent());
+        expect(game().jeopardy!.turnOrder, ['blue', 'red', 'green']);
+        expect(game().jeopardy!.currentTeamId, 'blue');
+      },
+    );
+
+    test(
+      'TV playback controls are broadcast and reset for the next question',
+      () async {
+        await join();
+        await send(const SelectJeopardyCellEvent('q-mc-low'));
+        await send(const ControlTvMediaEvent(TvMediaAction.pause));
+        expect(
+          GameState.fromJson(game().redactedForPlayers().toJson())
+              .tvMediaPaused,
+          isTrue,
+        );
+        await send(const ControlTvMediaEvent(TvMediaAction.restart));
+        expect(game().tvMediaPaused, isFalse);
+        expect(game().tvMediaRevision, 1);
+        await send(const ControlTvMediaEvent(TvMediaAction.pause));
+        await choose('p1', 'q-mc-low', 'b');
+        expect(game().tvMediaPaused, isFalse);
+        await send(const ControlTvMediaEvent(TvMediaAction.pause));
+        await send(const SelectJeopardyCellEvent('q-buzz-high'));
+        expect(game().tvMediaPaused, isFalse);
+      },
+    );
+
     test('starts with the first team picking', () {
       expect(game().jeopardy?.currentTeamId, 'red');
     });

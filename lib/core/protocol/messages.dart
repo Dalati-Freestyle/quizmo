@@ -31,6 +31,11 @@ sealed class ClientMessage extends Equatable {
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
         WatchRequest._type => const WatchRequest(),
+        'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
+        'dailyDoubleWager' => DailyDoubleWagerMessage(
+          questionId: json.readString('questionId'),
+          wager: json.readInt('wager'),
+        ),
         'pokerWager' => PokerWagerMessage(
           questionId: json.readString('questionId'),
           wager: json.readInt('wager'),
@@ -457,6 +462,32 @@ final class PokerWagerMessage extends ClientMessage {
   @override
   JsonMap toJson() => {
     'type': 'pokerWager',
+    'questionId': questionId,
+    'wager': wager,
+  };
+  @override
+  List<Object?> get props => [questionId, wager];
+}
+
+final class JeopardyPickMessage extends ClientMessage {
+  const JeopardyPickMessage(this.questionId);
+  final String questionId;
+  @override
+  JsonMap toJson() => {'type': 'jeopardyPick', 'questionId': questionId};
+  @override
+  List<Object?> get props => [questionId];
+}
+
+final class DailyDoubleWagerMessage extends ClientMessage {
+  const DailyDoubleWagerMessage({
+    required this.questionId,
+    required this.wager,
+  });
+  final String questionId;
+  final int wager;
+  @override
+  JsonMap toJson() => {
+    'type': 'dailyDoubleWager',
     'questionId': questionId,
     'wager': wager,
   };

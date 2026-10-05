@@ -25,7 +25,10 @@ void main() {
       ),
       JeopardyCategory(
         name: 'History',
-        cells: [JeopardyCell(questionId: 'q3'), JeopardyCell.empty],
+        cells: [
+          JeopardyCell(questionId: 'q3'),
+          JeopardyCell.empty,
+        ],
       ),
     ],
   );
@@ -97,7 +100,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('board cells report taps and hide played questions', (
+  testWidgets('board cells report taps and keep played points disabled', (
     tester,
   ) async {
     String? tapped;
@@ -109,6 +112,7 @@ void main() {
             child: JeopardyBoardView(
               board: board,
               completedQuestionIds: const {'q1'},
+              winners: const {'q1': 'Red Foxes'},
               onSelect: (id) => tapped = id,
             ),
           ),
@@ -116,9 +120,12 @@ void main() {
       ),
     );
 
-    // q1 was played: only one "100" is left.
-    expect(find.text('100'), findsOneWidget);
-    await tester.tap(find.text('100'));
+    // Played cells keep their value and cannot be selected again.
+    expect(find.text('100'), findsNWidgets(2));
+    expect(find.text('Red Foxes'), findsOneWidget);
+    await tester.tap(find.text('100').first);
+    expect(tapped, isNull);
+    await tester.tap(find.text('100').last);
     expect(tapped, 'q3');
   });
 
@@ -147,4 +154,3 @@ void main() {
     expect(find.byIcon(Icons.star), findsOneWidget);
   });
 }
-

@@ -75,6 +75,7 @@ class JeopardyBoardView extends StatelessWidget {
     required this.board,
     required this.completedQuestionIds,
     this.onSelect,
+    this.winners = const {},
     this.showDailyDoubles = false,
     this.highlightQuestionId,
     this.style = JeopardyBoardStyle.compact,
@@ -83,8 +84,9 @@ class JeopardyBoardView extends StatelessWidget {
 
   /// Layout and point values.
   final JeopardyBoard board;
+  final Map<String, String> winners;
 
-  /// Questions that were played; their cells are shown blank.
+  /// Questions that were played; their point values remain visible but disabled.
   final Set<String> completedQuestionIds;
 
   /// Called with the question id of a tapped, still open cell.
@@ -181,7 +183,7 @@ class JeopardyBoardView extends StatelessWidget {
     final id = cell.questionId;
     final shape = BorderRadius.circular(style.radius);
 
-    if (id == null || completedQuestionIds.contains(id)) {
+    if (id == null) {
       return DecoratedBox(
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
@@ -190,6 +192,7 @@ class JeopardyBoardView extends StatelessWidget {
       );
     }
 
+    final completed = completedQuestionIds.contains(id);
     final isHighlighted = id == highlightQuestionId;
     final points = row < board.rowPoints.length ? board.rowPoints[row] : 0;
     final label = Text(
@@ -197,7 +200,10 @@ class JeopardyBoardView extends StatelessWidget {
       style: theme.textTheme.headlineSmall?.copyWith(
         fontSize: style.pointsFontSize,
         fontWeight: FontWeight.w800,
-        color: isHighlighted
+        decoration: completed ? TextDecoration.lineThrough : null,
+        color: completed
+            ? scheme.outline
+            : isHighlighted
             ? scheme.onTertiaryContainer
             : scheme.onPrimaryContainer,
         fontFeatures: const [FontFeature.tabularFigures()],
@@ -205,16 +211,37 @@ class JeopardyBoardView extends StatelessWidget {
     );
 
     return Material(
-      color: isHighlighted ? scheme.tertiaryContainer : scheme.primaryContainer,
+      color: completed
+          ? scheme.surfaceContainerHighest
+          : isHighlighted
+          ? scheme.tertiaryContainer
+          : scheme.primaryContainer,
       borderRadius: shape,
       child: InkWell(
         borderRadius: shape,
-        onTap: onSelect == null ? null : () => onSelect!(id),
+        onTap: completed || onSelect == null ? null : () => onSelect!(id),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            label,
-            if ((showDailyDoubles && cell.isDailyDouble) || isHighlighted)
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                label,
+                if (completed)
+                  Text(
+                    winners[id] ?? 'Keine Punkte',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: style == JeopardyBoardStyle.tv ? 22 : 11,
+                      color: scheme.outline,
+                    ),
+                  ),
+              ],
+            ),
+            if (!completed &&
+                ((showDailyDoubles && cell.isDailyDouble) || isHighlighted))
               Positioned(
                 top: 2,
                 right: 4,

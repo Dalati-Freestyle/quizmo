@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "legacy-v1",
+  "name": "Legacy quiz",
+  "description": "Quiz file from before formats and attachments existed.",
+  "category": "History",
+  "createdAtMicros": 0,
+  "updatedAtMicros": 0,
+  "teams": [{"id": "red", "name": "Red", "colorValue": 4293216333}],
+  "questions": [
+    {
+      "type": "multipleChoice",
+      "id": "legacy-mc",
+      "prompt": "Which answer is correct?",
+      "timeLimitMs": 30000,
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": -2},
+      "options": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
+      "correctOptionId": "a"
+    },
+    {
+      "type": "buzzer",
+      "id": "legacy-buzzer",
+      "prompt": "Name a precious metal.",
+      "timeLimitMs": 20000,
+      "scoringRule": {"type": "firstBuzzer", "points": 15, "penalty": -5, "rankDecay": 0},
+      "expectedAnswer": "Gold"
+    }
+  ]
+}

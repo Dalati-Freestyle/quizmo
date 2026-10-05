@@ -20,7 +20,15 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/models/models.dart';
 
 class QuestionMediaView extends StatelessWidget {
-  const QuestionMediaView({required this.media, this.baseUri, super.key});
+  const QuestionMediaView({
+    required this.media,
+    this.baseUri,
+    this.playing,
+    this.playbackRevision = 0,
+    super.key,
+  });
+  final bool? playing;
+  final int playbackRevision;
   final List<MediaAttachment> media;
   final Uri? baseUri;
 
@@ -44,11 +52,22 @@ class QuestionMediaView extends StatelessWidget {
                 AudioAttachment() => _AudioView(
                   attachment: attachment,
                   source: source(attachment.asset),
+                  playing: playing,
+                  playbackRevision: playbackRevision,
                 ),
                 VideoAttachment(:final youtubeId) =>
                   youtubeId != null
-                      ? _YoutubeView(id: youtubeId)
-                      : _VideoView(source: source(attachment.asset!)),
+                      ? _YoutubeView(
+                          id: youtubeId,
+                          hideDetails: attachment.hideDetails,
+                          playing: playing,
+                          playbackRevision: playbackRevision,
+                        )
+                      : _VideoView(
+                          source: source(attachment.asset!),
+                          playing: playing,
+                          playbackRevision: playbackRevision,
+                        ),
                 CodeAttachment(:final code, :final language) =>
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -65,7 +84,7 @@ class QuestionMediaView extends StatelessWidget {
                   ),
                 GeoAttachment() => _map(attachment),
               },
-              if (attachment.caption.isNotEmpty)
+              if (!attachment.hideDetails && attachment.caption.isNotEmpty)
                 Text(attachment.caption, style: const TextStyle(fontSize: 22)),
             ],
           ),
@@ -165,7 +184,14 @@ class QuestionMediaView extends StatelessWidget {
 }
 
 class _AudioView extends StatefulWidget {
-  const _AudioView({required this.attachment, required this.source});
+  const _AudioView({
+    required this.attachment,
+    required this.source,
+    this.playing,
+    this.playbackRevision = 0,
+  });
+  final bool? playing;
+  final int playbackRevision;
   final AudioAttachment attachment;
   final Uri source;
   @override
@@ -174,6 +200,37 @@ class _AudioView extends StatefulWidget {
 
 class _AudioViewState extends State<_AudioView> {
   final player = AudioPlayer();
+  @override
+  void didUpdateWidget(_AudioView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (ready &&
+        (oldWidget.playing != widget.playing ||
+            oldWidget.playbackRevision != widget.playbackRevision)) {
+      _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision);
+    }
+  }
+
+  void _applyPlayback(bool restart) {
+    unawaited(_control(restart));
+  }
+
+  Future<void> _control(bool restart) async {
+    try {
+      if (restart) await player.seek(Duration.zero);
+      if (!mounted) return;
+      if (widget.playing == true) {
+        if (player.processingState == ProcessingState.completed) {
+          await player.seek(Duration.zero);
+        }
+        unawaited(player.play().catchError((Object _) {}));
+      } else if (widget.playing == false) {
+        await player.pause();
+      }
+    } on Object {
+      /* Local play remains available if browser autoplay is blocked. */
+    }
+  }
+
   MediaPlaybackSource? playbackSource;
   String? error;
   bool ready = false;
@@ -198,7 +255,10 @@ class _AudioViewState extends State<_AudioView> {
           end: Duration(seconds: limit),
         );
       }
-      if (mounted) setState(() => ready = true);
+      if (mounted) {
+        setState(() => ready = true);
+        _applyPlayback(false);
+      }
     } on Object {
       if (mounted) {
         setState(
@@ -265,13 +325,49 @@ class _AudioViewState extends State<_AudioView> {
 }
 
 class _VideoView extends StatefulWidget {
-  const _VideoView({required this.source});
+  const _VideoView({
+    required this.source,
+    this.playing,
+    this.playbackRevision = 0,
+  });
+  final bool? playing;
+  final int playbackRevision;
   final Uri source;
   @override
   State<_VideoView> createState() => _VideoViewState();
 }
 
 class _VideoViewState extends State<_VideoView> {
+  @override
+  void didUpdateWidget(_VideoView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (controller?.value.isInitialized == true &&
+        (oldWidget.playing != widget.playing ||
+            oldWidget.playbackRevision != widget.playbackRevision)) {
+      unawaited(
+        _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision),
+      );
+    }
+  }
+
+  Future<void> _applyPlayback(bool restart) async {
+    try {
+      final video = controller!;
+      if (restart) await video.seekTo(Duration.zero);
+      if (!mounted) return;
+      if (widget.playing == true) {
+        if (video.value.position >= video.value.duration) {
+          await video.seekTo(Duration.zero);
+        }
+        await video.play();
+      } else if (widget.playing == false) {
+        await video.pause();
+      }
+    } on Object {
+      /* Local play remains available if browser autoplay is blocked. */
+    }
+  }
+
   VideoPlayerController? controller;
   MediaPlaybackSource? playbackSource;
   String? error;
@@ -293,6 +389,7 @@ class _VideoViewState extends State<_VideoView> {
       controller = video;
       video.addListener(_update);
       await video.initialize();
+      if (mounted) await _applyPlayback(false);
       _update();
     } on Object {
       if (mounted) {
@@ -355,13 +452,48 @@ class _VideoViewState extends State<_VideoView> {
 }
 
 class _YoutubeView extends StatefulWidget {
-  const _YoutubeView({required this.id});
+  const _YoutubeView({
+    required this.id,
+    this.hideDetails = false,
+    this.playing,
+    this.playbackRevision = 0,
+  });
+  final bool hideDetails;
+  final bool? playing;
+  final int playbackRevision;
   final String id;
   @override
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
 
 class _YoutubeViewState extends State<_YoutubeView> {
+  @override
+  void didUpdateWidget(_YoutubeView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playing != widget.playing ||
+        oldWidget.playbackRevision != widget.playbackRevision) {
+      unawaited(
+        _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision),
+      );
+    }
+  }
+
+  Future<void> _applyPlayback(bool restart) async {
+    final player = controller;
+    if (player == null) return;
+    try {
+      if (restart) await player.seekTo(seconds: 0);
+      if (!mounted) return;
+      if (widget.playing == true) {
+        await player.playVideo();
+      } else if (widget.playing == false) {
+        await player.pauseVideo();
+      }
+    } on Object {
+      /* Keep the embedded player's local fallback available. */
+    }
+  }
+
   YoutubePlayerController? controller;
   bool get _openInBrowser =>
       !kIsWeb &&
@@ -374,9 +506,9 @@ class _YoutubeViewState extends State<_YoutubeView> {
     if (_openInBrowser) return;
     controller = YoutubePlayerController.fromVideoId(
       videoId: widget.id,
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showControls: true,
+      autoPlay: widget.playing == true,
+      params: YoutubePlayerParams(
+        showControls: !widget.hideDetails,
         showFullscreenButton: true,
       ),
     );

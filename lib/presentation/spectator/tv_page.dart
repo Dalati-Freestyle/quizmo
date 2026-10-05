@@ -610,6 +610,7 @@ class _JeopardyBoardStage extends StatelessWidget {
           child: JeopardyBoardView(
             board: jeopardy.board,
             completedQuestionIds: game.completedQuestionIds,
+            winners: game.questionWinners,
             style: JeopardyBoardStyle.tv,
           ),
         ),
@@ -888,9 +889,21 @@ class _QuestionStage extends StatelessWidget {
               ? SingleChildScrollView(
                   child: Column(
                     children: [
-                      QuestionMediaView(media: question.media),
+                      QuestionMediaView(
+                        key: ValueKey('question-media-${question.id}'),
+                        media: question.media,
+                        playing:
+                            !game.tvMediaPaused &&
+                            (!isRevealed || question.solutionMedia.isEmpty),
+                        playbackRevision: game.tvMediaRevision,
+                      ),
                       if (isRevealed)
-                        QuestionMediaView(media: question.solutionMedia),
+                        QuestionMediaView(
+                          key: ValueKey('solution-media-${question.id}'),
+                          media: question.solutionMedia,
+                          playing: !game.tvMediaPaused,
+                          playbackRevision: game.tvMediaRevision,
+                        ),
                       QuestionResultView(question: question, game: game),
                     ],
                   ),

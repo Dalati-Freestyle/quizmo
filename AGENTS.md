@@ -75,7 +75,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
 
 ### Adding a New Quiz Format
-1. Add a case to the sealed `QuizFormat` (plus its `fromJson` tag). A file without a `format` entry stays a standard quiz, so `schemaVersion` does not change for purely additive formats.
+1. Add a case to the sealed `QuizFormat` (plus its `fromJson` tag) and increase the quiz `schemaVersion`. A file without a `format` entry stays a standard quiz when imported by the corresponding older-schema importer.
 2. Put its static layout/rules in a pure Dart model and its live bookkeeping in a nullable field of `GameState` (see `JeopardyState`). Strip everything secret in its `redacted()` (e.g. Daily Double positions); `GameState.redactedForPlayers` must call it.
 3. Drive it through new `QuizEngineEvent`s in `QuizEngineBloc`; cover the rules with tests under `test/core/engine/` before wiring UI.
 4. Validate it in `Quiz.validationErrors()` (the sealed `switch` forces you to).
@@ -97,6 +97,15 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 3. Validate an imported file fully before calling the repository. A malformed file, an unknown tag or an invalid multiple-choice solution must leave the persisted library untouched; regenerate IDs on collision instead of overwriting an existing quiz.
 4. Keep persistent storage and file transfer behind conditional exports. Nothing reachable from `main.dart` may import `dart:io` unconditionally; browser persistence must work or fail loudly with an actionable explanation.
 5. The host must receive the selected `Quiz` before it creates its `QuizEngineBloc`. Never swap a question bank into an already running engine: keep the existing engine, clock-sync and buzzer guarantees intact.
+
+### Quiz file versions and compatibility
+* Every change to the quiz model MUST increase the integer `schemaVersion`, including additions or changes to question types, related data types, scoring, media, format rules, serialized fields, or the meaning of saved values. Pure UI changes or error handling that do not change quiz content or its interpretation do not require a schema bump.
+* Every exported quiz file MUST include its explicit integer `schemaVersion`. Select the matching importer at the deserialization boundary; never guess a version when it is missing or silently truncate a fractional version.
+* Maintain a dedicated importer for EVERY schema version that has existed. When adding a new schema, add its importer and update ALL older importers to convert their files into the latest in-memory quiz model, supplying defaults or migrations as needed. Never remove old importers or silently drop questions, solutions, scoring, or media.
+* Maintain one exporter and update it to write ONLY the latest schema and its version number. After importing an older file, saving or exporting it writes the latest schema; historical export implementations are not required.
+* If a quiz file requires a schema newer than the installed app supports, stop the import before touching persistence and explicitly prompt the user to update Quizmo and retry. Treat malformed versions and other invalid content as validation errors, not update requests. Compatibility means newer apps can read all older files; older apps must clearly request an update for newer files.
+* Cover compatibility with fixed fixtures from older releases and round-trip tests that include question and solution media. Invalid imports must leave the library untouched.
+* The portable format is a single `*.quizmo.json` document: quiz metadata, format rules, teams, questions, solutions, and uploaded media bytes (Base64, MIME type, SHA-256 ID). YouTube and map attachments retain their references; their remote content is not embedded.
 
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs

@@ -21,6 +21,13 @@ MP3/WAV/OGG mit Play/Pause und optionalem Abspiellimit, MP4 mit Play/Pause und
 Positionssteuerung, YouTube-Links, Code mit Syntaxhervorhebung sowie verschiebbare
 OpenStreetMap-Kartenausschnitte. Medien werden im Editor vorab angezeigt.
 YouTube und Kartenkacheln benötigen Internet; lokale Uploads funktionieren im LAN.
+Mit „Details ausblenden“ bleiben Beschriftungen und Dateinamen auf Spieler- und
+TV-Ansichten verborgen und werden auch aus den übertragenen Snapshots entfernt.
+YouTube kann eigene Titel einblenden; MP4-Uploads zeigen keine solchen Titel.
+Die TV-Ansicht startet Audio und Videos automatisch. Der Host kann die Wiedergabe
+im Panel „TV-Medienwiedergabe“ abspielen, pausieren und neu starten. Browser können
+Autoplay mit Ton bis zu einer lokalen Interaktion sperren; die lokalen Play-Buttons
+bleiben dafür verfügbar. Lösungsmedien starten erst nach dem Reveal.
 Codec-Unterstützung hängt vom Browser bzw. Betriebssystem ab. Die nativen
 Audio-/Video-Plugins unterstützen Android, iOS und macOS; Web ist ebenfalls
 unterstützt. YouTube öffnet auf Windows/Linux extern.
@@ -49,3 +56,15 @@ die nach dem Schließen des Players gelöscht werden.
 
 Nach Änderungen: `flutter test`, `dart analyze`,
 `dart run tool/bundle_web_client.dart`, danach die Host-App neu bauen.
+
+## Jeopardy-Auswahl
+
+Das Team am Zug wählt die nächste Frage direkt auf seinem Spielergerät. Nach dem
+Reveal wird darunter erneut das Board angezeigt. Der Host kann den aktuellen Zug
+weiterhin überschreiben und über „Team-Reihenfolge festlegen“ die Rotation für die
+laufende Sitzung ändern. Ein Reset behält die Reihenfolge bei und beginnt mit
+deren erstem Team. Neu hinzukommende Teams werden an die Reihenfolge angehängt.
+Ein ausgewähltes Daily Double wartet auf den Einsatz des auswählenden Teams; der
+Host kann den Einsatz alternativ im Board-Panel eingeben. Währenddessen bleiben
+Feld und Team am Zug fest. Gespielte Felder behalten ihre durchgestrichenen
+Punktwerte und zeigen das Team bzw. den Spieler, das/der Punkte gewonnen hat.

@@ -294,6 +294,7 @@ final class JeopardyState extends Equatable {
     this.activePoints,
     this.activeIsDailyDouble = false,
     this.isStealRound = false,
+    this.turnOrder = const [],
   });
 
   /// Starts a session on [board]; the first of [teamIds] picks first.
@@ -311,10 +312,14 @@ final class JeopardyState extends Equatable {
     activePoints: json.readIntOrNull('activePoints'),
     activeIsDailyDouble: json.readBool('activeIsDailyDouble'),
     isStealRound: json.readBool('isStealRound'),
+    turnOrder: json['turnOrder'] == null
+        ? const []
+        : json.readStringList('turnOrder'),
   );
 
   /// The layout and rules.
   final JeopardyBoard board;
+  final List<String> turnOrder;
 
   /// The team that picks the next cell; during a question it is the team that
   /// picked it.
@@ -358,6 +363,7 @@ final class JeopardyState extends Equatable {
     Object? activePoints = _unset,
     bool? activeIsDailyDouble,
     bool? isStealRound,
+    List<String>? turnOrder,
   }) => JeopardyState(
     board: board ?? this.board,
     currentTeamId: identical(currentTeamId, _unset)
@@ -371,6 +377,7 @@ final class JeopardyState extends Equatable {
         : activePoints as int?,
     activeIsDailyDouble: activeIsDailyDouble ?? this.activeIsDailyDouble,
     isStealRound: isStealRound ?? this.isStealRound,
+    turnOrder: turnOrder ?? this.turnOrder,
   );
 
   /// Serializes the state.
@@ -381,6 +388,7 @@ final class JeopardyState extends Equatable {
     'activePoints': activePoints,
     'activeIsDailyDouble': activeIsDailyDouble,
     'isStealRound': isStealRound,
+    'turnOrder': turnOrder,
   };
 
   @override
@@ -391,5 +399,6 @@ final class JeopardyState extends Equatable {
     activePoints,
     activeIsDailyDouble,
     isStealRound,
+    turnOrder,
   ];
 }

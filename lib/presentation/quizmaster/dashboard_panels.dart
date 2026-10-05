@@ -560,6 +560,7 @@ class JeopardyBoardPanel extends StatelessWidget {
     required this.onSelect,
     required this.onPlaceWager,
     required this.onSetTurn,
+    this.onSetOrder,
     super.key,
   });
 
@@ -583,6 +584,11 @@ class JeopardyBoardPanel extends StatelessWidget {
 
   /// Hands the next pick to the given team id.
   final ValueChanged<String> onSetTurn;
+  final ValueChanged<List<String>>? onSetOrder;
+  Future<void> _editOrder(BuildContext context) async {
+    final order = await showJeopardyOrderDialog(context, game);
+    if (order != null) onSetOrder?.call(order);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -616,7 +622,7 @@ class JeopardyBoardPanel extends StatelessWidget {
                             ),
                             label: Text(team.name),
                             selected: team.id == jeopardy.currentTeamId,
-                            onSelected: canPick
+                            onSelected: canPick && pending == null
                                 ? (_) => onSetTurn(team.id)
                                 : null,
                           ),
@@ -624,6 +630,17 @@ class JeopardyBoardPanel extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          if (onSetOrder != null && game.teams.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                onPressed: canPick && pending == null
+                    ? () => _editOrder(context)
+                    : null,
+                icon: const Icon(Icons.sort),
+                label: const Text('Team-Reihenfolge festlegen'),
               ),
             ),
           if (pending != null)
@@ -636,14 +653,15 @@ class JeopardyBoardPanel extends StatelessWidget {
           JeopardyBoardView(
             board: jeopardy.board,
             completedQuestionIds: game.completedQuestionIds,
+            winners: game.questionWinners,
             showDailyDoubles: true,
             highlightQuestionId: pending,
-            onSelect: canPick ? onSelect : null,
+            onSelect: canPick && pending == null ? onSelect : null,
           ),
           const SizedBox(height: 8),
           Text(
             canPick
-                ? 'Click the cell the picking team asked for. '
+                ? 'Das Team am Zug kann selbst ein Feld auswählen. '
                       'Stars mark Daily Doubles — only you can see them.'
                 : 'Finish the current question to pick the next cell.',
             style: theme.textTheme.labelSmall?.copyWith(
@@ -654,6 +672,73 @@ class JeopardyBoardPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<List<String>?> showJeopardyOrderDialog(
+  BuildContext context,
+  GameState game,
+) {
+  final order = [
+    ...?game.jeopardy?.turnOrder.where(game.teams.containsKey),
+    ...game.teams.keys.where(
+      (id) => !(game.jeopardy?.turnOrder.contains(id) ?? false),
+    ),
+  ];
+  return showDialog<List<String>>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Team-Reihenfolge'),
+        content: SizedBox(
+          width: 420,
+          height: 320,
+          child: ListView(
+            children: [
+              for (final (index, id) in order.indexed)
+                ListTile(
+                  title: Text('${index + 1}. ${game.teams[id]!.name}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Nach oben',
+                        icon: const Icon(Icons.arrow_upward),
+                        onPressed: index == 0
+                            ? null
+                            : () => setState(() {
+                                order.removeAt(index);
+                                order.insert(index - 1, id);
+                              }),
+                      ),
+                      IconButton(
+                        tooltip: 'Nach unten',
+                        icon: const Icon(Icons.arrow_downward),
+                        onPressed: index == order.length - 1
+                            ? null
+                            : () => setState(() {
+                                order.removeAt(index);
+                                order.insert(index + 1, id);
+                              }),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, order),
+            child: const Text('Übernehmen'),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _WagerForm extends StatefulWidget {

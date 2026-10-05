@@ -21,6 +21,6 @@ Future<String?> pickQuizJson() => throw const QuizFileTransferException(
 );
 
 /// Throws because exporting quiz files is unsupported on this platform.
-Future<void> exportQuizFile(Quiz quiz) => throw const QuizFileTransferException(
+Future<bool> exportQuizFile(Quiz quiz) => throw const QuizFileTransferException(
   'Exporting quiz files is unavailable on this platform.',
 );

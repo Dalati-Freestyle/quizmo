@@ -69,17 +69,38 @@ class _QuizLibraryView extends StatelessWidget {
       BlocConsumer<QuizLibraryCubit, QuizLibraryState>(
         listenWhen: (previous, current) =>
             current.error != null && current.error != previous.error,
-        listener: (context, state) =>
+        listener: (context, state) {
+          if (state.requiredSchemaVersion != null) {
+            showDialog<void>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Update Quizmo to import this quiz'),
+                content: const Text(
+                  'This quiz requires a newer version of Quizmo. '
+                  'Update the app, then import this file again. '
+                  'Your quiz library has not been changed.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          } else {
             ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(state.error!))),
+                .showSnackBar(SnackBar(content: Text(state.error!)));
+          }
+        },
         builder: (context, state) => Scaffold(
           appBar: AppBar(
             title: const Text('Quiz library'),
             actions: [
-              IconButton(
-                tooltip: 'Import quiz file',
+              TextButton.icon(
                 onPressed: state.isBusy ? null : () => _importQuiz(context),
                 icon: const Icon(Icons.file_open_outlined),
+                label: const Text('Import'),
               ),
               IconButton(
                 tooltip: 'Create quiz',
@@ -170,10 +191,10 @@ class _QuizLibraryView extends StatelessWidget {
 
   Future<void> _exportQuiz(BuildContext context, Quiz quiz) async {
     try {
-      await exportQuizFile(quiz);
-      if (!context.mounted) return;
+      final exported = await exportQuizFile(quiz);
+      if (!context.mounted || !exported) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export prepared for "${quiz.name}".')),
+        SnackBar(content: Text('Exported "${quiz.name}" including media.')),
       );
     } on Object catch (error) {
       if (!context.mounted) return;
@@ -258,6 +279,11 @@ class _QuizCard extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: isBusy ? null : onExport,
+          icon: const Icon(Icons.file_download_outlined),
+          label: const Text('Export quiz with media'),
+        ),
         if (onHost != null)
           FilledButton.icon(
             onPressed: isBusy ? null : onHost,

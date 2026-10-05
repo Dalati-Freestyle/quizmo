@@ -88,10 +88,8 @@ sealed class Question extends Equatable {
     final visible = reveal ? this : redacted();
     return Question.fromJson({
       ...visible.toJson(),
-      'media': visible.media.map((m) => m.toJson(includeData: false)).toList(),
-      'solutionMedia': visible.solutionMedia
-          .map((m) => m.toJson(includeData: false))
-          .toList(),
+      'media': visible.media.map((m) => m.forWire()).toList(),
+      'solutionMedia': visible.solutionMedia.map((m) => m.forWire()).toList(),
     });
   }
 

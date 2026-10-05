@@ -155,6 +155,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 changed();
               },
             ),
+          const SizedBox(height: 20),
           if (widget.question is ShortAnswerQuestion)
             DropdownButtonFormField<int>(
               initialValue: edits,
@@ -181,6 +182,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 changed();
               },
             ),
+            const SizedBox(height: 20),
             TextFormField(
               initialValue: scale,
               decoration: const InputDecoration(
@@ -191,6 +193,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 changed();
               },
             ),
+            const SizedBox(height: 12),
             const Text(
               'Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).',
             ),

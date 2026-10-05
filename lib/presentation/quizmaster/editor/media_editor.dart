@@ -154,6 +154,19 @@ class _MediaEditorState extends State<MediaEditor> {
                         ),
                       ],
                     ),
+                    SwitchListTile(
+                      title: const Text('Details ausblenden'),
+                      subtitle: const Text(
+                        'Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.',
+                      ),
+                      value: attachment.hideDetails,
+                      onChanged: (value) {
+                        setState(
+                          () => media[i] = attachment.withHiddenDetails(value),
+                        );
+                        publish();
+                      },
+                    ),
                     QuestionMediaView(media: [attachment]),
                     if (attachment is ImageAttachment)
                       SwitchListTile(
@@ -164,6 +177,7 @@ class _MediaEditorState extends State<MediaEditor> {
                             () => media[i] = ImageAttachment(
                               asset: attachment.asset,
                               caption: attachment.caption,
+                              hideDetails: attachment.hideDetails,
                               zoom: v,
                             ),
                           );
@@ -187,6 +201,7 @@ class _MediaEditorState extends State<MediaEditor> {
                           media[i] = AudioAttachment(
                             asset: attachment.asset,
                             caption: attachment.caption,
+                            hideDetails: attachment.hideDetails,
                             playbackLimitSeconds: v.isEmpty
                                 ? null
                                 : int.tryParse(v) ?? 0,
@@ -275,6 +290,7 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
                 labelText: 'Beschriftung (optional)',
               ),
             ),
+            const SizedBox(height: 20),
             TextField(
               controller: first,
               minLines: widget.kind == _MediaKind.code ? 5 : 1,
@@ -287,6 +303,7 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
                 },
               ),
             ),
+            const SizedBox(height: 20),
             if (widget.kind != _MediaKind.youtube)
               TextField(
                 controller: second,
@@ -296,6 +313,7 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
                       : 'Längengrad',
                 ),
               ),
+            const SizedBox(height: 20),
             if (widget.kind == _MediaKind.geo)
               TextField(
                 controller: third,

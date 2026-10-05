@@ -265,6 +265,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
   }
 
+  void selectJeopardyCell(String questionId) =>
+      _client?.selectJeopardyCell(questionId);
+  void placeDailyDoubleWager(String questionId, int wager) =>
+      _client?.placeDailyDoubleWager(questionId, wager);
+
   void placePokerWager(int wager) {
     final question = state.question;
     if (question == null || !(state.game?.poker?.betting ?? false)) return;
