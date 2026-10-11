@@ -69,6 +69,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
            ),
          ),
        ) {
+    on<StartGameEvent>((event, emit) {
+      if (!state.game.isStarted) {
+        emit(
+          _publish(
+            state.game.copyWith(isStarted: true),
+            notice: 'Quiz gestartet.',
+          ),
+        );
+      }
+    });
     on<PlayerJoinedEvent>(_onPlayerJoined);
     on<RenameTeamEvent>(_onRenameTeam);
     on<PlayerLeftEvent>(_onPlayerLeft);
@@ -309,6 +319,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         (round.status == RoundStatus.locked && round.activePlayerId != null)) {
       return;
     }
+    if (round.buzzerAnswerCorrect) {
+      return;
+    }
+    if (game.poker != null && _pokerEveryoneSettled(game)) return;
     _graceTimer?.cancel();
     emit(
       _publish(
@@ -318,10 +332,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             startedAtHostMicros: _now(),
             activePlayerId: null,
             buzzerQueue: const [],
+            lockedOutPlayerIds: event.forAll
+                ? {
+                    for (final player in game.players.values)
+                      if (game.poker?.settledTeamIds.contains(player.teamId) ??
+                          false)
+                        player.id,
+                  }
+                : round.lockedOutPlayerIds,
+            buzzerOpenForAll:
+                round.buzzerOpenForAll ||
+                (event.forAll &&
+                    !(game.jeopardy?.activeIsDailyDouble ?? false)),
           ),
         ),
-        notice:
-            'Buzzer freigegeben. Alle übrigen Spieler dürfen erneut buzzern.',
+        notice: event.forAll
+            ? 'Buzzer für alle freigegeben.'
+            : 'Buzzer freigegeben. Alle übrigen Spieler dürfen erneut buzzern.',
       ),
     );
   }
@@ -508,7 +535,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   // ---------------------------------------------------------------- round ---
 
   void _onStartRound(StartRoundEvent event, Emitter<QuizEngineState> emit) {
-    final game = state.game;
+    final game = state.game.copyWith(isStarted: true);
     if (game.jeopardy != null) {
       // On a board every round starts by picking a cell, so that the points,
       // the turn rotation and the answer restrictions cannot be bypassed.
@@ -636,7 +663,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     emit(
       _publish(
-        game.copyWith(round: round.copyWith(buzzerQueue: queue)),
+        game.copyWith(
+          tvMediaPaused: true,
+          round: round.copyWith(buzzerQueue: queue),
+        ),
         notice:
             '${game.players[press.playerId]?.name ?? press.playerId} buzzed.',
       ),
@@ -685,6 +715,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    final continueAutomatically =
+        autoContinueBuzzer &&
+        !question.hostEndsRound &&
+        question.retryLimit == null;
+
     if (game.poker != null) {
       final teamId = game.players[activeId]!.teamId!;
       final settled = _settlePoker(game, teamId, event.wasCorrect);
@@ -699,16 +734,19 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           .toList();
       final updated = settled.copyWith(
         round: round.copyWith(
-          status: RoundStatus.acceptingAnswers,
+          status: continueAutomatically
+              ? RoundStatus.acceptingAnswers
+              : RoundStatus.locked,
           activePlayerId: null,
-          buzzerQueue: remaining,
+          buzzerQueue: continueAutomatically ? remaining : const [],
           lockedOutPlayerIds: locked,
+          resolvedAttempts: round.resolvedAttempts + 1,
         ),
       );
       final done = _pokerEveryoneSettled(updated);
       emit(
         _publish(
-          done
+          done && !question.hostEndsRound
               ? _reveal(
                   updated.copyWith(
                     allAnswersRevision: game.allAnswersRevision + 1,
@@ -717,7 +755,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
               : updated,
         ),
       );
-      if (!done && remaining.isNotEmpty) add(const LockBuzzerEvent());
+      if (!done && continueAutomatically && remaining.isNotEmpty) {
+        add(const LockBuzzerEvent());
+      }
       return;
     }
 
@@ -745,7 +785,17 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (event.wasCorrect) {
       emit(
         _publish(
-          _reveal(game.copyWith(scores: scores)),
+          question.hostEndsRound
+              ? game.copyWith(
+                  scores: scores,
+                  round: round.copyWith(
+                    activePlayerId: null,
+                    buzzerQueue: const [],
+                    resolvedAttempts: round.resolvedAttempts + 1,
+                    buzzerAnswerCorrect: true,
+                  ),
+                )
+              : _reveal(game.copyWith(scores: scores)),
           notice: '$playerName was right ($delta).',
         ),
       );
@@ -755,13 +805,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     // Wrong answer on the board: the picking team's miss either hands the
     // question to the other teams or ends it.
     if (game.jeopardy case final jeopardy? when jeopardy.hasActiveQuestion) {
-      if (!jeopardy.isStealRound) {
-        final missed = game.copyWith(scores: scores);
+      if (!jeopardy.isStealRound && !round.buzzerOpenForAll) {
+        final missed = game.copyWith(
+          scores: scores,
+          round: round.copyWith(
+            activePlayerId: null,
+            buzzerQueue: const [],
+            resolvedAttempts: round.resolvedAttempts + 1,
+            lockedOutPlayerIds: question.lockOutOnMiss
+                ? {...round.lockedOutPlayerIds, activeId}
+                : round.lockedOutPlayerIds,
+          ),
+        );
         if (_canOpenSteal(missed)) {
           final steal = _openStealRound(missed);
           emit(
             _publish(
-              autoContinueBuzzer
+              continueAutomatically
                   ? steal
                   : steal.copyWith(
                       round: steal.round.copyWith(status: RoundStatus.locked),
@@ -771,7 +831,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           );
         } else {
           emit(
-            _publish(_reveal(missed), notice: '$playerName missed ($delta).'),
+            _publish(
+              continueAutomatically ? _reveal(missed) : missed,
+              notice: '$playerName missed ($delta).',
+            ),
           );
         }
         return;
@@ -787,26 +850,27 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         : round.lockedOutPlayerIds;
     final next = RoundState(
       question: question,
-      status: autoContinueBuzzer
+      status: continueAutomatically
           ? RoundStatus.acceptingAnswers
           : RoundStatus.locked,
       startedAtHostMicros: round.startedAtHostMicros,
-      buzzerQueue: autoContinueBuzzer ? remaining : const [],
+      buzzerQueue: continueAutomatically ? remaining : const [],
       answers: round.answers,
       lockedOutPlayerIds: lockedOut,
       resolvedAttempts: round.resolvedAttempts + 1,
+      buzzerOpenForAll: round.buzzerOpenForAll,
     );
 
     emit(
       _publish(
         game.copyWith(scores: scores, round: next),
-        notice: autoContinueBuzzer
+        notice: continueAutomatically
             ? '$playerName missed ($delta). Buzzer is open again.'
             : '$playerName hat falsch geantwortet ($delta). Buzzer freigeben oder Runde beenden.',
       ),
     );
 
-    if (autoContinueBuzzer && remaining.isNotEmpty) {
+    if (continueAutomatically && remaining.isNotEmpty) {
       add(const LockBuzzerEvent());
     }
   }
@@ -873,7 +937,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     SelectJeopardyCellEvent event,
     Emitter<QuizEngineState> emit,
   ) {
-    final game = state.game;
+    final game = event.playerId == null
+        ? state.game.copyWith(isStarted: true)
+        : state.game;
     final jeopardy = game.jeopardy;
     if (jeopardy == null) {
       emit(state.copyWith(notice: 'This session has no Jeopardy board.'));
@@ -1089,9 +1155,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final jeopardy = game.jeopardy;
     final question = game.round.question;
     if (jeopardy == null || question == null) return false;
+    if (game.round.buzzerAnswerCorrect) return false;
+    if (game.round.buzzerOpenForAll) return false;
     if (!jeopardy.hasActiveQuestion || jeopardy.isStealRound) return false;
     if (!jeopardy.canSteal || jeopardy.currentTeamId == null) return false;
-    if (game.teams.length < 2) return false;
+    if (game.participantIds.length < 2) return false;
     return !game.scores.history.any(
       (event) => event.questionId == question.id && event.points > 0,
     );
@@ -1103,6 +1171,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     return game.copyWith(
       round: RoundState(
         question: game.round.question,
+        resolvedAttempts: game.round.resolvedAttempts,
+        lockedOutPlayerIds: game.round.lockedOutPlayerIds,
         status: RoundStatus.acceptingAnswers,
         startedAtHostMicros: _now(),
       ),
@@ -1293,7 +1363,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       final participant = state.game.participantId(
         state.game.players[playerId],
       );
-      if (!jeopardy.mayAnswer(participant)) {
+      if (!round.buzzerOpenForAll && !jeopardy.mayAnswer(participant)) {
         return jeopardy.isStealRound
             ? 'Only the other teams may steal this question.'
             : 'The picking team answers first.';

@@ -595,7 +595,12 @@ class _QuestionStage extends StatelessWidget {
           const SizedBox(height: 24),
         ],
         if (question.media.isNotEmpty) ...[
-          QuestionMediaView(media: question.media, baseUri: cubit.mediaBaseUri),
+          QuestionMediaView(
+            media: question.media,
+            baseUri: cubit.mediaBaseUri,
+            playing: state.game?.tvMediaPaused == true ? false : null,
+            playbackRevision: state.game?.tvMediaRevision ?? 0,
+          ),
           const SizedBox(height: 16),
         ],
         input,
@@ -607,6 +612,8 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.solutionMedia,
             baseUri: cubit.mediaBaseUri,
+            playing: state.game?.tvMediaPaused == true ? false : null,
+            playbackRevision: state.game?.tvMediaRevision ?? 0,
           ),
         ],
       ],
@@ -682,6 +689,8 @@ class _PlayerBoard extends StatelessWidget {
         Text(
           jeopardy.pendingPickQuestionId != null
               ? 'Fragenauswahl wartet auf Bestätigung durch den Spielleiter.'
+              : !game.isStarted
+              ? 'Warte auf den Start durch den Spielleiter.'
               : mayPick
               ? (game.mode is TeamMode
                     ? 'Dein Team ist dran! Wählt die nächste Frage.'
@@ -761,7 +770,9 @@ class _PlayerJeopardyBanner extends StatelessWidget {
         if (isOpen && picker != null) ...[
           const SizedBox(height: 8),
           Text(
-            mayAnswer
+            game.round.buzzerOpenForAll
+                ? 'Buzzer für alle freigegeben.'
+                : mayAnswer
                 ? (jeopardy.isStealRound
                       ? 'Steal! Your team may answer now.'
                       : 'Your team answers.')

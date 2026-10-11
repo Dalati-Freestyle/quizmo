@@ -189,12 +189,20 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   List<String> _correctOptionIds = [];
   bool _allowMultipleAnswers = false;
   late bool _lockOutOnMiss;
+  bool _hostEndsRound = false;
+  late final TextEditingController _retryLimitController;
   late _ScoringRuleKind _scoringKind;
 
   @override
   void initState() {
     super.initState();
     final question = widget.question;
+    _hostEndsRound = question is BuzzerQuestion && question.hostEndsRound;
+    _retryLimitController = TextEditingController(
+      text: question is BuzzerQuestion
+          ? question.retryLimit?.toString() ?? ''
+          : '',
+    );
     _notesController = TextEditingController(text: question.adminNotes);
     _media = question.media;
     _solutionMedia = question.solutionMedia;
@@ -276,6 +284,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
 
   @override
   void dispose() {
+    _retryLimitController.dispose();
     _notesController.dispose();
     _promptController.dispose();
     _categoryController.dispose();
@@ -495,6 +504,31 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
           onChanged: (value) => setState(() => _lockOutOnMiss = value),
           title: const Text('Lock out a player after a wrong answer'),
         ),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          value: _hostEndsRound,
+          onChanged: (value) => setState(() => _hostEndsRound = value),
+          title: const Text('Nur durch Spielleiter beenden'),
+          subtitle: const Text(
+            'Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.',
+          ),
+        ),
+        TextFormField(
+          controller: _retryLimitController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Empfohlene Wiederholungen (optional)',
+            helperText: 'Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.',
+            helperMaxLines: 3,
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return null;
+            final count = int.tryParse(value.trim());
+            return count == null || count < 0
+                ? 'Bitte eine ganze Zahl ab 0 eingeben.'
+                : null;
+          },
+        ),
       ],
     ),
   );
@@ -635,6 +669,8 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         scoringRule: rule,
         expectedAnswer: _nullableText(_expectedAnswerController.text),
         lockOutOnMiss: _lockOutOnMiss,
+        hostEndsRound: _hostEndsRound,
+        retryLimit: int.tryParse(_retryLimitController.text.trim()),
       ),
     };
     question = Question.fromJson({

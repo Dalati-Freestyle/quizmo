@@ -81,6 +81,7 @@ void main() {
   }
 
   Future<void> join() async {
+    await send(const StartGameEvent());
     await send(
       const PlayerJoinedEvent(Player(id: 'p1', name: 'Ada', teamId: 'red')),
     );

@@ -178,8 +178,7 @@ final class MultipleChoiceQuestion extends Question {
   final String? correctOptionId;
   final List<String>? correctOptionIds;
   final bool allowMultipleAnswers;
-  List<String> get solutionOptionIds =>
-      correctOptionIds ?? [?correctOptionId];
+  List<String> get solutionOptionIds => correctOptionIds ?? [?correctOptionId];
 
   @override
   bool get hasSolution => correctOptionIds != null || correctOptionId != null;
@@ -257,6 +256,8 @@ final class BuzzerQuestion extends Question {
     required super.prompt,
     this.expectedAnswer,
     this.lockOutOnMiss = true,
+    this.hostEndsRound = false,
+    this.retryLimit,
     super.scoringRule = const FirstBuzzerRule(),
     super.timeLimit = const Duration(seconds: 20),
     super.category,
@@ -271,6 +272,8 @@ final class BuzzerQuestion extends Question {
     prompt: json.readString('prompt'),
     expectedAnswer: json.readStringOrNull('expectedAnswer'),
     lockOutOnMiss: json.readBool('lockOutOnMiss', orElse: true),
+    hostEndsRound: json.readBool('hostEndsRound'),
+    retryLimit: _readRetryLimit(json),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     timeLimit: json.readDurationMs('timeLimitMs'),
     category: json.readStringOrNull('category'),
@@ -289,6 +292,28 @@ final class BuzzerQuestion extends Question {
   /// Whether a player who buzzed and missed may buzz again this round.
   final bool lockOutOnMiss;
 
+  final bool hostEndsRound;
+  final int? retryLimit;
+
+  static int? _readRetryLimit(JsonMap json) {
+    final value = json['retryLimit'];
+    if (value == null) return null;
+    if (value is! num ||
+        !value.isFinite ||
+        value != value.toInt() ||
+        value < 0) {
+      throw const JsonContractException(
+        'retryLimit must be a non-negative integer.',
+      );
+    }
+    return value.toInt();
+  }
+
+  @override
+  List<String> get contentErrors => retryLimit != null && retryLimit! < 0
+      ? const ['Wiederholungen dürfen nicht negativ sein.']
+      : const [];
+
   @override
   bool get hasSolution => expectedAnswer != null;
 
@@ -306,6 +331,8 @@ final class BuzzerQuestion extends Question {
     id: id,
     prompt: prompt,
     lockOutOnMiss: lockOutOnMiss,
+    hostEndsRound: hostEndsRound,
+    retryLimit: retryLimit,
     scoringRule: scoringRule,
     timeLimit: timeLimit,
     category: category,
@@ -317,6 +344,8 @@ final class BuzzerQuestion extends Question {
     ...baseJson(_type),
     'expectedAnswer': expectedAnswer,
     'lockOutOnMiss': lockOutOnMiss,
+    'hostEndsRound': hostEndsRound,
+    'retryLimit': retryLimit,
   };
 
   @override
@@ -325,6 +354,8 @@ final class BuzzerQuestion extends Question {
     prompt,
     expectedAnswer,
     lockOutOnMiss,
+    hostEndsRound,
+    retryLimit,
     scoringRule,
     timeLimit,
     category,

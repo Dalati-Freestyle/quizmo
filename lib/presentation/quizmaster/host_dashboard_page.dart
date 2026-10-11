@@ -186,6 +186,26 @@ class _HostDashboardView extends StatelessWidget {
                 game: game,
                 child: AdaptivePanelGrid(
                   panels: [
+                    if (!game.isStarted)
+                      PanelCard(
+                        title: 'Quiz starten',
+                        icon: Icons.play_circle_outline,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Spieler können beitreten. Die Fragenauswahl wird erst nach dem Start freigegeben.',
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: () =>
+                                  engine.add(const StartGameEvent()),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Quiz jetzt starten'),
+                            ),
+                          ],
+                        ),
+                      ),
                     LiveRoundPanel(
                       state: engineState,
                       onJudge: (wasCorrect) =>
@@ -194,8 +214,14 @@ class _HostDashboardView extends StatelessWidget {
                       onLock: () => engine.add(const LockBuzzerEvent()),
                       onReopenBuzzer: () =>
                           engine.add(const ReopenBuzzerEvent()),
+                      onReopenBuzzerForAll: () =>
+                          engine.add(const ReopenBuzzerEvent(forAll: true)),
                       onEndRound: () => engine.add(const EndRoundEvent()),
-                      onNext: () => engine.add(const NextQuestionEvent()),
+                      onNext: () {
+                        if (game.isStarted) {
+                          engine.add(const NextQuestionEvent());
+                        }
+                      },
                       onCloseRound: () => engine.add(const CloseRoundEvent()),
                     ),
                     if (game.round.question case final question?)
@@ -207,7 +233,7 @@ class _HostDashboardView extends StatelessWidget {
                         (m) => m is AudioAttachment || m is VideoAttachment,
                       ))
                         PanelCard(
-                          title: 'TV-Medienwiedergabe',
+                          title: 'Medienwiedergabe',
                           icon: Icons.live_tv,
                           child: Wrap(
                             spacing: 12,
@@ -276,6 +302,7 @@ class _HostDashboardView extends StatelessWidget {
                         game: game,
                         jeopardy: jeopardy,
                         canPick:
+                            game.isStarted &&
                             engineState.canStartRound &&
                             jeopardy.pendingPickQuestionId == null,
                         maxWager: engine.maxDailyDoubleWager(game),
@@ -324,7 +351,7 @@ class _HostDashboardView extends StatelessWidget {
                     if (game.jeopardy == null)
                       QuestionBankPanel(
                         game: game,
-                        canStart: engineState.canStartRound,
+                        canStart: game.isStarted && engineState.canStartRound,
                         onStart: (questionId) =>
                             engine.add(StartRoundEvent(questionId)),
                       ),

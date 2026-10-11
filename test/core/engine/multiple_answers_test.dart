@@ -110,7 +110,7 @@ void main() {
       );
       final contents = exportQuizJson(quiz);
       expect(parseQuizImport(contents), quiz);
-      expect(jsonDecode(contents)['schemaVersion'], 3);
+      expect(jsonDecode(contents)['schemaVersion'], Quiz.currentSchemaVersion);
       final repository = InMemoryQuizRepository();
       await repository.save(quiz);
       for (final ids in [

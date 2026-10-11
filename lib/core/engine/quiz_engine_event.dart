@@ -305,9 +305,18 @@ final class MergePlayersEvent extends QuizEngineEvent {
 }
 
 final class ReopenBuzzerEvent extends QuizEngineEvent {
-  const ReopenBuzzerEvent();
+  const ReopenBuzzerEvent({this.forAll = false});
+
+  final bool forAll;
+
+  @override
+  List<Object?> get props => [forAll];
 }
 
 final class EndRoundEvent extends QuizEngineEvent {
   const EndRoundEvent();
+}
+
+final class StartGameEvent extends QuizEngineEvent {
+  const StartGameEvent();
 }

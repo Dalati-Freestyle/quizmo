@@ -100,7 +100,7 @@ void main() {
           state.game.players[client.playerId]?.teamId == sampleTeams.keys.last,
     );
     expect(client.clock.isSynced, isTrue);
-      expect(server.connectionCount, 1);
+    expect(server.connectionCount, 1);
   });
 
   test(
@@ -230,8 +230,15 @@ void main() {
     final ada = await joinAs('Ada');
     final linus = await joinAs('Linus');
 
+    final visibleToAda = ada.games.firstWhere(
+      (game) => game.round.question?.id == 'q-capital',
+    );
+    final visibleToLinus = linus.games.firstWhere(
+      (game) => game.round.question?.id == 'q-capital',
+    );
     engine.add(const StartRoundEvent('q-capital'));
-    await waitFor((state) => state.game.round.question != null);
+    await Future.wait([visibleToAda, visibleToLinus])
+        .timeout(const Duration(seconds: 5));
 
     ada.submitChoice(questionId: 'q-capital', optionId: 'b');
     linus.submitChoice(questionId: 'q-capital', optionId: 'a');

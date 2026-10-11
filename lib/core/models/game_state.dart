@@ -100,6 +100,7 @@ final class GameState extends Equatable {
     this.tvMediaRevision = 0,
     this.allAnswersRevision = 0,
     this.isFinished = false,
+    this.isStarted = false,
   });
 
   /// Restores a snapshot from [json].
@@ -108,6 +109,7 @@ final class GameState extends Equatable {
         ? 0
         : json.readInt('allAnswersRevision'),
     isFinished: json.readBool('isFinished', orElse: false),
+    isStarted: json.readBool('isStarted'),
     mode: GameMode.fromJson(json.readObject('mode')),
     players: json.readMap('players', Player.fromJson),
     playerOrder: json['playerOrder'] == null
@@ -164,14 +166,16 @@ final class GameState extends Equatable {
   ];
   bool mayPickQuestion(String? playerId) {
     final player = players[playerId];
-    return player != null &&
+    return isStarted &&
+        player != null &&
         player.isConnected &&
         jeopardy?.currentTeamId != null &&
         participantId(player) == jeopardy?.currentTeamId;
   }
 
   bool mayAnswerQuestion(String? playerId) =>
-      jeopardy?.mayAnswer(participantId(players[playerId])) ?? true;
+      round.buzzerOpenForAll ||
+      (jeopardy?.mayAnswer(participantId(players[playerId])) ?? true);
 
   /// Configured teams, keyed by id.
   final Map<String, Team> teams;
@@ -202,6 +206,7 @@ final class GameState extends Equatable {
   final int tvMediaRevision;
   final int allAnswersRevision;
   final bool isFinished;
+  final bool isStarted;
 
   Map<String, String> get questionWinners {
     final winners = <String, Set<String>>{};
@@ -292,6 +297,7 @@ final class GameState extends Equatable {
     int? tvMediaRevision,
     int? allAnswersRevision,
     bool? isFinished,
+    bool? isStarted,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -309,6 +315,7 @@ final class GameState extends Equatable {
     tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
     allAnswersRevision: allAnswersRevision ?? this.allAnswersRevision,
     isFinished: isFinished ?? this.isFinished,
+    isStarted: isStarted ?? this.isStarted,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -333,6 +340,7 @@ final class GameState extends Equatable {
     'tvMediaRevision': tvMediaRevision,
     'allAnswersRevision': allAnswersRevision,
     'isFinished': isFinished,
+    'isStarted': isStarted,
   };
 
   @override
@@ -352,5 +360,6 @@ final class GameState extends Equatable {
     tvMediaRevision,
     allAnswersRevision,
     isFinished,
+    isStarted,
   ];
 }

@@ -850,7 +850,9 @@ class _QuestionStage extends StatelessWidget {
                       ),
                     if (pickerName != null && !isRevealed)
                       _Pill(
-                        label: jeopardy.isStealRound
+                        label: game.round.buzzerOpenForAll
+                            ? 'BUZZER: everyone may answer'
+                            : jeopardy.isStealRound
                             ? 'STEAL: everyone but $pickerName'
                             : '$pickerName answers',
                         color: Color(picker?.colorValue ?? 0xff1565c0)

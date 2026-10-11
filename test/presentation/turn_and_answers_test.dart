@@ -116,7 +116,7 @@ void main() {
       PlayerSessionState(
         status: QuizClientStatus.connected,
         playerId: 'p',
-        game: game,
+        game: game.copyWith(isStarted: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -125,7 +125,7 @@ void main() {
       PlayerSessionState(
         status: QuizClientStatus.connected,
         playerId: 'other',
-        game: game,
+        game: game.copyWith(isStarted: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -151,6 +151,12 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: HostDashboardPage(quiz: quiz)));
     final engine = tester.element(find.byType(Scaffold)).read<QuizEngineBloc>();
     engine.add(const PlayerJoinedEvent(Player(id: 'p', name: 'Player')));
+    await tester.pumpAndSettle();
+    engine.add(const SelectJeopardyCellEvent('q', playerId: 'p'));
+    await tester.pumpAndSettle();
+    expect(engine.state.game.jeopardy!.pendingPickQuestionId, isNull);
+    expect(find.text('Fragenauswahl bestätigen'), findsNothing);
+    await tester.tap(find.text('Quiz jetzt starten'));
     await tester.pumpAndSettle();
     engine.add(const SelectJeopardyCellEvent('q', playerId: 'p'));
     await tester.pumpAndSettle();

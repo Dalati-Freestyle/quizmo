@@ -23,6 +23,10 @@ const board = JeopardyBoard(
 void main() {
   late QuizEngineBloc engine;
   Future<void> send(QuizEngineEvent event) async {
+    if (event is SelectJeopardyCellEvent && !engine.state.game.isStarted) {
+      engine.add(const StartGameEvent());
+      await pumpEventQueue();
+    }
     engine.add(event);
     await pumpEventQueue();
   }
@@ -168,6 +172,7 @@ void main() {
       const PlayerJoinedEvent(Player(id: 'b2', name: 'B2', teamId: 'blue')),
     );
     expect(engine.state.game.selectionOrder, ['blue', 'red']);
+    await send(const StartGameEvent());
     expect(engine.state.game.mayPickQuestion('r'), isFalse);
     expect(engine.state.game.mayPickQuestion('b2'), isTrue);
     await send(const SelectJeopardyCellEvent('q1', playerId: 'b2'));

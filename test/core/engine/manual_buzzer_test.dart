@@ -47,6 +47,19 @@ void main() {
       expect(engine.state.game.round.buzzerQueue, isEmpty);
       await buzz('b');
       expect(engine.state.game.round.buzzerQueue.single.playerId, 'b');
+      await send(const ReopenBuzzerEvent(forAll: true));
+      expect(engine.state.game.round.lockedOutPlayerIds, isEmpty);
+      expect(engine.state.game.round.buzzerQueue, isEmpty);
+      expect(engine.state.game.round.resolvedAttempts, 1);
+      await buzz('a');
+      expect(engine.state.game.round.buzzerQueue.single.playerId, 'a');
+      await send(const LockBuzzerEvent());
+      await send(const JudgeBuzzerEvent(wasCorrect: false));
+      await send(const ReopenBuzzerEvent());
+      await buzz('a');
+      expect(engine.state.game.round.buzzerQueue, isEmpty);
+      await buzz('c');
+      expect(engine.state.game.round.buzzerQueue.single.playerId, 'c');
       await send(const EndRoundEvent());
       expect(engine.state.roundStatus, RoundStatus.revealed);
     },

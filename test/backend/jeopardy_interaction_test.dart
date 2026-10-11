@@ -23,6 +23,8 @@ void main() {
         ],
       ),
     );
+    engine.add(const StartGameEvent());
+    await pumpEventQueue();
     final server = EmbeddedServer(engine: engine);
     final endpoint = await server.start(port: 0);
     final player = QuizClient(baseUri: endpoint.loopbackUri);

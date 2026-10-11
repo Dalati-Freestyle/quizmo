@@ -73,7 +73,7 @@ void main() {
       );
       final restored = parseQuizImport(exportQuizJson(quiz));
       expect(restored, quiz);
-      expect(restored.schemaVersion, 3);
+      expect(restored.schemaVersion, Quiz.currentSchemaVersion);
       for (final question in restored.questions) {
         expect(question.adminNotes, 'Secret host instruction');
         expect(question.redacted().adminNotes, isEmpty);
@@ -111,7 +111,7 @@ void main() {
         final quiz = parseQuizImport(
           File('test/fixtures/$fixture.quizmo.json').readAsStringSync(),
         );
-        expect(quiz.schemaVersion, 3);
+        expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
         expect(quiz.questions.every((q) => q.adminNotes.isEmpty), isTrue);
         expect(parseQuizImport(exportQuizJson(quiz)), quiz);
       },

@@ -45,6 +45,8 @@ final class RoundState extends Equatable {
     this.activePlayerId,
     this.lockedOutPlayerIds = const {},
     this.resolvedAttempts = 0,
+    this.buzzerAnswerCorrect = false,
+    this.buzzerOpenForAll = false,
   });
 
   /// Restores a round from [json].
@@ -60,6 +62,8 @@ final class RoundState extends Equatable {
     activePlayerId: json.readStringOrNull('activePlayerId'),
     lockedOutPlayerIds: json.readStringList('lockedOutPlayerIds').toSet(),
     resolvedAttempts: json.readInt('resolvedAttempts'),
+    buzzerAnswerCorrect: json.readBool('buzzerAnswerCorrect'),
+    buzzerOpenForAll: json.readBool('buzzerOpenForAll'),
   );
 
   /// The neutral "nothing on stage" round.
@@ -94,6 +98,8 @@ final class RoundState extends Equatable {
   /// Doubles as the rank handed to the scoring rule, so a steal after two
   /// failed attempts is automatically worth less than the first press.
   final int resolvedAttempts;
+  final bool buzzerAnswerCorrect;
+  final bool buzzerOpenForAll;
 
   /// The fastest press, or `null` while nobody buzzed.
   BuzzerPress? get fastestPress =>
@@ -142,6 +148,8 @@ final class RoundState extends Equatable {
     Object? activePlayerId = _unset,
     Set<String>? lockedOutPlayerIds,
     int? resolvedAttempts,
+    bool? buzzerAnswerCorrect,
+    bool? buzzerOpenForAll,
   }) => RoundState(
     question: identical(question, _unset)
         ? this.question
@@ -157,6 +165,8 @@ final class RoundState extends Equatable {
         : activePlayerId as String?,
     lockedOutPlayerIds: lockedOutPlayerIds ?? this.lockedOutPlayerIds,
     resolvedAttempts: resolvedAttempts ?? this.resolvedAttempts,
+    buzzerAnswerCorrect: buzzerAnswerCorrect ?? this.buzzerAnswerCorrect,
+    buzzerOpenForAll: buzzerOpenForAll ?? this.buzzerOpenForAll,
   );
 
   /// Serializes the round.
@@ -171,6 +181,8 @@ final class RoundState extends Equatable {
     'activePlayerId': activePlayerId,
     'lockedOutPlayerIds': lockedOutPlayerIds.toList(growable: false),
     'resolvedAttempts': resolvedAttempts,
+    'buzzerAnswerCorrect': buzzerAnswerCorrect,
+    'buzzerOpenForAll': buzzerOpenForAll,
   };
 
   @override
@@ -183,5 +195,7 @@ final class RoundState extends Equatable {
     activePlayerId,
     lockedOutPlayerIds,
     resolvedAttempts,
+    buzzerAnswerCorrect,
+    buzzerOpenForAll,
   ];
 }

@@ -902,6 +902,7 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onNext,
     required this.onCloseRound,
     this.onReopenBuzzer,
+    this.onReopenBuzzerForAll,
     this.onEndRound,
     super.key,
   });
@@ -924,6 +925,7 @@ class LiveRoundPanel extends StatelessWidget {
   /// Takes a revealed question off the stage and returns to the Jeopardy board.
   final VoidCallback onCloseRound;
   final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
 
   @override
@@ -959,7 +961,7 @@ class LiveRoundPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: onNext,
+                    onPressed: game.isStarted ? onNext : null,
                     icon: const Icon(Icons.skip_next),
                     label: const Text('Start next pending question'),
                   ),
@@ -987,7 +989,11 @@ class LiveRoundPanel extends StatelessWidget {
                   SelectableText(question.adminNotes),
                   const SizedBox(height: 12),
                 ],
-                QuestionMediaView(media: question.media),
+                QuestionMediaView(
+                  media: question.media,
+                  playing: game.tvMediaPaused ? false : null,
+                  playbackRevision: game.tvMediaRevision,
+                ),
                 switch (question) {
                   MultipleChoiceQuestion() => _MultipleChoiceMonitor(
                     question: question,
@@ -1008,7 +1014,11 @@ class LiveRoundPanel extends StatelessWidget {
                   ),
                 },
                 if (game.round.status == RoundStatus.revealed)
-                  QuestionMediaView(media: question.solutionMedia),
+                  QuestionMediaView(
+                    media: question.solutionMedia,
+                    playing: game.tvMediaPaused ? false : null,
+                    playbackRevision: game.tvMediaRevision,
+                  ),
                 const SizedBox(height: 12),
                 _RoundActions(
                   state: state,
@@ -1018,6 +1028,7 @@ class LiveRoundPanel extends StatelessWidget {
                   onNext: onNext,
                   onCloseRound: onCloseRound,
                   onReopenBuzzer: onReopenBuzzer,
+                  onReopenBuzzerForAll: onReopenBuzzerForAll,
                   onEndRound: onEndRound,
                 ),
                 if (state.notice case final notice?) ...[
@@ -1075,7 +1086,9 @@ class _JeopardyRoundBanner extends StatelessWidget {
           Chip(
             visualDensity: VisualDensity.compact,
             label: Text(
-              jeopardy.isStealRound
+              game.round.buzzerOpenForAll
+                  ? 'Buzzer für alle freigegeben'
+                  : jeopardy.isStealRound
                   ? 'Steal round · other teams than $picker'
                   : '$picker answers first',
               style: theme.textTheme.labelSmall,
@@ -1095,6 +1108,7 @@ class _RoundActions extends StatelessWidget {
     required this.onNext,
     required this.onCloseRound,
     this.onReopenBuzzer,
+    this.onReopenBuzzerForAll,
     this.onEndRound,
   });
 
@@ -1105,6 +1119,7 @@ class _RoundActions extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onCloseRound;
   final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
 
   @override
@@ -1125,86 +1140,134 @@ class _RoundActions extends StatelessWidget {
         jeopardy.canSteal &&
         game.teams.length > 1;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: switch (round.status) {
-        RoundStatus.idle => [
-          if (jeopardy == null)
-            FilledButton.icon(
-              onPressed: onNext,
-              icon: const Icon(Icons.skip_next),
-              label: const Text('Next question'),
-            ),
-        ],
-        RoundStatus.acceptingAnswers => [
-          if (round.question is BuzzerQuestion && onReopenBuzzer != null)
-            OutlinedButton.icon(
-              onPressed: onReopenBuzzer,
-              icon: const Icon(Icons.lock_open),
-              label: const Text('Buzzer erneut freigeben'),
-            ),
-          if (onEndRound != null)
-            OutlinedButton.icon(
-              onPressed: onEndRound,
-              icon: const Icon(Icons.stop),
-              label: const Text('Runde beenden'),
-            ),
-          if (round.buzzerQueue.isNotEmpty)
-            FilledButton.icon(
-              onPressed: onLock,
-              icon: const Icon(Icons.lock_clock),
-              label: const Text('Lock buzzer now'),
-            ),
-          OutlinedButton.icon(
-            onPressed: onReveal,
-            icon: Icon(passesToOthers ? Icons.swap_horiz : Icons.visibility),
-            label: Text(
-              passesToOthers ? 'Close & pass to other teams' : 'Close & reveal',
+    final question = round.question;
+    final limitReached =
+        question is BuzzerQuestion &&
+        question.retryLimit != null &&
+        round.resolvedAttempts >= question.retryLimit! + 1;
+    final answeredCorrectly = round.buzzerAnswerCorrect;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (round.status == RoundStatus.locked && round.activePlayerId == null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              answeredCorrectly
+                  ? 'Richtig beantwortet. Der Spielleiter beendet die Frage.'
+                  : limitReached
+                  ? 'Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.'
+                  : 'Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.',
             ),
           ),
-        ],
-        RoundStatus.locked => [
-          if (round.activePlayerId == null && onReopenBuzzer != null)
-            FilledButton.icon(
-              onPressed: onReopenBuzzer,
-              icon: const Icon(Icons.lock_open),
-              label: const Text('Buzzer freigeben: Abstauben'),
-            ),
-          if (onEndRound != null)
-            OutlinedButton.icon(
-              onPressed: onEndRound,
-              icon: const Icon(Icons.stop),
-              label: const Text('Runde beenden'),
-            ),
-          if (round.activePlayerId != null)
-            FilledButton.icon(
-              onPressed: () => onJudge(true),
-              icon: const Icon(Icons.check),
-              label: Text('${activeName ?? 'Player'} is right'),
-            ),
-          if (round.activePlayerId != null)
-            OutlinedButton.icon(
-              onPressed: () => onJudge(false),
-              icon: const Icon(Icons.close),
-              label: const Text('Wrong'),
-            ),
-        ],
-        RoundStatus.revealed => [
-          if (jeopardy == null)
-            FilledButton.icon(
-              onPressed: onNext,
-              icon: const Icon(Icons.skip_next),
-              label: const Text('Next question'),
-            )
-          else
-            FilledButton.icon(
-              onPressed: onCloseRound,
-              icon: const Icon(Icons.grid_view),
-              label: const Text('Back to the board'),
-            ),
-        ],
-      },
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: switch (round.status) {
+            RoundStatus.idle => [
+              if (jeopardy == null)
+                FilledButton.icon(
+                  onPressed: game.isStarted ? onNext : null,
+                  icon: const Icon(Icons.skip_next),
+                  label: const Text('Next question'),
+                ),
+            ],
+            RoundStatus.acceptingAnswers => [
+              if (round.question is BuzzerQuestion && onReopenBuzzer != null)
+                OutlinedButton.icon(
+                  onPressed: onReopenBuzzer,
+                  icon: const Icon(Icons.lock_open),
+                  label: const Text('Buzzer erneut freigeben'),
+                ),
+              if (round.question is BuzzerQuestion &&
+                  onReopenBuzzerForAll != null)
+                OutlinedButton.icon(
+                  onPressed: onReopenBuzzerForAll,
+                  icon: const Icon(Icons.groups),
+                  label: const Text('Buzzer für alle freigeben'),
+                ),
+              if (onEndRound != null)
+                OutlinedButton.icon(
+                  onPressed: onEndRound,
+                  icon: const Icon(Icons.stop),
+                  label: const Text('Runde beenden'),
+                ),
+              if (round.buzzerQueue.isNotEmpty)
+                FilledButton.icon(
+                  onPressed: onLock,
+                  icon: const Icon(Icons.lock_clock),
+                  label: const Text('Lock buzzer now'),
+                ),
+              OutlinedButton.icon(
+                onPressed: onReveal,
+                icon: Icon(
+                  passesToOthers ? Icons.swap_horiz : Icons.visibility,
+                ),
+                label: Text(
+                  passesToOthers
+                      ? 'Close & pass to other teams'
+                      : 'Close & reveal',
+                ),
+              ),
+            ],
+            RoundStatus.locked => [
+              if (round.activePlayerId == null &&
+                  onReopenBuzzer != null &&
+                  !answeredCorrectly)
+                FilledButton.icon(
+                  onPressed: onReopenBuzzer,
+                  icon: const Icon(Icons.lock_open),
+                  label: Text(
+                    limitReached
+                        ? 'Trotzdem Buzzer freigeben'
+                        : 'Buzzer freigeben: Abstauben',
+                  ),
+                ),
+              if (round.activePlayerId == null &&
+                  onReopenBuzzerForAll != null &&
+                  !answeredCorrectly)
+                OutlinedButton.icon(
+                  onPressed: onReopenBuzzerForAll,
+                  icon: const Icon(Icons.groups),
+                  label: const Text('Buzzer für alle freigeben'),
+                ),
+              if (onEndRound != null)
+                OutlinedButton.icon(
+                  onPressed: onEndRound,
+                  icon: const Icon(Icons.stop),
+                  label: const Text('Runde beenden'),
+                ),
+              if (round.activePlayerId != null)
+                FilledButton.icon(
+                  onPressed: () => onJudge(true),
+                  icon: const Icon(Icons.check),
+                  label: Text('${activeName ?? 'Player'} is right'),
+                ),
+              if (round.activePlayerId != null)
+                OutlinedButton.icon(
+                  onPressed: () => onJudge(false),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Wrong'),
+                ),
+            ],
+            RoundStatus.revealed => [
+              if (jeopardy == null)
+                FilledButton.icon(
+                  onPressed: game.isStarted ? onNext : null,
+                  icon: const Icon(Icons.skip_next),
+                  label: const Text('Next question'),
+                )
+              else
+                FilledButton.icon(
+                  onPressed: onCloseRound,
+                  icon: const Icon(Icons.grid_view),
+                  label: const Text('Back to the board'),
+                ),
+            ],
+          },
+        ),
+      ],
     );
   }
 }
