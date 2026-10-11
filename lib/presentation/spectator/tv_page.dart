@@ -36,6 +36,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
+import '../../core/net/session_uri.dart';
 import '../app.dart';
 import '../common/jeopardy_board_view.dart';
 import 'spectator_session_cubit.dart';
@@ -57,7 +58,16 @@ class TvPage extends StatelessWidget {
   /// on this device. [joinUri] is the address players are told to open and
   /// defaults to [hostUri]; the dashboard preview passes the LAN address here
   /// because its own connection goes through loopback.
-  const TvPage({this.hostUri, this.joinUri, this.brightness, super.key});
+  const TvPage({
+    this.hostUri,
+    this.joinUri,
+    this.brightness,
+    this.launchUri,
+    super.key,
+  });
+
+  /// Original browser URL, captured before Flutter updates its routes.
+  final Uri? launchUri;
 
   /// Address of the host to watch.
   final Uri? hostUri;
@@ -70,7 +80,7 @@ class TvPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final host = hostUri ?? _defaultHostUri();
+    final host = hostUri ?? _defaultHostUri(launchUri ?? Uri.base);
     return BlocProvider<SpectatorSessionCubit>(
       create: (_) {
         final cubit = SpectatorSessionCubit(baseUri: host);
@@ -79,23 +89,21 @@ class TvPage extends StatelessWidget {
       },
       child: _TvView(
         joinUri: joinUri ?? host,
-        initialBrightness: brightness ?? tvBrightnessFor(Uri.base),
+        initialBrightness: brightness ?? tvBrightnessFor(launchUri ?? Uri.base),
       ),
     );
   }
 
   /// Guesses the host: `?host=` wins, then the origin that served this page.
-  static Uri _defaultHostUri() {
-    final fromQuery = Uri.base.queryParameters['host'];
+  static Uri _defaultHostUri(Uri launch) {
+    final fromQuery = launch.queryParameters['host'];
     if (fromQuery != null && fromQuery.isNotEmpty) {
       return Uri.parse(
         fromQuery.contains('://') ? fromQuery : 'http://$fromQuery',
       );
     }
     if (kIsWeb) {
-      return Uri.base.port == defaultServerPort
-          ? Uri.parse(Uri.base.origin)
-          : Uri.parse('http://${Uri.base.host}:$defaultServerPort');
+      return sessionUri(launch);
     }
     return Uri.parse('http://127.0.0.1:$defaultServerPort');
   }

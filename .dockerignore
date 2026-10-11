@@ -1,0 +1,17 @@
+.git
+.dart_tool
+**/.dart_tool
+build
+.idea
+.agents
+.codex
+.aws
+.env
+**/.env
+**/*.pem
+assets/web_client/bundle.zip
+android/.gradle
+android/local.properties
+**/*.jks
+**/key.properties
+*.apk

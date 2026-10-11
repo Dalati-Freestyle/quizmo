@@ -21,6 +21,7 @@ import '../models/models.dart';
 import '../protocol/messages.dart';
 import '../sync/clock.dart';
 import '../sync/clock_sync.dart';
+import 'session_uri.dart';
 
 /// Lifecycle of a [QuizClient].
 enum QuizClientStatus {
@@ -86,6 +87,7 @@ class QuizClient {
   Object? _lastError;
   bool _disposed = false;
   int _connectionGeneration = 0;
+  Completer<void>? _syncProbe;
 
   /// Redacted session snapshots pushed by the host.
   Stream<GameState> get games => _games.stream;
@@ -138,10 +140,21 @@ class QuizClient {
     _lastError = null;
 
     try {
-      await _handshake(probes: handshakeProbes);
-      _checkAttempt(generation);
-
-      if (!joiningFromLobby) await _openSocket();
+      if (isInternetSession(baseUri)) {
+        if (!joiningFromLobby) await _openSocket();
+        for (var i = 0; i < handshakeProbes; i++) {
+          final probe = Completer<void>();
+          _syncProbe = probe;
+          _send(SyncPing(clientSentAtMicros: _now()));
+          await probe.future.timeout(const Duration(seconds: 5));
+          _checkAttempt(generation);
+          await Future<void>.delayed(const Duration(milliseconds: 40));
+        }
+      } else {
+        await _handshake(probes: handshakeProbes);
+        _checkAttempt(generation);
+        if (!joiningFromLobby) await _openSocket();
+      }
       _checkAttempt(generation);
       final joined = Completer<void>();
       _joinCompleter = joined;
@@ -333,10 +346,7 @@ class QuizClient {
 
   // --------------------------------------------------------------- internals ---
 
-  Uri get _socketUri => baseUri.replace(
-    scheme: baseUri.scheme == 'https' ? 'wss' : 'ws',
-    path: '/ws',
-  );
+  Uri get _socketUri => sessionSocketUri(baseUri);
 
   Future<void> _openSocket() async {
     if (_disposed) throw StateError('This client has been disposed.');
@@ -439,6 +449,9 @@ class QuizClient {
             clientReceivedAtMicros: _now(),
           ),
         );
+        final probe = _syncProbe;
+        _syncProbe = null;
+        if (probe != null && !probe.isCompleted) probe.complete();
         _send(
           ClockReport(
             clockOffsetMicros: clock.clockOffsetMicros,

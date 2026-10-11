@@ -130,6 +130,7 @@ class HostServerCubit extends Cubit<HostServerState> {
     );
 
     try {
+      await _teardown();
       final server = createEmbeddedServer(
         engine: _engine,
         serverName: serverName,
@@ -186,6 +187,18 @@ class HostServerCubit extends Cubit<HostServerState> {
 
   void _appendLog(ServerLogEntry entry) {
     if (isClosed) return;
+    if (entry.level == ServerLogLevel.error &&
+        _server?.isRunning == false &&
+        state.status == HostServerStatus.running) {
+      emit(
+        state.copyWith(
+          status: HostServerStatus.failed,
+          error: entry.message,
+          clearEndpoint: true,
+          servesWebClient: false,
+        ),
+      );
+    }
     final logs = [...state.logs, entry];
     emit(
       state.copyWith(

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/models/models.dart';
 import '../../core/net/quiz_client.dart';
+import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/adaptive_layout.dart';
@@ -200,9 +201,7 @@ class _JoinFormState extends State<_JoinForm> {
     final fromQuery = Uri.base.queryParameters['host'];
     if (fromQuery != null && fromQuery.isNotEmpty) return fromQuery;
     if (kIsWeb) {
-      return Uri.base.port == defaultServerPort
-          ? Uri.base.origin
-          : 'http://${Uri.base.host}:$defaultServerPort';
+      return sessionUri(Uri.base).toString();
     }
     return 'http://127.0.0.1:$defaultServerPort';
   }
@@ -278,7 +277,10 @@ class _JoinFormState extends State<_JoinForm> {
                   ),
                   validator: (value) {
                     final uri = Uri.tryParse(value?.trim() ?? '');
-                    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+                    if (uri == null ||
+                        !['http', 'https'].contains(uri.scheme) ||
+                        uri.host.isEmpty ||
+                        uri.userInfo.isNotEmpty) {
                       return 'Enter a full URL including http://';
                     }
                     return null;

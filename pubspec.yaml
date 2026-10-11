@@ -46,6 +46,7 @@ dependencies:
   shelf_router: ^1.1.4
   shelf_web_socket: ^3.0.0
   web_socket_channel: ^3.0.3
+  web: ^1.1.1
   http: ^1.6.0
   nsd: ^5.0.1
   # `path` is used with `p.url` semantics to normalise request paths inside the

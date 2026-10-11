@@ -2,8 +2,8 @@
 ///
 /// Flutter Web cannot open a listening socket, so the presentation layer only
 /// ever talks to this interface and obtains an instance through
-/// `server_launcher.dart`, which resolves to a real implementation on
-/// `dart:io` platforms and to an explicit "unsupported" stub on the web.
+/// `server_launcher.dart`, which resolves to an embedded LAN server on
+/// `dart:io` platforms and a same-origin internet relay adapter on the web.
 library;
 
 import 'package:equatable/equatable.dart';
@@ -47,12 +47,18 @@ final class ServerLogEntry extends Equatable {
 /// Where a running server can be reached.
 final class ServerEndpoint extends Equatable {
   /// Creates an endpoint description.
-  const ServerEndpoint({required this.port, required this.addresses});
+  const ServerEndpoint({
+    required this.port,
+    required this.addresses,
+    this.publicUri,
+  });
+
+  final Uri? publicUri;
 
   /// TCP port the server is bound to.
   final int port;
 
-  /// Every IPv4 address the server answers on, **best candidate first** and
+  /// LAN addresses (or the public relay hostname), **best candidate first** and
   /// loopback last.
   ///
   /// The order is produced by `sortLanAddresses` in `lan_addresses.dart`: a
@@ -80,18 +86,19 @@ final class ServerEndpoint extends Equatable {
   Uri get loopbackUri => uriFor(kLoopbackAddress);
 
   /// Returns the base URI for [address].
-  Uri uriFor(String address) => Uri.parse('http://$address:$port');
+  Uri uriFor(String address) => publicUri ?? Uri.parse('http://$address:$port');
 
   /// Address of the spectator (TV) screen served by the host at [address].
   ///
   /// Open it in the browser of a smart TV, a streaming stick or a casted tab.
-  Uri tvUriFor(String address) => uriFor(address).replace(path: '/tv');
+  Uri tvUriFor(String address) =>
+      uriFor(address).replace(path: '${uriFor(address).path}/tv');
 
   /// Spectator screen reachable from the local network.
   Uri get lanTvUri => tvUriFor(lanAddress);
 
   @override
-  List<Object?> get props => [port, addresses];
+  List<Object?> get props => [port, addresses, publicUri];
 }
 
 /// Raised when a server operation cannot be performed on this platform.

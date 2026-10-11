@@ -2,11 +2,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/data/quiz_repository.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
+import '../../common/browser_exit_guard.dart';
 import 'quiz_editor_page.dart';
 import 'quiz_file_transfer.dart';
 import 'quiz_library_cubit.dart';
@@ -97,6 +99,14 @@ class _QuizLibraryView extends StatelessWidget {
           appBar: AppBar(
             title: const Text('Quiz library'),
             actions: [
+              if (kIsWeb)
+                TextButton.icon(
+                  onPressed: state.isBusy
+                      ? null
+                      : () => _leave(context, state.quizzes),
+                  icon: const Icon(Icons.exit_to_app),
+                  label: const Text('Seite verlassen'),
+                ),
               TextButton.icon(
                 onPressed: state.isBusy ? null : () => _importQuiz(context),
                 icon: const Icon(Icons.file_open_outlined),
@@ -113,6 +123,14 @@ class _QuizLibraryView extends StatelessWidget {
               ? const Center(child: CircularProgressIndicator())
               : AdaptivePanelGrid(
                   panels: [
+                    if (kIsWeb)
+                      const PanelCard(
+                        title: 'Quizzes in diesem Browser',
+                        icon: Icons.save_outlined,
+                        child: Text(
+                          'Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.',
+                        ),
+                      ),
                     for (final quiz in state.quizzes)
                       _QuizCard(
                         quiz: quiz,
@@ -150,6 +168,71 @@ class _QuizLibraryView extends StatelessWidget {
         updatedAt: timestamp,
       ),
     );
+  }
+
+  Future<void> _leave(BuildContext context, List<Quiz> quizzes) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Quizzes vor dem Verlassen exportieren?'),
+        content: const Text(
+          'Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'cancel'),
+            child: const Text('Abbrechen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'leave'),
+            child: const Text('Ohne Export verlassen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, 'export'),
+            child: const Text('Quizzes exportieren'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    if (choice == 'leave') leaveBrowserPage();
+    if (choice == 'export') {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Quizzes exportieren'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final quiz in quizzes)
+                    ListTile(
+                      title: Text(quiz.name),
+                      trailing: IconButton(
+                        tooltip: 'Export including media',
+                        icon: const Icon(Icons.download),
+                        onPressed: () => _exportQuiz(context, quiz),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Zurück'),
+            ),
+            TextButton(
+              onPressed: leaveBrowserPage,
+              child: const Text('Seite verlassen'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _editQuiz(BuildContext context, Quiz quiz) =>

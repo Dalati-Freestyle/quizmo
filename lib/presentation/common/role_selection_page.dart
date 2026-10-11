@@ -7,15 +7,14 @@ import 'package:flutter/material.dart';
 import '../../backend/server_launcher.dart';
 import '../../core/models/models.dart';
 import '../player/player_page.dart';
-import '../quizmaster/host_dashboard_page.dart';
+import '../quizmaster/host_dashboard_page.dart' deferred as host_dashboard;
 import '../quizmaster/editor/quiz_library_page.dart' deferred as quiz_library;
 import 'adaptive_layout.dart';
 import 'quizmo_logo.dart';
 
 /// Lets the user pick between the quizmaster and the player experience.
 ///
-/// Hosting is hidden on the web because a browser tab cannot open a listening
-/// socket; the stub in `server_launcher_stub.dart` would throw.
+/// Native hosts listen on the LAN; browser hosts use the same-origin relay.
 class RoleSelectionPage extends StatelessWidget {
   /// Creates the role selection screen.
   const RoleSelectionPage({super.key});
@@ -29,11 +28,12 @@ class RoleSelectionPage extends StatelessWidget {
       _RoleCard(
         icon: Icons.record_voice_over_outlined,
         title: 'Host a quiz',
-        description: embeddedServerSupported
+        description: kIsWeb
+            ? 'Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.'
+            : embeddedServerSupported
             ? 'Starts the embedded HTTP and web socket server on this device. '
                   'Players join over your local network.'
-            : 'Unavailable in the browser: a web page cannot listen on a TCP '
-                  'port. Run Quizmo on Android, iOS or desktop to host.',
+            : 'Hosting is unavailable on this platform.',
         actionLabel: 'Open quizmaster dashboard',
         enabled: embeddedServerSupported,
         onPressed: () => _chooseQuizAndHost(context),
@@ -105,8 +105,7 @@ class RoleSelectionPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(
                     kIsWeb
-                        ? 'Running as a web client — ask the host for their '
-                              'LAN address.'
+                        ? 'Create quizzes here or join with the invitation link from your host.'
                         : 'Tip: start the host here, then open the Flutter web '
                               'build in two browser tabs to simulate players.',
                     textAlign: TextAlign.center,
@@ -126,8 +125,12 @@ class RoleSelectionPage extends StatelessWidget {
   Future<void> _chooseQuizAndHost(BuildContext context) async {
     final quiz = await _openQuizLibrary(context, selectForHosting: true);
     if (!context.mounted || quiz == null) return;
+    await host_dashboard.loadLibrary();
+    if (!context.mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => HostDashboardPage(quiz: quiz)),
+      MaterialPageRoute<void>(
+        builder: (_) => host_dashboard.HostDashboardPage(quiz: quiz),
+      ),
     );
   }
 

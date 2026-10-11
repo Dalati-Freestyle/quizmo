@@ -2,6 +2,9 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+
+import '../core/net/session_uri.dart';
 
 import 'common/role_selection_page.dart';
 import 'spectator/tv_page.dart';
@@ -15,7 +18,9 @@ class QuizmoApp extends StatelessWidget {
   /// With [startAsTv] the app skips the role selection and opens the
   /// spectator (TV) screen right away. `main` derives it from the launch URL
   /// (`/tv`), see `isTvLaunchUri`.
-  const QuizmoApp({this.startAsTv = false, super.key});
+  const QuizmoApp({this.startAsTv = false, this.launchUri, super.key});
+
+  final Uri? launchUri;
 
   /// Whether the spectator screen replaces the role selection as home page.
   final bool startAsTv;
@@ -31,7 +36,9 @@ class QuizmoApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      home: startAsTv ? const TvPage() : const _SessionHome(),
+      home: startAsTv
+          ? TvPage(launchUri: launchUri)
+          : _SessionHome(launchUri: launchUri),
     );
   }
 
@@ -65,12 +72,17 @@ class QuizmoApp extends StatelessWidget {
 }
 
 class _SessionHome extends StatefulWidget {
-  const _SessionHome();
+  const _SessionHome({this.launchUri});
+  final Uri? launchUri;
   @override
   State<_SessionHome> createState() => _SessionHomeState();
 }
 
 class _SessionHomeState extends State<_SessionHome> {
+  late final Uri? _invitedRoom =
+      kIsWeb && isInternetSession(widget.launchUri ?? Uri.base)
+      ? sessionUri(widget.launchUri ?? Uri.base)
+      : null;
   late final Future<SavedPlayerSession?> _saved = _load();
   Future<SavedPlayerSession?> _load() async {
     try {
@@ -83,7 +95,9 @@ class _SessionHomeState extends State<_SessionHome> {
   @override
   Widget build(BuildContext context) => FutureBuilder<SavedPlayerSession?>(
     future: _saved,
-    builder: (context, snapshot) => snapshot.data != null
+    builder: (context, snapshot) => _invitedRoom != null
+        ? PlayerPage(initialHostUri: _invitedRoom)
+        : snapshot.data != null
         ? PlayerPage(initialHostUri: snapshot.data!.host)
         : const RoleSelectionPage(),
   );

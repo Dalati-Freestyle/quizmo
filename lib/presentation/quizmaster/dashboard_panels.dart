@@ -5,6 +5,7 @@ import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../backend/server_contract.dart';
@@ -51,7 +52,7 @@ class ServerControlPanel extends StatelessWidget {
     final endpoint = state.endpoint;
 
     return PanelCard(
-      title: 'Embedded server',
+      title: kIsWeb ? 'Internet hosting' : 'Embedded server',
       icon: Icons.dns_outlined,
       trailing: _StatusDot(status: state.status),
       child: Column(
@@ -88,16 +89,25 @@ class ServerControlPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (endpoint != null) ...[
-              _CopyableUri(label: 'LAN', uri: endpoint.lanUri),
+              _CopyableUri(
+                label: endpoint.publicUri == null ? 'LAN' : 'Invitation',
+                uri: endpoint.lanUri,
+              ),
               _CopyableUri(label: 'This device', uri: endpoint.loopbackUri),
               _CopyableUri(label: 'TV screen', uri: endpoint.lanTvUri),
               InfoRow(label: 'Port', value: '${endpoint.port}'),
               InfoRow(label: 'Joined players', value: '$connectedPlayers'),
               _AlternativeAddresses(endpoint: endpoint),
               const SizedBox(height: 8),
-              _WebClientHint(isServed: state.servesWebClient),
+              if (endpoint.publicUri == null)
+                _WebClientHint(isServed: state.servesWebClient),
               const SizedBox(height: 8),
-              _TvScreenHint(isServed: state.servesWebClient),
+              if (endpoint.publicUri == null)
+                _TvScreenHint(isServed: state.servesWebClient),
+              if (endpoint.publicUri != null)
+                const Text(
+                  'Share the invitation or TV link. Keep this tab open and this device awake while hosting.',
+                ),
               if (onOpenTvPreview != null) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

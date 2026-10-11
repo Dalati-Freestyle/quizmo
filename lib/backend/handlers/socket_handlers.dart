@@ -10,7 +10,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:shelf/shelf.dart';
-import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
@@ -18,14 +17,23 @@ import '../../core/models/models.dart';
 import '../../core/protocol/messages.dart';
 import '../../core/sync/clock.dart';
 import '../server_contract.dart';
+import 'socket_upgrade.dart';
 
 /// One open web socket, possibly not joined yet.
 final class _Connection {
-  _Connection({required this.id, required this.channel});
+  _Connection({
+    required this.id,
+    required this.sendFrame,
+    required this.closeSocket,
+  });
 
   final String id;
-  final WebSocketChannel channel;
+  final void Function(String) sendFrame;
+  final Future<void> Function() closeSocket;
   StreamSubscription<dynamic>? subscription;
+  int windowStart = 0;
+  int frames = 0;
+  Timer? handshakeTimeout;
 
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
@@ -36,7 +44,7 @@ final class _Connection {
 
   void send(ServerMessage message) {
     try {
-      channel.sink.add(message.encode());
+      sendFrame(message.encode());
     } on Object {
       // Losing a frame on a dying socket is not worth tearing the hub down.
     }
@@ -68,15 +76,23 @@ class SocketHub {
   StreamSubscription<QuizEngineState>? _engineSubscription;
   var _nextConnectionId = 0;
   final Map<String, String> _resumeTokens = {};
+  final Set<String> _pendingPlayerIds = {};
   Set<String> _knownPlayerIds = {};
 
   /// Number of open sockets.
   int get connectionCount => _connections.length;
 
   /// The shelf handler that performs the web socket upgrade.
-  Handler get handler => webSocketHandler(
+  Handler get handler => createSocketUpgradeHandler(
     (WebSocketChannel channel, String? protocol) => _onConnected(channel),
   );
+
+  /// Attaches an isolated transport, including a virtual relay connection.
+  void attach({
+    required Stream<dynamic> stream,
+    required void Function(String) send,
+    required Future<void> Function() close,
+  }) => _attach(stream, send, close);
 
   /// Closes every socket and stops listening to the engine.
   Future<void> close() async {
@@ -85,17 +101,33 @@ class SocketHub {
     final connections = _connections.values.toList(growable: false);
     _connections.clear();
     for (final connection in connections) {
+      connection.handshakeTimeout?.cancel();
       await connection.subscription?.cancel();
-      await connection.channel.sink.close();
+      await connection.closeSocket();
     }
   }
 
   // --------------------------------------------------------------- internals ---
 
   void _onConnected(WebSocketChannel channel) {
+    _attach(channel.stream, (frame) => channel.sink.add(frame), () async {
+      await channel.sink.close();
+    });
+  }
+
+  void _attach(
+    Stream<dynamic> stream,
+    void Function(String) send,
+    Future<void> Function() close,
+  ) {
+    if (_connections.length >= 128) {
+      close();
+      return;
+    }
     final connection = _Connection(
       id: 'conn-${_nextConnectionId++}',
-      channel: channel,
+      sendFrame: send,
+      closeSocket: close,
     );
     _connections[connection.id] = connection;
     _log(ServerLogLevel.info, 'Socket ${connection.id} connected.');
@@ -108,7 +140,7 @@ class SocketHub {
       ),
     );
 
-    connection.subscription = channel.stream.listen(
+    connection.subscription = stream.listen(
       (Object? frame) => _onFrame(connection, frame),
       onDone: () => _onDisconnected(connection),
       onError: (Object error) {
@@ -117,17 +149,44 @@ class SocketHub {
       },
       cancelOnError: true,
     );
+    connection.handshakeTimeout = Timer(const Duration(seconds: 15), () {
+      if (connection.playerId == null &&
+          !connection.isSpectator &&
+          !connection.isLobby) {
+        _onDisconnected(connection);
+        connection.closeSocket();
+      }
+    });
   }
 
   void _onFrame(_Connection connection, Object? frame) {
-    if (frame is! String) return;
+    if (frame is! String ||
+        frame.length > 65536 ||
+        utf8.encode(frame).length > 65536) {
+      _onDisconnected(connection);
+      connection.closeSocket();
+      return;
+    }
+    final now = _now();
+    if (now - connection.windowStart >= 1000000) {
+      connection.windowStart = now;
+      connection.frames = 0;
+    }
+    if (++connection.frames > 60) {
+      _onDisconnected(connection);
+      connection.closeSocket();
+      return;
+    }
 
     final ClientMessage message;
     try {
       message = ClientMessage.decode(frame);
-    } on Object catch (error) {
+    } on Object {
       connection.send(
-        ProtocolErrorMessage(code: 'badRequest', message: '$error'),
+        const ProtocolErrorMessage(
+          code: 'badRequest',
+          message: 'Invalid message.',
+        ),
       );
       return;
     }
@@ -152,6 +211,18 @@ class SocketHub {
           return;
         }
         final game = _engine.state.game;
+        if ((resumePlayerId == null &&
+                game.players.length + _pendingPlayerIds.length >= 256) ||
+            roundTripMicros < 0 ||
+            roundTripMicros > 30000000) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'joinLimit',
+              message: 'The roster is full or the clock handshake is invalid. Ask the host to remove unused players.',
+            ),
+          );
+          return;
+        }
         if (name.trim().isEmpty ||
             name.trim().length > 60 ||
             (newTeamName != null &&
@@ -217,9 +288,10 @@ class SocketHub {
             ),
           );
           old.playerId = null;
+          old.handshakeTimeout?.cancel();
           _connections.remove(old.id);
           old.subscription?.cancel();
-          old.channel.sink.close();
+          old.closeSocket();
         }
         final token = _resumeTokens.putIfAbsent(
           playerId,
@@ -229,6 +301,7 @@ class SocketHub {
         );
         connection.playerId = playerId;
         connection.isLobby = false;
+        if (returning == null) _pendingPlayerIds.add(playerId);
         _engine.add(
           PlayerJoinedEvent(
             Player(
@@ -301,6 +374,7 @@ class SocketHub {
         );
 
       case ClockReport(:final clockOffsetMicros, :final roundTripMicros):
+        if (roundTripMicros < 0 || roundTripMicros > 30000000) return;
         final playerId = connection.playerId;
         if (playerId == null) return;
         _engine.add(
@@ -324,6 +398,19 @@ class SocketHub {
         }
         // Never trust the client's self reported identity.
         final trusted = submission.withPlayerId(playerId);
+        final now = _now();
+        final startedAt = _engine.state.game.round.startedAtHostMicros;
+        if (trusted.hostTimestampMicros > now + 250000 ||
+            trusted.hostTimestampMicros < now - 30000000 ||
+            (startedAt != null && trusted.hostTimestampMicros < startedAt)) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidTimestamp',
+              message: 'Submission timestamp is outside the current round. Resync your clock.',
+            ),
+          );
+          return;
+        }
         switch (trusted) {
           case MultipleChoiceAnswer() ||
               ShortAnswer() ||
@@ -363,11 +450,13 @@ class SocketHub {
 
       case LeaveNotice():
         _onDisconnected(connection);
+        connection.closeSocket();
     }
   }
 
   void _onDisconnected(_Connection connection) {
     if (_connections.remove(connection.id) == null) return;
+    connection.handshakeTimeout?.cancel();
     connection.subscription?.cancel();
     final playerId = connection.playerId;
     if (playerId != null &&
@@ -378,6 +467,7 @@ class SocketHub {
   }
 
   void _broadcastState(QuizEngineState state) {
+    _pendingPlayerIds.removeWhere(state.game.players.containsKey);
     final removed = _knownPlayerIds.difference(state.game.players.keys.toSet());
     _knownPlayerIds = state.game.players.keys.toSet();
     for (final id in removed) {
@@ -396,7 +486,7 @@ class SocketHub {
         );
         connection.playerId = null;
         _onDisconnected(connection);
-        connection.channel.sink.close();
+        connection.closeSocket();
         continue;
       }
       if (connection.isLobby) {

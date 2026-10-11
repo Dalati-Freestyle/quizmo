@@ -7,4 +7,5 @@
 library;
 
 export 'server_launcher_stub.dart'
-    if (dart.library.io) 'server_launcher_io.dart';
+    if (dart.library.io) 'server_launcher_io.dart'
+    if (dart.library.js_interop) 'server_launcher_web.dart';
