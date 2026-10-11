@@ -59,6 +59,7 @@ final class JoinRequest extends ClientMessage {
     this.teamId,
     this.newTeamName,
     this.resumePlayerId,
+    this.resumeToken,
     this.clockOffsetMicros = 0,
     this.roundTripMicros = 0,
   });
@@ -69,6 +70,7 @@ final class JoinRequest extends ClientMessage {
     teamId: json.readStringOrNull('teamId'),
     newTeamName: json.readStringOrNull('newTeamName'),
     resumePlayerId: json.readStringOrNull('resumePlayerId'),
+    resumeToken: json.readStringOrNull('resumeToken'),
     clockOffsetMicros: json.readInt('clockOffsetMicros'),
     roundTripMicros: json.readInt('roundTripMicros'),
   );
@@ -85,6 +87,7 @@ final class JoinRequest extends ClientMessage {
 
   /// Previously assigned player id, used to survive a reconnect.
   final String? resumePlayerId;
+  final String? resumeToken;
 
   /// Offset measured during the HTTP handshake.
   final int clockOffsetMicros;
@@ -99,6 +102,7 @@ final class JoinRequest extends ClientMessage {
     'teamId': teamId,
     'newTeamName': newTeamName,
     'resumePlayerId': resumePlayerId,
+    'resumeToken': resumeToken,
     'clockOffsetMicros': clockOffsetMicros,
     'roundTripMicros': roundTripMicros,
   };
@@ -109,6 +113,7 @@ final class JoinRequest extends ClientMessage {
     teamId,
     newTeamName,
     resumePlayerId,
+    resumeToken,
     clockOffsetMicros,
     roundTripMicros,
   ];
@@ -303,18 +308,21 @@ final class JoinAcceptedMessage extends ServerMessage {
   const JoinAcceptedMessage({
     required this.playerId,
     required this.hostTimeMicros,
+    this.resumeToken,
   });
 
   /// Restores the frame from [json].
   factory JoinAcceptedMessage.fromJson(JsonMap json) => JoinAcceptedMessage(
     playerId: json.readString('playerId'),
     hostTimeMicros: json.readInt('hostTimeMicros'),
+    resumeToken: json.readStringOrNull('resumeToken'),
   );
 
   static const String _type = 'joinAccepted';
 
   /// Identifier every later submission is attributed to.
   final String playerId;
+  final String? resumeToken;
 
   /// Host clock at the time of the confirmation.
   final int hostTimeMicros;
@@ -323,11 +331,12 @@ final class JoinAcceptedMessage extends ServerMessage {
   JsonMap toJson() => {
     'type': _type,
     'playerId': playerId,
+    'resumeToken': resumeToken,
     'hostTimeMicros': hostTimeMicros,
   };
 
   @override
-  List<Object?> get props => [playerId, hostTimeMicros];
+  List<Object?> get props => [playerId, hostTimeMicros, resumeToken];
 }
 
 /// Confirms a [WatchRequest]; the first snapshot follows immediately.

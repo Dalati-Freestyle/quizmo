@@ -9,6 +9,7 @@ import 'package:equatable/equatable.dart';
 import '../../core/models/models.dart';
 import '../../core/net/quiz_client.dart';
 import '../../core/protocol/messages.dart';
+import 'player_session_store.dart';
 
 /// UI state of the player screens.
 final class PlayerSessionState extends Equatable {
@@ -141,7 +142,115 @@ final class PlayerSessionState extends Equatable {
 /// Drives one player client: handshake, join, buzz and answer.
 class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   /// Creates a disconnected session controller.
-  PlayerSessionCubit() : super(const PlayerSessionState());
+  PlayerSessionCubit({
+    PlayerSessionStore? store,
+    QuizClient Function(Uri)? createClient,
+  }) : _store = store ?? PlayerSessionStore(),
+       _createClient = createClient ?? ((host) => QuizClient(baseUri: host)),
+       super(const PlayerSessionState());
+
+  final PlayerSessionStore _store;
+  final QuizClient Function(Uri) _createClient;
+  SavedPlayerSession? _saved;
+  Timer? _retryTimer;
+  bool _intentionalDisconnect = false;
+  bool _connecting = false;
+
+  Future<void> restore({Uri? host}) async {
+    try {
+      final saved = await _store.read();
+      if (isClosed ||
+          saved == null ||
+          (host != null && host.origin != saved.host.origin)) {
+        return;
+      }
+      _saved = saved;
+      await connect(baseUri: saved.host, name: saved.name);
+    } on Object catch (error) {
+      if (!isClosed) {
+        emit(
+          state.copyWith(error: 'Sitzung konnte nicht geladen werden: $error'),
+        );
+      }
+    }
+  }
+
+  Future<void> _remember() async {
+    final client = _client;
+    if (client?.playerId == null ||
+        client?.resumeToken == null ||
+        mediaBaseUri == null) {
+      return;
+    }
+    _saved = SavedPlayerSession(
+      host: mediaBaseUri!,
+      name: _joiningName,
+      playerId: client!.playerId!,
+      token: client.resumeToken!,
+    );
+    try {
+      await _store.save(_saved!);
+    } on Object catch (error) {
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            error:
+                'Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: $error',
+          ),
+        );
+      }
+    }
+  }
+
+  void _scheduleReconnect() {
+    if (isClosed ||
+        _intentionalDisconnect ||
+        _saved == null ||
+        _connecting ||
+        _retryTimer != null) {
+      return;
+    }
+    _retryTimer = Timer(const Duration(seconds: 2), () {
+      _retryTimer = null;
+      unawaited(_reconnect());
+    });
+  }
+
+  Future<void> _reconnect() async {
+    final client = _client;
+    final saved = _saved;
+    if (client == null ||
+        saved == null ||
+        _connecting ||
+        isClosed ||
+        _intentionalDisconnect) {
+      return;
+    }
+    _connecting = true;
+    try {
+      await client.connect(
+        name: saved.name,
+        resumePlayerId: saved.playerId,
+        resumeToken: saved.token,
+      );
+      if (!isClosed) emit(state.copyWith(clearError: true));
+    } on Object {
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            error: 'Verbindung unterbrochen. Erneuter Versuch ...',
+          ),
+        );
+      }
+    } finally {
+      _connecting = false;
+      if (!isClosed && !state.isConnected) _scheduleReconnect();
+    }
+  }
+
+  void resume() {
+    if (!state.isConnected) _scheduleReconnect();
+  }
 
   QuizClient? _client;
   Uri? mediaBaseUri;
@@ -161,10 +270,23 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     bool lobbyOnly = false,
   }) async {
     await _teardown();
+    _intentionalDisconnect = false;
+    _connecting = true;
+    if (_saved == null) {
+      try {
+        _saved = await _store.read();
+      } on Object {
+        /* Storage failures are reported when saving. */
+      }
+    }
+    if (isClosed) return;
+    if (_saved?.host.origin != baseUri.origin || _saved?.name != name) {
+      _saved = null;
+    }
     emit(PlayerSessionState(status: QuizClientStatus.connecting));
 
     mediaBaseUri = baseUri;
-    final client = QuizClient(baseUri: baseUri);
+    final client = _createClient(baseUri);
     _client = client;
     _joiningName = name;
     _lobbySubscription = client.lobbies.listen((lobby) {
@@ -183,22 +305,72 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
           roundTripMicros: client.clock.roundTripMicros,
         ),
       );
+      if (status == QuizClientStatus.connected && client.playerId != null) {
+        unawaited(_remember());
+      }
+      if (status == QuizClientStatus.disconnected ||
+          status == QuizClientStatus.failed) {
+        _scheduleReconnect();
+      }
     });
     _errorSubscription = client.errors.listen((error) {
       if (isClosed) return;
       emit(state.copyWith(error: error.message));
+      if (error.code == 'sessionReplaced') {
+        _intentionalDisconnect = true;
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      }
+      if (error.code == 'kicked' || error.code == 'invalidResume') {
+        _saved = null;
+        _intentionalDisconnect = true;
+        _retryTimer?.cancel();
+        _retryTimer = null;
+        unawaited(_forgetRejectedSession(client, error.message));
+      }
     });
 
     try {
-      if (lobbyOnly) {
+      if (_saved case final saved?) {
+        await client.connect(
+          name: name,
+          resumePlayerId: saved.playerId,
+          resumeToken: saved.token,
+        );
+      } else if (lobbyOnly) {
         await client.browseLobby();
       } else {
         await client.connect(name: name, teamId: teamId);
       }
+      if (!isClosed && client.playerId != null) {
+        emit(
+          state.copyWith(
+            status: client.status,
+            playerId: client.playerId,
+            serverName: client.serverName,
+            clearError: true,
+          ),
+        );
+        await _remember();
+      }
     } on Object catch (error) {
       if (isClosed) return;
       emit(state.copyWith(status: QuizClientStatus.failed, error: '$error'));
+    } finally {
+      _connecting = false;
+      if (!state.isConnected) _scheduleReconnect();
     }
+  }
+
+  Future<void> _forgetRejectedSession(QuizClient client, String message) async {
+    try {
+      await _store.clear();
+    } on Object {
+      /* Keep the rejection visible. */
+    }
+    if (isClosed || _client != client) return;
+    await client.disconnect();
+    if (!isClosed) emit(PlayerSessionState(error: message));
   }
 
   Future<void> joinTeam({String? teamId, String? newTeamName}) async {
@@ -231,7 +403,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   /// to the physical touch as the framework allows.
   void buzz() {
     final question = state.question;
-    if (question is! BuzzerQuestion ||
+    if (!state.isConnected ||
+        !state.roundStatus.acceptsInput ||
+        state.game!.round.lockedOutPlayerIds.contains(state.playerId) ||
+        question is! BuzzerQuestion ||
         state.hasBuzzed ||
         !state.mayAnswerPoker) {
       return;
@@ -243,7 +418,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   /// Sends the choice [optionId] for the question on stage.
   void choose(String optionId) {
     final question = state.question;
-    if (!state.mayAnswerPoker ||
+    if (!state.isConnected ||
+        !state.roundStatus.acceptsInput ||
+        !state.mayAnswerPoker ||
         question is! MultipleChoiceQuestion ||
         state.lastSubmittedOptionId != null) {
       return;
@@ -278,6 +455,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
 
   /// Leaves the session.
   Future<void> disconnect() async {
+    _intentionalDisconnect = true;
+    _saved = null;
+    await _store.clear();
     await _teardown();
     if (isClosed) return;
     emit(const PlayerSessionState());
@@ -306,23 +486,30 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     final stillQueued =
         id != null &&
         game.round.buzzerQueue.any((press) => press.playerId == id);
-    final hasBuzzed = isNewRound
-        ? false
-        : stillQueued || !game.round.status.acceptsInput && state.hasBuzzed;
+    final hasBuzzed = stillQueued;
+    final answer = game.round.answers[id];
 
+    final baseline = isNewRound ? state.copyWith(clearSubmission: true) : state;
     emit(
-      state.copyWith(
+      baseline.copyWith(
         game: game,
         playerId: id,
         clockOffsetMicros: client?.clock.clockOffsetMicros,
         roundTripMicros: client?.clock.roundTripMicros,
-        clearSubmission: isNewRound,
+        clearSubmission: false,
+        lastSubmittedOptionId: answer is MultipleChoiceAnswer
+            ? answer.optionId
+            : answer != null
+            ? 'submitted'
+            : null,
         hasBuzzed: hasBuzzed,
       ),
     );
   }
 
   Future<void> _teardown() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     await _gameSubscription?.cancel();
     await _statusSubscription?.cancel();
     await _errorSubscription?.cancel();

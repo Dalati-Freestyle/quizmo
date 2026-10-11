@@ -176,6 +176,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   Map<String, Object?> _contentFields = {};
   late List<MediaAttachment> _media;
   late List<MediaAttachment> _solutionMedia;
+  late final TextEditingController _notesController;
   late final TextEditingController _promptController;
   late final TextEditingController _categoryController;
   late final TextEditingController _timeLimitController;
@@ -192,6 +193,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   void initState() {
     super.initState();
     final question = widget.question;
+    _notesController = TextEditingController(text: question.adminNotes);
     _media = question.media;
     _solutionMedia = question.solutionMedia;
     _promptController = TextEditingController(text: question.prompt);
@@ -268,6 +270,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
 
   @override
   void dispose() {
+    _notesController.dispose();
     _promptController.dispose();
     _categoryController.dispose();
     _timeLimitController.dispose();
@@ -317,6 +320,15 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
                     minLines: 2,
                     maxLines: 4,
                     validator: _requiredText('Enter a question prompt.'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _notesController,
+                    minLines: 2,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Admin-Notizen (nur Spielleiter)',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -567,6 +579,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ...question.toJson(),
       'media': _media.map((m) => m.toJson()).toList(),
       'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
+      'adminNotes': _notesController.text,
     });
     final errors = [
       ...question.contentErrors,

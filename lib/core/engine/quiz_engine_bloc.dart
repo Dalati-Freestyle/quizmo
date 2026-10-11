@@ -48,6 +48,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     JeopardyBoard? jeopardyBoard,
     int? pokerStartingChips,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
+    this.autoContinueBuzzer = true,
     NowMicros now = systemNowMicros,
   }) : _now = now,
        _initialBank = questionBank,
@@ -71,6 +72,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<PlayerJoinedEvent>(_onPlayerJoined);
     on<RenameTeamEvent>(_onRenameTeam);
     on<PlayerLeftEvent>(_onPlayerLeft);
+    on<KickPlayerEvent>(_onKickPlayer);
+    on<MergePlayersEvent>(_onMergePlayers);
+    on<ReopenBuzzerEvent>(_onReopenBuzzer);
+    on<EndRoundEvent>(_onEndRound);
     on<TimeSyncEvent>(_onTimeSync);
     on<AssignTeamEvent>(_onAssignTeam);
     on<ChangeGameModeEvent>(_onChangeGameMode);
@@ -136,6 +141,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// How long the engine waits for in-flight presses before locking the buzzer.
   final Duration buzzerGraceWindow;
+  final bool autoContinueBuzzer;
 
   final NowMicros _now;
   final List<Question> _initialBank;
@@ -149,6 +155,149 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   Future<void> close() {
     _graceTimer?.cancel();
     return super.close();
+  }
+
+  void _onKickPlayer(KickPlayerEvent event, Emitter<QuizEngineState> emit) {
+    if (!state.game.players.containsKey(event.playerId)) return;
+    emit(_publish(_removePlayer(state.game, event.playerId)));
+    if (state.game.round.status.acceptsInput &&
+        state.game.round.buzzerQueue.isNotEmpty) {
+      add(const LockBuzzerEvent());
+    }
+  }
+
+  void _onMergePlayers(MergePlayersEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final source = game.players[event.sourcePlayerId];
+    final target = game.players[event.targetPlayerId];
+    if (source == null ||
+        target == null ||
+        source.isConnected ||
+        !target.isConnected ||
+        source.id == target.id) {
+      return;
+    }
+    final answers = {...game.round.answers};
+    final answer = answers.remove(source.id);
+    if (answer != null && !answers.containsKey(target.id)) {
+      answers[target.id] = answer.withPlayerId(target.id);
+    }
+    final totals = {...game.scores.byPlayer}..remove(source.id);
+    totals[target.id] =
+        game.scores.scoreOf(source.id) + game.scores.scoreOf(target.id);
+    final history = game.scores.history
+        .map(
+          (e) => e.playerId != source.id
+              ? e
+              : ScoreEvent(
+                  playerId: target.id,
+                  questionId: e.questionId,
+                  points: e.points,
+                  reason: e.reason,
+                  atHostMicros: e.atHostMicros,
+                ),
+        )
+        .toList();
+    final cleaned = _removePlayer(game, source.id);
+    final queue = <String, BuzzerPress>{};
+    for (final press in game.round.buzzerQueue) {
+      final migrated = press.playerId == source.id
+          ? press.withPlayerId(target.id)
+          : press;
+      final previous = queue[migrated.playerId];
+      if (previous == null ||
+          migrated.hostTimestampMicros < previous.hostTimestampMicros) {
+        queue[migrated.playerId] = migrated;
+      }
+    }
+    final orderedQueue = queue.values.toList()
+      ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
+    emit(
+      _publish(
+        cleaned.copyWith(
+          scores: ScoreState(byPlayer: totals, history: history),
+          round: cleaned.round.copyWith(
+            answers: answers,
+            buzzerQueue: orderedQueue,
+            status: game.round.status,
+            activePlayerId: game.round.activePlayerId == source.id
+                ? target.id
+                : game.round.activePlayerId,
+            lockedOutPlayerIds: {
+              ...cleaned.round.lockedOutPlayerIds,
+              if (game.round.lockedOutPlayerIds.contains(source.id)) target.id,
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  GameState _removePlayer(GameState game, String id) {
+    final players = {...game.players}..remove(id);
+    final totals = {...game.scores.byPlayer}..remove(id);
+    final answers = {...game.round.answers}..remove(id);
+    final activeRemoved = game.round.activePlayerId == id;
+    return game.copyWith(
+      players: players,
+      scores: ScoreState(
+        byPlayer: totals,
+        history: game.scores.history.where((e) => e.playerId != id).toList(),
+      ),
+      round: game.round.copyWith(
+        answers: answers,
+        buzzerQueue: game.round.buzzerQueue
+            .where((e) => e.playerId != id)
+            .toList(),
+        lockedOutPlayerIds: {...game.round.lockedOutPlayerIds}..remove(id),
+        activePlayerId: activeRemoved ? null : game.round.activePlayerId,
+        status: activeRemoved && game.round.status == RoundStatus.locked
+            ? RoundStatus.acceptingAnswers
+            : game.round.status,
+      ),
+    );
+  }
+
+  void _onReopenBuzzer(ReopenBuzzerEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final round = game.round;
+    if (round.question is! BuzzerQuestion ||
+        round.status == RoundStatus.revealed ||
+        round.status == RoundStatus.idle ||
+        (game.poker?.betting ?? false) ||
+        (round.status == RoundStatus.locked && round.activePlayerId != null)) {
+      return;
+    }
+    _graceTimer?.cancel();
+    emit(
+      _publish(
+        game.copyWith(
+          round: round.copyWith(
+            status: RoundStatus.acceptingAnswers,
+            startedAtHostMicros: _now(),
+            activePlayerId: null,
+            buzzerQueue: const [],
+          ),
+        ),
+        notice:
+            'Buzzer freigegeben. Alle übrigen Spieler dürfen erneut buzzern.',
+      ),
+    );
+  }
+
+  void _onEndRound(EndRoundEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final question = game.round.question;
+    if (question == null ||
+        game.round.status == RoundStatus.revealed ||
+        (game.poker?.betting ?? false)) {
+      return;
+    }
+    _graceTimer?.cancel();
+    final scored = question is BuzzerQuestion
+        ? game
+        : _scoreAnswers(game, question);
+    emit(_publish(_reveal(scored), notice: 'Runde beendet.'));
   }
 
   // ---------------------------------------------------------------- lobby ---
@@ -182,7 +331,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ? event.player
         : existing.copyWith(
             name: event.player.name,
-            teamId: game.poker == null ? event.player.teamId : existing.teamId,
+            teamId: existing.teamId,
             isConnected: true,
             clockOffsetMicros: event.player.clockOffsetMicros,
             roundTripMicros: event.player.roundTripMicros,
@@ -202,7 +351,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   void _onPlayerLeft(PlayerLeftEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
     final player = game.players[event.playerId];
-    if (player == null) return;
+    if (player == null || !player.isConnected) return;
 
     emit(
       _publish(
@@ -384,9 +533,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
     );
 
-    emit(_publish(updated));
-    // Everybody answered — no reason to keep the room waiting.
-    if (_everyoneAnswered(updated)) add(const RevealRoundEvent());
+    final allAnswered = _everyoneAnswered(updated);
+    emit(
+      _publish(
+        updated.copyWith(
+          allAnswersRevision: game.allAnswersRevision + (allAnswered ? 1 : 0),
+        ),
+      ),
+    );
+    if (allAnswered) add(const RevealRoundEvent());
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -491,7 +646,17 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       );
       final done = _pokerEveryoneSettled(updated);
-      emit(_publish(done ? _reveal(updated) : updated));
+      emit(
+        _publish(
+          done
+              ? _reveal(
+                  updated.copyWith(
+                    allAnswersRevision: game.allAnswersRevision + 1,
+                  ),
+                )
+              : updated,
+        ),
+      );
       if (!done && remaining.isNotEmpty) add(const LockBuzzerEvent());
       return;
     }
@@ -533,9 +698,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       if (!jeopardy.isStealRound) {
         final missed = game.copyWith(scores: scores);
         if (_canOpenSteal(missed)) {
+          final steal = _openStealRound(missed);
           emit(
             _publish(
-              _openStealRound(missed),
+              autoContinueBuzzer
+                  ? steal
+                  : steal.copyWith(
+                      round: steal.round.copyWith(status: RoundStatus.locked),
+                    ),
               notice: '$playerName missed ($delta). The other teams may steal.',
             ),
           );
@@ -557,9 +727,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         : round.lockedOutPlayerIds;
     final next = RoundState(
       question: question,
-      status: RoundStatus.acceptingAnswers,
+      status: autoContinueBuzzer
+          ? RoundStatus.acceptingAnswers
+          : RoundStatus.locked,
       startedAtHostMicros: round.startedAtHostMicros,
-      buzzerQueue: remaining,
+      buzzerQueue: autoContinueBuzzer ? remaining : const [],
       answers: round.answers,
       lockedOutPlayerIds: lockedOut,
       resolvedAttempts: round.resolvedAttempts + 1,
@@ -568,11 +740,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         game.copyWith(scores: scores, round: next),
-        notice: '$playerName missed ($delta). Buzzer is open again.',
+        notice: autoContinueBuzzer
+            ? '$playerName missed ($delta). Buzzer is open again.'
+            : '$playerName hat falsch geantwortet ($delta). Buzzer freigeben oder Runde beenden.',
       ),
     );
 
-    if (remaining.isNotEmpty) add(const LockBuzzerEvent());
+    if (autoContinueBuzzer && remaining.isNotEmpty) {
+      add(const LockBuzzerEvent());
+    }
   }
 
   void _onRevealRound(RevealRoundEvent event, Emitter<QuizEngineState> emit) {
@@ -965,6 +1141,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = game.round.question;
     final jeopardy = game.jeopardy;
     return game.copyWith(
+      isFinished:
+          game.questionBank.isNotEmpty &&
+          (game.jeopardy?.board.questionIds ??
+                  game.questionBank.map((q) => q.id))
+              .every(
+                (id) =>
+                    game.completedQuestionIds.contains(id) ||
+                    id == question?.id,
+              ),
       round: game.round.copyWith(status: RoundStatus.revealed),
       completedQuestionIds: question == null
           ? game.completedQuestionIds
@@ -988,7 +1173,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
-    if (!state.game.players.containsKey(playerId)) return 'Unknown player.';
+    if (state.game.players[playerId]?.isConnected != true) {
+      return 'Unknown or disconnected player.';
+    }
     if (state.game.poker case final poker?) {
       final teamId = state.game.players[playerId]?.teamId;
       if (poker.betting) return 'Die Einsatzphase läuft noch.';

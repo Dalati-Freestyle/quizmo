@@ -265,3 +265,29 @@ final class ControlTvMediaEvent extends QuizEngineEvent {
   @override
   List<Object?> get props => [action];
 }
+
+final class KickPlayerEvent extends QuizEngineEvent {
+  const KickPlayerEvent(this.playerId);
+  final String playerId;
+  @override
+  List<Object?> get props => [playerId];
+}
+
+final class MergePlayersEvent extends QuizEngineEvent {
+  const MergePlayersEvent({
+    required this.sourcePlayerId,
+    required this.targetPlayerId,
+  });
+  final String sourcePlayerId;
+  final String targetPlayerId;
+  @override
+  List<Object?> get props => [sourcePlayerId, targetPlayerId];
+}
+
+final class ReopenBuzzerEvent extends QuizEngineEvent {
+  const ReopenBuzzerEvent();
+}
+
+final class EndRoundEvent extends QuizEngineEvent {
+  const EndRoundEvent();
+}

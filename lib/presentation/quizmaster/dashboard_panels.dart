@@ -331,6 +331,8 @@ class PlayersPanel extends StatelessWidget {
   const PlayersPanel({
     required this.game,
     required this.onAssignTeam,
+    this.onKick,
+    this.onMerge,
     super.key,
   });
 
@@ -339,6 +341,8 @@ class PlayersPanel extends StatelessWidget {
 
   /// Moves a player into a team, or clears the assignment with `null`.
   final void Function(String playerId, String? teamId) onAssignTeam;
+  final ValueChanged<String>? onKick;
+  final void Function(String source, String target)? onMerge;
 
   @override
   Widget build(BuildContext context) {
@@ -401,6 +405,31 @@ class PlayersPanel extends StatelessWidget {
                           selectedTeamId: player.teamId,
                           onChanged: (teamId) =>
                               onAssignTeam(player.id, teamId),
+                        ),
+                        PopupMenuButton<String>(
+                          tooltip: 'Spieler verwalten',
+                          onSelected: (action) {
+                            if (action == 'kick') {
+                              onKick?.call(player.id);
+                            } else {
+                              onMerge?.call(player.id, action);
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            if (onKick != null)
+                              const PopupMenuItem(
+                                value: 'kick',
+                                child: Text('Spieler kicken'),
+                              ),
+                            if (!player.isConnected && onMerge != null)
+                              for (final target in game.connectedPlayers)
+                                PopupMenuItem(
+                                  value: target.id,
+                                  child: Text(
+                                    'Mit ${target.name} zusammenführen (+${game.scores.scoreOf(player.id)} Punkte)',
+                                  ),
+                                ),
+                          ],
                         ),
                       ],
                     ),
@@ -848,6 +877,8 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onReopenBuzzer,
+    this.onEndRound,
     super.key,
   });
 
@@ -868,6 +899,8 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Takes a revealed question off the stage and returns to the Jeopardy board.
   final VoidCallback onCloseRound;
+  final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onEndRound;
 
   @override
   Widget build(BuildContext context) {
@@ -925,6 +958,11 @@ class LiveRoundPanel extends StatelessWidget {
                 const SizedBox(height: 10),
                 // Polymorphic host controls: the analyzer enforces that every
                 // question kind has a renderer here.
+                if (question.adminNotes.trim().isNotEmpty) ...[
+                  Text('Admin-Notizen', style: theme.textTheme.labelLarge),
+                  SelectableText(question.adminNotes),
+                  const SizedBox(height: 12),
+                ],
                 QuestionMediaView(media: question.media),
                 switch (question) {
                   MultipleChoiceQuestion() => _MultipleChoiceMonitor(
@@ -955,6 +993,8 @@ class LiveRoundPanel extends StatelessWidget {
                   onLock: onLock,
                   onNext: onNext,
                   onCloseRound: onCloseRound,
+                  onReopenBuzzer: onReopenBuzzer,
+                  onEndRound: onEndRound,
                 ),
                 if (state.notice case final notice?) ...[
                   const SizedBox(height: 10),
@@ -1030,6 +1070,8 @@ class _RoundActions extends StatelessWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onReopenBuzzer,
+    this.onEndRound,
   });
 
   final QuizEngineState state;
@@ -1038,6 +1080,8 @@ class _RoundActions extends StatelessWidget {
   final VoidCallback onLock;
   final VoidCallback onNext;
   final VoidCallback onCloseRound;
+  final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onEndRound;
 
   @override
   Widget build(BuildContext context) {
@@ -1070,6 +1114,18 @@ class _RoundActions extends StatelessWidget {
             ),
         ],
         RoundStatus.acceptingAnswers => [
+          if (round.question is BuzzerQuestion && onReopenBuzzer != null)
+            OutlinedButton.icon(
+              onPressed: onReopenBuzzer,
+              icon: const Icon(Icons.lock_open),
+              label: const Text('Buzzer erneut freigeben'),
+            ),
+          if (onEndRound != null)
+            OutlinedButton.icon(
+              onPressed: onEndRound,
+              icon: const Icon(Icons.stop),
+              label: const Text('Runde beenden'),
+            ),
           if (round.buzzerQueue.isNotEmpty)
             FilledButton.icon(
               onPressed: onLock,
@@ -1085,16 +1141,30 @@ class _RoundActions extends StatelessWidget {
           ),
         ],
         RoundStatus.locked => [
-          FilledButton.icon(
-            onPressed: () => onJudge(true),
-            icon: const Icon(Icons.check),
-            label: Text('${activeName ?? 'Player'} is right'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => onJudge(false),
-            icon: const Icon(Icons.close),
-            label: const Text('Wrong'),
-          ),
+          if (round.activePlayerId == null && onReopenBuzzer != null)
+            FilledButton.icon(
+              onPressed: onReopenBuzzer,
+              icon: const Icon(Icons.lock_open),
+              label: const Text('Buzzer freigeben: Abstauben'),
+            ),
+          if (onEndRound != null)
+            OutlinedButton.icon(
+              onPressed: onEndRound,
+              icon: const Icon(Icons.stop),
+              label: const Text('Runde beenden'),
+            ),
+          if (round.activePlayerId != null)
+            FilledButton.icon(
+              onPressed: () => onJudge(true),
+              icon: const Icon(Icons.check),
+              label: Text('${activeName ?? 'Player'} is right'),
+            ),
+          if (round.activePlayerId != null)
+            OutlinedButton.icon(
+              onPressed: () => onJudge(false),
+              icon: const Icon(Icons.close),
+              label: const Text('Wrong'),
+            ),
         ],
         RoundStatus.revealed => [
           if (jeopardy == null)

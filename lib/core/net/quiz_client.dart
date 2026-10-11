@@ -79,9 +79,13 @@ class QuizClient {
   Timer? _resyncTimer;
   Completer<void>? _joinCompleter;
   String? _playerId;
+  String? _resumeToken;
+  int _lastFrameAt = 0;
   String? _serverName;
   QuizClientStatus _status = QuizClientStatus.disconnected;
   Object? _lastError;
+  bool _disposed = false;
+  int _connectionGeneration = 0;
 
   /// Redacted session snapshots pushed by the host.
   Stream<GameState> get games => _games.stream;
@@ -98,6 +102,7 @@ class QuizClient {
 
   /// Server assigned player id, available once the join was accepted.
   String? get playerId => _playerId;
+  String? get resumeToken => _resumeToken;
 
   /// Friendly name reported by the host.
   String? get serverName => _serverName;
@@ -121,18 +126,23 @@ class QuizClient {
     String? teamId,
     String? newTeamName,
     String? resumePlayerId,
+    String? resumeToken,
     int handshakeProbes = 5,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
+    if (_disposed) throw StateError('This client has been disposed.');
     final joiningFromLobby = _inLobby && _channel != null;
     if (!joiningFromLobby) await disconnect();
+    final generation = _connectionGeneration;
     _emitStatus(QuizClientStatus.connecting);
     _lastError = null;
 
     try {
       await _handshake(probes: handshakeProbes);
+      _checkAttempt(generation);
 
       if (!joiningFromLobby) await _openSocket();
+      _checkAttempt(generation);
       final joined = Completer<void>();
       _joinCompleter = joined;
 
@@ -142,12 +152,14 @@ class QuizClient {
           teamId: teamId,
           newTeamName: newTeamName,
           resumePlayerId: resumePlayerId,
+          resumeToken: resumeToken,
           clockOffsetMicros: clock.clockOffsetMicros,
           roundTripMicros: clock.roundTripMicros,
         ),
       );
 
       await joined.future.timeout(joinTimeout);
+      _checkAttempt(generation);
       _resyncTimer = Timer.periodic(resyncInterval, (_) => _probeOverSocket());
     } on Object catch (error) {
       _lastError = error;
@@ -283,6 +295,7 @@ class QuizClient {
 
   /// Closes the socket and stops the re-sync timer.
   Future<void> disconnect() async {
+    _connectionGeneration++;
     _resyncTimer?.cancel();
     _resyncTimer = null;
     _failJoin(StateError('The connection was closed while joining.'));
@@ -309,6 +322,7 @@ class QuizClient {
 
   /// Releases every resource owned by this client.
   Future<void> dispose() async {
+    _disposed = true;
     await disconnect();
     if (_ownsHttpClient) _http.close();
     await _games.close();
@@ -325,9 +339,12 @@ class QuizClient {
   );
 
   Future<void> _openSocket() async {
+    if (_disposed) throw StateError('This client has been disposed.');
+    final generation = _connectionGeneration;
     final channel = WebSocketChannel.connect(_socketUri);
     _channel = channel;
-    await channel.ready;
+    await channel.ready.timeout(const Duration(seconds: 5));
+    _checkAttempt(generation);
     _socketSubscription = channel.stream.listen(
       _onFrame,
       onDone: _onSocketClosed,
@@ -339,15 +356,23 @@ class QuizClient {
     );
   }
 
+  void _checkAttempt(int generation) {
+    if (_disposed || generation != _connectionGeneration) {
+      throw StateError('The connection attempt was cancelled.');
+    }
+  }
+
   Future<void> _handshake({required int probes}) async {
     final endpoint = baseUri.replace(path: '/api/sync-time');
     for (var probe = 0; probe < probes; probe++) {
       final sentAt = _now();
-      final response = await _http.post(
-        endpoint,
-        headers: const {'content-type': 'application/json'},
-        body: jsonEncode({'clientSentAtMicros': sentAt}),
-      );
+      final response = await _http
+          .post(
+            endpoint,
+            headers: const {'content-type': 'application/json'},
+            body: jsonEncode({'clientSentAtMicros': sentAt}),
+          )
+          .timeout(const Duration(seconds: 5));
       final receivedAt = _now();
       if (response.statusCode != 200) {
         throw StateError('Clock sync failed with HTTP ${response.statusCode}.');
@@ -363,12 +388,20 @@ class QuizClient {
     }
   }
 
-  void _probeOverSocket() => _send(SyncPing(clientSentAtMicros: _now()));
+  void _probeOverSocket() {
+    if (_now() - _lastFrameAt > const Duration(seconds: 30).inMicroseconds) {
+      _channel?.sink.close();
+      _onSocketClosed();
+      return;
+    }
+    _send(SyncPing(clientSentAtMicros: _now()));
+  }
 
   void _send(ClientMessage message) => _channel?.sink.add(message.encode());
 
   void _onFrame(dynamic frame) {
     if (frame is! String) return;
+    _lastFrameAt = _now();
     final ServerMessage message;
     try {
       message = ServerMessage.decode(frame);
@@ -379,9 +412,10 @@ class QuizClient {
     switch (message) {
       case WelcomeMessage(:final serverName):
         _serverName = serverName;
-      case JoinAcceptedMessage(:final playerId):
+      case JoinAcceptedMessage(:final playerId, :final resumeToken):
         _inLobby = false;
         _playerId = playerId;
+        _resumeToken = resumeToken;
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);

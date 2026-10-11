@@ -38,7 +38,13 @@ void main() {
     }
 
     await choose(0, 'X');
+    final remaining = tester.widget<DropdownButton<String>>(
+      find.byType(DropdownButton<String>).at(1),
+    ).items!;
+    expect(remaining.map((item) => item.value), ['y', 'x']);
+    expect(remaining.last.enabled, isFalse);
     await choose(1, 'Y');
+    await choose(1, 'Auswahl löschen');
     await choose(0, 'Y');
     await choose(1, 'X');
     await tester.tap(find.text('Zuordnung senden'));

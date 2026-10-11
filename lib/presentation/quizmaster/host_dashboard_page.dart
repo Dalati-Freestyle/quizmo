@@ -12,6 +12,7 @@ import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
 import '../common/bundled_web_client.dart';
 import '../common/scoreboard_view.dart';
+import '../common/session_notifications.dart';
 import '../player/player_page.dart';
 import '../spectator/tv_page.dart';
 import 'dashboard_panels.dart';
@@ -32,6 +33,7 @@ class HostDashboardPage extends StatelessWidget {
         BlocProvider<QuizEngineBloc>(
           create: (_) => QuizEngineBloc(
             questionBank: quiz.questions,
+            autoContinueBuzzer: false,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
             pokerStartingChips: switch (quiz.format) {
@@ -137,130 +139,147 @@ class _HostDashboardView extends StatelessWidget {
                   ),
                 ],
               ),
-              body: AdaptivePanelGrid(
-                panels: [
-                  LiveRoundPanel(
-                    state: engineState,
-                    onJudge: (wasCorrect) =>
-                        engine.add(JudgeBuzzerEvent(wasCorrect: wasCorrect)),
-                    onReveal: () => engine.add(const RevealRoundEvent()),
-                    onLock: () => engine.add(const LockBuzzerEvent()),
-                    onNext: () => engine.add(const NextQuestionEvent()),
-                    onCloseRound: () => engine.add(const CloseRoundEvent()),
-                  ),
-                  if (game.round.question case final question?)
-                    if ([
-                      ...question.media,
-                      if (game.round.status == RoundStatus.revealed)
-                        ...question.solutionMedia,
-                    ].any((m) => m is AudioAttachment || m is VideoAttachment))
+              body: SessionNotifications(
+                game: game,
+                child: AdaptivePanelGrid(
+                  panels: [
+                    LiveRoundPanel(
+                      state: engineState,
+                      onJudge: (wasCorrect) =>
+                          engine.add(JudgeBuzzerEvent(wasCorrect: wasCorrect)),
+                      onReveal: () => engine.add(const RevealRoundEvent()),
+                      onLock: () => engine.add(const LockBuzzerEvent()),
+                      onReopenBuzzer: () =>
+                          engine.add(const ReopenBuzzerEvent()),
+                      onEndRound: () => engine.add(const EndRoundEvent()),
+                      onNext: () => engine.add(const NextQuestionEvent()),
+                      onCloseRound: () => engine.add(const CloseRoundEvent()),
+                    ),
+                    if (game.round.question case final question?)
+                      if ([
+                        ...question.media,
+                        if (game.round.status == RoundStatus.revealed)
+                          ...question.solutionMedia,
+                      ].any(
+                        (m) => m is AudioAttachment || m is VideoAttachment,
+                      ))
+                        PanelCard(
+                          title: 'TV-Medienwiedergabe',
+                          icon: Icons.live_tv,
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: () => engine.add(
+                                  const ControlTvMediaEvent(TvMediaAction.play),
+                                ),
+                                icon: const Icon(Icons.play_arrow),
+                                label: const Text('Abspielen'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => engine.add(
+                                  const ControlTvMediaEvent(
+                                    TvMediaAction.pause,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.pause),
+                                label: const Text('Pause'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => engine.add(
+                                  const ControlTvMediaEvent(
+                                    TvMediaAction.restart,
+                                  ),
+                                ),
+                                icon: const Icon(Icons.replay),
+                                label: const Text('Neu starten'),
+                              ),
+                              Text(
+                                game.tvMediaPaused
+                                    ? 'TV: pausiert'
+                                    : 'TV: Wiedergabe angefordert',
+                              ),
+                            ],
+                          ),
+                        ),
+                    if (game.poker case final poker?)
                       PanelCard(
-                        title: 'TV-Medienwiedergabe',
-                        icon: Icons.live_tv,
-                        child: Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
+                        title: 'Pokerchips',
+                        icon: Icons.casino_outlined,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            FilledButton.icon(
-                              onPressed: () => engine.add(
-                                const ControlTvMediaEvent(TvMediaAction.play),
-                              ),
-                              icon: const Icon(Icons.play_arrow),
-                              label: const Text('Abspielen'),
+                            Text(
+                              '${poker.startingChips} Startchips pro Team · ${poker.betting ? "Einsatzphase" : "Antwortphase"}',
                             ),
-                            OutlinedButton.icon(
-                              onPressed: () => engine.add(
-                                const ControlTvMediaEvent(TvMediaAction.pause),
+                            for (final team in game.teams.values)
+                              Text(
+                                '${team.name}: ${poker.chips[team.id] ?? 0} Chips · Einsatz: ${poker.wagers[team.id] ?? "–"}',
                               ),
-                              icon: const Icon(Icons.pause),
-                              label: const Text('Pause'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: () => engine.add(
-                                const ControlTvMediaEvent(
-                                  TvMediaAction.restart,
+                            if (poker.betting)
+                              FilledButton(
+                                onPressed: () =>
+                                    engine.add(const OpenPokerAnswersEvent()),
+                                child: const Text(
+                                  'Einsätze schließen & Antworten öffnen',
                                 ),
                               ),
-                              icon: const Icon(Icons.replay),
-                              label: const Text('Neu starten'),
-                            ),
-                            Text(
-                              game.tvMediaPaused
-                                  ? 'TV: pausiert'
-                                  : 'TV: Wiedergabe angefordert',
-                            ),
                           ],
                         ),
                       ),
-                  if (game.poker case final poker?)
+                    if (game.jeopardy case final jeopardy?)
+                      JeopardyBoardPanel(
+                        game: game,
+                        jeopardy: jeopardy,
+                        canPick: engineState.canStartRound,
+                        maxWager: engine.maxDailyDoubleWager(game),
+                        onSelect: (questionId) =>
+                            engine.add(SelectJeopardyCellEvent(questionId)),
+                        onPlaceWager: (wager) =>
+                            engine.add(PlaceDailyDoubleWagerEvent(wager)),
+                        onSetOrder: (ids) =>
+                            engine.add(SetJeopardyOrderEvent(ids)),
+                        onSetTurn: (teamId) =>
+                            engine.add(SetJeopardyTurnEvent(teamId)),
+                      ),
+                    ServerControlPanel(
+                      state: serverState,
+                      connectedPlayers: game.connectedPlayers.length,
+                      onOpenTvPreview: openTvPreview,
+                      onStart: () => context.read<HostServerCubit>().start(),
+                      onStop: () => context.read<HostServerCubit>().stop(),
+                    ),
                     PanelCard(
-                      title: 'Pokerchips',
-                      icon: Icons.casino_outlined,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            '${poker.startingChips} Startchips pro Team · ${poker.betting ? "Einsatzphase" : "Antwortphase"}',
-                          ),
-                          for (final team in game.teams.values)
-                            Text(
-                              '${team.name}: ${poker.chips[team.id] ?? 0} Chips · Einsatz: ${poker.wagers[team.id] ?? "–"}',
-                            ),
-                          if (poker.betting)
-                            FilledButton(
-                              onPressed: () =>
-                                  engine.add(const OpenPokerAnswersEvent()),
-                              child: const Text(
-                                'Einsätze schließen & Antworten öffnen',
-                              ),
-                            ),
-                        ],
+                      title: game.poker == null
+                          ? 'Scoreboard · ${game.mode.label}'
+                          : 'Pokerchips · Teams',
+                      icon: Icons.leaderboard_outlined,
+                      child: ScoreboardView(game: game),
+                    ),
+                    PlayersPanel(
+                      game: game,
+                      onKick: (id) => engine.add(KickPlayerEvent(id)),
+                      onMerge: (source, target) => engine.add(
+                        MergePlayersEvent(
+                          sourcePlayerId: source,
+                          targetPlayerId: target,
+                        ),
+                      ),
+                      onAssignTeam: (playerId, teamId) => engine.add(
+                        AssignTeamEvent(playerId: playerId, teamId: teamId),
                       ),
                     ),
-                  if (game.jeopardy case final jeopardy?)
-                    JeopardyBoardPanel(
-                      game: game,
-                      jeopardy: jeopardy,
-                      canPick: engineState.canStartRound,
-                      maxWager: engine.maxDailyDoubleWager(game),
-                      onSelect: (questionId) =>
-                          engine.add(SelectJeopardyCellEvent(questionId)),
-                      onPlaceWager: (wager) =>
-                          engine.add(PlaceDailyDoubleWagerEvent(wager)),
-                      onSetOrder: (ids) =>
-                          engine.add(SetJeopardyOrderEvent(ids)),
-                      onSetTurn: (teamId) =>
-                          engine.add(SetJeopardyTurnEvent(teamId)),
-                    ),
-                  ServerControlPanel(
-                    state: serverState,
-                    connectedPlayers: game.connectedPlayers.length,
-                    onOpenTvPreview: openTvPreview,
-                    onStart: () => context.read<HostServerCubit>().start(),
-                    onStop: () => context.read<HostServerCubit>().stop(),
-                  ),
-                  PanelCard(
-                    title: game.poker == null
-                        ? 'Scoreboard · ${game.mode.label}'
-                        : 'Pokerchips · Teams',
-                    icon: Icons.leaderboard_outlined,
-                    child: ScoreboardView(game: game),
-                  ),
-                  PlayersPanel(
-                    game: game,
-                    onAssignTeam: (playerId, teamId) => engine.add(
-                      AssignTeamEvent(playerId: playerId, teamId: teamId),
-                    ),
-                  ),
-                  if (game.jeopardy == null)
-                    QuestionBankPanel(
-                      game: game,
-                      canStart: engineState.canStartRound,
-                      onStart: (questionId) =>
-                          engine.add(StartRoundEvent(questionId)),
-                    ),
-                  ServerLogPanel(logs: serverState.logs),
-                ],
+                    if (game.jeopardy == null)
+                      QuestionBankPanel(
+                        game: game,
+                        canStart: engineState.canStartRound,
+                        onStart: (questionId) =>
+                            engine.add(StartRoundEvent(questionId)),
+                      ),
+                    ServerLogPanel(logs: serverState.logs),
+                  ],
+                ),
               ),
             );
           },

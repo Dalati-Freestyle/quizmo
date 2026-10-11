@@ -46,6 +46,7 @@ sealed class Question extends Equatable {
     this.category,
     this.media = const [],
     this.solutionMedia = const [],
+    this.adminNotes = '',
   });
 
   /// Stable identifier used by [StartRoundEvent] and the wire protocol.
@@ -64,6 +65,7 @@ sealed class Question extends Equatable {
   final String? category;
   final List<MediaAttachment> media;
   final List<MediaAttachment> solutionMedia;
+  final String adminNotes;
   bool accepts(AnswerSubmission answer);
   double accuracy(AnswerSubmission answer);
   String get solutionLabel;
@@ -88,6 +90,7 @@ sealed class Question extends Equatable {
     final visible = reveal ? this : redacted();
     return Question.fromJson({
       ...visible.toJson(),
+      'adminNotes': '',
       'media': visible.media.map((m) => m.forWire()).toList(),
       'solutionMedia': visible.solutionMedia.map((m) => m.forWire()).toList(),
     });
@@ -117,6 +120,7 @@ sealed class Question extends Equatable {
     'prompt': prompt,
     'timeLimitMs': timeLimit.inMilliseconds,
     'category': category,
+    'adminNotes': adminNotes,
     'media': media.map((m) => m.toJson()).toList(),
     'solutionMedia': solutionMedia.map((m) => m.toJson()).toList(),
     'scoringRule': scoringRule.toJson(),
@@ -136,6 +140,7 @@ final class MultipleChoiceQuestion extends Question {
     super.category,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
   });
 
   /// Restores the question from [json].
@@ -148,6 +153,7 @@ final class MultipleChoiceQuestion extends Question {
         scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
         timeLimit: json.readDurationMs('timeLimitMs'),
         category: json.readStringOrNull('category'),
+        adminNotes: json.readStringOrNull('adminNotes') ?? '',
         media: readMedia(json, 'media'),
         solutionMedia: readMedia(json, 'solutionMedia'),
       );
@@ -210,6 +216,7 @@ final class MultipleChoiceQuestion extends Question {
     category,
     media,
     solutionMedia,
+    adminNotes,
   ];
 }
 
@@ -229,6 +236,7 @@ final class BuzzerQuestion extends Question {
     super.category,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
   });
 
   /// Restores the question from [json].
@@ -240,6 +248,7 @@ final class BuzzerQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     timeLimit: json.readDurationMs('timeLimitMs'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
   );
@@ -295,6 +304,7 @@ final class BuzzerQuestion extends Question {
     category,
     media,
     solutionMedia,
+    adminNotes,
   ];
 }
 
@@ -307,6 +317,7 @@ final class ShortAnswerQuestion extends Question {
     super.scoringRule,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
     this.acceptedAnswers,
     this.maxEdits = 1,
   });
@@ -316,6 +327,7 @@ final class ShortAnswerQuestion extends Question {
     id: json.readString('id'),
     prompt: json.readString('prompt'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     timeLimit: json.readDurationMs('timeLimitMs'),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
@@ -378,6 +390,7 @@ final class ShortAnswerQuestion extends Question {
     scoringRule,
     media,
     solutionMedia,
+    adminNotes,
     acceptedAnswers,
     maxEdits,
   ];
@@ -392,6 +405,7 @@ final class OrderingQuestion extends Question {
     super.scoringRule,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
     this.items = const [],
     this.correctOrder,
   });
@@ -401,6 +415,7 @@ final class OrderingQuestion extends Question {
     id: json.readString('id'),
     prompt: json.readString('prompt'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     timeLimit: json.readDurationMs('timeLimitMs'),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
@@ -461,6 +476,7 @@ final class OrderingQuestion extends Question {
     scoringRule,
     media,
     solutionMedia,
+    adminNotes,
     items,
     correctOrder,
   ];
@@ -475,6 +491,7 @@ final class MatchingQuestion extends Question {
     super.scoringRule,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
     this.leftItems = const [],
     this.rightItems = const [],
     this.correctPairs,
@@ -486,6 +503,7 @@ final class MatchingQuestion extends Question {
     id: json.readString('id'),
     prompt: json.readString('prompt'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     timeLimit: json.readDurationMs('timeLimitMs'),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
@@ -554,6 +572,7 @@ final class MatchingQuestion extends Question {
     scoringRule,
     media,
     solutionMedia,
+    adminNotes,
     leftItems,
     rightItems,
     correctPairs,
@@ -569,6 +588,7 @@ final class EstimationQuestion extends Question {
     super.scoringRule,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
     this.correctValue,
     this.zeroScale = 1,
     this.unit = '',
@@ -580,6 +600,7 @@ final class EstimationQuestion extends Question {
     id: json.readString('id'),
     prompt: json.readString('prompt'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     timeLimit: json.readDurationMs('timeLimitMs'),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
@@ -638,6 +659,7 @@ final class EstimationQuestion extends Question {
     scoringRule,
     media,
     solutionMedia,
+    adminNotes,
     correctValue,
     zeroScale,
     unit,
@@ -653,6 +675,7 @@ final class TrueFalseQuestion extends Question {
     super.scoringRule,
     super.media,
     super.solutionMedia,
+    super.adminNotes,
     this.correctAnswer,
   });
   final bool? correctAnswer;
@@ -660,6 +683,7 @@ final class TrueFalseQuestion extends Question {
     id: json.readString('id'),
     prompt: json.readString('prompt'),
     category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
     timeLimit: json.readDurationMs('timeLimitMs'),
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
@@ -710,6 +734,7 @@ final class TrueFalseQuestion extends Question {
     scoringRule,
     media,
     solutionMedia,
+    adminNotes,
     correctAnswer,
   ];
 }

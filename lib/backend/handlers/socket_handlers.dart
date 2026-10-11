@@ -6,6 +6,8 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
@@ -65,6 +67,8 @@ class SocketHub {
 
   StreamSubscription<QuizEngineState>? _engineSubscription;
   var _nextConnectionId = 0;
+  final Map<String, String> _resumeTokens = {};
+  Set<String> _knownPlayerIds = {};
 
   /// Number of open sockets.
   int get connectionCount => _connections.length;
@@ -134,6 +138,7 @@ class SocketHub {
         :final teamId,
         :final newTeamName,
         :final resumePlayerId,
+        :final resumeToken,
         :final clockOffsetMicros,
         :final roundTripMicros,
       ):
@@ -161,8 +166,24 @@ class SocketHub {
           );
           return;
         }
-        if ((teamId != null && !game.teams.containsKey(teamId)) ||
-            (game.poker != null && teamId == null && newTeamName == null)) {
+        final returning = game.players[resumePlayerId];
+        if (resumePlayerId != null &&
+            (returning == null ||
+                resumeToken == null ||
+                _resumeTokens[resumePlayerId] != resumeToken)) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidResume',
+              message: 'Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.',
+            ),
+          );
+          return;
+        }
+        if (returning == null &&
+            ((teamId != null && !game.teams.containsKey(teamId)) ||
+                (game.poker != null &&
+                    teamId == null &&
+                    newTeamName == null))) {
           connection.send(
             const ProtocolErrorMessage(
               code: 'invalidTeam',
@@ -186,14 +207,34 @@ class SocketHub {
           return;
         }
         final playerId = resumePlayerId ?? newId('player');
+        // Retire a stale socket before assigning its identity to the new one.
+        for (final old in _connections.values.toList()) {
+          if (old.playerId != playerId) continue;
+          old.send(
+            const ProtocolErrorMessage(
+              code: 'sessionReplaced',
+              message: 'Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.',
+            ),
+          );
+          old.playerId = null;
+          _connections.remove(old.id);
+          old.subscription?.cancel();
+          old.channel.sink.close();
+        }
+        final token = _resumeTokens.putIfAbsent(
+          playerId,
+          () => base64UrlEncode(
+            List<int>.generate(32, (_) => Random.secure().nextInt(256)),
+          ),
+        );
         connection.playerId = playerId;
         connection.isLobby = false;
         _engine.add(
           PlayerJoinedEvent(
             Player(
               id: playerId,
-              name: name.trim(),
-              teamId: createdTeam?.id ?? teamId,
+              name: returning?.name ?? name.trim(),
+              teamId: returning?.teamId ?? createdTeam?.id ?? teamId,
               clockOffsetMicros: clockOffsetMicros,
               roundTripMicros: roundTripMicros,
             ),
@@ -201,7 +242,11 @@ class SocketHub {
           ),
         );
         connection.send(
-          JoinAcceptedMessage(playerId: playerId, hostTimeMicros: _now()),
+          JoinAcceptedMessage(
+            playerId: playerId,
+            hostTimeMicros: _now(),
+            resumeToken: token,
+          ),
         );
         connection.send(
           GameSnapshotMessage(_engine.state.game.redactedForPlayers()),
@@ -325,14 +370,35 @@ class SocketHub {
     if (_connections.remove(connection.id) == null) return;
     connection.subscription?.cancel();
     final playerId = connection.playerId;
-    if (playerId != null) _engine.add(PlayerLeftEvent(playerId));
+    if (playerId != null &&
+        !_connections.values.any((c) => c.playerId == playerId)) {
+      _engine.add(PlayerLeftEvent(playerId));
+    }
     _log(ServerLogLevel.info, 'Socket ${connection.id} disconnected.');
   }
 
   void _broadcastState(QuizEngineState state) {
+    final removed = _knownPlayerIds.difference(state.game.players.keys.toSet());
+    _knownPlayerIds = state.game.players.keys.toSet();
+    for (final id in removed) {
+      _resumeTokens.remove(id);
+    }
     if (_connections.isEmpty) return;
     final message = GameSnapshotMessage(state.game.redactedForPlayers());
     for (final connection in _connections.values.toList(growable: false)) {
+      if (connection.playerId != null &&
+          removed.contains(connection.playerId)) {
+        connection.send(
+          const ProtocolErrorMessage(
+            code: 'kicked',
+            message: 'Der Spielleiter hat dich aus der Sitzung entfernt.',
+          ),
+        );
+        connection.playerId = null;
+        _onDisconnected(connection);
+        connection.channel.sink.close();
+        continue;
+      }
       if (connection.isLobby) {
         connection.send(_lobbySnapshot());
       } else if (connection.playerId != null || connection.isSpectator) {

@@ -152,6 +152,15 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
               child: Builder(
                 builder: (context) {
                   final label = Text(left.label);
+                  final used = pairs.values.toSet();
+                  final options = [
+                    ...widget.question.rightItems.where(
+                      (r) => !used.contains(r.id),
+                    ),
+                    ...widget.question.rightItems.where(
+                      (r) => used.contains(r.id),
+                    ),
+                  ];
                   final field = DropdownButtonFormField<String>(
                     key: ValueKey('${left.id}-${pairs[left.id]}'),
                     initialValue: pairs[left.id],
@@ -160,29 +169,45 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                     itemHeight: null,
                     decoration: const InputDecoration(labelText: 'Zuordnen'),
                     selectedItemBuilder: (context) => [
-                      for (final right in widget.question.rightItems)
+                      if (pairs[left.id] != null) const Text('Zuordnen'),
+                      for (final right in options)
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: Text(right.label),
                         ),
                     ],
                     items: [
-                      for (final right in widget.question.rightItems)
+                      if (pairs[left.id] != null)
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Auswahl löschen'),
+                        ),
+                      for (final right in options)
                         DropdownMenuItem(
                           value: right.id,
+                          enabled:
+                              !used.contains(right.id) ||
+                              pairs[left.id] == right.id,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(right.label),
+                            child: Text(
+                              right.label,
+                              style: used.contains(right.id)
+                                  ? TextStyle(
+                                      color: Theme.of(context).disabledColor,
+                                    )
+                                  : null,
+                            ),
                           ),
                         ),
                     ],
                     onChanged: widget.enabled
                         ? (value) => setState(() {
-                            pairs.removeWhere(
-                              (id, partner) =>
-                                  id != left.id && partner == value,
-                            );
-                            pairs[left.id] = value!;
+                            if (value == null || value.isEmpty) {
+                              pairs.remove(left.id);
+                            } else {
+                              pairs[left.id] = value;
+                            }
                           })
                         : null,
                   );

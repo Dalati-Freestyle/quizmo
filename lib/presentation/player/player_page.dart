@@ -13,6 +13,7 @@ import '../common/adaptive_layout.dart';
 import '../common/quizmo_logo.dart';
 import '../common/jeopardy_board_view.dart';
 import '../common/scoreboard_view.dart';
+import '../common/session_notifications.dart';
 import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
 import 'team_join_view.dart';
@@ -35,16 +36,40 @@ class PlayerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<PlayerSessionCubit>(
-      create: (_) => PlayerSessionCubit(),
+      create: (_) => PlayerSessionCubit()..restore(host: initialHostUri),
       child: _PlayerView(initialHostUri: initialHostUri),
     );
   }
 }
 
-class _PlayerView extends StatelessWidget {
+class _PlayerView extends StatefulWidget {
   const _PlayerView({this.initialHostUri});
 
   final Uri? initialHostUri;
+
+  @override
+  State<_PlayerView> createState() => _PlayerViewState();
+}
+
+class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<PlayerSessionCubit>().resume();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,23 +131,31 @@ class _PlayerView extends StatelessWidget {
                 ),
             ],
           ),
-          body: SafeArea(
-            child: state.isConnected
-                ? _GameBoard(state: state)
-                : state.isChoosingTeam
-                ? TeamJoinView(
-                    lobby: state.lobby!,
-                    busy: state.status == QuizClientStatus.connecting,
-                    error: state.error,
-                    onJoin: (id) =>
-                        context.read<PlayerSessionCubit>().joinTeam(teamId: id),
-                    onCreate: (name) => context
-                        .read<PlayerSessionCubit>()
-                        .joinTeam(newTeamName: name),
-                    onBack: () =>
-                        context.read<PlayerSessionCubit>().disconnect(),
-                  )
-                : _JoinForm(state: state, initialHostUri: initialHostUri),
+          body: SessionNotifications(
+            game: state.game,
+            playerId: state.playerId,
+            child: SafeArea(
+              child: state.isConnected
+                  ? _GameBoard(state: state)
+                  : state.isChoosingTeam
+                  ? TeamJoinView(
+                      lobby: state.lobby!,
+                      busy: state.status == QuizClientStatus.connecting,
+                      error: state.error,
+                      onJoin: (id) => context
+                          .read<PlayerSessionCubit>()
+                          .joinTeam(teamId: id),
+                      onCreate: (name) => context
+                          .read<PlayerSessionCubit>()
+                          .joinTeam(newTeamName: name),
+                      onBack: () =>
+                          context.read<PlayerSessionCubit>().disconnect(),
+                    )
+                  : _JoinForm(
+                      state: state,
+                      initialHostUri: widget.initialHostUri,
+                    ),
+            ),
           ),
         );
       },

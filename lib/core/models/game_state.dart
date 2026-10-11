@@ -97,10 +97,16 @@ final class GameState extends Equatable {
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
+    this.allAnswersRevision = 0,
+    this.isFinished = false,
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    allAnswersRevision: json['allAnswersRevision'] == null
+        ? 0
+        : json.readInt('allAnswersRevision'),
+    isFinished: json.readBool('isFinished', orElse: false),
     mode: GameMode.fromJson(json.readObject('mode')),
     players: json.readMap('players', Player.fromJson),
     teams: json.readMap('teams', Team.fromJson),
@@ -156,6 +162,8 @@ final class GameState extends Equatable {
   final int hostTimeMicros;
   final bool tvMediaPaused;
   final int tvMediaRevision;
+  final int allAnswersRevision;
+  final bool isFinished;
 
   Map<String, String> get questionWinners {
     final winners = <String, Set<String>>{};
@@ -243,6 +251,8 @@ final class GameState extends Equatable {
     Object? hostTimeMicros = _unset,
     bool? tvMediaPaused,
     int? tvMediaRevision,
+    int? allAnswersRevision,
+    bool? isFinished,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -257,6 +267,8 @@ final class GameState extends Equatable {
     poker: identical(poker, _unset) ? this.poker : poker as PokerState?,
     tvMediaPaused: tvMediaPaused ?? this.tvMediaPaused,
     tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
+    allAnswersRevision: allAnswersRevision ?? this.allAnswersRevision,
+    isFinished: isFinished ?? this.isFinished,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -278,6 +290,8 @@ final class GameState extends Equatable {
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
+    'allAnswersRevision': allAnswersRevision,
+    'isFinished': isFinished,
   };
 
   @override
@@ -294,5 +308,7 @@ final class GameState extends Equatable {
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,
+    allAnswersRevision,
+    isFinished,
   ];
 }

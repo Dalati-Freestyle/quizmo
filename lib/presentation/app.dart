@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'common/role_selection_page.dart';
 import 'spectator/tv_page.dart';
+import 'player/player_page.dart';
+import 'player/player_session_store.dart';
 
 /// The application shell.
 class QuizmoApp extends StatelessWidget {
@@ -29,7 +31,7 @@ class QuizmoApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
-      home: startAsTv ? const TvPage() : const RoleSelectionPage(),
+      home: startAsTv ? const TvPage() : const _SessionHome(),
     );
   }
 
@@ -60,4 +62,29 @@ class QuizmoApp extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SessionHome extends StatefulWidget {
+  const _SessionHome();
+  @override
+  State<_SessionHome> createState() => _SessionHomeState();
+}
+
+class _SessionHomeState extends State<_SessionHome> {
+  late final Future<SavedPlayerSession?> _saved = _load();
+  Future<SavedPlayerSession?> _load() async {
+    try {
+      return await PlayerSessionStore().read();
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<SavedPlayerSession?>(
+    future: _saved,
+    builder: (context, snapshot) => snapshot.data != null
+        ? PlayerPage(initialHostUri: snapshot.data!.host)
+        : const RoleSelectionPage(),
+  );
 }
