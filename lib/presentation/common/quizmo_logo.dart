@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 class QuizmoLogo extends StatelessWidget {
   const QuizmoLogo({this.size = 40, super.key});
 
@@ -13,7 +15,7 @@ class QuizmoLogo extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
-      semanticLabel: 'Quizmo logo',
+      semanticLabel: context.tr("Quizmo logo"),
     ),
   );
 }

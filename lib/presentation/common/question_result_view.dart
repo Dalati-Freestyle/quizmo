@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../core/models/models.dart';
 
 class QuestionResultView extends StatelessWidget {
@@ -19,7 +21,7 @@ class QuestionResultView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          question.kindLabel,
+          context.tr(question.kindLabel),
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         if (question case MultipleChoiceQuestion(
@@ -43,18 +45,25 @@ class QuestionResultView extends StatelessWidget {
         if (host || revealed) ...[
           const SizedBox(height: 12),
           Text(
-            'Lösung: ${question.solutionLabel}',
+            context.tr("Lösung: {0}", [
+              question is TrueFalseQuestion
+                  ? context.tr(question.solutionLabel)
+                  : question.solutionLabel,
+            ]),
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
           for (final answer in game.round.answers.values.take(host ? 50 : 8))
             Text(
-              '${game.players[answer.playerId]?.name ?? answer.playerId}: ${answerLabel(answer, question)}',
+              '${game.players[answer.playerId]?.name ?? answer.playerId}: ${answerLabel(answer, question, context: context)}',
               style: const TextStyle(fontSize: 22),
             ),
         ],
         const SizedBox(height: 12),
         Text(
-          '${game.round.answers.length} / ${game.connectedPlayers.length} Antworten',
+          context.tr("{0} / {1} Antworten", [
+            game.round.answers.length,
+            game.connectedPlayers.length,
+          ]),
           style: const TextStyle(fontSize: 22),
         ),
       ],
@@ -64,11 +73,15 @@ class QuestionResultView extends StatelessWidget {
 
 String answerLabel(
   AnswerSubmission answer,
-  Question question,
-) => switch (answer) {
+  Question question, {
+  BuildContext? context,
+}) => switch (answer) {
   ShortAnswer(:final text) => text,
   EstimationAnswer(:final value) => '$value',
-  TrueFalseAnswer(:final value) => value ? 'Wahr' : 'Falsch',
+  TrueFalseAnswer(:final value) =>
+    value
+        ? (context?.tr("Wahr") ?? 'Wahr')
+        : (context?.tr("Falsch") ?? 'Falsch'),
   OrderingAnswer(:final itemIds) =>
     question is OrderingQuestion
         ? itemIds
@@ -94,5 +107,5 @@ String answerLabel(
   MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds.join(
     ', ',
   ),
-  BuzzerPress() => 'Buzzer',
+  BuzzerPress() => context?.tr("Buzzer") ?? 'Buzzer',
 };

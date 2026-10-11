@@ -1,24 +1,40 @@
 /// Root widget and theming of the Quizmo prototype.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/net/session_uri.dart';
 
 import 'common/role_selection_page.dart';
+import 'l10n/app_localizations.dart';
+import 'settings/locale_cubit.dart';
 import 'spectator/tv_page.dart';
 import 'player/player_page.dart';
 import 'player/player_session_store.dart';
 
 /// The application shell.
-class QuizmoApp extends StatelessWidget {
+class QuizmoApp extends StatefulWidget {
   /// Creates the app.
   ///
   /// With [startAsTv] the app skips the role selection and opens the
   /// spectator (TV) screen right away. `main` derives it from the launch URL
   /// (`/tv`), see `isTvLaunchUri`.
-  const QuizmoApp({this.startAsTv = false, this.launchUri, super.key});
+  const QuizmoApp({
+    this.startAsTv = false,
+    this.launchUri,
+    this.localeCubit,
+    super.key,
+  });
+
+  final LocaleCubit? localeCubit;
+
+  @override
+  State<QuizmoApp> createState() => _QuizmoAppState();
 
   final Uri? launchUri;
 
@@ -27,20 +43,6 @@ class QuizmoApp extends StatelessWidget {
 
   /// Seed colour of the generated Material 3 scheme.
   static const Color seedColor = Color(0xFF5E6AD2);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Quizmo',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark,
-      theme: buildTheme(Brightness.light),
-      darkTheme: buildTheme(Brightness.dark),
-      home: startAsTv
-          ? TvPage(launchUri: launchUri)
-          : _SessionHome(launchUri: launchUri),
-    );
-  }
 
   /// Builds the Material 3 theme for [brightness].
   static ThemeData buildTheme(Brightness brightness) {
@@ -69,6 +71,48 @@ class QuizmoApp extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QuizmoAppState extends State<QuizmoApp> {
+  late final LocaleCubit _localeCubit = widget.localeCubit ?? LocaleCubit();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_localeCubit.load());
+  }
+
+  @override
+  void dispose() {
+    if (widget.localeCubit == null) unawaited(_localeCubit.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => BlocProvider.value(
+    value: _localeCubit,
+    child: BlocBuilder<LocaleCubit, LocaleSettingsState>(
+      builder: (context, state) => MaterialApp(
+        title: 'Quizmo',
+        debugShowCheckedModeBanner: false,
+        locale: state.preference.locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localeListResolutionCallback: AppLocalizations.resolveLocale,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        themeMode: ThemeMode.dark,
+        theme: QuizmoApp.buildTheme(Brightness.light),
+        darkTheme: QuizmoApp.buildTheme(Brightness.dark),
+        home: widget.startAsTv
+            ? TvPage(launchUri: widget.launchUri)
+            : _SessionHome(launchUri: widget.launchUri),
+      ),
+    ),
+  );
 }
 
 class _SessionHome extends StatefulWidget {

@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
@@ -128,7 +130,7 @@ class QuestionTemplateDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SelectionDropdown<QuestionTemplate>(
-    label: 'Fragenart',
+    label: context.tr("Fragenart"),
     value: value,
     items: [
       for (final template in kQuestionTemplates)
@@ -139,7 +141,10 @@ class QuestionTemplateDropdown extends StatelessWidget {
               Icon(template.icon),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(template.label, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  context.tr(template.label),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -310,12 +315,16 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Edit ${widget.question.kindLabel} question'),
+        title: Text(
+          context.tr("Edit {0} question", [
+            context.tr(widget.question.kindLabel),
+          ]),
+        ),
         actions: [
           TextButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.check),
-            label: const Text('Save question'),
+            label: Text(context.tr("Save question")),
           ),
         ],
       ),
@@ -324,42 +333,48 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         child: AdaptivePanelGrid(
           panels: [
             PanelCard(
-              title: 'Question',
+              title: context.tr("Question"),
               icon: isMultipleChoice ? Icons.checklist : Icons.bolt,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextFormField(
                     controller: _promptController,
-                    decoration: const InputDecoration(labelText: 'Prompt'),
+                    decoration: InputDecoration(
+                      labelText: context.tr("Prompt"),
+                    ),
                     minLines: 2,
                     maxLines: 4,
-                    validator: _requiredText('Enter a question prompt.'),
+                    validator: _requiredText(
+                      context.tr("Enter a question prompt."),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _notesController,
                     minLines: 2,
                     maxLines: 6,
-                    decoration: const InputDecoration(
-                      labelText: 'Admin-Notizen (nur Spielleiter)',
+                    decoration: InputDecoration(
+                      labelText: context.tr("Admin-Notizen (nur Spielleiter)"),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _categoryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Question category (optional)',
+                    decoration: InputDecoration(
+                      labelText: context.tr("Question category (optional)"),
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _timeLimitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Time limit in seconds',
+                    decoration: InputDecoration(
+                      labelText: context.tr("Time limit in seconds"),
                     ),
                     keyboardType: TextInputType.number,
-                    validator: _positiveInt('Enter a positive time limit.'),
+                    validator: _positiveInt(
+                      context.tr("Enter a positive time limit."),
+                    ),
                   ),
                 ],
               ),
@@ -380,12 +395,12 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
             MediaEditor(
               media: _media,
               onChanged: (media) => _media = media,
-              title: 'Fragemedien',
+              title: context.tr("Fragemedien"),
             ),
             MediaEditor(
               media: _solutionMedia,
               onChanged: (media) => _solutionMedia = media,
-              title: 'Lösungsmedien (erst bei Auflösung)',
+              title: context.tr("Lösungsmedien (erst bei Auflösung)"),
             ),
           ],
         ),
@@ -394,10 +409,10 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   }
 
   Widget _multipleChoicePanel() => PanelCard(
-    title: 'Answer options',
+    title: context.tr("Answer options"),
     icon: Icons.format_list_bulleted,
     trailing: IconButton(
-      tooltip: 'Add option',
+      tooltip: context.tr("Add option"),
       onPressed: _addOption,
       icon: const Icon(Icons.add),
     ),
@@ -405,8 +420,8 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_options.isEmpty)
-          const EmptyHint(
-            'Add at least two options and choose the correct one.',
+          EmptyHint(
+            context.tr("Add at least two options and choose the correct one."),
           ),
         for (var index = 0; index < _options.length; index++)
           _OptionField(
@@ -418,7 +433,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
           ),
         const SizedBox(height: 8),
         SwitchListTile(
-          title: const Text('Mehrere richtige Antworten'),
+          title: Text(context.tr("Mehrere richtige Antworten")),
           value: _allowMultipleAnswers,
           onChanged: (value) => setState(() {
             _allowMultipleAnswers = value;
@@ -433,7 +448,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         if (_allowMultipleAnswers)
           FormField<List<String>>(
             validator: (_) => _correctOptionIds.isEmpty
-                ? 'Mindestens eine richtige Antwort wÃ¤hlen.'
+                ? context.tr("Mindestens eine richtige Antwort wÃ¤hlen.")
                 : null,
             builder: (field) => Column(
               children: [
@@ -466,7 +481,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
                 _options.any((option) => option.id == _correctOptionId)
                 ? _correctOptionId
                 : null,
-            decoration: const InputDecoration(labelText: 'Correct option'),
+            decoration: InputDecoration(
+              labelText: context.tr("Correct option"),
+            ),
             items: [
               for (final option in _options)
                 DropdownMenuItem(value: option.id, child: Text(option.label)),
@@ -476,7 +493,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               _correctOptionIds = [?value];
             }),
             validator: (value) => value == null
-                ? 'Choose an option as the correct answer.'
+                ? context.tr("Choose an option as the correct answer.")
                 : null,
           ),
       ],
@@ -484,15 +501,15 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   );
 
   Widget _buzzerPanel() => PanelCard(
-    title: 'Buzzer answer',
+    title: context.tr("Buzzer answer"),
     icon: Icons.record_voice_over_outlined,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextFormField(
           controller: _expectedAnswerController,
-          decoration: const InputDecoration(
-            labelText: 'Expected answer (optional)',
+          decoration: InputDecoration(
+            labelText: context.tr("Expected answer (optional)"),
           ),
           minLines: 2,
           maxLines: 3,
@@ -502,30 +519,34 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
           contentPadding: EdgeInsets.zero,
           value: _lockOutOnMiss,
           onChanged: (value) => setState(() => _lockOutOnMiss = value),
-          title: const Text('Lock out a player after a wrong answer'),
+          title: Text(context.tr("Lock out a player after a wrong answer")),
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
           value: _hostEndsRound,
           onChanged: (value) => setState(() => _hostEndsRound = value),
-          title: const Text('Nur durch Spielleiter beenden'),
-          subtitle: const Text(
-            'Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.',
+          title: Text(context.tr("Nur durch Spielleiter beenden")),
+          subtitle: Text(
+            context.tr(
+              "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.",
+            ),
           ),
         ),
         TextFormField(
           controller: _retryLimitController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Empfohlene Wiederholungen (optional)',
-            helperText: 'Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.',
+          decoration: InputDecoration(
+            labelText: context.tr("Empfohlene Wiederholungen (optional)"),
+            helperText: context.tr(
+              "Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.",
+            ),
             helperMaxLines: 3,
           ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) return null;
             final count = int.tryParse(value.trim());
             return count == null || count < 0
-                ? 'Bitte eine ganze Zahl ab 0 eingeben.'
+                ? context.tr("Bitte eine ganze Zahl ab 0 eingeben.")
                 : null;
           },
         ),
@@ -534,26 +555,26 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   );
 
   Widget _scoringPanel() => PanelCard(
-    title: 'Scoring rule',
+    title: context.tr("Scoring rule"),
     icon: Icons.stars_outlined,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         DropdownButtonFormField<_ScoringRuleKind>(
           initialValue: _scoringKind,
-          decoration: const InputDecoration(labelText: 'Rule'),
-          items: const [
+          decoration: InputDecoration(labelText: context.tr("Rule")),
+          items: [
             DropdownMenuItem(
               value: _ScoringRuleKind.fixed,
-              child: Text('Fixed points'),
+              child: Text(context.tr("Fixed points")),
             ),
             DropdownMenuItem(
               value: _ScoringRuleKind.speedBonus,
-              child: Text('Speed bonus'),
+              child: Text(context.tr("Speed bonus")),
             ),
             DropdownMenuItem(
               value: _ScoringRuleKind.firstBuzzer,
-              child: Text('First buzzer'),
+              child: Text(context.tr("First buzzer")),
             ),
           ],
           onChanged: (value) => setState(() => _scoringKind = value!),
@@ -561,23 +582,41 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         const SizedBox(height: 12),
         ...switch (_scoringKind) {
           _ScoringRuleKind.fixed => [
-            _pointField(_primaryPointsController, 'Correct points'),
+            _pointField(_primaryPointsController, context.tr("Correct points")),
             const SizedBox(height: 12),
-            _pointField(_secondaryPointsController, 'Wrong-answer points'),
+            _pointField(
+              _secondaryPointsController,
+              context.tr("Wrong-answer points"),
+            ),
           ],
           _ScoringRuleKind.speedBonus => [
-            _pointField(_primaryPointsController, 'Base points'),
+            _pointField(_primaryPointsController, context.tr("Base points")),
             const SizedBox(height: 12),
-            _pointField(_secondaryPointsController, 'Maximum speed bonus'),
+            _pointField(
+              _secondaryPointsController,
+              context.tr("Maximum speed bonus"),
+            ),
             const SizedBox(height: 12),
-            _pointField(_tertiaryPointsController, 'Wrong-answer points'),
+            _pointField(
+              _tertiaryPointsController,
+              context.tr("Wrong-answer points"),
+            ),
           ],
           _ScoringRuleKind.firstBuzzer => [
-            _pointField(_primaryPointsController, 'First-buzzer points'),
+            _pointField(
+              _primaryPointsController,
+              context.tr("First-buzzer points"),
+            ),
             const SizedBox(height: 12),
-            _pointField(_secondaryPointsController, 'Wrong-answer penalty'),
+            _pointField(
+              _secondaryPointsController,
+              context.tr("Wrong-answer penalty"),
+            ),
             const SizedBox(height: 12),
-            _pointField(_tertiaryPointsController, 'Points lost per rank'),
+            _pointField(
+              _tertiaryPointsController,
+              context.tr("Points lost per rank"),
+            ),
           ],
         },
       ],
@@ -589,7 +628,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         controller: controller,
         decoration: InputDecoration(labelText: label),
         keyboardType: const TextInputType.numberWithOptions(signed: true),
-        validator: _integer('Enter a whole number.'),
+        validator: _integer(context.tr("Enter a whole number.")),
       );
 
   void _addOption() {
@@ -601,7 +640,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     setState(() {
       _options = [
         ..._options,
-        _OptionDraft(id, 'Option ${_options.length + 1}'),
+        _OptionDraft(id, context.tr("Option {0}", [_options.length + 1])),
       ];
       _correctOptionId ??= id;
     });
@@ -622,9 +661,13 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     try {
       _saveValid();
     } on Object catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Bitte Eingaben prüfen: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr("Bitte Eingaben prüfen: {0}", [context.tr('$error')]),
+          ),
+        ),
+      );
     }
   }
 
@@ -684,8 +727,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
     ];
     if (errors.isNotEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(errors.join(' '))));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errors.map(context.tr).join(' '))));
       return;
     }
     Navigator.of(context).pop(question);
@@ -749,15 +793,17 @@ class _OptionField extends StatelessWidget {
         Expanded(
           child: TextFormField(
             initialValue: option.label,
-            decoration: InputDecoration(labelText: 'Option ${index + 1}'),
+            decoration: InputDecoration(
+              labelText: context.tr("Option {0}", [index + 1]),
+            ),
             onChanged: onChanged,
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter an option label.'
+                ? context.tr("Enter an option label.")
                 : null,
           ),
         ),
         IconButton(
-          tooltip: 'Remove option',
+          tooltip: context.tr("Remove option"),
           onPressed: onRemove,
           icon: const Icon(Icons.remove_circle_outline),
         ),

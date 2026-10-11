@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../core/protocol/messages.dart';
 
 class TeamJoinView extends StatefulWidget {
@@ -48,24 +50,34 @@ class _TeamJoinViewState extends State<TeamJoinView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Team auswählen',
+                context.tr("Team auswählen"),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Tritt einem bestehenden Team bei oder erstelle dein eigenes.',
+              Text(
+                context.tr(
+                  "Tritt einem bestehenden Team bei oder erstelle dein eigenes.",
+                ),
               ),
               const SizedBox(height: 24),
-              if (lobby.teams.isEmpty) const Text('Es gibt noch keine Teams.'),
+              if (lobby.teams.isEmpty)
+                Text(context.tr("Es gibt noch keine Teams.")),
               DropdownButtonFormField<String>(
                 key: ValueKey(selected),
                 initialValue: selected,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Team'),
-                hint: Text(lobby.requiresTeam ? 'Team wählen' : 'Solo'),
+                decoration: InputDecoration(labelText: context.tr("Team")),
+                hint: Text(
+                  lobby.requiresTeam
+                      ? context.tr("Team wählen")
+                      : context.tr("Solo"),
+                ),
                 items: [
                   if (!lobby.requiresTeam)
-                    const DropdownMenuItem(value: '', child: Text('Solo')),
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text(context.tr("Solo")),
+                    ),
                   for (final team in lobby.teams.values)
                     DropdownMenuItem(
                       value: team.id,
@@ -82,14 +94,16 @@ class _TeamJoinViewState extends State<TeamJoinView> {
                     widget.busy || (lobby.requiresTeam && selected == null)
                     ? null
                     : () => widget.onJoin(selected),
-                child: const Text('Spiel beitreten'),
+                child: Text(context.tr("Spiel beitreten")),
               ),
               const SizedBox(height: 24),
               TextField(
                 controller: _name,
                 enabled: !widget.busy,
                 maxLength: 60,
-                decoration: const InputDecoration(labelText: 'Neuer Teamname'),
+                decoration: InputDecoration(
+                  labelText: context.tr("Neuer Teamname"),
+                ),
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) {
                   if (!widget.busy && name.isNotEmpty) widget.onCreate(name);
@@ -100,20 +114,20 @@ class _TeamJoinViewState extends State<TeamJoinView> {
                     ? null
                     : () => widget.onCreate(name),
                 icon: const Icon(Icons.group_add_outlined),
-                label: const Text('Team erstellen und beitreten'),
+                label: Text(context.tr("Team erstellen und beitreten")),
               ),
               if (widget.busy) ...[
                 const SizedBox(height: 16),
                 const Center(child: CircularProgressIndicator()),
-                const Text(
-                  'Uhr synchronisieren und beitreten …',
+                Text(
+                  context.tr("Uhr synchronisieren und beitreten …"),
                   textAlign: TextAlign.center,
                 ),
               ],
               if (widget.error case final error?) ...[
                 const SizedBox(height: 16),
                 Text(
-                  error,
+                  context.tr(error),
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ],
@@ -153,22 +167,23 @@ class _TeamNameDialogState extends State<_TeamNameDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Team umbenennen'),
+    title: Text(context.tr("Team umbenennen")),
     content: Form(
       key: form,
       child: TextFormField(
         controller: controller,
         autofocus: true,
         maxLength: 60,
-        decoration: const InputDecoration(labelText: 'Teamname'),
-        validator: (value) =>
-            value == null || value.trim().isEmpty ? 'Teamnamen eingeben' : null,
+        decoration: InputDecoration(labelText: context.tr("Teamname")),
+        validator: (value) => value == null || value.trim().isEmpty
+            ? context.tr("Teamnamen eingeben")
+            : null,
       ),
     ),
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Abbrechen'),
+        child: Text(context.tr("Abbrechen")),
       ),
       FilledButton(
         onPressed: () {
@@ -176,7 +191,7 @@ class _TeamNameDialogState extends State<_TeamNameDialog> {
             Navigator.pop(context, controller.text.trim());
           }
         },
-        child: const Text('Speichern'),
+        child: Text(context.tr("Speichern")),
       ),
     ],
   );

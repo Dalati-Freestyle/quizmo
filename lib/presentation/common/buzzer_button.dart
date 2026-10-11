@@ -4,6 +4,9 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+
 import 'package:flutter/services.dart';
 
 /// Visual and functional state of a [BuzzerButton].
@@ -98,7 +101,7 @@ class _BuzzerButtonState extends State<BuzzerButton> {
     return Semantics(
       button: true,
       enabled: widget.mode == BuzzerMode.ready,
-      label: widget.label,
+      label: context.tr(widget.label),
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: _handlePointerDown,
@@ -130,7 +133,7 @@ class _BuzzerButtonState extends State<BuzzerButton> {
                   Icon(icon, size: 40, color: foreground),
                   const SizedBox(height: 8),
                   Text(
-                    widget.label,
+                    context.tr(widget.label),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: foreground,

@@ -3,6 +3,10 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+import '../settings/settings_page.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/models/models.dart';
@@ -81,7 +85,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
           previous.error != current.error,
       listener: (context, state) =>
           ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(state.error!))),
+              .showSnackBar(SnackBar(content: Text(context.tr(state.error!)))),
       builder: (context, state) {
         return Scaffold(
           appBar: AppBar(
@@ -91,17 +95,18 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                 const SizedBox(width: 12),
                 Flexible(
                   child: Text(
-                    state.serverName ?? 'Join a quiz',
+                    state.serverName ?? context.tr("Join a quiz"),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
             actions: [
+              const SettingsButton(),
               if (state.game?.teams[state.me?.teamId] case final team?
                   when state.isConnected)
                 IconButton(
-                  tooltip: 'Team umbenennen: ${team.name}',
+                  tooltip: context.tr("Team umbenennen: {0}", [team.name]),
                   icon: const Icon(Icons.drive_file_rename_outline),
                   onPressed: () async {
                     final name = await showTeamNameDialog(context, team.name);
@@ -125,7 +130,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                 ),
               if (state.isConnected || state.isChoosingTeam)
                 IconButton(
-                  tooltip: 'Leave',
+                  tooltip: context.tr("Leave"),
                   icon: const Icon(Icons.logout),
                   onPressed: () =>
                       context.read<PlayerSessionCubit>().disconnect(),
@@ -253,14 +258,16 @@ class _JoinFormState extends State<_JoinForm> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Join a session',
+                  context.tr("Join a session"),
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Enter the address shown on the quizmaster dashboard.',
+                  context.tr(
+                    "Enter the address shown on the quizmaster dashboard.",
+                  ),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -270,10 +277,12 @@ class _JoinFormState extends State<_JoinForm> {
                   key: _hostKey,
                   controller: _hostController,
                   keyboardType: TextInputType.url,
-                  decoration: const InputDecoration(
-                    labelText: 'Host address',
+                  decoration: InputDecoration(
+                    labelText: context.tr("Host address"),
                     prefixIcon: Icon(Icons.lan_outlined),
-                    helperText: 'for example http://192.168.1.42:8080',
+                    helperText: context.tr(
+                      "for example http://192.168.1.42:8080",
+                    ),
                   ),
                   validator: (value) {
                     final uri = Uri.tryParse(value?.trim() ?? '');
@@ -281,7 +290,7 @@ class _JoinFormState extends State<_JoinForm> {
                         !['http', 'https'].contains(uri.scheme) ||
                         uri.host.isEmpty ||
                         uri.userInfo.isNotEmpty) {
-                      return 'Enter a full URL including http://';
+                      return context.tr("Enter a full URL including http://");
                     }
                     return null;
                   },
@@ -290,12 +299,13 @@ class _JoinFormState extends State<_JoinForm> {
                 TextFormField(
                   controller: _nameController,
                   textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: 'Your name',
+                  decoration: InputDecoration(
+                    labelText: context.tr("Your name"),
                     prefixIcon: Icon(Icons.badge_outlined),
                   ),
-                  validator: (value) =>
-                      (value?.trim().isEmpty ?? true) ? 'Pick a name' : null,
+                  validator: (value) => (value?.trim().isEmpty ?? true)
+                      ? context.tr("Pick a name")
+                      : null,
                   onFieldSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: 16),
@@ -310,20 +320,20 @@ class _JoinFormState extends State<_JoinForm> {
                       : const Icon(Icons.login),
                   label: Text(
                     isBusy
-                        ? 'Verbindung wird hergestellt …'
-                        : 'Weiter zur Teamauswahl',
+                        ? context.tr("Verbindung wird hergestellt …")
+                        : context.tr("Weiter zur Teamauswahl"),
                   ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: isBusy ? null : _spectate,
                   icon: const Icon(Icons.tv),
-                  label: const Text('Just watch (TV view)'),
+                  label: Text(context.tr("Just watch (TV view)")),
                 ),
                 if (widget.state.error case final error?) ...[
                   const SizedBox(height: 16),
                   Text(
-                    error,
+                    context.tr(error),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.error,
@@ -372,7 +382,9 @@ class _GameBoard extends StatelessWidget {
             child: Column(
               children: [
                 PanelCard(
-                  title: game.poker == null ? 'Standings' : 'Pokerchips',
+                  title: game.poker == null
+                      ? context.tr("Standings")
+                      : context.tr("Pokerchips"),
                   icon: Icons.leaderboard_outlined,
                   child: ScoreboardView(
                     game: game,
@@ -381,23 +393,26 @@ class _GameBoard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 PanelCard(
-                  title: 'Connection',
+                  title: context.tr("Connection"),
                   icon: Icons.wifi_tethering,
                   child: Column(
                     children: [
                       InfoRow(
-                        label: 'Latency',
+                        label: context.tr("Latency"),
                         value: state.roundTripMicros == 0
                             ? '—'
                             : formatMicrosAsMillis(state.roundTripMicros ~/ 2),
                       ),
                       InfoRow(
-                        label: 'Clock offset',
+                        label: context.tr("Clock offset"),
                         value: formatSignedMicrosAsMillis(
                           state.clockOffsetMicros,
                         ),
                       ),
-                      InfoRow(label: 'Player', value: state.me?.name ?? '—'),
+                      InfoRow(
+                        label: context.tr("Player"),
+                        value: state.me?.name ?? '—',
+                      ),
                     ],
                   ),
                 ),
@@ -436,15 +451,16 @@ class _QuestionStage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Waiting for the quizmaster…',
+            context.tr("Waiting for the quizmaster…"),
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
             state.roundTripMicros == 0
-                ? 'Clock sync pending'
-                : 'Clock synced · latency '
-                      '${formatMicrosAsMillis(state.roundTripMicros ~/ 2)}',
+                ? context.tr("Clock sync pending")
+                : context.tr("Clock synced · latency {0}", [
+                    formatMicrosAsMillis(state.roundTripMicros ~/ 2),
+                  ]),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -586,10 +602,12 @@ class _QuestionStage extends StatelessWidget {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           if (state.lastSubmittedOptionId != null)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 8),
               child: Text(
-                'Antwort eingeloggt. Sie kann nicht mehr geändert werden.',
+                context.tr(
+                  "Antwort eingeloggt. Sie kann nicht mehr geändert werden.",
+                ),
               ),
             ),
           const SizedBox(height: 24),
@@ -608,7 +626,13 @@ class _QuestionStage extends StatelessWidget {
           const SizedBox(height: 24),
           if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
-            Text('Lösung: ${question.solutionLabel}'),
+            Text(
+              context.tr("Lösung: {0}", [
+                question is TrueFalseQuestion
+                    ? context.tr(question.solutionLabel)
+                    : question.solutionLabel,
+              ]),
+            ),
           QuestionMediaView(
             media: question.solutionMedia,
             baseUri: cubit.mediaBaseUri,
@@ -623,10 +647,15 @@ class _QuestionStage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            '${poker.chips[state.me?.teamId] ?? 0} Chips · Einsatz: ${poker.wagers[state.me?.teamId] ?? 0}',
+            context.tr("{0} Chips · Einsatz: {1}", [
+              poker.chips[state.me?.teamId] ?? 0,
+              poker.wagers[state.me?.teamId] ?? 0,
+            ]),
           ),
           if (!state.mayAnswerPoker && state.roundStatus.acceptsInput)
-            const Text('Dein Team setzt aus oder wurde bereits gewertet.'),
+            Text(
+              context.tr("Dein Team setzt aus oder wurde bereits gewertet."),
+            ),
           const SizedBox(height: 12),
           AbsorbPointer(absorbing: !state.mayAnswerPoker, child: view),
         ],
@@ -675,11 +704,12 @@ class _PlayerBoard extends StatelessWidget {
       children: [
         Text(
           isDailyDouble
-              ? 'Daily Double! ${picker ?? 'The picking team'} '
-                    'is placing a wager…'
+              ? context.tr("Daily Double! {0} is placing a wager…", [
+                  picker ?? context.tr('The picking team'),
+                ])
               : picker == null
-              ? 'Waiting for the next question…'
-              : '$picker picks the next question',
+              ? context.tr("Waiting for the next question…")
+              : context.tr("{0} picks the next question", [picker]),
           textAlign: TextAlign.center,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
@@ -688,14 +718,19 @@ class _PlayerBoard extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           jeopardy.pendingPickQuestionId != null
-              ? 'Fragenauswahl wartet auf Bestätigung durch den Spielleiter.'
+              ? context.tr(
+                  "Fragenauswahl wartet auf Bestätigung durch den Spielleiter.",
+                )
               : !game.isStarted
-              ? 'Warte auf den Start durch den Spielleiter.'
+              ? context.tr("Warte auf den Start durch den Spielleiter.")
               : mayPick
               ? (game.mode is TeamMode
-                    ? 'Dein Team ist dran! Wählt die nächste Frage.'
-                    : 'Du bist dran! Wähle die nächste Frage.')
-              : '${game.participantName(jeopardy.currentTeamId) ?? "Der nächste Teilnehmer"} ist dran.',
+                    ? context.tr("Dein Team ist dran! Wählt die nächste Frage.")
+                    : context.tr("Du bist dran! Wähle die nächste Frage."))
+              : context.tr("{0} ist dran.", [
+                  game.participantName(jeopardy.currentTeamId) ??
+                      context.tr("Der nächste Teilnehmer"),
+                ]),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
@@ -761,8 +796,10 @@ class _PlayerJeopardyBanner extends StatelessWidget {
                   ? const Icon(Icons.star, size: 16)
                   : null,
               label: Text(
-                '${jeopardy.activePoints} pts'
-                '${jeopardy.activeIsDailyDouble ? ' · Daily Double' : ''}',
+                context.tr("{0} pts{1}", [
+                  jeopardy.activePoints,
+                  jeopardy.activeIsDailyDouble ? ' · Daily Double' : '',
+                ]),
               ),
             ),
           ],
@@ -771,14 +808,14 @@ class _PlayerJeopardyBanner extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             game.round.buzzerOpenForAll
-                ? 'Buzzer für alle freigegeben.'
+                ? context.tr("Buzzer für alle freigegeben.")
                 : mayAnswer
                 ? (jeopardy.isStealRound
-                      ? 'Steal! Your team may answer now.'
-                      : 'Your team answers.')
+                      ? context.tr("Steal! Your team may answer now.")
+                      : context.tr("Your team answers."))
                 : (jeopardy.isStealRound
-                      ? 'Steal round: only the other teams answer.'
-                      : '$picker answers first.'),
+                      ? context.tr("Steal round: only the other teams answer.")
+                      : context.tr("{0} answers first.", [picker])),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
@@ -823,21 +860,27 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 16),
-        Text('Pokerchips · $chips Chips verfügbar'),
+        Text(context.tr("Pokerchips · {0} Chips verfügbar", [chips])),
         const SizedBox(height: 16),
         if (team == null)
-          const Text('Der Quizmaster muss dich einem Team zuweisen.')
+          Text(context.tr("Der Quizmaster muss dich einem Team zuweisen."))
         else if (wager != null)
-          Text('Teameinsatz: $wager Chips. Warte auf die Antwortphase.')
+          Text(
+            context.tr("Teameinsatz: {0} Chips. Warte auf die Antwortphase.", [
+              wager,
+            ]),
+          )
         else if (chips == 0)
-          const Text('Keine Chips mehr. Dein Team setzt aus.')
+          Text(context.tr("Keine Chips mehr. Dein Team setzt aus."))
         else ...[
           TextField(
             controller: _controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Einsatz (0–$chips)',
-              helperText: 'Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.',
+              labelText: context.tr("Einsatz (0–{0})", [chips]),
+              helperText: context.tr(
+                "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.",
+              ),
               helperMaxLines: 4,
             ),
             onChanged: (_) => setState(() {}),
@@ -847,7 +890,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
             onPressed: value != null && value >= 0 && value <= chips
                 ? () => widget.onWager(value)
                 : null,
-            child: const Text('Teameinsatz bestätigen'),
+            child: Text(context.tr("Teameinsatz bestätigen")),
           ),
           TextButton(
             onPressed: () => widget.onWager(chips),
@@ -891,9 +934,12 @@ class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
             controller: controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Daily Double: Einsatz (1–${widget.maxWager})',
-              helperText:
-                  'Bei einer falschen Antwort verliert dein Team den Einsatz.',
+              labelText: context.tr("Daily Double: Einsatz (1–{0})", [
+                widget.maxWager,
+              ]),
+              helperText: context.tr(
+                "Bei einer falschen Antwort verliert dein Team den Einsatz.",
+              ),
               helperMaxLines: 3,
             ),
             onChanged: (_) => setState(() {}),
@@ -903,7 +949,7 @@ class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
             onPressed: wager != null && wager >= 1 && wager <= widget.maxWager
                 ? () => widget.onWager(wager)
                 : null,
-            child: const Text('Einsatz bestätigen & Frage öffnen'),
+            child: Text(context.tr("Einsatz bestätigen & Frage öffnen")),
           ),
         ],
       ),

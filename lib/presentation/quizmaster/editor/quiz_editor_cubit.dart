@@ -389,7 +389,7 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
       emit(state.copyWith(draft: draft, clearError: true));
 
   static String _errorMessage(Object error) => switch (error) {
-    QuizValidationException(:final messages) => messages.join(' '),
+    QuizValidationException(:final messages) => messages.join('\n'),
     QuizRepositoryException(:final message) => message,
     _ => 'Could not save this quiz: $error',
   };

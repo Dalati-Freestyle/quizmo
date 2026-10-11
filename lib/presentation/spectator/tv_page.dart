@@ -29,6 +29,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+import '../settings/settings_page.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -229,6 +233,11 @@ class _TvViewState extends State<_TvView> {
                   ),
                 ),
               ),
+              const Positioned(
+                top: 12,
+                left: 12,
+                child: SafeArea(child: SettingsButton()),
+              ),
               if (Navigator.of(context).canPop())
                 // SafeArea keeps the button clear of the status bar and
                 // display cutouts, where it could not be tapped.
@@ -239,7 +248,7 @@ class _TvViewState extends State<_TvView> {
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: IconButton.filledTonal(
-                          tooltip: 'Close TV view',
+                          tooltip: context.tr("Close TV view"),
                           iconSize: 28,
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.of(context).maybePop(),
@@ -311,7 +320,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final mode = state.game?.mode.label;
+    final mode = state.game == null ? null : context.tr(state.game!.mode.label);
 
     return SizedBox(
       height: 72,
@@ -360,9 +369,11 @@ class _ConnectionPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (label, color) = state.isConnected
-        ? ('LIVE', Colors.green)
+        ? (context.tr("LIVE"), Colors.green)
         : (
-            state.reconnectAttempt == 0 ? 'CONNECTING' : 'RECONNECTING',
+            state.reconnectAttempt == 0
+                ? context.tr("CONNECTING")
+                : context.tr("RECONNECTING"),
             scheme.tertiary,
           );
     return _Pill(
@@ -469,8 +480,8 @@ class _ConnectingStage extends StatelessWidget {
             const SizedBox(height: 40),
             Text(
               hasFailed
-                  ? 'Host not reachable — retrying…'
-                  : 'Connecting to the quiz…',
+                  ? context.tr("Host not reachable — retrying…")
+                  : context.tr("Connecting to the quiz…"),
               style: theme.textTheme.displaySmall?.copyWith(
                 fontSize: 56,
                 fontWeight: FontWeight.w700,
@@ -488,8 +499,9 @@ class _ConnectingStage extends StatelessWidget {
             if (hasFailed) ...[
               const SizedBox(height: 20),
               Text(
-                'Make sure the TV and the quizmaster are on the same network '
-                'and the host server is running.',
+                context.tr(
+                  "Make sure the TV and the quizmaster are on the same network and the host server is running.",
+                ),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 28,
@@ -591,7 +603,7 @@ class _JeopardyBoardStage extends StatelessWidget {
           children: [
             if (remaining == 0)
               Text(
-                'Board cleared — check the standings!',
+                context.tr("Board cleared — check the standings!"),
                 style: theme.textTheme.displaySmall?.copyWith(
                   fontSize: 48,
                   fontWeight: FontWeight.w800,
@@ -599,14 +611,14 @@ class _JeopardyBoardStage extends StatelessWidget {
               )
             else if (pickerName != null)
               _Pill(
-                label: '$pickerName picks the next question',
+                label: context.tr("{0} picks the next question", [pickerName]),
                 color: Color(picker?.colorValue ?? 0xff1565c0)
                     .withValues(alpha: 0.35),
                 dotColor: Color(picker?.colorValue ?? 0xff1565c0),
               ),
             if (isOpening)
               Text(
-                'Join: ${joinUri.authority}',
+                context.tr("Join: {0}", [joinUri.authority]),
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
@@ -654,7 +666,7 @@ class _DailyDoubleStage extends StatelessWidget {
           Icon(Icons.star, size: 200, color: scheme.tertiary),
           const SizedBox(height: 16),
           Text(
-            'DAILY DOUBLE',
+            context.tr("DAILY DOUBLE"),
             style: theme.textTheme.displayLarge?.copyWith(
               fontSize: 120,
               fontWeight: FontWeight.w900,
@@ -666,7 +678,9 @@ class _DailyDoubleStage extends StatelessWidget {
             _Pill(label: category, color: scheme.tertiaryContainer),
           const SizedBox(height: 32),
           Text(
-            '${pickerName ?? 'The picking team'}, place your wager!',
+            context.tr("{0}, place your wager!", [
+              pickerName ?? context.tr('The picking team'),
+            ]),
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 56,
@@ -698,7 +712,9 @@ class _LobbyStage extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          hasPlayed ? 'Next question coming up…' : 'Get ready to play!',
+          hasPlayed
+              ? context.tr("Next question coming up…")
+              : context.tr("Get ready to play!"),
           textAlign: TextAlign.center,
           style: theme.textTheme.displaySmall?.copyWith(
             fontSize: 64,
@@ -723,7 +739,7 @@ class _LobbyStage extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 backgroundColor: Colors.white,
                 errorCorrectionLevel: QrErrorCorrectLevel.M,
-                semanticsLabel: 'QR code to join at $joinUri',
+                semanticsLabel: context.tr("QR code to join at {0}", [joinUri]),
               ),
             ),
             const SizedBox(width: 56),
@@ -732,7 +748,7 @@ class _LobbyStage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Scan to join with your phone',
+                    context.tr("Scan to join with your phone"),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontSize: 30,
                       color: scheme.onSurfaceVariant,
@@ -740,7 +756,7 @@ class _LobbyStage extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'or open',
+                    context.tr("or open"),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontSize: 30,
                       color: scheme.onSurfaceVariant,
@@ -764,9 +780,13 @@ class _LobbyStage extends StatelessWidget {
         const SizedBox(height: 40),
         Text(
           online.isEmpty
-              ? 'Waiting for the first player…'
-              : '${online.length} ${online.length == 1 ? 'player' : 'players'} '
-                    'online',
+              ? context.tr("Waiting for the first player…")
+              : context.tr("{0} {1} online", [
+                  online.length,
+                  online.length == 1
+                      ? context.tr("player")
+                      : context.tr("players"),
+                ]),
           style: theme.textTheme.headlineSmall?.copyWith(
             fontSize: 34,
             fontWeight: FontWeight.w600,
@@ -831,37 +851,39 @@ class _QuestionStage extends StatelessWidget {
                   if (game.poker case final poker?)
                     _Pill(
                       label: poker.betting
-                          ? 'POKERCHIPS · EINSÄTZE'
-                          : 'POKERCHIPS · ANTWORTEN',
+                          ? context.tr("POKERCHIPS · EINSÄTZE")
+                          : context.tr("POKERCHIPS · ANTWORTEN"),
                       color: scheme.primaryContainer,
                     ),
                   if (boardCategory ?? question.category case final category?)
                     _Pill(label: category, color: scheme.tertiaryContainer),
                   if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
                     _Pill(
-                      label: '${jeopardy.activePoints} pts',
+                      label: context.tr("{0} pts", [jeopardy.activePoints]),
                       color: scheme.primaryContainer,
                     ),
                     if (jeopardy.activeIsDailyDouble)
                       _Pill(
-                        label: 'DAILY DOUBLE',
+                        label: context.tr("DAILY DOUBLE"),
                         color: scheme.tertiary.withValues(alpha: 0.4),
                         dotColor: scheme.tertiary,
                       ),
                     if (pickerName != null && !isRevealed)
                       _Pill(
                         label: game.round.buzzerOpenForAll
-                            ? 'BUZZER: everyone may answer'
+                            ? context.tr("BUZZER: everyone may answer")
                             : jeopardy.isStealRound
-                            ? 'STEAL: everyone but $pickerName'
-                            : '$pickerName answers',
+                            ? context.tr("STEAL: everyone but {0}", [
+                                pickerName,
+                              ])
+                            : context.tr("{0} answers", [pickerName]),
                         color: Color(picker?.colorValue ?? 0xff1565c0)
                             .withValues(alpha: 0.35),
                         dotColor: Color(picker?.colorValue ?? 0xff1565c0),
                       ),
                   ] else
                     _Pill(
-                      label: question.kindLabel,
+                      label: context.tr(question.kindLabel),
                       color: scheme.secondaryContainer,
                     ),
                 ],
@@ -965,17 +987,17 @@ class _RoundStatusPill extends StatelessWidget {
     return switch (status) {
       RoundStatus.idle => const SizedBox.shrink(),
       RoundStatus.acceptingAnswers => _Pill(
-        label: 'OPEN',
+        label: context.tr("OPEN"),
         color: Colors.green.withValues(alpha: 0.25),
         dotColor: Colors.green,
       ),
       RoundStatus.locked => _Pill(
-        label: 'LOCKED',
+        label: context.tr("LOCKED"),
         color: scheme.tertiary.withValues(alpha: 0.25),
         dotColor: scheme.tertiary,
       ),
       RoundStatus.revealed => _Pill(
-        label: 'SOLUTION',
+        label: context.tr("SOLUTION"),
         color: scheme.primary.withValues(alpha: 0.25),
         dotColor: scheme.primary,
       ),
@@ -1047,7 +1069,7 @@ class _CountdownBarState extends State<_CountdownBar> {
           width: 130,
           child: Text(
             remaining == Duration.zero
-                ? "Time's up"
+                ? context.tr("Time's up")
                 : '${(remaining.inMilliseconds / 1000).ceil()} s',
             textAlign: TextAlign.end,
             style: theme.textTheme.displaySmall?.copyWith(
@@ -1127,8 +1149,10 @@ class _ChoiceBoard extends StatelessWidget {
         if (!isRevealed) ...[
           const SizedBox(height: 24),
           Text(
-            '${round.answers.length} of ${game.connectedPlayers.length} '
-            'answered',
+            context.tr("{0} of {1} answered", [
+              round.answers.length,
+              game.connectedPlayers.length,
+            ]),
             style: theme.textTheme.headlineSmall?.copyWith(
               fontSize: 32,
               color: theme.colorScheme.onSurfaceVariant,
@@ -1263,7 +1287,7 @@ class _BuzzerBoard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 24),
             child: Text(
-              '$activeName is answering…',
+              context.tr("{0} is answering…", [activeName]),
               style: theme.textTheme.displaySmall?.copyWith(
                 fontSize: 60,
                 fontWeight: FontWeight.w800,
@@ -1290,7 +1314,7 @@ class _BuzzerBoard extends StatelessWidget {
                           game
                               .players[round.buzzerQueue[index].playerId]
                               ?.name ??
-                          'Player',
+                          context.tr("Player"),
                       gap: round.gapToFastest(round.buzzerQueue[index]),
                       isActive:
                           round.activePlayerId ==
@@ -1389,7 +1413,7 @@ class _BuzzRow extends StatelessWidget {
           ),
           Text(
             index == 0
-                ? 'FASTEST'
+                ? context.tr("FASTEST")
                 : '+${formatMicrosAsMillis(gap.inMicroseconds)}',
             style: theme.textTheme.titleLarge?.copyWith(
               fontSize: 30,
@@ -1440,7 +1464,7 @@ class _PulsingBuzzerHintState extends State<_PulsingBuzzerHint>
           ),
           const SizedBox(height: 16),
           Text(
-            'Buzzers are armed!',
+            context.tr("Buzzers are armed!"),
             style: theme.textTheme.displaySmall?.copyWith(
               fontSize: 64,
               fontWeight: FontWeight.w800,
@@ -1448,7 +1472,7 @@ class _PulsingBuzzerHintState extends State<_PulsingBuzzerHint>
           ),
           const SizedBox(height: 12),
           Text(
-            'Be the first to hit your buzzer.',
+            context.tr("Be the first to hit your buzzer."),
             style: theme.textTheme.headlineSmall?.copyWith(
               fontSize: 34,
               color: scheme.onSurfaceVariant,
@@ -1527,7 +1551,9 @@ class _StandingsPanel extends StatelessWidget {
               Icon(Icons.leaderboard, size: 44, color: scheme.primary),
               const SizedBox(width: 16),
               Text(
-                game.poker == null ? 'Standings' : 'Pokerchips',
+                game.poker == null
+                    ? context.tr("Standings")
+                    : context.tr("Pokerchips"),
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontSize: 44,
                   fontWeight: FontWeight.w800,
@@ -1540,7 +1566,9 @@ class _StandingsPanel extends StatelessWidget {
             child: standings.entries.isEmpty
                 ? Center(
                     child: Text(
-                      game.mode is TeamMode ? 'No teams yet' : 'No players yet',
+                      game.mode is TeamMode
+                          ? context.tr("No teams yet")
+                          : context.tr("No players yet"),
                       style: theme.textTheme.headlineSmall?.copyWith(
                         fontSize: 32,
                         color: scheme.onSurfaceVariant,
@@ -1560,7 +1588,9 @@ class _StandingsPanel extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                '+${standings.hiddenCount} more',
+                                context.tr("+{0} more", [
+                                  standings.hiddenCount,
+                                ]),
                                 style: theme.textTheme.titleLarge?.copyWith(
                                   fontSize: 28,
                                   color: scheme.onSurfaceVariant,

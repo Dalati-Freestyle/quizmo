@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../core/models/models.dart';
 
 /// Sizing of a [JeopardyBoardView].
@@ -229,7 +231,7 @@ class JeopardyBoardView extends StatelessWidget {
                 label,
                 if (completed)
                   Text(
-                    winners[id] ?? 'Keine Punkte',
+                    winners[id] ?? context.tr("Keine Punkte"),
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

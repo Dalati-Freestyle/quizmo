@@ -8,6 +8,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'question_editor.dart';
@@ -49,17 +51,17 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
     };
 
     return PanelCard(
-      title: 'Jeopardy board',
+      title: context.tr("Jeopardy board"),
       icon: Icons.grid_view,
       trailing: Wrap(
         children: [
           IconButton(
-            tooltip: 'Add category (column)',
+            tooltip: context.tr("Add category (column)"),
             onPressed: cubit.addCategory,
             icon: const Icon(Icons.view_column_outlined),
           ),
           IconButton(
-            tooltip: 'Add point level (row)',
+            tooltip: context.tr("Add point level (row)"),
             onPressed: cubit.addRow,
             icon: const Icon(Icons.table_rows_outlined),
           ),
@@ -73,28 +75,29 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
             value: board.penalizeWrongAnswers,
             onChanged: (value) =>
                 cubit.updateBoardRules(penalizeWrongAnswers: value),
-            title: const Text('Wrong answers cost points'),
-            subtitle: const Text(
-              'A wrong answer loses the points of the row. '
-              'A Daily Double always risks the wager.',
+            title: Text(context.tr("Wrong answers cost points")),
+            subtitle: Text(
+              context.tr(
+                "A wrong answer loses the points of the row. A Daily Double always risks the wager.",
+              ),
             ),
           ),
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
             value: board.allowSteal,
             onChanged: (value) => cubit.updateBoardRules(allowSteal: value),
-            title: const Text('Other teams may steal'),
-            subtitle: const Text(
-              'The picking team answers first; after a miss the other teams '
-              'may answer. Off: the question ends after the first miss.',
+            title: Text(context.tr("Other teams may steal")),
+            subtitle: Text(
+              context.tr(
+                "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.",
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'The points of a cell come from its row; the scoring rule of the '
-            'question itself is ignored on the board. Tap a category or a row '
-            'label to rename it, a cell to edit its question, the star to '
-            'make it a Daily Double.',
+            context.tr(
+              "The points of a cell come from its row; the scoring rule of the question itself is ignored on the board. Tap a category or a row label to rename it, a cell to edit its question, the star to make it a Daily Double.",
+            ),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -153,11 +156,11 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
     final result = await showDialog<_EditResult>(
       context: context,
       builder: (_) => _EditDialog(
-        title: 'Category',
-        label: 'Category name',
+        title: context.tr("Category"),
+        label: context.tr("Category name"),
         initialValue: board.categories[index].name,
         deleteLabel: board.categories.length > 1
-            ? 'Delete category and its questions'
+            ? context.tr("Delete category and its questions")
             : null,
       ),
     );
@@ -173,11 +176,13 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
     final result = await showDialog<_EditResult>(
       context: context,
       builder: (_) => _EditDialog(
-        title: 'Row ${row + 1}',
-        label: 'Points of this row',
+        title: context.tr("Row {0}", [row + 1]),
+        label: context.tr("Points of this row"),
         initialValue: '${board.rowPoints[row]}',
         isNumber: true,
-        deleteLabel: board.rowCount > 1 ? 'Delete row and its questions' : null,
+        deleteLabel: board.rowCount > 1
+            ? context.tr("Delete row and its questions")
+            : null,
       ),
     );
     if (result == null) return;
@@ -214,7 +219,7 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add question'),
+          title: Text(context.tr("Add question")),
           content: SizedBox(
             width: 360,
             child: QuestionTemplateDropdown(
@@ -225,13 +230,13 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: Text(context.tr("Cancel")),
             ),
             FilledButton(
               onPressed: selected == null
                   ? null
                   : () => Navigator.of(dialogContext).pop(selected),
-              child: const Text('Add question'),
+              child: Text(context.tr("Add question")),
             ),
           ],
         ),
@@ -265,7 +270,7 @@ class _CategoryHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    name.trim().isEmpty ? 'Unnamed' : name,
+                    name.trim().isEmpty ? context.tr("Unnamed") : name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -358,7 +363,7 @@ class _CellTile extends StatelessWidget {
                       Icon(Icons.add, size: 18, color: scheme.outline),
                       const SizedBox(width: 4),
                       Text(
-                        'Add question',
+                        context.tr("Add question"),
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: scheme.outline,
                         ),
@@ -374,7 +379,7 @@ class _CellTile extends StatelessWidget {
                       Expanded(
                         child: Text(
                           current.prompt.isEmpty
-                              ? 'Untitled question'
+                              ? context.tr("Untitled question")
                               : current.prompt,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -385,7 +390,7 @@ class _CellTile extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              current.kindLabel,
+                              context.tr(current.kindLabel),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.labelSmall?.copyWith(
@@ -395,8 +400,8 @@ class _CellTile extends StatelessWidget {
                           ),
                           IconButton(
                             tooltip: cell.isDailyDouble
-                                ? 'Remove Daily Double'
-                                : 'Make Daily Double',
+                                ? context.tr("Remove Daily Double")
+                                : context.tr("Make Daily Double"),
                             visualDensity: VisualDensity.compact,
                             iconSize: 18,
                             onPressed: onToggleDailyDouble,
@@ -410,7 +415,7 @@ class _CellTile extends StatelessWidget {
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Remove question',
+                            tooltip: context.tr("Remove question"),
                             visualDensity: VisualDensity.compact,
                             iconSize: 18,
                             onPressed: onClear,
@@ -490,9 +495,9 @@ class _EditDialogState extends State<_EditDialog> {
         ),
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        child: Text(context.tr("Cancel")),
       ),
-      FilledButton(onPressed: _save, child: const Text('Save')),
+      FilledButton(onPressed: _save, child: Text(context.tr("Save"))),
     ],
   );
 }

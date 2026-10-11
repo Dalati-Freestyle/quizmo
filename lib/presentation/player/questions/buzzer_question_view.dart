@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 import '../../../core/sync/clock.dart';
 import '../../common/buzzer_button.dart';
@@ -62,11 +64,13 @@ class BuzzerQuestionView extends StatelessWidget {
     };
 
     final hint = switch (mode) {
-      BuzzerMode.won => 'You have the floor — answer out loud!',
+      BuzzerMode.won => context.tr("You have the floor — answer out loud!"),
       BuzzerMode.submitted =>
-        rank >= 0 ? 'Queued at position ${rank + 1}' : 'Sent…',
-      BuzzerMode.locked when isLockedOut => 'Locked out this round',
-      BuzzerMode.locked => 'Buzzer closed',
+        rank >= 0
+            ? context.tr("Queued at position {0}", [rank + 1])
+            : context.tr("Sent…"),
+      BuzzerMode.locked when isLockedOut => context.tr("Locked out this round"),
+      BuzzerMode.locked => context.tr("Buzzer closed"),
       BuzzerMode.ready => null,
     };
 
@@ -99,7 +103,7 @@ class BuzzerQuestionView extends StatelessWidget {
             question.expectedAnswer != null) ...[
           const SizedBox(height: 16),
           Text(
-            'Answer: ${question.expectedAnswer}',
+            context.tr("Answer: {0}", [question.expectedAnswer]),
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
@@ -135,9 +139,11 @@ class _LatencyBadge extends StatelessWidget {
         ),
         child: Text(
           roundTripMicros == 0
-              ? 'Clock not synced yet'
-              : 'Latency ${formatMicrosAsMillis(roundTripMicros ~/ 2)} · '
-                    'clock offset ${formatSignedMicrosAsMillis(clockOffsetMicros)}',
+              ? context.tr("Clock not synced yet")
+              : context.tr("Latency {0} · clock offset {1}", [
+                  formatMicrosAsMillis(roundTripMicros ~/ 2),
+                  formatSignedMicrosAsMillis(clockOffsetMicros),
+                ]),
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontFeatures: const [FontFeature.tabularFigures()],

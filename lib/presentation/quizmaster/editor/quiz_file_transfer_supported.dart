@@ -9,9 +9,11 @@ import '../../../core/data/quiz_import_export.dart';
 import '../../../core/models/models.dart';
 
 /// Opens a picker and returns a quiz document, or `null` on cancel.
-Future<String?> pickQuizJson() async {
+Future<String?> pickQuizJson({
+  String dialogTitle = 'Import Quizmo quiz (including media)',
+}) async {
   final file = await FilePicker.pickFile(
-    dialogTitle: 'Import Quizmo quiz (including media)',
+    dialogTitle: dialogTitle,
     type: FileType.custom,
     allowedExtensions: const ['json'],
   );
@@ -25,9 +27,12 @@ Future<String?> pickQuizJson() async {
 }
 
 /// Saves or downloads a complete quiz file, returning `false` on cancel.
-Future<bool> exportQuizFile(Quiz quiz) async {
+Future<bool> exportQuizFile(
+  Quiz quiz, {
+  String dialogTitle = 'Export Quizmo quiz (including media)',
+}) async {
   final saved = await FilePicker.saveFile(
-    dialogTitle: 'Export Quizmo quiz (including media)',
+    dialogTitle: dialogTitle,
     fileName: '${_fileStem(quiz.name)}.quizmo.json',
     bytes: utf8.encode(exportQuizJson(quiz)),
     mimeType: 'application/json',

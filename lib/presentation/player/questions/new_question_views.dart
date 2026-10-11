@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 
 class ShortAnswerQuestionView extends StatefulWidget {
@@ -35,7 +37,7 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
         controller: controller,
         enabled: widget.enabled,
         maxLength: 2000,
-        decoration: const InputDecoration(labelText: 'Deine Antwort'),
+        decoration: InputDecoration(labelText: context.tr("Deine Antwort")),
         onChanged: (_) => setState(() {}),
         onSubmitted: (_) => submit(),
       ),
@@ -44,7 +46,7 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
         onPressed: widget.enabled && controller.text.trim().isNotEmpty
             ? submit
             : null,
-        child: const Text('Antwort senden'),
+        child: Text(context.tr("Antwort senden")),
       ),
     ],
   );
@@ -96,12 +98,12 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
               Expanded(child: Text(item.label)),
               const SizedBox(width: 8),
               IconButton(
-                tooltip: '${item.label} nach oben',
+                tooltip: context.tr("{0} nach oben", [item.label]),
                 onPressed: widget.enabled && i > 0 ? () => move(i, -1) : null,
                 icon: const Icon(Icons.arrow_upward),
               ),
               IconButton(
-                tooltip: '${item.label} nach unten',
+                tooltip: context.tr("{0} nach unten", [item.label]),
                 onPressed: widget.enabled && i < items.length - 1
                     ? () => move(i, 1)
                     : null,
@@ -115,7 +117,7 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
         onPressed: widget.enabled
             ? () => widget.onSubmit(items.map((i) => i.id).toList())
             : null,
-        child: const Text('Reihenfolge senden'),
+        child: Text(context.tr("Reihenfolge senden")),
       ),
     ],
   );
@@ -167,9 +169,11 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                     isExpanded: true,
                     isDense: false,
                     itemHeight: null,
-                    decoration: const InputDecoration(labelText: 'Zuordnen'),
+                    decoration: InputDecoration(
+                      labelText: context.tr("Zuordnen"),
+                    ),
                     selectedItemBuilder: (context) => [
-                      if (pairs[left.id] != null) const Text('Zuordnen'),
+                      if (pairs[left.id] != null) Text(context.tr("Zuordnen")),
                       for (final right in options)
                         Align(
                           alignment: AlignmentDirectional.centerStart,
@@ -178,9 +182,9 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                     ],
                     items: [
                       if (pairs[left.id] != null)
-                        const DropdownMenuItem(
+                        DropdownMenuItem(
                           value: '',
-                          child: Text('Auswahl löschen'),
+                          child: Text(context.tr("Auswahl löschen")),
                         ),
                       for (final right in options)
                         DropdownMenuItem(
@@ -234,7 +238,7 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                     pairs.values.toSet().length == pairs.length
                 ? () => widget.onSubmit({...pairs})
                 : null,
-            child: const Text('Zuordnung senden'),
+            child: Text(context.tr("Zuordnung senden")),
           ),
         ],
       );
@@ -274,7 +278,7 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
           signed: true,
         ),
         decoration: InputDecoration(
-          labelText: 'Deine Schätzung',
+          labelText: context.tr("Deine Schätzung"),
           suffixText: widget.question.unit,
         ),
         onChanged: (v) => setState(() => text = v),
@@ -284,7 +288,7 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
         onPressed: widget.enabled && value != null
             ? () => widget.onSubmit(value!)
             : null,
-        child: const Text('Schätzung senden'),
+        child: Text(context.tr("Schätzung senden")),
       ),
     ],
   );
@@ -308,12 +312,12 @@ class TrueFalseQuestionView extends StatelessWidget {
       FilledButton.icon(
         onPressed: enabled ? () => onSubmit(true) : null,
         icon: const Icon(Icons.check),
-        label: const Text('Wahr'),
+        label: Text(context.tr("Wahr")),
       ),
       FilledButton.icon(
         onPressed: enabled ? () => onSubmit(false) : null,
         icon: const Icon(Icons.close),
-        label: const Text('Falsch'),
+        label: Text(context.tr("Falsch")),
       ),
     ],
   );

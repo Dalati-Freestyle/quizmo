@@ -5,6 +5,9 @@ import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -52,16 +55,19 @@ class ServerControlPanel extends StatelessWidget {
     final endpoint = state.endpoint;
 
     return PanelCard(
-      title: kIsWeb ? 'Internet hosting' : 'Embedded server',
+      title: kIsWeb
+          ? context.tr("Internet hosting")
+          : context.tr("Embedded server"),
       icon: Icons.dns_outlined,
       trailing: _StatusDot(status: state.status),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (!state.isSupported)
-            const EmptyHint(
-              'Hosting needs a dart:io platform. Run this build on Android, '
-              'iOS, macOS, Windows or Linux.',
+            EmptyHint(
+              context.tr(
+                "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.",
+              ),
               icon: Icons.block,
             )
           else ...[
@@ -78,10 +84,10 @@ class ServerControlPanel extends StatelessWidget {
                           : Icons.play_arrow,
                     ),
                     label: Text(switch (state.status) {
-                      HostServerStatus.running => 'Stop server',
+                      HostServerStatus.running => context.tr("Stop server"),
                       HostServerStatus.starting => 'Starting…',
-                      HostServerStatus.failed => 'Retry',
-                      HostServerStatus.stopped => 'Start server',
+                      HostServerStatus.failed => context.tr("Retry"),
+                      HostServerStatus.stopped => context.tr("Start server"),
                     }),
                   ),
                 ),
@@ -90,13 +96,24 @@ class ServerControlPanel extends StatelessWidget {
             const SizedBox(height: 12),
             if (endpoint != null) ...[
               _CopyableUri(
-                label: endpoint.publicUri == null ? 'LAN' : 'Invitation',
+                label: endpoint.publicUri == null
+                    ? 'LAN'
+                    : context.tr("Invitation"),
                 uri: endpoint.lanUri,
               ),
-              _CopyableUri(label: 'This device', uri: endpoint.loopbackUri),
-              _CopyableUri(label: 'TV screen', uri: endpoint.lanTvUri),
-              InfoRow(label: 'Port', value: '${endpoint.port}'),
-              InfoRow(label: 'Joined players', value: '$connectedPlayers'),
+              _CopyableUri(
+                label: context.tr("This device"),
+                uri: endpoint.loopbackUri,
+              ),
+              _CopyableUri(
+                label: context.tr("TV screen"),
+                uri: endpoint.lanTvUri,
+              ),
+              InfoRow(label: context.tr("Port"), value: '${endpoint.port}'),
+              InfoRow(
+                label: context.tr("Joined players"),
+                value: '$connectedPlayers',
+              ),
               _AlternativeAddresses(endpoint: endpoint),
               const SizedBox(height: 8),
               if (endpoint.publicUri == null)
@@ -105,23 +122,25 @@ class ServerControlPanel extends StatelessWidget {
               if (endpoint.publicUri == null)
                 _TvScreenHint(isServed: state.servesWebClient),
               if (endpoint.publicUri != null)
-                const Text(
-                  'Share the invitation or TV link. Keep this tab open and this device awake while hosting.',
+                Text(
+                  context.tr(
+                    "Share the invitation or TV link. Keep this tab open and this device awake while hosting.",
+                  ),
                 ),
               if (onOpenTvPreview != null) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: onOpenTvPreview,
                   icon: const Icon(Icons.tv),
-                  label: const Text('Open TV screen preview'),
+                  label: Text(context.tr("Open TV screen preview")),
                 ),
               ],
             ] else
-              InfoRow(label: 'Port', value: '${state.port}'),
+              InfoRow(label: context.tr("Port"), value: '${state.port}'),
             if (state.error case final error?) ...[
               const SizedBox(height: 8),
               Text(
-                error,
+                context.tr(error),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.error,
                 ),
@@ -159,7 +178,7 @@ class _AlternativeAddresses extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'If the LAN address times out, try:',
+            context.tr("If the LAN address times out, try:"),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -215,10 +234,12 @@ class _WebClientHint extends StatelessWidget {
         Expanded(
           child: Text(
             isServed
-                ? 'Web player is hosted — guests can just open the LAN address '
-                      'in a browser.'
-                : 'Web player not bundled. Guests need the app, or run '
-                      '`dart run tool/bundle_web_client.dart` and rebuild.',
+                ? context.tr(
+                    "Web player is hosted — guests can just open the LAN address in a browser.",
+                  )
+                : context.tr(
+                    "Web player not bundled. Guests need the app, or run `dart run tool/bundle_web_client.dart` and rebuild.",
+                  ),
             style: theme.textTheme.bodySmall?.copyWith(color: colour),
           ),
         ),
@@ -251,10 +272,12 @@ class _TvScreenHint extends StatelessWidget {
         Expanded(
           child: Text(
             isServed
-                ? 'TV screen: open the link above in the browser of a smart TV '
-                      'or streaming stick, or cast a Chrome tab showing it. '
-                      'It never shows solutions before the reveal.'
-                : 'TV screen needs the bundled web player (see above).',
+                ? context.tr(
+                    "TV screen: open the link above in the browser of a smart TV or streaming stick, or cast a Chrome tab showing it. It never shows solutions before the reveal.",
+                  )
+                : context.tr(
+                    "TV screen needs the bundled web player (see above).",
+                  ),
             style: theme.textTheme.bodySmall?.copyWith(color: colour),
           ),
         ),
@@ -277,8 +300,9 @@ class _CopyableUri extends StatelessWidget {
       onTap: () async {
         await Clipboard.setData(ClipboardData(text: uri.toString()));
         if (context.mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Copied $uri')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.tr("Copied {0}", [uri]))),
+          );
         }
       },
       child: Padding(
@@ -316,9 +340,9 @@ class _StatusDot extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final (color, label) = switch (status) {
       HostServerStatus.running => (Colors.green, 'live'),
-      HostServerStatus.starting => (scheme.tertiary, 'starting'),
-      HostServerStatus.failed => (scheme.error, 'failed'),
-      HostServerStatus.stopped => (scheme.outline, 'stopped'),
+      HostServerStatus.starting => (scheme.tertiary, context.tr("starting")),
+      HostServerStatus.failed => (scheme.error, context.tr("failed")),
+      HostServerStatus.stopped => (scheme.outline, context.tr("stopped")),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -366,7 +390,7 @@ class PlayersPanel extends StatelessWidget {
     return PanelCard(
       trailing: onSetOrder != null && players.length > 1
           ? IconButton(
-              tooltip: 'Spieler-Reihenfolge festlegen',
+              tooltip: context.tr("Spieler-Reihenfolge festlegen"),
               icon: const Icon(Icons.sort),
               onPressed: () async {
                 final ids = await showJeopardyOrderDialog(
@@ -378,11 +402,11 @@ class PlayersPanel extends StatelessWidget {
               },
             )
           : null,
-      title: 'Players (${game.connectedPlayers.length} online)',
+      title: context.tr("Players ({0} online)", [game.connectedPlayers.length]),
       icon: Icons.groups_outlined,
       child: players.isEmpty
-          ? const EmptyHint(
-              'Waiting for clients. Share the LAN address above.',
+          ? EmptyHint(
+              context.tr("Waiting for clients. Share the LAN address above."),
               icon: Icons.hourglass_empty,
             )
           : Column(
@@ -416,9 +440,15 @@ class PlayersPanel extends StatelessWidget {
                               ),
                               Text(
                                 player.isClockSynced
-                                    ? 'rtt ${formatMicrosAsMillis(player.roundTripMicros)} · '
-                                          'offset ${formatSignedMicrosAsMillis(player.clockOffsetMicros)}'
-                                    : 'clock not synced yet',
+                                    ? context.tr("rtt {0} · offset {1}", [
+                                        formatMicrosAsMillis(
+                                          player.roundTripMicros,
+                                        ),
+                                        formatSignedMicrosAsMillis(
+                                          player.clockOffsetMicros,
+                                        ),
+                                      ])
+                                    : context.tr("clock not synced yet"),
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.outline,
                                 ),
@@ -434,7 +464,7 @@ class PlayersPanel extends StatelessWidget {
                               onAssignTeam(player.id, teamId),
                         ),
                         PopupMenuButton<String>(
-                          tooltip: 'Spieler verwalten',
+                          tooltip: context.tr("Spieler verwalten"),
                           onSelected: (action) {
                             if (action == 'kick') {
                               onKick?.call(player.id);
@@ -444,16 +474,22 @@ class PlayersPanel extends StatelessWidget {
                           },
                           itemBuilder: (_) => [
                             if (onKick != null)
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'kick',
-                                child: Text('Spieler kicken'),
+                                child: Text(context.tr("Spieler kicken")),
                               ),
                             if (!player.isConnected && onMerge != null)
                               for (final target in game.connectedPlayers)
                                 PopupMenuItem(
                                   value: target.id,
                                   child: Text(
-                                    'Mit ${target.name} zusammenführen (+${game.scores.scoreOf(player.id)} Punkte)',
+                                    context.tr(
+                                      "Mit {0} zusammenführen (+{1} Punkte)",
+                                      [
+                                        target.name,
+                                        game.scores.scoreOf(player.id),
+                                      ],
+                                    ),
                                   ),
                                 ),
                           ],
@@ -485,10 +521,10 @@ class _TeamPicker extends StatelessWidget {
       child: DropdownButton<String?>(
         value: selectedTeamId,
         isDense: true,
-        hint: const Text('Solo', style: TextStyle(fontSize: 12)),
+        hint: Text(context.tr("Solo"), style: TextStyle(fontSize: 12)),
         items: [
-          const DropdownMenuItem<String?>(
-            child: Text('Solo', style: TextStyle(fontSize: 12)),
+          DropdownMenuItem<String?>(
+            child: Text(context.tr("Solo"), style: TextStyle(fontSize: 12)),
           ),
           for (final team in teams)
             DropdownMenuItem<String?>(
@@ -539,7 +575,7 @@ class QuestionBankPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return PanelCard(
-      title: 'Question bank',
+      title: context.tr("Question bank"),
       icon: Icons.library_books_outlined,
       child: Column(
         children: [
@@ -579,8 +615,10 @@ class QuestionBankPanel extends StatelessWidget {
                         ),
                         Text(
                           game.poker == null
-                              ? '${question.kindLabel} · ${question.scoringRule.label}'
-                              : '${question.kindLabel} · Teameinsatz in Chips',
+                              ? '${context.tr(question.kindLabel)} · ${context.tr(question.scoringRule.label)}'
+                              : context.tr("{0} · Teameinsatz in Chips", [
+                                  context.tr(question.kindLabel),
+                                ]),
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),
@@ -591,7 +629,7 @@ class QuestionBankPanel extends StatelessWidget {
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: canStart ? () => onStart(question.id) : null,
-                    child: const Text('Start'),
+                    child: Text(context.tr("Start")),
                   ),
                 ],
               ),
@@ -653,7 +691,7 @@ class JeopardyBoardPanel extends StatelessWidget {
     final pending = jeopardy.pendingDailyDoubleId;
 
     return PanelCard(
-      title: 'Jeopardy board',
+      title: context.tr("Jeopardy board"),
       icon: Icons.grid_view,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -663,7 +701,10 @@ class JeopardyBoardPanel extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  Text('Picks next:', style: theme.textTheme.bodySmall),
+                  Text(
+                    context.tr("Picks next:"),
+                    style: theme.textTheme.bodySmall,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Wrap(
@@ -693,7 +734,7 @@ class JeopardyBoardPanel extends StatelessWidget {
                     ? () => _editOrder(context)
                     : null,
                 icon: const Icon(Icons.sort),
-                label: const Text('Zugreihenfolge festlegen'),
+                label: Text(context.tr("Zugreihenfolge festlegen")),
               ),
             ),
           if (pending != null)
@@ -714,9 +755,12 @@ class JeopardyBoardPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             canPick
-                ? 'Das Team am Zug kann selbst ein Feld auswählen. '
-                      'Stars mark Daily Doubles — only you can see them.'
-                : 'Finish the current question to pick the next cell.',
+                ? context.tr(
+                    "Das Team am Zug kann selbst ein Feld auswählen. Stars mark Daily Doubles — only you can see them.",
+                  )
+                : context.tr(
+                    "Finish the current question to pick the next cell.",
+                  ),
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.outline,
             ),
@@ -739,7 +783,11 @@ Future<List<String>?> showJeopardyOrderDialog(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: Text(playersOnly ? 'Spieler-Reihenfolge' : 'Zugreihenfolge'),
+        title: Text(
+          playersOnly
+              ? context.tr("Spieler-Reihenfolge")
+              : context.tr("Zugreihenfolge"),
+        ),
         content: SizedBox(
           width: 420,
           height: 320,
@@ -754,7 +802,7 @@ Future<List<String>?> showJeopardyOrderDialog(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        tooltip: 'Nach oben',
+                        tooltip: context.tr("Nach oben"),
                         icon: const Icon(Icons.arrow_upward),
                         onPressed: index == 0
                             ? null
@@ -764,7 +812,7 @@ Future<List<String>?> showJeopardyOrderDialog(
                               }),
                       ),
                       IconButton(
-                        tooltip: 'Nach unten',
+                        tooltip: context.tr("Nach unten"),
                         icon: const Icon(Icons.arrow_downward),
                         onPressed: index == order.length - 1
                             ? null
@@ -782,11 +830,11 @@ Future<List<String>?> showJeopardyOrderDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
+            child: Text(context.tr("Abbrechen")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, order),
-            child: const Text('Übernehmen'),
+            child: Text(context.tr('Übernehmen')),
           ),
         ],
       ),
@@ -826,7 +874,9 @@ class _WagerFormState extends State<_WagerForm> {
     final wager = int.tryParse(_controller.text.trim());
     if (wager == null || wager < 1 || wager > widget.maxWager) {
       setState(
-        () => _error = 'Enter a wager between 1 and ${widget.maxWager}.',
+        () => _error = context.tr("Enter a wager between 1 and {0}.", [
+          widget.maxWager,
+        ]),
       );
       return;
     }
@@ -853,8 +903,9 @@ class _WagerFormState extends State<_WagerForm> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Daily Double! ${widget.teamName ?? 'The picking team'} '
-                  'places a wager.',
+                  context.tr("Daily Double! {0} places a wager.", [
+                    widget.teamName ?? context.tr('The picking team'),
+                  ]),
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -872,7 +923,7 @@ class _WagerFormState extends State<_WagerForm> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     isDense: true,
-                    labelText: 'Wager (max ${widget.maxWager})',
+                    labelText: context.tr("Wager (max {0})", [widget.maxWager]),
                     errorText: _error,
                   ),
                   onSubmitted: (_) => _submit(),
@@ -881,7 +932,7 @@ class _WagerFormState extends State<_WagerForm> {
               const SizedBox(width: 8),
               FilledButton(
                 onPressed: _submit,
-                child: const Text('Open question'),
+                child: Text(context.tr("Open question")),
               ),
             ],
           ),
@@ -937,11 +988,14 @@ class LiveRoundPanel extends StatelessWidget {
     final jeopardy = game.jeopardy;
 
     return PanelCard(
-      title: 'Live round',
+      title: context.tr("Live round"),
       icon: Icons.sensors,
       trailing: Chip(
         visualDensity: VisualDensity.compact,
-        label: Text(round.status.name, style: theme.textTheme.labelSmall),
+        label: Text(
+          context.tr(round.status.name),
+          style: theme.textTheme.labelSmall,
+        ),
       ),
       child: question == null
           ? Column(
@@ -950,20 +1004,24 @@ class LiveRoundPanel extends StatelessWidget {
                 if (jeopardy != null)
                   EmptyHint(
                     jeopardy.pendingDailyDoubleId != null
-                        ? 'Daily Double! Place the wager on the board panel.'
-                        : 'No question on stage. Pick a cell on the board.',
+                        ? context.tr(
+                            "Daily Double! Place the wager on the board panel.",
+                          )
+                        : context.tr(
+                            "No question on stage. Pick a cell on the board.",
+                          ),
                     icon: Icons.grid_view,
                   )
                 else ...[
-                  const EmptyHint(
-                    'No question on stage. Pick one from the bank.',
+                  EmptyHint(
+                    context.tr("No question on stage. Pick one from the bank."),
                     icon: Icons.play_circle_outline,
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
                     onPressed: game.isStarted ? onNext : null,
                     icon: const Icon(Icons.skip_next),
-                    label: const Text('Start next pending question'),
+                    label: Text(context.tr("Start next pending question")),
                   ),
                 ],
               ],
@@ -985,7 +1043,10 @@ class LiveRoundPanel extends StatelessWidget {
                 // Polymorphic host controls: the analyzer enforces that every
                 // question kind has a renderer here.
                 if (question.adminNotes.trim().isNotEmpty) ...[
-                  Text('Admin-Notizen', style: theme.textTheme.labelLarge),
+                  Text(
+                    context.tr("Admin-Notizen"),
+                    style: theme.textTheme.labelLarge,
+                  ),
                   SelectableText(question.adminNotes),
                   const SizedBox(height: 12),
                 ],
@@ -1034,7 +1095,7 @@ class LiveRoundPanel extends StatelessWidget {
                 if (state.notice case final notice?) ...[
                   const SizedBox(height: 10),
                   Text(
-                    notice,
+                    context.tr(notice),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.outline,
                     ),
@@ -1077,8 +1138,10 @@ class _JeopardyRoundBanner extends StatelessWidget {
               ? const Icon(Icons.star, size: 14)
               : null,
           label: Text(
-            '${jeopardy.activePoints} pts'
-            '${jeopardy.activeIsDailyDouble ? ' · Daily Double' : ''}',
+            context.tr("{0} pts{1}", [
+              jeopardy.activePoints,
+              jeopardy.activeIsDailyDouble ? ' · Daily Double' : '',
+            ]),
             style: theme.textTheme.labelSmall,
           ),
         ),
@@ -1087,10 +1150,10 @@ class _JeopardyRoundBanner extends StatelessWidget {
             visualDensity: VisualDensity.compact,
             label: Text(
               game.round.buzzerOpenForAll
-                  ? 'Buzzer für alle freigegeben'
+                  ? context.tr("Buzzer für alle freigegeben")
                   : jeopardy.isStealRound
-                  ? 'Steal round · other teams than $picker'
-                  : '$picker answers first',
+                  ? context.tr("Steal round · other teams than {0}", [picker])
+                  : context.tr("{0} answers first", [picker]),
               style: theme.textTheme.labelSmall,
             ),
           ),
@@ -1127,8 +1190,8 @@ class _RoundActions extends StatelessWidget {
     final game = state.game;
     final round = game.round;
     if (game.poker?.betting ?? false) {
-      return const Text(
-        'Einsatzphase: Einsätze im Pokerchips-Panel schließen.',
+      return Text(
+        context.tr("Einsatzphase: Einsätze im Pokerchips-Panel schließen."),
       );
     }
     final activeName = game.activePlayer?.name;
@@ -1155,10 +1218,16 @@ class _RoundActions extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               answeredCorrectly
-                  ? 'Richtig beantwortet. Der Spielleiter beendet die Frage.'
+                  ? context.tr(
+                      "Richtig beantwortet. Der Spielleiter beendet die Frage.",
+                    )
                   : limitReached
-                  ? 'Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.'
-                  : 'Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.',
+                  ? context.tr(
+                      "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.",
+                    )
+                  : context.tr(
+                      "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.",
+                    ),
             ),
           ),
         Wrap(
@@ -1170,7 +1239,7 @@ class _RoundActions extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),
-                  label: const Text('Next question'),
+                  label: Text(context.tr("Next question")),
                 ),
             ],
             RoundStatus.acceptingAnswers => [
@@ -1178,26 +1247,26 @@ class _RoundActions extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onReopenBuzzer,
                   icon: const Icon(Icons.lock_open),
-                  label: const Text('Buzzer erneut freigeben'),
+                  label: Text(context.tr("Buzzer erneut freigeben")),
                 ),
               if (round.question is BuzzerQuestion &&
                   onReopenBuzzerForAll != null)
                 OutlinedButton.icon(
                   onPressed: onReopenBuzzerForAll,
                   icon: const Icon(Icons.groups),
-                  label: const Text('Buzzer für alle freigeben'),
+                  label: Text(context.tr("Buzzer für alle freigeben")),
                 ),
               if (onEndRound != null)
                 OutlinedButton.icon(
                   onPressed: onEndRound,
                   icon: const Icon(Icons.stop),
-                  label: const Text('Runde beenden'),
+                  label: Text(context.tr("Runde beenden")),
                 ),
               if (round.buzzerQueue.isNotEmpty)
                 FilledButton.icon(
                   onPressed: onLock,
                   icon: const Icon(Icons.lock_clock),
-                  label: const Text('Lock buzzer now'),
+                  label: Text(context.tr("Lock buzzer now")),
                 ),
               OutlinedButton.icon(
                 onPressed: onReveal,
@@ -1206,8 +1275,8 @@ class _RoundActions extends StatelessWidget {
                 ),
                 label: Text(
                   passesToOthers
-                      ? 'Close & pass to other teams'
-                      : 'Close & reveal',
+                      ? context.tr("Close & pass to other teams")
+                      : context.tr("Close & reveal"),
                 ),
               ),
             ],
@@ -1220,8 +1289,8 @@ class _RoundActions extends StatelessWidget {
                   icon: const Icon(Icons.lock_open),
                   label: Text(
                     limitReached
-                        ? 'Trotzdem Buzzer freigeben'
-                        : 'Buzzer freigeben: Abstauben',
+                        ? context.tr("Trotzdem Buzzer freigeben")
+                        : context.tr("Buzzer freigeben: Abstauben"),
                   ),
                 ),
               if (round.activePlayerId == null &&
@@ -1230,25 +1299,29 @@ class _RoundActions extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onReopenBuzzerForAll,
                   icon: const Icon(Icons.groups),
-                  label: const Text('Buzzer für alle freigeben'),
+                  label: Text(context.tr("Buzzer für alle freigeben")),
                 ),
               if (onEndRound != null)
                 OutlinedButton.icon(
                   onPressed: onEndRound,
                   icon: const Icon(Icons.stop),
-                  label: const Text('Runde beenden'),
+                  label: Text(context.tr("Runde beenden")),
                 ),
               if (round.activePlayerId != null)
                 FilledButton.icon(
                   onPressed: () => onJudge(true),
                   icon: const Icon(Icons.check),
-                  label: Text('${activeName ?? 'Player'} is right'),
+                  label: Text(
+                    context.tr("{0} is right", [
+                      activeName ?? context.tr("Player"),
+                    ]),
+                  ),
                 ),
               if (round.activePlayerId != null)
                 OutlinedButton.icon(
                   onPressed: () => onJudge(false),
                   icon: const Icon(Icons.close),
-                  label: const Text('Wrong'),
+                  label: Text(context.tr("Wrong")),
                 ),
             ],
             RoundStatus.revealed => [
@@ -1256,13 +1329,13 @@ class _RoundActions extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),
-                  label: const Text('Next question'),
+                  label: Text(context.tr("Next question")),
                 )
               else
                 FilledButton.icon(
                   onPressed: onCloseRound,
                   icon: const Icon(Icons.grid_view),
-                  label: const Text('Back to the board'),
+                  label: Text(context.tr("Back to the board")),
                 ),
             ],
           },
@@ -1332,7 +1405,7 @@ class _MultipleChoiceMonitor extends StatelessWidget {
           ),
         const SizedBox(height: 6),
         InfoRow(
-          label: 'Answers received',
+          label: context.tr("Answers received"),
           value: '$total / ${game.connectedPlayers.length}',
         ),
       ],
@@ -1352,8 +1425,8 @@ class _BuzzerMonitor extends StatelessWidget {
     final round = game.round;
 
     if (round.buzzerQueue.isEmpty) {
-      return const EmptyHint(
-        'Buzzer armed — nobody pressed yet.',
+      return EmptyHint(
+        context.tr("Buzzer armed — nobody pressed yet."),
         icon: Icons.bolt,
       );
     }
@@ -1362,7 +1435,7 @@ class _BuzzerMonitor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Latency adjusted ranking',
+          context.tr("Latency adjusted ranking"),
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.outline,
           ),
@@ -1423,9 +1496,15 @@ class _BuzzerMonitor extends StatelessWidget {
         const SizedBox(height: 8),
         if (round.status == RoundStatus.revealed &&
             question.expectedAnswer != null)
-          InfoRow(label: 'Expected', value: question.expectedAnswer!)
+          InfoRow(
+            label: context.tr("Expected"),
+            value: question.expectedAnswer!,
+          )
         else if (question.expectedAnswer != null)
-          InfoRow(label: 'Host note', value: question.expectedAnswer!),
+          InfoRow(
+            label: context.tr("Host note"),
+            value: question.expectedAnswer!,
+          ),
       ],
     );
   }
@@ -1445,10 +1524,10 @@ class ServerLogPanel extends StatelessWidget {
     final recent = logs.reversed.take(12).toList(growable: false);
 
     return PanelCard(
-      title: 'Server log',
+      title: context.tr("Server log"),
       icon: Icons.terminal,
       child: recent.isEmpty
-          ? const EmptyHint('Nothing logged yet.')
+          ? EmptyHint(context.tr("Nothing logged yet."))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

@@ -155,7 +155,7 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
   static String _errorMessage(Object error) => switch (error) {
     QuizImportException(:final message) => message,
     QuizRepositoryException(:final message) => message,
-    QuizValidationException(:final messages) => messages.join(' '),
+    QuizValidationException(:final messages) => messages.join('\n'),
     _ => 'Could not update the quiz library: $error',
   };
 }

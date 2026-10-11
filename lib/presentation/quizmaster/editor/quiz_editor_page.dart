@@ -2,6 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../settings/settings_page.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/data/quiz_repository.dart';
@@ -84,32 +88,35 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
       };
       return Scaffold(
         appBar: AppBar(
-          title: Text('Edit ${state.draft.name}'),
+          title: Text(context.tr("Edit {0}", [state.draft.name])),
           actions: [
+            const SettingsButton(),
             TextButton.icon(
               onPressed: state.isSaving ? null : _saveQuiz,
               icon: const Icon(Icons.save_outlined),
-              label: const Text('Save quiz'),
+              label: Text(context.tr("Save quiz")),
             ),
           ],
         ),
         body: AdaptivePanelGrid(
           panels: [
             PanelCard(
-              title: 'Quiz details',
+              title: context.tr("Quiz details"),
               icon: Icons.edit_note_outlined,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Name'),
+                    decoration: InputDecoration(labelText: context.tr("Name")),
                     onChanged: (_) => _updateMetadata(cubit),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
+                    decoration: InputDecoration(
+                      labelText: context.tr("Description"),
+                    ),
                     minLines: 2,
                     maxLines: 4,
                     onChanged: (_) => _updateMetadata(cubit),
@@ -117,21 +124,23 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _categoryController,
-                    decoration: const InputDecoration(labelText: 'Category'),
+                    decoration: InputDecoration(
+                      labelText: context.tr("Category"),
+                    ),
                     onChanged: (_) => _updateMetadata(cubit),
                   ),
                   const SizedBox(height: 16),
                   SelectionDropdown<_QuizFormatKind>(
-                    label: 'Quiz type',
+                    label: context.tr("Quiz type"),
                     value: formatKind,
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: _QuizFormatKind.standard,
                         child: Row(
                           children: [
                             Icon(Icons.list_alt),
                             SizedBox(width: 8),
-                            Text('Standard'),
+                            Text(context.tr("Standard")),
                           ],
                         ),
                       ),
@@ -141,7 +150,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           children: [
                             Icon(Icons.grid_view),
                             SizedBox(width: 8),
-                            Text('Jeopardy'),
+                            Text(context.tr("Jeopardy")),
                           ],
                         ),
                       ),
@@ -151,7 +160,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           children: [
                             Icon(Icons.casino_outlined),
                             SizedBox(width: 8),
-                            Text('Pokerchips'),
+                            Text(context.tr("Pokerchips")),
                           ],
                         ),
                       ),
@@ -175,16 +184,20 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     TextFormField(
                       initialValue: '$startingChips',
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Startchips pro Team (1–1000000)',
+                      decoration: InputDecoration(
+                        labelText: context.tr(
+                          "Startchips pro Team (1–1000000)",
+                        ),
                       ),
                       onChanged: (value) => cubit.usePokerFormat(
                         startingChips: int.tryParse(value) ?? 0,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.',
+                    Text(
+                      context.tr(
+                        "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.",
+                      ),
                     ),
                   ],
                 ],
@@ -217,10 +230,10 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
             },
             if (state.error case final error?)
               PanelCard(
-                title: 'Cannot save quiz',
+                title: context.tr("Cannot save quiz"),
                 icon: Icons.error_outline,
                 child: Text(
-                  error,
+                  context.tr(error),
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
@@ -289,15 +302,15 @@ class _TeamsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PanelCard(
-    title: 'Teams (optional)',
+    title: context.tr("Teams (optional)"),
     icon: Icons.groups_outlined,
     trailing: IconButton(
-      tooltip: 'Add team',
+      tooltip: context.tr("Add team"),
       onPressed: onAdd,
       icon: const Icon(Icons.add),
     ),
     child: teams.isEmpty
-        ? const EmptyHint('No teams: this quiz will start in solo mode.')
+        ? EmptyHint(context.tr("No teams: this quiz will start in solo mode."))
         : Column(
             children: [
               for (final team in teams)
@@ -310,7 +323,7 @@ class _TeamsPanel extends StatelessWidget {
                   subtitle: Text(team.id),
                   onTap: () => onEdit(team),
                   trailing: IconButton(
-                    tooltip: 'Remove ${team.name}',
+                    tooltip: context.tr("Remove {0}", [team.name]),
                     onPressed: () => onRemove(team.id),
                     icon: const Icon(Icons.delete_outline),
                   ),
@@ -344,7 +357,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
 
   @override
   Widget build(BuildContext context) => PanelCard(
-    title: 'Questions',
+    title: context.tr("Questions"),
     icon: Icons.quiz_outlined,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -361,12 +374,12 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                 ? null
                 : () => widget.onAddTemplate(_selectedTemplate!),
             icon: const Icon(Icons.add),
-            label: const Text('Add question'),
+            label: Text(context.tr("Add question")),
           ),
         ),
         const SizedBox(height: 12),
         if (widget.questions.isEmpty)
-          const EmptyHint('Add questions before hosting this quiz.')
+          EmptyHint(context.tr("Add questions before hosting this quiz."))
         else
           ReorderableListView.builder(
             shrinkWrap: true,
@@ -389,12 +402,15 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                 }),
                 title: Text(
                   question.prompt.isEmpty
-                      ? 'Untitled question'
+                      ? context.tr("Untitled question")
                       : question.prompt,
                 ),
                 subtitle: Text(
-                  '${question.kindLabel} · ${question.timeLimit.inSeconds}s · '
-                  '${question.scoringRule.label}',
+                  context.tr("{0} · {1}s · {2}", [
+                    context.tr(question.kindLabel),
+                    question.timeLimit.inSeconds,
+                    context.tr(question.scoringRule.label),
+                  ]),
                 ),
                 onTap: () => widget.onEdit(question),
                 trailing: Row(
@@ -402,7 +418,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                   children: [
                     const Icon(Icons.drag_handle),
                     IconButton(
-                      tooltip: 'Delete question',
+                      tooltip: context.tr("Delete question"),
                       onPressed: () => widget.onRemove(question.id),
                       icon: const Icon(Icons.delete_outline),
                     ),
@@ -451,7 +467,9 @@ class _TeamDialogState extends State<_TeamDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.team == null ? 'Add team' : 'Edit team'),
+    title: Text(
+      widget.team == null ? context.tr("Add team") : context.tr("Edit team"),
+    ),
     content: Form(
       key: _formKey,
       child: Column(
@@ -459,19 +477,19 @@ class _TeamDialogState extends State<_TeamDialog> {
         children: [
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Team name'),
+            decoration: InputDecoration(labelText: context.tr("Team name")),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter a team name.'
+                ? context.tr("Enter a team name.")
                 : null,
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _colorController,
-            decoration: const InputDecoration(
-              labelText: 'ARGB colour (for example FF5E6AD2)',
+            decoration: InputDecoration(
+              labelText: context.tr("ARGB colour (for example FF5E6AD2)"),
             ),
             validator: (value) => _parseColor(value) == null
-                ? 'Enter an 8-digit hexadecimal ARGB colour.'
+                ? context.tr("Enter an 8-digit hexadecimal ARGB colour.")
                 : null,
           ),
         ],
@@ -480,9 +498,9 @@ class _TeamDialogState extends State<_TeamDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
+        child: Text(context.tr("Cancel")),
       ),
-      FilledButton(onPressed: _save, child: const Text('Save team')),
+      FilledButton(onPressed: _save, child: Text(context.tr("Save team"))),
     ],
   );
 

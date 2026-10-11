@@ -1,6 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 import '../../common/question_media_view.dart';
 
@@ -33,7 +35,7 @@ class _MediaEditorState extends State<MediaEditor> {
 
   Future<void> add(_MediaKind kind) async {
     if (media.length >= 10) {
-      _error('Maximal zehn Anhänge.');
+      _error(context.tr("Maximal zehn Anhänge."));
       return;
     }
     setState(() => loading = true);
@@ -55,9 +57,10 @@ class _MediaEditorState extends State<MediaEditor> {
         if (result == null || !mounted) return;
         final file = result;
         final bytes = await file.readAsBytes();
+        if (!mounted) return;
         if (bytes.length > maxMediaBytes) {
-          throw const JsonContractException(
-            'Datei zu groß oder nicht lesbar (maximal 20 MiB).',
+          throw JsonContractException(
+            context.tr("Datei zu groß oder nicht lesbar (maximal 20 MiB)."),
           );
         }
         final asset = MediaAsset.upload(bytes, file.extension ?? '');
@@ -76,7 +79,9 @@ class _MediaEditorState extends State<MediaEditor> {
       }
       if (attachment != null && mounted) {
         if (attachment.validationErrors.isNotEmpty) {
-          throw JsonContractException(attachment.validationErrors.join(' '));
+          throw JsonContractException(
+            attachment.validationErrors.map(context.tr).join(' '),
+          );
         }
         setState(() => media.add(attachment!));
         publish();
@@ -104,34 +109,34 @@ class _MediaEditorState extends State<MediaEditor> {
             enabled: !loading,
             onSelected: add,
             itemBuilder: (_) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.image,
-                child: Text('Bild hochladen'),
+                child: Text(context.tr("Bild hochladen")),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.audio,
-                child: Text('Audio hochladen'),
+                child: Text(context.tr("Audio hochladen")),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.video,
-                child: Text('MP4 hochladen'),
+                child: Text(context.tr("MP4 hochladen")),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.youtube,
-                child: Text('YouTube-Link'),
+                child: Text(context.tr("YouTube-Link")),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.code,
-                child: Text('Code-Snippet'),
+                child: Text(context.tr("Code-Snippet")),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: _MediaKind.geo,
-                child: Text('Kartenausschnitt'),
+                child: Text(context.tr("Kartenausschnitt")),
               ),
             ],
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Anhang hinzufügen'),
+              child: Text(context.tr("Anhang hinzufügen")),
             ),
           ),
           if (loading) const LinearProgressIndicator(),
@@ -145,7 +150,7 @@ class _MediaEditorState extends State<MediaEditor> {
                       children: [
                         Expanded(child: Text(attachment.caption)),
                         IconButton(
-                          tooltip: 'Anhang entfernen',
+                          tooltip: context.tr("Anhang entfernen"),
                           onPressed: () {
                             setState(() => media.removeAt(i));
                             publish();
@@ -155,9 +160,11 @@ class _MediaEditorState extends State<MediaEditor> {
                       ],
                     ),
                     SwitchListTile(
-                      title: const Text('Details ausblenden'),
-                      subtitle: const Text(
-                        'Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.',
+                      title: Text(context.tr("Details ausblenden")),
+                      subtitle: Text(
+                        context.tr(
+                          "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.",
+                        ),
                       ),
                       value: attachment.hideDetails,
                       onChanged: (value) {
@@ -170,7 +177,7 @@ class _MediaEditorState extends State<MediaEditor> {
                     QuestionMediaView(media: [attachment]),
                     if (attachment is ImageAttachment)
                       SwitchListTile(
-                        title: const Text('Zoom erlauben'),
+                        title: Text(context.tr("Zoom erlauben")),
                         value: attachment.zoom,
                         onChanged: (v) {
                           setState(
@@ -189,14 +196,16 @@ class _MediaEditorState extends State<MediaEditor> {
                         key: ValueKey(attachment.asset.id),
                         initialValue:
                             attachment.playbackLimitSeconds?.toString() ?? '',
-                        decoration: const InputDecoration(
-                          labelText: 'Abspiellimit in Sekunden (optional)',
+                        decoration: InputDecoration(
+                          labelText: context.tr(
+                            "Abspiellimit in Sekunden (optional)",
+                          ),
                         ),
                         keyboardType: TextInputType.number,
                         validator: (v) =>
                             v == null || v.isEmpty || (int.tryParse(v) ?? 0) > 0
                             ? null
-                            : 'Positive Sekunden angeben.',
+                            : context.tr("Positive Sekunden angeben."),
                         onChanged: (v) {
                           media[i] = AudioAttachment(
                             asset: attachment.asset,
@@ -213,8 +222,10 @@ class _MediaEditorState extends State<MediaEditor> {
                 ),
               ),
             ),
-          const Text(
-            'Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.',
+          Text(
+            context.tr(
+              "Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.",
+            ),
           ),
         ],
       ),
@@ -267,17 +278,21 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
         _MediaKind.video => throw StateError('Upload expected'),
       };
       if (attachment.validationErrors.isNotEmpty) {
-        throw FormatException(attachment.validationErrors.join(' '));
+        throw FormatException(
+          attachment.validationErrors.map(context.tr).join(' '),
+        );
       }
       Navigator.pop(context, attachment);
     } on Object catch (e) {
-      setState(() => error = 'Eingaben prüfen: $e');
+      setState(
+        () => error = context.tr("Eingaben prüfen: {0}", [context.tr('$e')]),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Medienanhang'),
+    title: Text(context.tr("Medienanhang")),
     content: SizedBox(
       width: 600,
       child: SingleChildScrollView(
@@ -286,8 +301,8 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
           children: [
             TextField(
               controller: caption,
-              decoration: const InputDecoration(
-                labelText: 'Beschriftung (optional)',
+              decoration: InputDecoration(
+                labelText: context.tr("Beschriftung (optional)"),
               ),
             ),
             const SizedBox(height: 20),
@@ -297,9 +312,9 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
               maxLines: widget.kind == _MediaKind.code ? 12 : 1,
               decoration: InputDecoration(
                 labelText: switch (widget.kind) {
-                  _MediaKind.youtube => 'YouTube-Link',
-                  _MediaKind.code => 'Quellcode',
-                  _ => 'Breitengrad',
+                  _MediaKind.youtube => context.tr("YouTube-Link"),
+                  _MediaKind.code => context.tr("Quellcode"),
+                  _ => context.tr("Breitengrad"),
                 },
               ),
             ),
@@ -309,17 +324,19 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
                 controller: second,
                 decoration: InputDecoration(
                   labelText: widget.kind == _MediaKind.code
-                      ? 'Sprache (z. B. dart, python, javascript)'
-                      : 'Längengrad',
+                      ? context.tr("Sprache (z. B. dart, python, javascript)")
+                      : context.tr("Längengrad"),
                 ),
               ),
             const SizedBox(height: 20),
             if (widget.kind == _MediaKind.geo)
               TextField(
                 controller: third,
-                decoration: const InputDecoration(labelText: 'Zoom (1–18)'),
+                decoration: InputDecoration(
+                  labelText: context.tr("Zoom (1–18)"),
+                ),
               ),
-            if (error != null) Text(error!),
+            if (error != null) Text(context.tr(error!)),
           ],
         ),
       ),
@@ -327,9 +344,9 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('Abbrechen'),
+        child: Text(context.tr("Abbrechen")),
       ),
-      FilledButton(onPressed: save, child: const Text('Hinzufügen')),
+      FilledButton(onPressed: save, child: Text(context.tr('Hinzufügen'))),
     ],
   );
 }

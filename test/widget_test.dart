@@ -32,7 +32,7 @@ void main() {
     await tester.tap(find.text('Open player view'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Weiter zur Teamauswahl'));
+    await tester.tap(find.text('Continue to team selection'));
     await tester.pumpAndSettle();
 
     expect(find.text('Pick a name'), findsOneWidget);

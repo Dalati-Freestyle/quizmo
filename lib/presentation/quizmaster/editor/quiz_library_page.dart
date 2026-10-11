@@ -2,6 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+
+import '../../l10n/app_localizations.dart';
+import '../../settings/settings_page.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -76,44 +80,46 @@ class _QuizLibraryView extends StatelessWidget {
             showDialog<void>(
               context: context,
               builder: (dialogContext) => AlertDialog(
-                title: const Text('Update Quizmo to import this quiz'),
-                content: const Text(
-                  'This quiz requires a newer version of Quizmo. '
-                  'Update the app, then import this file again. '
-                  'Your quiz library has not been changed.',
+                title: Text(context.tr("Update Quizmo to import this quiz")),
+                content: Text(
+                  context.tr(
+                    "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.",
+                  ),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('OK'),
+                    child: Text(context.tr("OK")),
                   ),
                 ],
               ),
             );
           } else {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(state.error!)));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(context.tr(state.error!))));
           }
         },
         builder: (context, state) => Scaffold(
           appBar: AppBar(
-            title: const Text('Quiz library'),
+            title: Text(context.tr("Quiz library")),
             actions: [
+              const SettingsButton(),
               if (kIsWeb)
                 TextButton.icon(
                   onPressed: state.isBusy
                       ? null
                       : () => _leave(context, state.quizzes),
                   icon: const Icon(Icons.exit_to_app),
-                  label: const Text('Seite verlassen'),
+                  label: Text(context.tr("Seite verlassen")),
                 ),
               TextButton.icon(
                 onPressed: state.isBusy ? null : () => _importQuiz(context),
                 icon: const Icon(Icons.file_open_outlined),
-                label: const Text('Import'),
+                label: Text(context.tr("Import")),
               ),
               IconButton(
-                tooltip: 'Create quiz',
+                tooltip: context.tr("Create quiz"),
                 onPressed: state.isBusy ? null : () => _createQuiz(context),
                 icon: const Icon(Icons.add),
               ),
@@ -124,11 +130,13 @@ class _QuizLibraryView extends StatelessWidget {
               : AdaptivePanelGrid(
                   panels: [
                     if (kIsWeb)
-                      const PanelCard(
-                        title: 'Quizzes in diesem Browser',
+                      PanelCard(
+                        title: context.tr("Quizzes in diesem Browser"),
                         icon: Icons.save_outlined,
                         child: Text(
-                          'Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.',
+                          context.tr(
+                            "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.",
+                          ),
                         ),
                       ),
                     for (final quiz in state.quizzes)
@@ -143,11 +151,11 @@ class _QuizLibraryView extends StatelessWidget {
                         onDelete: () => _deleteQuiz(context, quiz),
                       ),
                     if (state.quizzes.isEmpty)
-                      const PanelCard(
-                        title: 'No quizzes available',
+                      PanelCard(
+                        title: context.tr("No quizzes available"),
                         icon: Icons.quiz_outlined,
                         child: EmptyHint(
-                          'Create or import a quiz to get started.',
+                          context.tr("Create or import a quiz to get started."),
                         ),
                       ),
                   ],
@@ -161,9 +169,9 @@ class _QuizLibraryView extends StatelessWidget {
       context,
       Quiz(
         id: createId(),
-        name: 'Untitled quiz',
-        description: 'A new Quizmo quiz.',
-        category: 'General knowledge',
+        name: context.tr('Untitled quiz'),
+        description: context.tr('A new Quizmo quiz.'),
+        category: context.tr('General knowledge'),
         createdAt: timestamp,
         updatedAt: timestamp,
       ),
@@ -174,22 +182,24 @@ class _QuizLibraryView extends StatelessWidget {
     final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Quizzes vor dem Verlassen exportieren?'),
-        content: const Text(
-          'Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.',
+        title: Text(context.tr("Quizzes vor dem Verlassen exportieren?")),
+        content: Text(
+          context.tr(
+            "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.",
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'cancel'),
-            child: const Text('Abbrechen'),
+            child: Text(context.tr("Abbrechen")),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, 'leave'),
-            child: const Text('Ohne Export verlassen'),
+            child: Text(context.tr("Ohne Export verlassen")),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, 'export'),
-            child: const Text('Quizzes exportieren'),
+            child: Text(context.tr("Quizzes exportieren")),
           ),
         ],
       ),
@@ -200,7 +210,7 @@ class _QuizLibraryView extends StatelessWidget {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Quizzes exportieren'),
+          title: Text(context.tr("Quizzes exportieren")),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -211,7 +221,7 @@ class _QuizLibraryView extends StatelessWidget {
                     ListTile(
                       title: Text(quiz.name),
                       trailing: IconButton(
-                        tooltip: 'Export including media',
+                        tooltip: context.tr("Export including media"),
                         icon: const Icon(Icons.download),
                         onPressed: () => _exportQuiz(context, quiz),
                       ),
@@ -227,7 +237,7 @@ class _QuizLibraryView extends StatelessWidget {
             ),
             TextButton(
               onPressed: leaveBrowserPage,
-              child: const Text('Seite verlassen'),
+              child: Text(context.tr("Seite verlassen")),
             ),
           ],
         ),
@@ -255,35 +265,54 @@ class _QuizLibraryView extends StatelessWidget {
 
   Future<void> _importQuiz(BuildContext context) async {
     try {
-      final contents = await pickQuizJson();
+      final contents = await pickQuizJson(
+        dialogTitle: context.tr('Import Quizmo quiz (including media)'),
+      );
       if (!context.mounted || contents == null) return;
       final imported = await context.read<QuizLibraryCubit>().importContents(
         contents,
       );
       if (!context.mounted || imported == null) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Imported "${imported.name}".')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr("Imported \"{0}\".", [imported.name])),
+        ),
+      );
     } on Object catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not import quiz: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr("Could not import quiz: {0}", [context.tr('$error')]),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _exportQuiz(BuildContext context, Quiz quiz) async {
     try {
-      final exported = await exportQuizFile(quiz);
+      final exported = await exportQuizFile(
+        quiz,
+        dialogTitle: context.tr('Export Quizmo quiz (including media)'),
+      );
       if (!context.mounted || !exported) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Exported "${quiz.name}" including media.')),
+        SnackBar(
+          content: Text(
+            context.tr("Exported \"{0}\" including media.", [quiz.name]),
+          ),
+        ),
       );
     } on Object catch (error) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not export quiz: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr("Could not export quiz: {0}", [context.tr('$error')]),
+          ),
+        ),
+      );
     }
   }
 
@@ -291,16 +320,18 @@ class _QuizLibraryView extends StatelessWidget {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete quiz?'),
-        content: Text('Delete "${quiz.name}" from this device?'),
+        title: Text(context.tr("Delete quiz?")),
+        content: Text(
+          context.tr("Delete \"{0}\" from this device?", [quiz.name]),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(context.tr("Cancel")),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(context.tr("Delete")),
           ),
         ],
       ),
@@ -337,25 +368,41 @@ class _QuizCard extends StatelessWidget {
         _QuizAction.export => onExport(),
         _QuizAction.delete => onDelete(),
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: _QuizAction.edit, child: Text('Edit')),
-        PopupMenuItem(value: _QuizAction.export, child: Text('Export file')),
-        PopupMenuItem(value: _QuizAction.delete, child: Text('Delete')),
+      itemBuilder: (_) => [
+        PopupMenuItem(value: _QuizAction.edit, child: Text(context.tr("Edit"))),
+        PopupMenuItem(
+          value: _QuizAction.export,
+          child: Text(context.tr("Export file")),
+        ),
+        PopupMenuItem(
+          value: _QuizAction.delete,
+          child: Text(context.tr("Delete")),
+        ),
       ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(quiz.description.isEmpty ? 'No description.' : quiz.description),
+        Text(
+          quiz.description.isEmpty
+              ? context.tr("No description.")
+              : quiz.description,
+        ),
         const SizedBox(height: 12),
-        InfoRow(label: 'Category', value: quiz.category),
-        InfoRow(label: 'Type', value: quiz.format.label),
-        InfoRow(label: 'Questions', value: '${quiz.questions.length}'),
-        InfoRow(label: 'Teams', value: '${quiz.teams.length}'),
+        InfoRow(label: context.tr("Category"), value: quiz.category),
+        InfoRow(
+          label: context.tr("Type"),
+          value: context.tr(quiz.format.label),
+        ),
+        InfoRow(
+          label: context.tr("Questions"),
+          value: '${quiz.questions.length}',
+        ),
+        InfoRow(label: context.tr("Teams"), value: '${quiz.teams.length}'),
         if (quiz.questions.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            'First question: ${quiz.questions.first.prompt}',
+            context.tr("First question: {0}", [quiz.questions.first.prompt]),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,
@@ -365,13 +412,13 @@ class _QuizCard extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: isBusy ? null : onExport,
           icon: const Icon(Icons.file_download_outlined),
-          label: const Text('Export quiz with media'),
+          label: Text(context.tr("Export quiz with media")),
         ),
         if (onHost != null)
           FilledButton.icon(
             onPressed: isBusy ? null : onHost,
             icon: const Icon(Icons.play_arrow),
-            label: const Text('Host this quiz'),
+            label: Text(context.tr("Host this quiz")),
           ),
       ],
     ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../core/models/models.dart';
 
 class SessionNotifications extends StatefulWidget {
@@ -42,12 +44,17 @@ class _SessionNotificationsState extends State<SessionNotifications> {
         final wasConnected = previous.players[player.id]?.isConnected ?? false;
         if (player.isConnected != wasConnected) {
           messages.add(
-            '${player.name} ${player.isConnected ? "verbunden" : "getrennt"}.',
+            context.tr(
+              player.isConnected ? '{0} verbunden.' : '{0} getrennt.',
+              [player.name],
+            ),
           );
         }
       }
       if (game.allAnswersRevision > previous.allAnswersRevision) {
-        messages.add('Alle Spieler / teilnehmenden Teams haben geantwortet.');
+        messages.add(
+          context.tr("Alle Spieler / teilnehmenden Teams haben geantwortet."),
+        );
       }
     }
     final me = game.players[widget.playerId];
@@ -69,14 +76,23 @@ class _SessionNotificationsState extends State<SessionNotifications> {
         showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Quiz beendet'),
+            title: Text(context.tr("Quiz beendet")),
             content: Text(
-              '${teamCompetition ? "Dein Team erreicht" : "Du erreichst"} Platz $place mit $myScore ${game.poker == null ? "Punkten" : "Chips"}!',
+              context.tr("{0} Platz {1} mit {2} {3}!", [
+                teamCompetition
+                    ? context.tr("Dein Team erreicht")
+                    : context.tr("Du erreichst"),
+                place,
+                myScore,
+                game.poker == null
+                    ? context.tr("Punkten")
+                    : context.tr("Chips"),
+              ]),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(context.tr("OK")),
               ),
             ],
           ),

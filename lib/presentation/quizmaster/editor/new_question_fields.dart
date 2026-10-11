@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 
 class NewQuestionFields extends StatefulWidget {
@@ -119,13 +121,17 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Lösung und Einstellungen',
+            context.tr("Lösung und Einstellungen"),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           if (widget.question is TrueFalseQuestion)
             SwitchListTile(
-              title: Text(truth ? 'Lösung: Wahr' : 'Lösung: Falsch'),
+              title: Text(
+                truth
+                    ? context.tr("Lösung: Wahr")
+                    : context.tr("Lösung: Falsch"),
+              ),
               value: truth,
               onChanged: (v) {
                 setState(() => truth = v);
@@ -139,12 +145,16 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               maxLines: 12,
               decoration: InputDecoration(
                 labelText: switch (widget.question) {
-                  ShortAnswerQuestion() =>
-                    'Akzeptierte Antworten – eine pro Zeile',
-                  OrderingQuestion() =>
-                    'Elemente in korrekter Reihenfolge – eines pro Zeile',
-                  MatchingQuestion() => 'Paare – pro Zeile: links = rechts',
-                  EstimationQuestion() => 'Korrekte Zahl',
+                  ShortAnswerQuestion() => context.tr(
+                    "Akzeptierte Antworten – eine pro Zeile",
+                  ),
+                  OrderingQuestion() => context.tr(
+                    "Elemente in korrekter Reihenfolge – eines pro Zeile",
+                  ),
+                  MatchingQuestion() => context.tr(
+                    "Paare – pro Zeile: links = rechts",
+                  ),
+                  EstimationQuestion() => context.tr("Korrekte Zahl"),
                   TrueFalseQuestion() ||
                   MultipleChoiceQuestion() ||
                   BuzzerQuestion() => 'Lösung',
@@ -159,8 +169,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
           if (widget.question is ShortAnswerQuestion)
             DropdownButtonFormField<int>(
               initialValue: edits,
-              decoration: const InputDecoration(
-                labelText: 'Erlaubte Zeichenänderungen',
+              decoration: InputDecoration(
+                labelText: context.tr("Erlaubte Zeichenänderungen"),
               ),
               items: [
                 for (var i = 0; i <= 5; i++)
@@ -174,8 +184,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
           if (widget.question is EstimationQuestion) ...[
             TextFormField(
               initialValue: unit,
-              decoration: const InputDecoration(
-                labelText: 'Einheit (optional)',
+              decoration: InputDecoration(
+                labelText: context.tr("Einheit (optional)"),
               ),
               onChanged: (v) {
                 unit = v;
@@ -185,8 +195,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
             const SizedBox(height: 20),
             TextFormField(
               initialValue: scale,
-              decoration: const InputDecoration(
-                labelText: 'Abweichung für 0 Punkte bei Zielwert 0',
+              decoration: InputDecoration(
+                labelText: context.tr("Abweichung für 0 Punkte bei Zielwert 0"),
               ),
               onChanged: (v) {
                 scale = v;
@@ -194,8 +204,10 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               },
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).',
+            Text(
+              context.tr(
+                "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+              ),
             ),
           ],
         ],

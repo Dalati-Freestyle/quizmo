@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'media_playback_source.dart';
 
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -108,13 +111,13 @@ class QuestionMediaView extends StatelessWidget {
             image.asset.bytes!,
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) =>
-                const Text('Bild konnte nicht geladen werden.'),
+                Text(context.tr("Bild konnte nicht geladen werden.")),
           )
         : Image.network(
             source(image.asset).toString(),
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) =>
-                const Text('Bild konnte nicht geladen werden.'),
+                Text(context.tr("Bild konnte nicht geladen werden.")),
           );
     return Column(
       children: [
@@ -122,7 +125,7 @@ class QuestionMediaView extends StatelessWidget {
         if (image.zoom)
           TextButton.icon(
             icon: const Icon(Icons.zoom_in),
-            label: const Text('Vergrößern'),
+            label: Text(context.tr('Vergrößern')),
             onPressed: () => showDialog<void>(
               context: context,
               builder: (context) => Dialog(
@@ -262,7 +265,9 @@ class _AudioViewState extends State<_AudioView> {
     } on Object {
       if (mounted) {
         setState(
-          () => error = 'Audio kann auf diesem Gerät nicht abgespielt werden.',
+          () => error = context.tr(
+            "Audio kann auf diesem Gerät nicht abgespielt werden.",
+          ),
         );
       }
     }
@@ -278,7 +283,7 @@ class _AudioViewState extends State<_AudioView> {
 
   @override
   Widget build(BuildContext context) {
-    if (error != null) return Text(error!);
+    if (error != null) return Text(context.tr(error!));
     if (!ready) return const LinearProgressIndicator();
     return StreamBuilder<PlayerState>(
       stream: player.playerStateStream,
@@ -287,7 +292,7 @@ class _AudioViewState extends State<_AudioView> {
         return Row(
           children: [
             IconButton(
-              tooltip: playing ? 'Pause' : 'Abspielen',
+              tooltip: playing ? context.tr("Pause") : context.tr("Abspielen"),
               icon: Icon(playing ? Icons.pause : Icons.play_arrow),
               onPressed: () async {
                 if (playing) {
@@ -301,7 +306,9 @@ class _AudioViewState extends State<_AudioView> {
                   } on Object {
                     if (mounted) {
                       setState(
-                        () => error = 'Audio konnte nicht abgespielt werden.',
+                        () => error = context.tr(
+                          "Audio konnte nicht abgespielt werden.",
+                        ),
                       );
                     }
                   }
@@ -394,7 +401,9 @@ class _VideoViewState extends State<_VideoView> {
     } on Object {
       if (mounted) {
         setState(
-          () => error = 'Video kann auf diesem Gerät nicht abgespielt werden.',
+          () => error = context.tr(
+            "Video kann auf diesem Gerät nicht abgespielt werden.",
+          ),
         );
       }
     }
@@ -421,10 +430,10 @@ class _VideoViewState extends State<_VideoView> {
   @override
   Widget build(BuildContext context) {
     final controller = this.controller;
-    if (error != null) return Text(error!);
+    if (error != null) return Text(context.tr(error!));
     if (controller == null) return const LinearProgressIndicator();
     if (controller.value.hasError) {
-      return Text(error ?? 'Video konnte nicht geladen werden.');
+      return Text(error ?? context.tr("Video konnte nicht geladen werden."));
     }
     if (!controller.value.isInitialized) return const LinearProgressIndicator();
     return Column(
@@ -438,7 +447,9 @@ class _VideoViewState extends State<_VideoView> {
         ),
         VideoProgressIndicator(controller, allowScrubbing: true),
         IconButton(
-          tooltip: controller.value.isPlaying ? 'Pause' : 'Abspielen',
+          tooltip: controller.value.isPlaying
+              ? context.tr("Pause")
+              : context.tr("Abspielen"),
           onPressed: () => controller.value.isPlaying
               ? controller.pause()
               : controller.play(),
@@ -527,7 +538,7 @@ class _YoutubeViewState extends State<_YoutubeView> {
             Uri.https('www.youtube.com', '/watch', {'v': widget.id}),
           ),
           icon: const Icon(Icons.open_in_new),
-          label: const Text('YouTube-Video öffnen'),
+          label: Text(context.tr("YouTube-Video öffnen")),
         )
       : YoutubePlayer(controller: controller!);
 }

@@ -5,6 +5,10 @@
 library;
 
 import 'package:flutter/material.dart';
+
+import '../l10n/app_localizations.dart';
+import '../settings/settings_page.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
@@ -85,20 +89,26 @@ class _HostDashboardView extends StatelessWidget {
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Fragenauswahl bestätigen'),
+            title: Text(context.tr("Fragenauswahl bestätigen")),
             content: Text(
-              '${state.game.players[playerId]?.name ?? "Spieler"} hat '
-              '${pick.board.categoryNameOf(id)} für ${pick.board.pointsFor(id)} Punkte gewählt.\n\n'
-              '${question?.prompt ?? ""}\n\nBitte bestätige die Auswahl, um die Frage zu öffnen.',
+              context.tr(
+                "{0} hat {1} für {2} Punkte gewählt.\n\n{3}\n\nBitte bestätige die Auswahl, um die Frage zu öffnen.",
+                [
+                  state.game.players[playerId]?.name ?? "Spieler",
+                  pick.board.categoryNameOf(id),
+                  pick.board.pointsFor(id),
+                  question?.prompt ?? "",
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Ablehnen'),
+                child: Text(context.tr("Ablehnen")),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Bestätigen'),
+                child: Text(context.tr("Bestätigen")),
               ),
             ],
           ),
@@ -135,15 +145,16 @@ class _HostDashboardView extends StatelessWidget {
 
             return Scaffold(
               appBar: AppBar(
-                title: Text('Quizmaster · $quizName'),
+                title: Text(context.tr("Quizmaster · {0}", [quizName])),
                 actions: [
+                  const SettingsButton(),
                   IconButton(
-                    tooltip: 'Preview the TV screen',
+                    tooltip: context.tr("Preview the TV screen"),
                     onPressed: openTvPreview,
                     icon: const Icon(Icons.tv),
                   ),
                   IconButton(
-                    tooltip: 'Join this session as a local player',
+                    tooltip: context.tr("Join this session as a local player"),
                     onPressed: serverState.endpoint == null
                         ? null
                         : () => Navigator.of(context).push(
@@ -157,26 +168,28 @@ class _HostDashboardView extends StatelessWidget {
                     icon: const Icon(Icons.person_add_alt),
                   ),
                   IconButton(
-                    tooltip: 'Reset scores',
+                    tooltip: context.tr("Reset scores"),
                     onPressed: () => engine.add(const ResetGameEvent()),
                     icon: const Icon(Icons.restart_alt),
                   ),
                   PopupMenuButton<GameMode>(
-                    tooltip: 'Game mode',
+                    tooltip: context.tr("Game mode"),
                     icon: const Icon(Icons.tune),
                     onSelected: (mode) => engine.add(ChangeGameModeEvent(mode)),
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem<GameMode>(
                         value: SoloMode(),
-                        child: Text('Solo scoring'),
+                        child: Text(context.tr("Solo scoring")),
                       ),
                       PopupMenuItem<GameMode>(
                         value: TeamMode(),
-                        child: Text('Team scoring (shared buzzer)'),
+                        child: Text(context.tr("Team scoring (shared buzzer)")),
                       ),
                       PopupMenuItem<GameMode>(
                         value: TeamMode(sharedBuzzer: false),
-                        child: Text('Team scoring (individual buzzers)'),
+                        child: Text(
+                          context.tr("Team scoring (individual buzzers)"),
+                        ),
                       ),
                     ],
                   ),
@@ -188,20 +201,22 @@ class _HostDashboardView extends StatelessWidget {
                   panels: [
                     if (!game.isStarted)
                       PanelCard(
-                        title: 'Quiz starten',
+                        title: context.tr("Quiz starten"),
                         icon: Icons.play_circle_outline,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
-                              'Spieler können beitreten. Die Fragenauswahl wird erst nach dem Start freigegeben.',
+                            Text(
+                              context.tr(
+                                "Spieler können beitreten. Die Fragenauswahl wird erst nach dem Start freigegeben.",
+                              ),
                             ),
                             const SizedBox(height: 12),
                             FilledButton.icon(
                               onPressed: () =>
                                   engine.add(const StartGameEvent()),
                               icon: const Icon(Icons.play_arrow),
-                              label: const Text('Quiz jetzt starten'),
+                              label: Text(context.tr("Quiz jetzt starten")),
                             ),
                           ],
                         ),
@@ -233,7 +248,7 @@ class _HostDashboardView extends StatelessWidget {
                         (m) => m is AudioAttachment || m is VideoAttachment,
                       ))
                         PanelCard(
-                          title: 'Medienwiedergabe',
+                          title: context.tr("Medienwiedergabe"),
                           icon: Icons.live_tv,
                           child: Wrap(
                             spacing: 12,
@@ -244,7 +259,7 @@ class _HostDashboardView extends StatelessWidget {
                                   const ControlTvMediaEvent(TvMediaAction.play),
                                 ),
                                 icon: const Icon(Icons.play_arrow),
-                                label: const Text('Abspielen'),
+                                label: Text(context.tr("Abspielen")),
                               ),
                               OutlinedButton.icon(
                                 onPressed: () => engine.add(
@@ -253,7 +268,7 @@ class _HostDashboardView extends StatelessWidget {
                                   ),
                                 ),
                                 icon: const Icon(Icons.pause),
-                                label: const Text('Pause'),
+                                label: Text(context.tr("Pause")),
                               ),
                               OutlinedButton.icon(
                                 onPressed: () => engine.add(
@@ -262,36 +277,47 @@ class _HostDashboardView extends StatelessWidget {
                                   ),
                                 ),
                                 icon: const Icon(Icons.replay),
-                                label: const Text('Neu starten'),
+                                label: Text(context.tr("Neu starten")),
                               ),
                               Text(
                                 game.tvMediaPaused
-                                    ? 'TV: pausiert'
-                                    : 'TV: Wiedergabe angefordert',
+                                    ? context.tr("TV: pausiert")
+                                    : context.tr("TV: Wiedergabe angefordert"),
                               ),
                             ],
                           ),
                         ),
                     if (game.poker case final poker?)
                       PanelCard(
-                        title: 'Pokerchips',
+                        title: context.tr("Pokerchips"),
                         icon: Icons.casino_outlined,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              '${poker.startingChips} Startchips pro Team · ${poker.betting ? "Einsatzphase" : "Antwortphase"}',
+                              context.tr("{0} Startchips pro Team · {1}", [
+                                poker.startingChips,
+                                poker.betting
+                                    ? context.tr("Einsatzphase")
+                                    : context.tr("Antwortphase"),
+                              ]),
                             ),
                             for (final team in game.teams.values)
                               Text(
-                                '${team.name}: ${poker.chips[team.id] ?? 0} Chips · Einsatz: ${poker.wagers[team.id] ?? "–"}',
+                                context.tr("{0}: {1} Chips · Einsatz: {2}", [
+                                  team.name,
+                                  poker.chips[team.id] ?? 0,
+                                  poker.wagers[team.id] ?? "–",
+                                ]),
                               ),
                             if (poker.betting)
                               FilledButton(
                                 onPressed: () =>
                                     engine.add(const OpenPokerAnswersEvent()),
-                                child: const Text(
-                                  'Einsätze schließen & Antworten öffnen',
+                                child: Text(
+                                  context.tr(
+                                    "Einsätze schließen & Antworten öffnen",
+                                  ),
                                 ),
                               ),
                           ],
@@ -324,8 +350,10 @@ class _HostDashboardView extends StatelessWidget {
                     ),
                     PanelCard(
                       title: game.poker == null
-                          ? 'Scoreboard · ${game.mode.label}'
-                          : 'Pokerchips · Teams',
+                          ? context.tr("Scoreboard · {0}", [
+                              context.tr(game.mode.label),
+                            ])
+                          : context.tr("Pokerchips · Teams"),
                       icon: Icons.leaderboard_outlined,
                       child: ScoreboardView(game: game),
                     ),

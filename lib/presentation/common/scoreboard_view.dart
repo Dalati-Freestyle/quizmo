@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../core/models/models.dart';
 
 /// Renders solo or team standings, depending on [GameState.mode].
@@ -66,7 +68,10 @@ class _PlayerStandings extends StatelessWidget {
         .toList(growable: false);
 
     if (ranking.isEmpty) {
-      return Text('No scores yet.', style: theme.textTheme.bodySmall);
+      return Text(
+        context.tr("No scores yet."),
+        style: theme.textTheme.bodySmall,
+      );
     }
 
     return Column(
@@ -101,7 +106,10 @@ class _TeamStandings extends StatelessWidget {
     final theme = Theme.of(context);
     final totals = game.teamScores;
     if (game.teams.isEmpty) {
-      return Text('No teams configured.', style: theme.textTheme.bodySmall);
+      return Text(
+        context.tr("No teams configured."),
+        style: theme.textTheme.bodySmall,
+      );
     }
 
     final ordered = game.teams.values.toList(growable: false)

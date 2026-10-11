@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
+
 import '../../../core/models/models.dart';
 
 /// Shows the prompt and the selectable options.
@@ -112,7 +114,7 @@ class _MultipleChoiceQuestionViewState
                     widget.onSubmitMultiple!(draft.toList());
                   }
                 : null,
-            child: const Text('Antworten einloggen'),
+            child: Text(context.tr("Antworten einloggen")),
           ),
         const SizedBox(height: 8),
         Text(
@@ -120,13 +122,18 @@ class _MultipleChoiceQuestionViewState
             RoundStatus.revealed =>
               isPermutation(selected.toList(), question.solutionOptionIds)
                   ? 'Correct!'
-                  : 'Not this time.',
-            _ when selectedOptionId != null || submitted =>
-              'Antwort eingeloggt. Warte auf den Spielleiter…',
+                  : context.tr("Not this time."),
+            _ when selectedOptionId != null || submitted => context.tr(
+              "Antwort eingeloggt. Warte auf den Spielleiter…",
+            ),
             _ =>
               question.allowMultipleAnswers
-                  ? 'Wähle alle richtigen Antworten und logge sie ein.'
-                  : 'Ein Druck loggt deine Antwort verbindlich ein.',
+                  ? context.tr(
+                      "Wähle alle richtigen Antworten und logge sie ein.",
+                    )
+                  : context.tr(
+                      "Ein Druck loggt deine Antwort verbindlich ein.",
+                    ),
           },
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(

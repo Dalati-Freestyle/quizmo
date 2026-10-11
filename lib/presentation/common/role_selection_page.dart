@@ -4,6 +4,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 import '../../backend/server_launcher.dart';
 import '../../core/models/models.dart';
 import '../player/player_page.dart';
@@ -11,6 +13,7 @@ import '../quizmaster/host_dashboard_page.dart' deferred as host_dashboard;
 import '../quizmaster/editor/quiz_library_page.dart' deferred as quiz_library;
 import 'adaptive_layout.dart';
 import 'quizmo_logo.dart';
+import '../settings/settings_page.dart';
 
 /// Lets the user pick between the quizmaster and the player experience.
 ///
@@ -27,24 +30,27 @@ class RoleSelectionPage extends StatelessWidget {
     final cards = <Widget>[
       _RoleCard(
         icon: Icons.record_voice_over_outlined,
-        title: 'Host a quiz',
+        title: context.tr("Host a quiz"),
         description: kIsWeb
-            ? 'Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.'
+            ? context.tr(
+                "Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.",
+              )
             : embeddedServerSupported
-            ? 'Starts the embedded HTTP and web socket server on this device. '
-                  'Players join over your local network.'
-            : 'Hosting is unavailable on this platform.',
-        actionLabel: 'Open quizmaster dashboard',
+            ? context.tr(
+                "Starts the embedded HTTP and web socket server on this device. Players join over your local network.",
+              )
+            : context.tr("Hosting is unavailable on this platform."),
+        actionLabel: context.tr("Open quizmaster dashboard"),
         enabled: embeddedServerSupported,
         onPressed: () => _chooseQuizAndHost(context),
       ),
       _RoleCard(
         icon: Icons.sports_esports,
-        title: 'Join as player',
-        description:
-            'Connect to a host on your network, pick a team and get a buzzer '
-            'that is corrected for your network latency.',
-        actionLabel: 'Open player view',
+        title: context.tr("Join as player"),
+        description: context.tr(
+          "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+        ),
+        actionLabel: context.tr("Open player view"),
         enabled: true,
         onPressed: () => Navigator.of(context)
             .push(MaterialPageRoute<void>(builder: (_) => const PlayerPage())),
@@ -52,6 +58,7 @@ class RoleSelectionPage extends StatelessWidget {
     ];
 
     return Scaffold(
+      appBar: AppBar(actions: const [SettingsButton()]),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -73,7 +80,7 @@ class RoleSelectionPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Local-first, multi-device quiz platform',
+                    context.tr("Local-first, multi-device quiz platform"),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
@@ -100,14 +107,17 @@ class RoleSelectionPage extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: () => _openQuizLibrary(context),
                     icon: const Icon(Icons.library_books_outlined),
-                    label: const Text('Manage quiz library'),
+                    label: Text(context.tr("Manage quiz library")),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     kIsWeb
-                        ? 'Create quizzes here or join with the invitation link from your host.'
-                        : 'Tip: start the host here, then open the Flutter web '
-                              'build in two browser tabs to simulate players.',
+                        ? context.tr(
+                            "Create quizzes here or join with the invitation link from your host.",
+                          )
+                        : context.tr(
+                            "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.",
+                          ),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
