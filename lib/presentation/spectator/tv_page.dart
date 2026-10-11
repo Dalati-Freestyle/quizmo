@@ -567,6 +567,7 @@ class _JeopardyBoardStage extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final picker = game.teams[jeopardy.currentTeamId];
+    final pickerName = game.participantName(jeopardy.currentTeamId);
     final remaining = jeopardy.board.questionIds
         .where((id) => !game.completedQuestionIds.contains(id))
         .length;
@@ -588,11 +589,12 @@ class _JeopardyBoardStage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               )
-            else if (picker != null)
+            else if (pickerName != null)
               _Pill(
-                label: '${picker.name} picks the next question',
-                color: Color(picker.colorValue).withValues(alpha: 0.35),
-                dotColor: Color(picker.colorValue),
+                label: '$pickerName picks the next question',
+                color: Color(picker?.colorValue ?? 0xff1565c0)
+                    .withValues(alpha: 0.35),
+                dotColor: Color(picker?.colorValue ?? 0xff1565c0),
               ),
             if (isOpening)
               Text(
@@ -635,7 +637,7 @@ class _DailyDoubleStage extends StatelessWidget {
     final scheme = theme.colorScheme;
     final id = jeopardy.pendingDailyDoubleId;
     final category = id == null ? null : jeopardy.board.categoryNameOf(id);
-    final picker = game.teams[jeopardy.currentTeamId];
+    final pickerName = game.participantName(jeopardy.currentTeamId);
 
     return Center(
       child: Column(
@@ -656,7 +658,7 @@ class _DailyDoubleStage extends StatelessWidget {
             _Pill(label: category, color: scheme.tertiaryContainer),
           const SizedBox(height: 32),
           Text(
-            '${picker?.name ?? 'The picking team'}, place your wager!',
+            '${pickerName ?? 'The picking team'}, place your wager!',
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 56,
@@ -805,6 +807,7 @@ class _QuestionStage extends StatelessWidget {
     final jeopardy = game.jeopardy;
     final boardCategory = jeopardy?.board.categoryNameOf(question.id);
     final picker = game.teams[jeopardy?.currentTeamId];
+    final pickerName = game.participantName(jeopardy?.currentTeamId);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -837,13 +840,14 @@ class _QuestionStage extends StatelessWidget {
                         color: scheme.tertiary.withValues(alpha: 0.4),
                         dotColor: scheme.tertiary,
                       ),
-                    if (picker != null && !isRevealed)
+                    if (pickerName != null && !isRevealed)
                       _Pill(
                         label: jeopardy.isStealRound
-                            ? 'STEAL: everyone but ${picker.name}'
-                            : '${picker.name} answers',
-                        color: Color(picker.colorValue).withValues(alpha: 0.35),
-                        dotColor: Color(picker.colorValue),
+                            ? 'STEAL: everyone but $pickerName'
+                            : '$pickerName answers',
+                        color: Color(picker?.colorValue ?? 0xff1565c0)
+                            .withValues(alpha: 0.35),
+                        dotColor: Color(picker?.colorValue ?? 0xff1565c0),
                       ),
                   ] else
                     _Pill(
@@ -1067,7 +1071,9 @@ class _ChoiceBoard extends StatelessWidget {
     final tally = <String, int>{};
     for (final answer
         in round.answers.values.whereType<MultipleChoiceAnswer>()) {
-      tally[answer.optionId] = (tally[answer.optionId] ?? 0) + 1;
+      for (final id in answer.selectedOptionIds) {
+        tally[id] = (tally[id] ?? 0) + 1;
+      }
     }
 
     Widget tile(int index) => _ChoiceTile(

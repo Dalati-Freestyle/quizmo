@@ -9,13 +9,16 @@ import '../../../core/models/models.dart';
 ///
 /// After the round is revealed the widget switches into a result mode that
 /// marks the correct option and the player's own pick.
-class MultipleChoiceQuestionView extends StatelessWidget {
+class MultipleChoiceQuestionView extends StatefulWidget {
   /// Creates the view.
   const MultipleChoiceQuestionView({
     required this.question,
     required this.status,
     required this.selectedOptionId,
     required this.onSelect,
+    this.selectedOptionIds = const [],
+    this.onSubmitMultiple,
+    this.enabled = true,
     super.key,
   });
 
@@ -31,10 +34,37 @@ class MultipleChoiceQuestionView extends StatelessWidget {
   /// Invoked with the chosen option id.
   final ValueChanged<String> onSelect;
 
+  final List<String> selectedOptionIds;
+  final ValueChanged<List<String>>? onSubmitMultiple;
+  final bool enabled;
+  @override
+  State<MultipleChoiceQuestionView> createState() =>
+      _MultipleChoiceQuestionViewState();
+}
+
+class _MultipleChoiceQuestionViewState
+    extends State<MultipleChoiceQuestionView> {
+  final Set<String> draft = {};
+  bool submitted = false;
+  MultipleChoiceQuestion get question => widget.question;
+  RoundStatus get status => widget.status;
+  String? get selectedOptionId => widget.selectedOptionId;
+  Set<String> get selected => widget.selectedOptionIds.isNotEmpty
+      ? widget.selectedOptionIds.toSet()
+      : {
+          if (selectedOptionId != null && selectedOptionId != 'submitted')
+            selectedOptionId!,
+          ...draft,
+        };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLocked = !status.acceptsInput || selectedOptionId != null;
+    final isLocked =
+        !widget.enabled ||
+        !status.acceptsInput ||
+        selectedOptionId != null ||
+        submitted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -50,25 +80,53 @@ class MultipleChoiceQuestionView extends StatelessWidget {
         for (final option in question.options) ...[
           _OptionTile(
             option: option,
-            isSelected: option.id == selectedOptionId,
-            isCorrect: question.correctOptionId == null
+            isSelected: selected.contains(option.id),
+            isCorrect: !question.hasSolution
                 ? null
-                : question.correctOptionId == option.id,
+                : question.isCorrect(option.id),
             enabled: !isLocked,
-            onTap: () => onSelect(option.id),
+            onTap: () {
+              if (isLocked || submitted || widget.selectedOptionId != null) {
+                return;
+              }
+              setState(() {
+                if (question.allowMultipleAnswers) {
+                  if (!draft.add(option.id)) draft.remove(option.id);
+                } else {
+                  draft.add(option.id);
+                  submitted = true;
+                }
+              });
+              if (!question.allowMultipleAnswers) widget.onSelect(option.id);
+            },
           ),
           const SizedBox(height: 10),
         ],
+        if (question.allowMultipleAnswers)
+          FilledButton(
+            onPressed:
+                !isLocked && draft.isNotEmpty && widget.onSubmitMultiple != null
+                ? () {
+                    if (submitted || widget.selectedOptionId != null) return;
+                    setState(() => submitted = true);
+                    widget.onSubmitMultiple!(draft.toList());
+                  }
+                : null,
+            child: const Text('Antworten einloggen'),
+          ),
         const SizedBox(height: 8),
         Text(
           switch (status) {
             RoundStatus.revealed =>
-              question.correctOptionId == selectedOptionId
+              isPermutation(selected.toList(), question.solutionOptionIds)
                   ? 'Correct!'
                   : 'Not this time.',
-            _ when selectedOptionId != null =>
-              'Answer locked in. Waiting for the quizmaster…',
-            _ => 'Pick one answer — faster answers score more.',
+            _ when selectedOptionId != null || submitted =>
+              'Antwort eingeloggt. Warte auf den Spielleiter…',
+            _ =>
+              question.allowMultipleAnswers
+                  ? 'Wähle alle richtigen Antworten und logge sie ein.'
+                  : 'Ein Druck loggt deine Antwort verbindlich ein.',
           },
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(

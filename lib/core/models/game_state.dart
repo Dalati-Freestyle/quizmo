@@ -87,6 +87,7 @@ final class GameState extends Equatable {
   const GameState({
     this.mode = const SoloMode(),
     this.players = const {},
+    this.playerOrder = const [],
     this.teams = const {},
     this.scores = const ScoreState(),
     this.round = RoundState.idle,
@@ -109,6 +110,9 @@ final class GameState extends Equatable {
     isFinished: json.readBool('isFinished', orElse: false),
     mode: GameMode.fromJson(json.readObject('mode')),
     players: json.readMap('players', Player.fromJson),
+    playerOrder: json['playerOrder'] == null
+        ? const []
+        : json.readStringList('playerOrder'),
     teams: json.readMap('teams', Team.fromJson),
     scores: ScoreState.fromJson(json.readObject('scores')),
     round: RoundState.fromJson(json.readObject('round')),
@@ -134,6 +138,40 @@ final class GameState extends Equatable {
 
   /// Connected and previously connected players, keyed by id.
   final Map<String, Player> players;
+  final List<String> playerOrder;
+
+  List<String> get orderedPlayerIds => [
+    ...playerOrder.where(players.containsKey),
+    ...players.keys.where((id) => !playerOrder.contains(id)),
+  ];
+  String? participantId(Player? player) =>
+      mode is TeamMode ? player?.teamId : player?.id;
+  String? participantName(String? id) =>
+      mode is TeamMode ? teams[id]?.name : players[id]?.name;
+  List<String> get participantIds => mode is TeamMode
+      ? {
+          ...orderedPlayerIds
+              .map((id) => players[id]!.teamId)
+              .whereType<String>(),
+          ...teams.keys,
+        }.toList()
+      : orderedPlayerIds;
+  List<String> get selectionOrder => [
+    ...?jeopardy?.turnOrder.where(participantIds.contains),
+    ...participantIds.where(
+      (id) => !(jeopardy?.turnOrder.contains(id) ?? false),
+    ),
+  ];
+  bool mayPickQuestion(String? playerId) {
+    final player = players[playerId];
+    return player != null &&
+        player.isConnected &&
+        jeopardy?.currentTeamId != null &&
+        participantId(player) == jeopardy?.currentTeamId;
+  }
+
+  bool mayAnswerQuestion(String? playerId) =>
+      jeopardy?.mayAnswer(participantId(players[playerId])) ?? true;
 
   /// Configured teams, keyed by id.
   final Map<String, Team> teams;
@@ -241,6 +279,7 @@ final class GameState extends Equatable {
   GameState copyWith({
     GameMode? mode,
     Map<String, Player>? players,
+    List<String>? playerOrder,
     Map<String, Team>? teams,
     ScoreState? scores,
     RoundState? round,
@@ -256,6 +295,7 @@ final class GameState extends Equatable {
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
+    playerOrder: playerOrder ?? this.playerOrder,
     teams: teams ?? this.teams,
     scores: scores ?? this.scores,
     round: round ?? this.round,
@@ -278,6 +318,7 @@ final class GameState extends Equatable {
   JsonMap toJson() => {
     'mode': mode.toJson(),
     'players': players.map((key, value) => MapEntry(key, value.toJson())),
+    'playerOrder': playerOrder,
     'teams': teams.map((key, value) => MapEntry(key, value.toJson())),
     'scores': scores.toJson(),
     'round': round.toJson(),
@@ -298,6 +339,7 @@ final class GameState extends Equatable {
   List<Object?> get props => [
     mode,
     players,
+    playerOrder,
     teams,
     scores,
     round,

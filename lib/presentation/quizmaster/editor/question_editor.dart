@@ -186,6 +186,8 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   late final TextEditingController _tertiaryPointsController;
   late List<_OptionDraft> _options;
   late String? _correctOptionId;
+  List<String> _correctOptionIds = [];
+  bool _allowMultipleAnswers = false;
   late bool _lockOutOnMiss;
   late _ScoringRuleKind _scoringKind;
 
@@ -232,6 +234,10 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       EstimationQuestion() ||
       TrueFalseQuestion() => null,
     };
+    if (question is MultipleChoiceQuestion) {
+      _correctOptionIds = [...question.solutionOptionIds];
+      _allowMultipleAnswers = question.allowMultipleAnswers;
+    }
     _lockOutOnMiss = switch (question) {
       MultipleChoiceQuestion() ||
       ShortAnswerQuestion() ||
@@ -402,19 +408,68 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
             onRemove: _options.length <= 2 ? null : () => _removeOption(index),
           ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _options.any((option) => option.id == _correctOptionId)
-              ? _correctOptionId
-              : null,
-          decoration: const InputDecoration(labelText: 'Correct option'),
-          items: [
-            for (final option in _options)
-              DropdownMenuItem(value: option.id, child: Text(option.label)),
-          ],
-          onChanged: (value) => setState(() => _correctOptionId = value),
-          validator: (value) =>
-              value == null ? 'Choose an option as the correct answer.' : null,
+        SwitchListTile(
+          title: const Text('Mehrere richtige Antworten'),
+          value: _allowMultipleAnswers,
+          onChanged: (value) => setState(() {
+            _allowMultipleAnswers = value;
+            if (!value) _correctOptionId = _correctOptionIds.firstOrNull;
+            if (value &&
+                _correctOptionIds.isEmpty &&
+                _correctOptionId != null) {
+              _correctOptionIds = [_correctOptionId!];
+            }
+          }),
         ),
+        if (_allowMultipleAnswers)
+          FormField<List<String>>(
+            validator: (_) => _correctOptionIds.isEmpty
+                ? 'Mindestens eine richtige Antwort wÃ¤hlen.'
+                : null,
+            builder: (field) => Column(
+              children: [
+                for (final option in _options)
+                  CheckboxListTile(
+                    title: Text(option.label),
+                    value: _correctOptionIds.contains(option.id),
+                    onChanged: (checked) => setState(() {
+                      if (checked == true) {
+                        _correctOptionIds.add(option.id);
+                      } else {
+                        _correctOptionIds.remove(option.id);
+                      }
+                      field.didChange([..._correctOptionIds]);
+                    }),
+                  ),
+                if (field.errorText != null)
+                  Text(
+                    field.errorText!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        if (!_allowMultipleAnswers)
+          DropdownButtonFormField<String>(
+            initialValue:
+                _options.any((option) => option.id == _correctOptionId)
+                ? _correctOptionId
+                : null,
+            decoration: const InputDecoration(labelText: 'Correct option'),
+            items: [
+              for (final option in _options)
+                DropdownMenuItem(value: option.id, child: Text(option.label)),
+            ],
+            onChanged: (value) => setState(() {
+              _correctOptionId = value;
+              _correctOptionIds = [?value];
+            }),
+            validator: (value) => value == null
+                ? 'Choose an option as the correct answer.'
+                : null,
+          ),
       ],
     ),
   );
@@ -504,7 +559,11 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       );
 
   void _addOption() {
-    final id = 'option-${_options.length + 1}';
+    var number = _options.length + 1;
+    while (_options.any((option) => option.id == 'option-$number')) {
+      number++;
+    }
+    final id = 'option-$number';
     setState(() {
       _options = [
         ..._options,
@@ -518,6 +577,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     final removed = _options[index];
     setState(() {
       _options = [..._options]..removeAt(index);
+      _correctOptionIds.remove(removed.id);
       if (_correctOptionId == removed.id) {
         _correctOptionId = _options.isEmpty ? null : _options.first.id;
       }
@@ -551,7 +611,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
           for (final option in _options)
             AnswerOption(id: option.id, label: option.label.trim()),
         ],
-        correctOptionId: _correctOptionId,
+        correctOptionId: _allowMultipleAnswers ? null : _correctOptionId,
+        correctOptionIds: _allowMultipleAnswers ? [..._correctOptionIds] : null,
+        allowMultipleAnswers: _allowMultipleAnswers,
       ),
       ShortAnswerQuestion() ||
       OrderingQuestion() ||

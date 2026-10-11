@@ -315,14 +315,16 @@ List<String> _questionValidationErrors(Question question) => [
       :final prompt,
       :final timeLimit,
       :final options,
-      :final correctOptionId,
+      :final solutionOptionIds,
+      :final allowMultipleAnswers,
     ) =>
       _multipleChoiceValidationErrors(
         id: id,
         prompt: prompt,
         timeLimit: timeLimit,
         options: options,
-        correctOptionId: correctOptionId,
+        correctOptionIds: solutionOptionIds,
+        allowMultipleAnswers: allowMultipleAnswers,
       ),
     ShortAnswerQuestion() ||
     OrderingQuestion() ||
@@ -350,7 +352,8 @@ List<String> _multipleChoiceValidationErrors({
   required String prompt,
   required Duration timeLimit,
   required List<AnswerOption> options,
-  required String? correctOptionId,
+  required List<String> correctOptionIds,
+  required bool allowMultipleAnswers,
 }) {
   final errors = _baseQuestionValidationErrors(
     id: id,
@@ -369,8 +372,12 @@ List<String> _multipleChoiceValidationErrors({
       errors.add('Option "${option.id}" in question "$id" needs a label.');
     }
   }
-  if (correctOptionId == null ||
-      !options.any((option) => option.id == correctOptionId)) {
+  if (correctOptionIds.isEmpty ||
+      correctOptionIds.toSet().length != correctOptionIds.length ||
+      (!allowMultipleAnswers && correctOptionIds.length != 1) ||
+      !correctOptionIds.every(
+        (id) => options.any((option) => option.id == id),
+      )) {
     errors.add(
       'Multiple-choice question "$id" needs a correctOptionId from its options.',
     );

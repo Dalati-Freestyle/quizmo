@@ -257,6 +257,26 @@ final class SetJeopardyOrderEvent extends QuizEngineEvent {
   List<Object?> get props => [teamIds];
 }
 
+final class SetPlayerOrderEvent extends QuizEngineEvent {
+  const SetPlayerOrderEvent(this.playerIds);
+  final List<String> playerIds;
+  @override
+  List<Object?> get props => [playerIds];
+}
+
+final class ConfirmQuestionPickEvent extends QuizEngineEvent {
+  const ConfirmQuestionPickEvent({
+    required this.questionId,
+    required this.playerId,
+    required this.accepted,
+  });
+  final String questionId;
+  final String playerId;
+  final bool accepted;
+  @override
+  List<Object?> get props => [questionId, playerId, accepted];
+}
+
 enum TvMediaAction { play, pause, restart }
 
 final class ControlTvMediaEvent extends QuizEngineEvent {

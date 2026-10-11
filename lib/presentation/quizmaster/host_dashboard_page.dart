@@ -69,7 +69,50 @@ class _HostDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     final engine = context.read<QuizEngineBloc>();
 
-    return BlocBuilder<QuizEngineBloc, QuizEngineState>(
+    return BlocConsumer<QuizEngineBloc, QuizEngineState>(
+      listenWhen: (previous, current) =>
+          current.game.jeopardy?.pendingPickQuestionId != null &&
+          (previous.game.jeopardy?.pendingPickQuestionId !=
+                  current.game.jeopardy?.pendingPickQuestionId ||
+              previous.game.jeopardy?.pendingPickPlayerId !=
+                  current.game.jeopardy?.pendingPickPlayerId),
+      listener: (context, state) async {
+        final pick = state.game.jeopardy!;
+        final id = pick.pendingPickQuestionId!;
+        final playerId = pick.pendingPickPlayerId!;
+        final question = state.game.questionById(id);
+        final accepted = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Fragenauswahl bestätigen'),
+            content: Text(
+              '${state.game.players[playerId]?.name ?? "Spieler"} hat '
+              '${pick.board.categoryNameOf(id)} für ${pick.board.pointsFor(id)} Punkte gewählt.\n\n'
+              '${question?.prompt ?? ""}\n\nBitte bestätige die Auswahl, um die Frage zu öffnen.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Ablehnen'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Bestätigen'),
+              ),
+            ],
+          ),
+        );
+        if (!engine.isClosed) {
+          engine.add(
+            ConfirmQuestionPickEvent(
+              questionId: id,
+              playerId: playerId,
+              accepted: accepted == true,
+            ),
+          );
+        }
+      },
       builder: (context, engineState) {
         return BlocBuilder<HostServerCubit, HostServerState>(
           builder: (context, serverState) {
@@ -232,7 +275,9 @@ class _HostDashboardView extends StatelessWidget {
                       JeopardyBoardPanel(
                         game: game,
                         jeopardy: jeopardy,
-                        canPick: engineState.canStartRound,
+                        canPick:
+                            engineState.canStartRound &&
+                            jeopardy.pendingPickQuestionId == null,
                         maxWager: engine.maxDailyDoubleWager(game),
                         onSelect: (questionId) =>
                             engine.add(SelectJeopardyCellEvent(questionId)),
@@ -259,6 +304,12 @@ class _HostDashboardView extends StatelessWidget {
                     ),
                     PlayersPanel(
                       game: game,
+                      onSetOrder:
+                          engineState.canStartRound &&
+                              game.jeopardy?.pendingPickQuestionId == null &&
+                              game.jeopardy?.pendingDailyDoubleId == null
+                          ? (ids) => engine.add(SetPlayerOrderEvent(ids))
+                          : null,
                       onKick: (id) => engine.add(KickPlayerEvent(id)),
                       onMerge: (source, target) => engine.add(
                         MergePlayersEvent(

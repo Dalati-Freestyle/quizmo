@@ -134,6 +134,15 @@ void main() {
         await send(const SelectJeopardyCellEvent('q-mc-daily', playerId: 'p1'));
         await send(const SelectJeopardyCellEvent('q-mc-low', playerId: 'p1'));
         await send(const SetJeopardyTurnEvent('blue'));
+        expect(game().jeopardy!.pendingPickQuestionId, 'q-mc-daily');
+        expect(game().jeopardy!.pendingDailyDoubleId, isNull);
+        await send(
+          const ConfirmQuestionPickEvent(
+            questionId: 'q-mc-daily',
+            playerId: 'p1',
+            accepted: true,
+          ),
+        );
         expect(game().jeopardy!.pendingDailyDoubleId, 'q-mc-daily');
         expect(game().jeopardy!.currentTeamId, 'red');
         await send(
@@ -196,8 +205,8 @@ void main() {
           'green',
         ]);
         await send(const SelectJeopardyCellEvent('q-mc-low'));
-        await choose('p1', 'q-mc-low', 'b');
-        expect(game().jeopardy!.currentTeamId, 'green');
+        await choose('p2', 'q-mc-low', 'b');
+        expect(game().jeopardy!.currentTeamId, 'red');
         await send(const ResetGameEvent());
         expect(game().jeopardy!.turnOrder, ['blue', 'red', 'green']);
         expect(game().jeopardy!.currentTeamId, 'blue');

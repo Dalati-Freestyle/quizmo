@@ -333,6 +333,7 @@ class PlayersPanel extends StatelessWidget {
     required this.onAssignTeam,
     this.onKick,
     this.onMerge,
+    this.onSetOrder,
     super.key,
   });
 
@@ -343,14 +344,30 @@ class PlayersPanel extends StatelessWidget {
   final void Function(String playerId, String? teamId) onAssignTeam;
   final ValueChanged<String>? onKick;
   final void Function(String source, String target)? onMerge;
+  final ValueChanged<List<String>>? onSetOrder;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final players = game.players.values.toList(growable: false)
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final players = game.orderedPlayerIds
+        .map((id) => game.players[id]!)
+        .toList();
 
     return PanelCard(
+      trailing: onSetOrder != null && players.length > 1
+          ? IconButton(
+              tooltip: 'Spieler-Reihenfolge festlegen',
+              icon: const Icon(Icons.sort),
+              onPressed: () async {
+                final ids = await showJeopardyOrderDialog(
+                  context,
+                  game,
+                  playersOnly: true,
+                );
+                if (ids != null) onSetOrder!(ids);
+              },
+            )
+          : null,
       title: 'Players (${game.connectedPlayers.length} online)',
       icon: Icons.groups_outlined,
       child: players.isEmpty
@@ -622,7 +639,7 @@ class JeopardyBoardPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final picker = game.teams[jeopardy.currentTeamId];
+    final picker = game.participantName(jeopardy.currentTeamId);
     final pending = jeopardy.pendingDailyDoubleId;
 
     return PanelCard(
@@ -631,7 +648,7 @@ class JeopardyBoardPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (game.teams.isNotEmpty)
+          if (game.participantIds.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
@@ -643,16 +660,13 @@ class JeopardyBoardPanel extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final team in game.teams.values)
+                        for (final id in game.selectionOrder)
                           ChoiceChip(
                             visualDensity: VisualDensity.compact,
-                            avatar: CircleAvatar(
-                              backgroundColor: Color(team.colorValue),
-                            ),
-                            label: Text(team.name),
-                            selected: team.id == jeopardy.currentTeamId,
+                            label: Text(game.participantName(id) ?? id),
+                            selected: id == jeopardy.currentTeamId,
                             onSelected: canPick && pending == null
-                                ? (_) => onSetTurn(team.id)
+                                ? (_) => onSetTurn(id)
                                 : null,
                           ),
                       ],
@@ -661,7 +675,7 @@ class JeopardyBoardPanel extends StatelessWidget {
                 ],
               ),
             ),
-          if (onSetOrder != null && game.teams.length > 1)
+          if (onSetOrder != null && game.participantIds.length > 1)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: OutlinedButton.icon(
@@ -669,13 +683,13 @@ class JeopardyBoardPanel extends StatelessWidget {
                     ? () => _editOrder(context)
                     : null,
                 icon: const Icon(Icons.sort),
-                label: const Text('Team-Reihenfolge festlegen'),
+                label: const Text('Zugreihenfolge festlegen'),
               ),
             ),
           if (pending != null)
             _WagerForm(
               key: ValueKey(pending),
-              teamName: picker?.name,
+              teamName: picker,
               maxWager: maxWager,
               onPlace: onPlaceWager,
             ),
@@ -705,19 +719,17 @@ class JeopardyBoardPanel extends StatelessWidget {
 
 Future<List<String>?> showJeopardyOrderDialog(
   BuildContext context,
-  GameState game,
-) {
+  GameState game, {
+  bool playersOnly = false,
+}) {
   final order = [
-    ...?game.jeopardy?.turnOrder.where(game.teams.containsKey),
-    ...game.teams.keys.where(
-      (id) => !(game.jeopardy?.turnOrder.contains(id) ?? false),
-    ),
+    ...(playersOnly ? game.orderedPlayerIds : game.selectionOrder),
   ];
   return showDialog<List<String>>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text('Team-Reihenfolge'),
+        title: Text(playersOnly ? 'Spieler-Reihenfolge' : 'Zugreihenfolge'),
         content: SizedBox(
           width: 420,
           height: 320,
@@ -725,7 +737,9 @@ Future<List<String>?> showJeopardyOrderDialog(
             children: [
               for (final (index, id) in order.indexed)
                 ListTile(
-                  title: Text('${index + 1}. ${game.teams[id]!.name}'),
+                  title: Text(
+                    '${index + 1}. ${playersOnly ? game.players[id]!.name : game.participantName(id)}',
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1025,7 +1039,7 @@ class _JeopardyRoundBanner extends StatelessWidget {
     final category = questionId == null
         ? null
         : jeopardy.board.categoryNameOf(questionId);
-    final picker = game.teams[jeopardy.currentTeamId]?.name;
+    final picker = game.participantName(jeopardy.currentTeamId);
 
     return Wrap(
       spacing: 8,
@@ -1200,7 +1214,9 @@ class _MultipleChoiceMonitor extends StatelessWidget {
     };
     for (final answer
         in round.answers.values.whereType<MultipleChoiceAnswer>()) {
-      tally[answer.optionId] = (tally[answer.optionId] ?? 0) + 1;
+      for (final id in answer.selectedOptionIds) {
+        tally[id] = (tally[id] ?? 0) + 1;
+      }
     }
     final total = round.answers.length;
 
@@ -1213,11 +1229,11 @@ class _MultipleChoiceMonitor extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  question.correctOptionId == option.id
+                  question.isCorrect(option.id)
                       ? Icons.check_circle
                       : Icons.radio_button_unchecked,
                   size: 15,
-                  color: question.correctOptionId == option.id
+                  color: question.isCorrect(option.id)
                       ? Colors.green
                       : theme.colorScheme.outline,
                 ),

@@ -88,17 +88,40 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<RevealRoundEvent>(_onRevealRound);
     on<CloseRoundEvent>(_onCloseRound);
     on<SelectJeopardyCellEvent>(_onSelectJeopardyCell);
+    on<ConfirmQuestionPickEvent>(_onConfirmQuestionPick);
+    on<SetPlayerOrderEvent>((event, emit) {
+      final game = state.game;
+      if (!state.canStartRound ||
+          game.jeopardy?.pendingPickQuestionId != null ||
+          game.jeopardy?.pendingDailyDoubleId != null ||
+          !isPermutation(event.playerIds, game.players.keys.toList())) {
+        return;
+      }
+      final updated = game.copyWith(
+        playerOrder: List.unmodifiable(event.playerIds),
+      );
+      emit(
+        _publish(
+          updated.copyWith(
+            jeopardy: updated.jeopardy?.copyWith(
+              currentTeamId: game.completedQuestionIds.isEmpty
+                  ? updated.selectionOrder.firstOrNull
+                  : updated.jeopardy?.currentTeamId,
+            ),
+          ),
+        ),
+      );
+    });
     on<SetJeopardyOrderEvent>((event, emit) {
       final game = state.game;
       final jeopardy = game.jeopardy;
       if (jeopardy == null ||
           !state.canStartRound ||
-          jeopardy.pendingDailyDoubleId != null) {
+          jeopardy.pendingDailyDoubleId != null ||
+          jeopardy.pendingPickQuestionId != null) {
         return;
       }
-      if (event.teamIds.length != game.teams.length ||
-          event.teamIds.toSet().length != game.teams.length ||
-          !event.teamIds.every(game.teams.containsKey)) {
+      if (!isPermutation(event.teamIds, game.participantIds)) {
         return;
       }
       emit(
@@ -106,6 +129,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           game.copyWith(
             jeopardy: jeopardy.copyWith(
               turnOrder: List.unmodifiable(event.teamIds),
+              currentTeamId: game.completedQuestionIds.isEmpty
+                  ? event.teamIds.firstOrNull
+                  : jeopardy.currentTeamId,
             ),
           ),
         ),
@@ -240,6 +266,21 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final activeRemoved = game.round.activePlayerId == id;
     return game.copyWith(
       players: players,
+      playerOrder: game.playerOrder.where((p) => p != id).toList(),
+      jeopardy: game.jeopardy?.copyWith(
+        currentTeamId:
+            game.mode is SoloMode &&
+                game.jeopardy?.currentTeamId == id &&
+                !(game.jeopardy?.hasActiveQuestion ?? false)
+            ? game.selectionOrder.where((p) => p != id).firstOrNull
+            : game.jeopardy?.currentTeamId,
+        pendingPickQuestionId: game.jeopardy?.pendingPickPlayerId == id
+            ? null
+            : game.jeopardy?.pendingPickQuestionId,
+        pendingPickPlayerId: game.jeopardy?.pendingPickPlayerId == id
+            ? null
+            : game.jeopardy?.pendingPickPlayerId,
+      ),
       scores: ScoreState(
         byPlayer: totals,
         history: game.scores.history.where((e) => e.playerId != id).toList(),
@@ -337,15 +378,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             roundTripMicros: event.player.roundTripMicros,
           );
 
-    emit(
-      _publish(
-        game.copyWith(
-          players: {...game.players, player.id: player},
-          scores: game.scores.withParticipant(player.id),
-        ),
-        notice: '${player.name} joined.',
-      ),
+    var updated = game.copyWith(
+      players: {...game.players, player.id: player},
+      scores: game.scores.withParticipant(player.id),
     );
+    if (updated.jeopardy != null &&
+        !updated.jeopardy!.hasActiveQuestion &&
+        updated.jeopardy!.pendingDailyDoubleId == null &&
+        updated.jeopardy!.pendingPickQuestionId == null &&
+        updated.completedQuestionIds.isEmpty &&
+        (game.players.isEmpty || updated.jeopardy!.currentTeamId == null)) {
+      updated = updated.copyWith(
+        jeopardy: updated.jeopardy!.copyWith(
+          currentTeamId: updated.selectionOrder.firstOrNull,
+        ),
+      );
+    }
+    emit(_publish(updated, notice: '${player.name} joined.'));
   }
 
   void _onPlayerLeft(PlayerLeftEvent event, Emitter<QuizEngineState> emit) {
@@ -436,10 +485,21 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     ChangeGameModeEvent event,
     Emitter<QuizEngineState> emit,
   ) {
-    if (state.game.poker != null) return;
+    if (state.game.poker != null ||
+        !state.canStartRound ||
+        state.game.jeopardy?.pendingPickQuestionId != null ||
+        state.game.jeopardy?.pendingDailyDoubleId != null) {
+      return;
+    }
+    final updated = state.game.copyWith(mode: event.mode);
     emit(
       _publish(
-        state.game.copyWith(mode: event.mode),
+        updated.copyWith(
+          jeopardy: updated.jeopardy?.copyWith(
+            turnOrder: const [],
+            currentTeamId: updated.participantIds.firstOrNull,
+          ),
+        ),
         notice: 'Mode switched to ${event.mode.label}.',
       ),
     );
@@ -820,7 +880,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
     if (event.playerId != null && !_mayPick(game, event.playerId!)) return;
-    if (jeopardy.pendingDailyDoubleId != null) return;
+    if (jeopardy.pendingDailyDoubleId != null ||
+        jeopardy.pendingPickQuestionId != null) {
+      return;
+    }
     if (!state.canStartRound) {
       emit(state.copyWith(notice: 'Finish the current question first.'));
       return;
@@ -837,6 +900,19 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    if (event.playerId != null) {
+      emit(
+        _publish(
+          game.copyWith(
+            jeopardy: jeopardy.copyWith(
+              pendingPickQuestionId: id,
+              pendingPickPlayerId: event.playerId,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     if (jeopardy.board.isDailyDouble(id)) {
       _graceTimer?.cancel();
       emit(
@@ -863,6 +939,33 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       isDailyDouble: false,
       emit: emit,
     );
+  }
+
+  void _onConfirmQuestionPick(
+    ConfirmQuestionPickEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final jeopardy = game.jeopardy;
+    if (jeopardy == null ||
+        jeopardy.pendingPickQuestionId != event.questionId ||
+        jeopardy.pendingPickPlayerId != event.playerId) {
+      return;
+    }
+    final mayPick = game.mayPickQuestion(event.playerId);
+    emit(
+      _publish(
+        game.copyWith(
+          jeopardy: jeopardy.copyWith(
+            pendingPickQuestionId: null,
+            pendingPickPlayerId: null,
+          ),
+        ),
+      ),
+    );
+    if (event.accepted && mayPick) {
+      _onSelectJeopardyCell(SelectJeopardyCellEvent(event.questionId), emit);
+    }
   }
 
   void _onPlaceDailyDoubleWager(
@@ -909,8 +1012,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'This session has no Jeopardy board.'));
       return;
     }
-    if (jeopardy.pendingDailyDoubleId != null) return;
-    if (!game.teams.containsKey(event.teamId)) {
+    if (jeopardy.pendingDailyDoubleId != null ||
+        jeopardy.pendingPickQuestionId != null) {
+      return;
+    }
+    if (!game.participantIds.contains(event.teamId)) {
       emit(state.copyWith(notice: 'Unknown team.'));
       return;
     }
@@ -921,17 +1027,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         game.copyWith(jeopardy: jeopardy.copyWith(currentTeamId: event.teamId)),
-        notice: '${game.teams[event.teamId]!.name} picks next.',
+        notice: '${game.participantName(event.teamId)} picks next.',
       ),
     );
   }
 
   bool _mayPick(GameState game, String playerId) {
-    final player = game.players[playerId];
-    return player != null &&
-        player.isConnected &&
-        (game.jeopardy?.currentTeamId == null ||
-            player.teamId == game.jeopardy?.currentTeamId);
+    return game.mayPickQuestion(playerId);
   }
 
   /// The highest wager the picking team may place on a Daily Double.
@@ -941,7 +1043,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   int maxDailyDoubleWager(GameState game) {
     final jeopardy = game.jeopardy;
     if (jeopardy == null) return 0;
-    final teamScore = game.teamScores[jeopardy.currentTeamId] ?? 0;
+    final teamScore = game.mode is TeamMode
+        ? game.teamScores[jeopardy.currentTeamId] ?? 0
+        : game.scores.byPlayer[jeopardy.currentTeamId] ?? 0;
     final highest = jeopardy.board.highestRowPoints;
     return teamScore > highest ? teamScore : highest;
   }
@@ -1028,7 +1132,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// On a board only one answer per team counts, otherwise a big team would
   /// earn the row points once per member.
   bool _teamAlreadyAnswered(GameState game, String playerId) {
-    if (game.jeopardy == null && game.poker == null) return false;
+    if (game.mode is! TeamMode ||
+        (game.jeopardy == null && game.poker == null)) {
+      return false;
+    }
     final teamId = game.players[playerId]?.teamId;
     if (teamId == null) return false;
     return game.round.answers.keys.any(
@@ -1051,14 +1158,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final eligible = game.connectedPlayers
         .where(
           (player) =>
-              (jeopardy?.mayAnswer(player.teamId) ?? true) &&
+              (jeopardy?.mayAnswer(game.participantId(player)) ?? true) &&
               (game.poker == null ||
                   (game.poker!.wagers[player.teamId] ?? 0) > 0),
         )
         .toList(growable: false);
     if (eligible.isEmpty) return false;
     return eligible.every((player) {
-      if ((jeopardy != null || game.poker != null) && player.teamId != null) {
+      if (game.mode is TeamMode &&
+          (jeopardy != null || game.poker != null) &&
+          player.teamId != null) {
         return game.round.answers.keys.any(
           (id) => game.players[id]?.teamId == player.teamId,
         );
@@ -1069,12 +1178,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// The team that picks after [currentId], following the roster order.
   String? _nextTeamId(GameState game, String? currentId) {
-    final ids = [
-      ...?game.jeopardy?.turnOrder.where(game.teams.containsKey),
-      ...game.teams.keys.where(
-        (id) => !(game.jeopardy?.turnOrder.contains(id) ?? false),
-      ),
-    ];
+    final ids = game.selectionOrder;
     if (ids.isEmpty) return null;
     final index = currentId == null ? -1 : ids.indexOf(currentId);
     return ids[(index + 1) % ids.length];
@@ -1093,15 +1197,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
               ? null
               : PokerState.start(game.poker!.startingChips, teams.keys),
           players: game.players,
+          playerOrder: game.playerOrder,
           teams: teams,
           questionBank: _initialBank.isEmpty ? game.questionBank : _initialBank,
           jeopardy: board == null
               ? null
               : JeopardyState.start(board, teams.keys).copyWith(
                   turnOrder: game.jeopardy?.turnOrder,
-                  currentTeamId:
-                      game.jeopardy?.turnOrder.firstOrNull ??
-                      teams.keys.firstOrNull,
+                  currentTeamId: game.selectionOrder.firstOrNull,
                 ),
           scores: ScoreState(
             byPlayer: {for (final id in game.players.keys) id: 0},
@@ -1187,8 +1290,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       }
     }
     if (state.game.jeopardy case final jeopardy?) {
-      final teamId = state.game.players[playerId]?.teamId;
-      if (!jeopardy.mayAnswer(teamId)) {
+      final participant = state.game.participantId(
+        state.game.players[playerId],
+      );
+      if (!jeopardy.mayAnswer(participant)) {
         return jeopardy.isStealRound
             ? 'Only the other teams may steal this question.'
             : 'The picking team answers first.';

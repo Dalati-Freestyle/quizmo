@@ -85,7 +85,8 @@ final class MultipleChoiceAnswer extends AnswerSubmission {
     required super.questionId,
     required super.clientTimestampMicros,
     required super.clockOffsetMicros,
-    required this.optionId,
+    this.optionId = '',
+    this.optionIds,
   });
 
   /// Restores the submission from [json].
@@ -94,13 +95,18 @@ final class MultipleChoiceAnswer extends AnswerSubmission {
     questionId: json.readString('questionId'),
     clientTimestampMicros: json.readInt('clientTimestampMicros'),
     clockOffsetMicros: json.readInt('clockOffsetMicros'),
-    optionId: json.readString('optionId'),
+    optionId: json.readStringOrNull('optionId') ?? '',
+    optionIds: json['optionIds'] == null
+        ? null
+        : json.readStringList('optionIds'),
   );
 
   static const String _kind = 'multipleChoice';
 
   /// Identifier of the chosen option.
   final String optionId;
+  final List<String>? optionIds;
+  List<String> get selectedOptionIds => optionIds ?? [optionId];
 
   @override
   MultipleChoiceAnswer withPlayerId(String id) => MultipleChoiceAnswer(
@@ -109,10 +115,15 @@ final class MultipleChoiceAnswer extends AnswerSubmission {
     clientTimestampMicros: clientTimestampMicros,
     clockOffsetMicros: clockOffsetMicros,
     optionId: optionId,
+    optionIds: optionIds,
   );
 
   @override
-  JsonMap toJson() => {...baseJson(_kind), 'optionId': optionId};
+  JsonMap toJson() => {
+    ...baseJson(_kind),
+    'optionId': optionId,
+    if (optionIds != null) 'optionIds': optionIds,
+  };
 
   @override
   List<Object?> get props => [
@@ -121,6 +132,7 @@ final class MultipleChoiceAnswer extends AnswerSubmission {
     clientTimestampMicros,
     clockOffsetMicros,
     optionId,
+    optionIds,
   ];
 }
 

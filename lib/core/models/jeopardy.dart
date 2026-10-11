@@ -295,6 +295,8 @@ final class JeopardyState extends Equatable {
     this.activeIsDailyDouble = false,
     this.isStealRound = false,
     this.turnOrder = const [],
+    this.pendingPickQuestionId,
+    this.pendingPickPlayerId,
   });
 
   /// Starts a session on [board]; the first of [teamIds] picks first.
@@ -307,6 +309,8 @@ final class JeopardyState extends Equatable {
   /// Restores the state from [json].
   factory JeopardyState.fromJson(JsonMap json) => JeopardyState(
     board: JeopardyBoard.fromJson(json.readObject('board')),
+    pendingPickQuestionId: json.readStringOrNull('pendingPickQuestionId'),
+    pendingPickPlayerId: json.readStringOrNull('pendingPickPlayerId'),
     currentTeamId: json.readStringOrNull('currentTeamId'),
     pendingDailyDoubleId: json.readStringOrNull('pendingDailyDoubleId'),
     activePoints: json.readIntOrNull('activePoints'),
@@ -320,6 +324,8 @@ final class JeopardyState extends Equatable {
   /// The layout and rules.
   final JeopardyBoard board;
   final List<String> turnOrder;
+  final String? pendingPickQuestionId;
+  final String? pendingPickPlayerId;
 
   /// The team that picks the next cell; during a question it is the team that
   /// picked it.
@@ -364,6 +370,8 @@ final class JeopardyState extends Equatable {
     bool? activeIsDailyDouble,
     bool? isStealRound,
     List<String>? turnOrder,
+    Object? pendingPickQuestionId = _unset,
+    Object? pendingPickPlayerId = _unset,
   }) => JeopardyState(
     board: board ?? this.board,
     currentTeamId: identical(currentTeamId, _unset)
@@ -378,6 +386,12 @@ final class JeopardyState extends Equatable {
     activeIsDailyDouble: activeIsDailyDouble ?? this.activeIsDailyDouble,
     isStealRound: isStealRound ?? this.isStealRound,
     turnOrder: turnOrder ?? this.turnOrder,
+    pendingPickQuestionId: identical(pendingPickQuestionId, _unset)
+        ? this.pendingPickQuestionId
+        : pendingPickQuestionId as String?,
+    pendingPickPlayerId: identical(pendingPickPlayerId, _unset)
+        ? this.pendingPickPlayerId
+        : pendingPickPlayerId as String?,
   );
 
   /// Serializes the state.
@@ -389,6 +403,8 @@ final class JeopardyState extends Equatable {
     'activeIsDailyDouble': activeIsDailyDouble,
     'isStealRound': isStealRound,
     'turnOrder': turnOrder,
+    'pendingPickQuestionId': pendingPickQuestionId,
+    'pendingPickPlayerId': pendingPickPlayerId,
   };
 
   @override
@@ -400,5 +416,7 @@ final class JeopardyState extends Equatable {
     activeIsDailyDouble,
     isStealRound,
     turnOrder,
+    pendingPickQuestionId,
+    pendingPickPlayerId,
   ];
 }

@@ -24,11 +24,11 @@ class QuestionResultView extends StatelessWidget {
         ),
         if (question case MultipleChoiceQuestion(
           :final options,
-          :final correctOptionId,
+          :final solutionOptionIds,
         ))
           for (final option in options)
             Text(
-              '${revealed && option.id == correctOptionId ? '✓ ' : '• '}${option.label}',
+              '${revealed && solutionOptionIds.contains(option.id) ? '✓ ' : '• '}${option.label}',
               style: const TextStyle(fontSize: 24),
             ),
         if (question case OrderingQuestion(:final items))
@@ -91,6 +91,8 @@ String answerLabel(
               )
               .join(', ')
         : pairs.toString(),
-  MultipleChoiceAnswer(:final optionId) => optionId,
+  MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds.join(
+    ', ',
+  ),
   BuzzerPress() => 'Buzzer',
 };

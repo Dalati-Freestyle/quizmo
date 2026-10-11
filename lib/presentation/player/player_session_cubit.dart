@@ -81,6 +81,8 @@ final class PlayerSessionState extends Equatable {
       ? (playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0)
       : game!.poker!.chips[me?.teamId] ?? 0;
 
+  bool get mayAnswerQuestion => game?.mayAnswerQuestion(playerId) ?? false;
+
   bool get mayAnswerPoker {
     final poker = game?.poker;
     if (poker == null) return true;
@@ -408,6 +410,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         state.game!.round.lockedOutPlayerIds.contains(state.playerId) ||
         question is! BuzzerQuestion ||
         state.hasBuzzed ||
+        !state.mayAnswerQuestion ||
         !state.mayAnswerPoker) {
       return;
     }
@@ -420,6 +423,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     final question = state.question;
     if (!state.isConnected ||
         !state.roundStatus.acceptsInput ||
+        !state.mayAnswerQuestion ||
         !state.mayAnswerPoker ||
         question is! MultipleChoiceQuestion ||
         state.lastSubmittedOptionId != null) {
@@ -432,7 +436,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   void submit(
     AnswerSubmission Function(String playerId, int timestamp, int offset) build,
   ) {
-    if (!state.mayAnswerPoker ||
+    if (!state.mayAnswerQuestion ||
+        !state.mayAnswerPoker ||
         !state.isConnected ||
         state.lastSubmittedOptionId != null ||
         !state.roundStatus.acceptsInput) {
@@ -442,8 +447,32 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
   }
 
-  void selectJeopardyCell(String questionId) =>
-      _client?.selectJeopardyCell(questionId);
+  void chooseMultiple(List<String> optionIds) {
+    final question = state.question;
+    if (question is! MultipleChoiceQuestion ||
+        !question.allowMultipleAnswers ||
+        optionIds.isEmpty) {
+      return;
+    }
+    submit(
+      (id, timestamp, offset) => MultipleChoiceAnswer(
+        playerId: id,
+        questionId: question.id,
+        clientTimestampMicros: timestamp,
+        clockOffsetMicros: offset,
+        optionIds: List.unmodifiable(optionIds),
+      ),
+    );
+  }
+
+  void selectJeopardyCell(String questionId) {
+    if (!(state.game?.mayPickQuestion(state.playerId) ?? false) ||
+        state.game?.jeopardy?.pendingPickQuestionId != null) {
+      return;
+    }
+    _client?.selectJeopardyCell(questionId);
+  }
+
   void placeDailyDoubleWager(String questionId, int wager) =>
       _client?.placeDailyDoubleWager(questionId, wager);
 
@@ -498,7 +527,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         roundTripMicros: client?.clock.roundTripMicros,
         clearSubmission: false,
         lastSubmittedOptionId: answer is MultipleChoiceAnswer
-            ? answer.optionId
+            ? (answer.optionIds == null ? answer.optionId : 'submitted')
             : answer != null
             ? 'submitted'
             : null,

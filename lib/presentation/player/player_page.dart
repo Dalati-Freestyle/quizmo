@@ -463,9 +463,20 @@ class _QuestionStage extends StatelessWidget {
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
     final enabled =
-        state.roundStatus.acceptsInput && state.lastSubmittedOptionId == null;
+        state.roundStatus.acceptsInput &&
+        state.lastSubmittedOptionId == null &&
+        state.mayAnswerQuestion;
     final input = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        enabled: state.mayAnswerQuestion,
+        selectedOptionIds: switch (state.game?.round.answers[state.playerId]) {
+          MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds,
+          _ => const [],
+        },
+        onSubmitMultiple: cubit.chooseMultiple,
         question: question,
         status: state.roundStatus,
         selectedOptionId: state.lastSubmittedOptionId,
@@ -552,6 +563,7 @@ class _QuestionStage extends StatelessWidget {
         ),
       ),
       BuzzerQuestion() => BuzzerQuestionView(
+        enabled: state.mayAnswerQuestion,
         question: question,
         round: state.game?.round ?? RoundState.idle,
         playerId: state.playerId,
@@ -574,7 +586,9 @@ class _QuestionStage extends StatelessWidget {
           if (state.lastSubmittedOptionId != null)
             const Padding(
               padding: EdgeInsets.only(top: 8),
-              child: Text('Antwort gesendet'),
+              child: Text(
+                'Antwort eingeloggt. Sie kann nicht mehr geändert werden.',
+              ),
             ),
           const SizedBox(height: 24),
         ],
@@ -636,13 +650,12 @@ class _PlayerBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final game = state.game!;
-    final picker = game.teams[jeopardy.currentTeamId];
+    final picker = game.participantName(jeopardy.currentTeamId);
     final isDailyDouble = jeopardy.pendingDailyDoubleId != null;
-    final mayPick =
-        state.isConnected &&
-        (jeopardy.currentTeamId == null ||
-            state.me?.teamId == jeopardy.currentTeamId);
-    final score = game.teamScores[jeopardy.currentTeamId] ?? 0;
+    final mayPick = state.isConnected && game.mayPickQuestion(state.playerId);
+    final score = game.mode is TeamMode
+        ? game.teamScores[jeopardy.currentTeamId] ?? 0
+        : game.scores.byPlayer[jeopardy.currentTeamId] ?? 0;
     final maxWager = score > jeopardy.board.highestRowPoints
         ? score
         : jeopardy.board.highestRowPoints;
@@ -653,15 +666,26 @@ class _PlayerBoard extends StatelessWidget {
       children: [
         Text(
           isDailyDouble
-              ? 'Daily Double! ${picker?.name ?? 'The picking team'} '
+              ? 'Daily Double! ${picker ?? 'The picking team'} '
                     'is placing a wager…'
               : picker == null
               ? 'Waiting for the next question…'
-              : '${picker.name} picks the next question',
+              : '$picker picks the next question',
           textAlign: TextAlign.center,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
           ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          jeopardy.pendingPickQuestionId != null
+              ? 'Fragenauswahl wartet auf Bestätigung durch den Spielleiter.'
+              : mayPick
+              ? (game.mode is TeamMode
+                    ? 'Dein Team ist dran! Wählt die nächste Frage.'
+                    : 'Du bist dran! Wähle die nächste Frage.')
+              : '${game.participantName(jeopardy.currentTeamId) ?? "Der nächste Teilnehmer"} ist dran.',
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
         if (isDailyDouble && mayPick)
@@ -678,7 +702,14 @@ class _PlayerBoard extends StatelessWidget {
           completedQuestionIds: game.completedQuestionIds,
           winners: game.questionWinners,
           highlightQuestionId: jeopardy.pendingDailyDoubleId,
-          onSelect: mayPick && !isDailyDouble ? cubit.selectJeopardyCell : null,
+          onSelect:
+              mayPick &&
+                  !isDailyDouble &&
+                  jeopardy.pendingPickQuestionId == null &&
+                  (game.round.status == RoundStatus.idle ||
+                      game.round.status == RoundStatus.revealed)
+              ? cubit.selectJeopardyCell
+              : null,
         ),
       ],
     );
@@ -701,8 +732,8 @@ class _PlayerJeopardyBanner extends StatelessWidget {
     final category = questionId == null
         ? null
         : jeopardy.board.categoryNameOf(questionId);
-    final picker = game.teams[jeopardy.currentTeamId];
-    final mayAnswer = jeopardy.mayAnswer(state.me?.teamId);
+    final picker = game.participantName(jeopardy.currentTeamId);
+    final mayAnswer = game.mayAnswerQuestion(state.playerId);
     final isOpen = state.roundStatus.acceptsInput;
 
     return Column(
@@ -734,7 +765,7 @@ class _PlayerJeopardyBanner extends StatelessWidget {
                       : 'Your team answers.')
                 : (jeopardy.isStealRound
                       ? 'Steal round: only the other teams answer.'
-                      : '${picker.name} answers first.'),
+                      : '$picker answers first.'),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,

@@ -135,6 +135,8 @@ final class MultipleChoiceQuestion extends Question {
     required super.prompt,
     required this.options,
     this.correctOptionId,
+    this.correctOptionIds,
+    this.allowMultipleAnswers = false,
     super.scoringRule = const SpeedBonusRule(),
     super.timeLimit = const Duration(seconds: 30),
     super.category,
@@ -150,6 +152,13 @@ final class MultipleChoiceQuestion extends Question {
         prompt: json.readString('prompt'),
         options: json.readList('options', AnswerOption.fromJson),
         correctOptionId: json.readStringOrNull('correctOptionId'),
+        correctOptionIds: json['correctOptionIds'] == null
+            ? null
+            : json.readStringList('correctOptionIds'),
+        allowMultipleAnswers: json.readBool(
+          'allowMultipleAnswers',
+          orElse: false,
+        ),
         scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
         timeLimit: json.readDurationMs('timeLimitMs'),
         category: json.readStringOrNull('category'),
@@ -167,31 +176,44 @@ final class MultipleChoiceQuestion extends Question {
   ///
   /// `null` in player facing snapshots until the round is revealed.
   final String? correctOptionId;
+  final List<String>? correctOptionIds;
+  final bool allowMultipleAnswers;
+  List<String> get solutionOptionIds =>
+      correctOptionIds ?? [?correctOptionId];
 
   @override
-  bool get hasSolution => correctOptionId != null;
+  bool get hasSolution => correctOptionIds != null || correctOptionId != null;
 
   @override
   String get kindLabel => 'Multiple choice';
 
   /// Whether [optionId] is the correct answer.
-  bool isCorrect(String optionId) => correctOptionId == optionId;
+  bool isCorrect(String optionId) => solutionOptionIds.contains(optionId);
   @override
   bool accepts(AnswerSubmission answer) =>
       answer is MultipleChoiceAnswer &&
-      options.any((o) => o.id == answer.optionId);
+      answer.selectedOptionIds.isNotEmpty &&
+      (allowMultipleAnswers || answer.selectedOptionIds.length == 1) &&
+      answer.selectedOptionIds.toSet().length ==
+          answer.selectedOptionIds.length &&
+      answer.selectedOptionIds.every((id) => options.any((o) => o.id == id));
   @override
   double accuracy(AnswerSubmission answer) =>
-      answer is MultipleChoiceAnswer && isCorrect(answer.optionId) ? 1 : 0;
+      answer is MultipleChoiceAnswer &&
+          accepts(answer) &&
+          isPermutation(answer.selectedOptionIds, solutionOptionIds)
+      ? 1
+      : 0;
   @override
   String get solutionLabel =>
-      options.where((o) => o.id == correctOptionId).firstOrNull?.label ?? '';
+      options.where((o) => isCorrect(o.id)).map((o) => o.label).join(' / ');
 
   @override
   MultipleChoiceQuestion redacted() => MultipleChoiceQuestion(
     id: id,
     prompt: prompt,
     options: options,
+    allowMultipleAnswers: allowMultipleAnswers,
     scoringRule: scoringRule,
     timeLimit: timeLimit,
     category: category,
@@ -203,6 +225,8 @@ final class MultipleChoiceQuestion extends Question {
     ...baseJson(_type),
     'options': options.map((option) => option.toJson()).toList(growable: false),
     'correctOptionId': correctOptionId,
+    'correctOptionIds': correctOptionIds,
+    'allowMultipleAnswers': allowMultipleAnswers,
   };
 
   @override
@@ -211,6 +235,8 @@ final class MultipleChoiceQuestion extends Question {
     prompt,
     options,
     correctOptionId,
+    correctOptionIds,
+    allowMultipleAnswers,
     scoringRule,
     timeLimit,
     category,

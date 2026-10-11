@@ -18,6 +18,7 @@ class BuzzerQuestionView extends StatelessWidget {
     required this.onBuzz,
     required this.clockOffsetMicros,
     required this.roundTripMicros,
+    this.enabled = true,
     super.key,
   });
 
@@ -41,6 +42,7 @@ class BuzzerQuestionView extends StatelessWidget {
 
   /// Round trip time backing the offset.
   final int roundTripMicros;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +53,7 @@ class BuzzerQuestionView extends StatelessWidget {
     final rank = id == null ? -1 : round.rankOf(id);
 
     final mode = switch (round.status) {
+      _ when !enabled => BuzzerMode.locked,
       _ when hasFloor => BuzzerMode.won,
       RoundStatus.acceptingAnswers when isLockedOut => BuzzerMode.locked,
       RoundStatus.acceptingAnswers when hasBuzzed => BuzzerMode.submitted,

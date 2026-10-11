@@ -30,10 +30,23 @@ void main() {
     try {
       await player.connect(name: 'Player', teamId: 'a', handshakeProbes: 1);
       await tv.watch();
+      final requested = player.games.firstWhere(
+        (g) => g.jeopardy?.pendingPickQuestionId == 'q',
+      );
+      player.selectJeopardyCell('q');
+      final request = await requested.timeout(const Duration(seconds: 5));
+      expect(request.round.question, isNull);
+      expect(request.jeopardy!.pendingDailyDoubleId, isNull);
       final pending = player.games.firstWhere(
         (g) => g.jeopardy?.pendingDailyDoubleId == 'q',
       );
-      player.selectJeopardyCell('q');
+      engine.add(
+        ConfirmQuestionPickEvent(
+          questionId: 'q',
+          playerId: player.playerId!,
+          accepted: true,
+        ),
+      );
       final board = await pending.timeout(const Duration(seconds: 5));
       expect(board.round.question, isNull);
       expect(board.jeopardy!.board.isDailyDouble('q'), isFalse);

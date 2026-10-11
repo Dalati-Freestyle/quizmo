@@ -103,6 +103,7 @@ void main() {
             onPressed: () async => order = await showJeopardyOrderDialog(
               context,
               const GameState(
+                mode: TeamMode(),
                 teams: {
                   'red': Team(id: 'red', name: 'Red'),
                   'blue': Team(id: 'blue', name: 'Blue'),
