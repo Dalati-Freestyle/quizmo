@@ -28,10 +28,14 @@ class QuestionMediaView extends StatelessWidget {
     this.baseUri,
     this.playing,
     this.playbackRevision = 0,
+    this.commandRevision = 0,
+    this.maxVideoHeight = 300,
     super.key,
   });
   final bool? playing;
   final int playbackRevision;
+  final int commandRevision;
+  final double maxVideoHeight;
   final List<MediaAttachment> media;
   final Uri? baseUri;
 
@@ -57,19 +61,24 @@ class QuestionMediaView extends StatelessWidget {
                   source: source(attachment.asset),
                   playing: playing,
                   playbackRevision: playbackRevision,
+                  commandRevision: commandRevision,
                 ),
                 VideoAttachment(:final youtubeId) =>
                   youtubeId != null
                       ? _YoutubeView(
+                          maxHeight: maxVideoHeight,
                           id: youtubeId,
                           hideDetails: attachment.hideDetails,
                           playing: playing,
                           playbackRevision: playbackRevision,
+                          commandRevision: commandRevision,
                         )
                       : _VideoView(
+                          maxHeight: maxVideoHeight,
                           source: source(attachment.asset!),
                           playing: playing,
                           playbackRevision: playbackRevision,
+                          commandRevision: commandRevision,
                         ),
                 CodeAttachment(:final code, :final language) =>
                   SingleChildScrollView(
@@ -192,9 +201,11 @@ class _AudioView extends StatefulWidget {
     required this.source,
     this.playing,
     this.playbackRevision = 0,
+    this.commandRevision = 0,
   });
   final bool? playing;
   final int playbackRevision;
+  final int commandRevision;
   final AudioAttachment attachment;
   final Uri source;
   @override
@@ -208,6 +219,7 @@ class _AudioViewState extends State<_AudioView> {
     super.didUpdateWidget(oldWidget);
     if (ready &&
         (oldWidget.playing != widget.playing ||
+            oldWidget.commandRevision != widget.commandRevision ||
             oldWidget.playbackRevision != widget.playbackRevision)) {
       _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision);
     }
@@ -219,9 +231,12 @@ class _AudioViewState extends State<_AudioView> {
 
   Future<void> _control(bool restart) async {
     try {
-      if (restart) await player.seek(Duration.zero);
+      if (restart || player.processingState == ProcessingState.completed) {
+        await player.pause();
+        await player.seek(Duration.zero);
+      }
       if (!mounted) return;
-      if (widget.playing == true) {
+      if (restart || widget.playing == true) {
         if (player.processingState == ProcessingState.completed) {
           await player.seek(Duration.zero);
         }
@@ -252,7 +267,8 @@ class _AudioViewState extends State<_AudioView> {
       }
       playbackSource = source;
       await player.setUrl(source.uri.toString());
-      if (widget.attachment.playbackLimitSeconds case final limit?) {
+      if (widget.attachment.playbackLimitSeconds case final limit?
+          when !widget.attachment.softPlaybackLimit) {
         await player.setClip(
           start: Duration.zero,
           end: Duration(seconds: limit),
@@ -288,7 +304,9 @@ class _AudioViewState extends State<_AudioView> {
     return StreamBuilder<PlayerState>(
       stream: player.playerStateStream,
       builder: (context, snapshot) {
-        final playing = snapshot.data?.playing ?? false;
+        final playing =
+            (snapshot.data?.playing ?? false) &&
+            snapshot.data?.processingState != ProcessingState.completed;
         return Row(
           children: [
             IconButton(
@@ -299,6 +317,7 @@ class _AudioViewState extends State<_AudioView> {
                   await player.pause();
                 } else {
                   if (player.processingState == ProcessingState.completed) {
+                    await player.pause();
                     await player.seek(Duration.zero);
                   }
                   try {
@@ -314,6 +333,11 @@ class _AudioViewState extends State<_AudioView> {
                   }
                 }
               },
+            ),
+            IconButton(
+              tooltip: context.tr("Neustart"),
+              icon: const Icon(Icons.replay),
+              onPressed: () => _applyPlayback(true),
             ),
             Expanded(
               child: StreamBuilder<Duration>(
@@ -334,12 +358,16 @@ class _AudioViewState extends State<_AudioView> {
 class _VideoView extends StatefulWidget {
   const _VideoView({
     required this.source,
+    this.maxHeight = 300,
     this.playing,
     this.playbackRevision = 0,
+    this.commandRevision = 0,
   });
   final bool? playing;
   final int playbackRevision;
+  final int commandRevision;
   final Uri source;
+  final double maxHeight;
   @override
   State<_VideoView> createState() => _VideoViewState();
 }
@@ -350,6 +378,7 @@ class _VideoViewState extends State<_VideoView> {
     super.didUpdateWidget(oldWidget);
     if (controller?.value.isInitialized == true &&
         (oldWidget.playing != widget.playing ||
+            oldWidget.commandRevision != widget.commandRevision ||
             oldWidget.playbackRevision != widget.playbackRevision)) {
       unawaited(
         _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision),
@@ -439,7 +468,7 @@ class _VideoViewState extends State<_VideoView> {
     return Column(
       children: [
         ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 300),
+          constraints: BoxConstraints(maxHeight: widget.maxHeight),
           child: AspectRatio(
             aspectRatio: controller.value.aspectRatio,
             child: VideoPlayer(controller),
@@ -465,14 +494,18 @@ class _VideoViewState extends State<_VideoView> {
 class _YoutubeView extends StatefulWidget {
   const _YoutubeView({
     required this.id,
+    this.maxHeight = 300,
     this.hideDetails = false,
     this.playing,
     this.playbackRevision = 0,
+    this.commandRevision = 0,
   });
   final bool hideDetails;
   final bool? playing;
   final int playbackRevision;
+  final int commandRevision;
   final String id;
+  final double maxHeight;
   @override
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
@@ -482,6 +515,7 @@ class _YoutubeViewState extends State<_YoutubeView> {
   void didUpdateWidget(_YoutubeView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.playing != widget.playing ||
+        oldWidget.commandRevision != widget.commandRevision ||
         oldWidget.playbackRevision != widget.playbackRevision) {
       unawaited(
         _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision),
@@ -493,7 +527,10 @@ class _YoutubeViewState extends State<_YoutubeView> {
     final player = controller;
     if (player == null) return;
     try {
-      if (restart) await player.seekTo(seconds: 0);
+      if (restart) {
+        await player.loadVideoById(videoId: widget.id, startSeconds: 0);
+        return;
+      }
       if (!mounted) return;
       if (widget.playing == true) {
         await player.playVideo();
@@ -540,5 +577,13 @@ class _YoutubeViewState extends State<_YoutubeView> {
           icon: const Icon(Icons.open_in_new),
           label: Text(context.tr("YouTube-Video öffnen")),
         )
-      : YoutubePlayer(controller: controller!);
+      : Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: widget.maxHeight * 16 / 9),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: YoutubePlayer(controller: controller!),
+            ),
+          ),
+        );
 }

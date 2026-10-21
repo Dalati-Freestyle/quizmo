@@ -120,23 +120,28 @@ void main() {
         ),
       ),
     );
-    final field = find.byType(DropdownButtonFormField<String>);
+    final field = find.byType(OutlinedButton);
     expect(
       tester.getRect(field).top - tester.getRect(find.text(_leftLabel)).bottom,
       greaterThanOrEqualTo(8),
     );
     await tester.tap(field);
     await tester.pumpAndSettle();
-    final options = find.byType(DropdownMenuItem<String>).hitTestable();
+    final options = find.byWidgetPredicate(
+      (widget) => widget is ListTile && widget.onTap != null,
+    );
     expect(options, findsNWidgets(2));
     for (var i = 0; i < 2; i++) {
       final item = options.at(i);
+      await tester.ensureVisible(item);
+      await tester.pumpAndSettle();
       final text = find.descendant(of: item, matching: find.byType(Text));
       final itemRect = tester.getRect(item);
       final textRect = tester.getRect(text);
       expect(textRect.top, greaterThanOrEqualTo(itemRect.top));
       expect(textRect.bottom, lessThanOrEqualTo(itemRect.bottom));
     }
+    await tester.ensureVisible(find.text(_rightLabel).last);
     await tester.tap(find.text(_rightLabel).last);
     await tester.pumpAndSettle();
     final selectedText = find.text(_rightLabel).hitTestable();
@@ -177,7 +182,7 @@ void main() {
     final solutionRect = tester.getRect(
       find.text('Lösung: ${question.solutionLabel}'),
     );
-    expect(fieldRect.top - promptRect.bottom, greaterThanOrEqualTo(16));
+    expect(promptRect.top - buttonRect.bottom, greaterThanOrEqualTo(16));
     expect(buttonRect.top - fieldRect.bottom, greaterThanOrEqualTo(12));
     expect(solutionRect.top - buttonRect.bottom, greaterThanOrEqualTo(16));
     expect(tester.takeException(), isNull);

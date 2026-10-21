@@ -74,7 +74,7 @@ void main() {
   );
 
   test(
-    'rejects negative, excessive, stale, unknown and repeated wagers',
+    'validates wagers and allows repeated changes until betting closes',
     () async {
       await wager('p1', -1);
       await wager('p1', 101);
@@ -83,6 +83,13 @@ void main() {
       expect(engine.state.game.poker!.wagers, isEmpty);
       await wager('p1', 100);
       await wager('p3', 1);
+      expect(engine.state.game.teamScores['a'], 99);
+      expect(engine.state.game.poker!.wagers['a'], 1);
+      await wager('p1', 101);
+      expect(engine.state.game.poker!.wagers['a'], 1);
+      await wager('p1', 0);
+      expect(engine.state.game.teamScores['a'], 100);
+      await wager('p1', 100);
       expect(engine.state.game.teamScores['a'], 0);
       expect(engine.state.game.poker!.wagers['a'], 100);
       await send(const OpenPokerAnswersEvent());
@@ -125,7 +132,7 @@ void main() {
     },
   );
 
-  test('skip and bankrupt teams cannot answer without a stake', () async {
+  test('teams with chips can deliberately skip without answering', () async {
     await wager('p1', 0);
     await send(const OpenPokerAnswersEvent());
     await answer('p1', true);

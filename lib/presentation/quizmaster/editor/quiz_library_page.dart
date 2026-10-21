@@ -414,12 +414,14 @@ class _QuizCard extends StatelessWidget {
           icon: const Icon(Icons.file_download_outlined),
           label: Text(context.tr("Export quiz with media")),
         ),
-        if (onHost != null)
+        if (onHost != null) ...[
+          const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: isBusy ? null : onHost,
             icon: const Icon(Icons.play_arrow),
             label: Text(context.tr("Host this quiz")),
           ),
+        ],
       ],
     ),
   );

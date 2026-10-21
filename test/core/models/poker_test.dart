@@ -23,7 +23,6 @@ void main() {
       quiz(0),
       quiz(-1),
       quiz(1000001),
-      quiz(100, withTeams: false),
     ]) {
       expect(original.validationErrors(), isNotEmpty);
       expect(
@@ -35,5 +34,10 @@ void main() {
   test('legacy quiz without format still imports as standard', () {
     final json = quiz(100).toJson()..remove('format');
     expect(Quiz.fromJson(json).format, const StandardFormat());
+  });
+  test('poker lobby can start without predefined teams', () {
+    final original = quiz(100, withTeams: false);
+    expect(original.validationErrors(), isEmpty);
+    expect(Quiz.fromJson(original.toJson()), original);
   });
 }

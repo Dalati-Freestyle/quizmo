@@ -361,7 +361,6 @@ Quiz createSampleQuiz(DateTime timestamp) => Quiz(
       'YouTube und Karten benötigen Internet.',
   category: 'Demo',
   questions: sampleDemoQuestionBank,
-  teams: sampleTeams.values.toList(growable: false),
   createdAt: timestamp.toUtc(),
   updatedAt: timestamp.toUtc(),
 );

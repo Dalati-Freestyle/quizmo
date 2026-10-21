@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../../l10n/app_localizations.dart';
 
@@ -163,57 +164,63 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                       (r) => used.contains(r.id),
                     ),
                   ];
-                  final field = DropdownButtonFormField<String>(
-                    key: ValueKey('${left.id}-${pairs[left.id]}'),
-                    initialValue: pairs[left.id],
-                    isExpanded: true,
-                    isDense: false,
-                    itemHeight: null,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Zuordnen"),
-                    ),
-                    selectedItemBuilder: (context) => [
-                      if (pairs[left.id] != null) Text(context.tr("Zuordnen")),
-                      for (final right in options)
-                        Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: Text(right.label),
-                        ),
-                    ],
-                    items: [
-                      if (pairs[left.id] != null)
-                        DropdownMenuItem(
-                          value: '',
-                          child: Text(context.tr("Auswahl löschen")),
-                        ),
-                      for (final right in options)
-                        DropdownMenuItem(
-                          value: right.id,
-                          enabled:
-                              !used.contains(right.id) ||
-                              pairs[left.id] == right.id,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              right.label,
-                              style: used.contains(right.id)
-                                  ? TextStyle(
-                                      color: Theme.of(context).disabledColor,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                    ],
-                    onChanged: widget.enabled
-                        ? (value) => setState(() {
-                            if (value == null || value.isEmpty) {
-                              pairs.remove(left.id);
-                            } else {
-                              pairs[left.id] = value;
+                  final selected = options
+                      .where((r) => r.id == pairs[left.id])
+                      .firstOrNull;
+                  final field = OutlinedButton.icon(
+                    icon: const Icon(Icons.expand_more),
+                    label: Text(selected?.label ?? context.tr("Zuordnen")),
+                    onPressed: !widget.enabled
+                        ? null
+                        : () async {
+                            final value = await showModalBottomSheet<String>(
+                              context: context,
+                              showDragHandle: true,
+                              isScrollControlled: true,
+                              constraints: BoxConstraints(
+                                maxHeight:
+                                    MediaQuery.sizeOf(context).height * .9,
+                              ),
+                              builder: (context) => PointerInterceptor(
+                                child: SafeArea(
+                                  child: ListView(
+                                    shrinkWrap: true,
+                                    children: [
+                                      ListTile(title: Text(left.label)),
+                                      if (selected != null)
+                                        ListTile(
+                                          title: Text(
+                                            context.tr("Auswahl löschen"),
+                                          ),
+                                          onTap: () =>
+                                              Navigator.pop(context, ''),
+                                        ),
+                                      for (final right in options)
+                                        ListTile(
+                                          title: Text(right.label),
+                                          selected: right.id == selected?.id,
+                                          enabled:
+                                              !used.contains(right.id) ||
+                                              right.id == selected?.id,
+                                          onTap: () =>
+                                              Navigator.pop(context, right.id),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                            if (!mounted || !widget.enabled || value == null) {
+                              return;
                             }
-                          })
-                        : null,
+                            setState(() {
+                              if (value.isEmpty) {
+                                pairs.remove(left.id);
+                              } else {
+                                pairs[left.id] = value;
+                              }
+                            });
+                          },
                   );
                   return stacked
                       ? Column(

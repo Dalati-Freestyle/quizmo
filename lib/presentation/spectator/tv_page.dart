@@ -46,6 +46,7 @@ import '../common/jeopardy_board_view.dart';
 import 'spectator_session_cubit.dart';
 import 'tv_launch.dart';
 import 'tv_standings.dart';
+import 'animated_score_value.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -945,26 +946,38 @@ class _QuestionStage extends StatelessWidget {
           child:
               question.media.isNotEmpty ||
                   (isRevealed && question.solutionMedia.isNotEmpty)
-              ? SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      QuestionMediaView(
-                        key: ValueKey('question-media-${question.id}'),
-                        media: question.media,
-                        playing:
-                            !game.tvMediaPaused &&
-                            (!isRevealed || question.solutionMedia.isEmpty),
-                        playbackRevision: game.tvMediaRevision,
-                      ),
-                      if (isRevealed)
+              ? LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    child: Column(
+                      children: [
                         QuestionMediaView(
-                          key: ValueKey('solution-media-${question.id}'),
-                          media: question.solutionMedia,
-                          playing: !game.tvMediaPaused,
+                          key: ValueKey('question-media-${question.id}'),
+                          media: question.media,
+                          playing:
+                              !game.tvMediaPaused &&
+                              (!isRevealed || question.solutionMedia.isEmpty),
                           playbackRevision: game.tvMediaRevision,
+                          commandRevision: game.tvMediaCommandRevision,
+                          maxVideoHeight: (constraints.maxHeight - 24).clamp(
+                            40,
+                            300,
+                          ),
                         ),
-                      QuestionResultView(question: question, game: game),
-                    ],
+                        if (isRevealed)
+                          QuestionMediaView(
+                            key: ValueKey('solution-media-${question.id}'),
+                            media: question.solutionMedia,
+                            playing: !game.tvMediaPaused,
+                            playbackRevision: game.tvMediaRevision,
+                            commandRevision: game.tvMediaCommandRevision,
+                            maxVideoHeight: (constraints.maxHeight - 24).clamp(
+                              40,
+                              300,
+                            ),
+                          ),
+                        QuestionResultView(question: question, game: game),
+                      ],
+                    ),
                   ),
                 )
               : switch (current) {
@@ -1073,6 +1086,14 @@ class _CountdownBarState extends State<_CountdownBar> {
           );
     final isUrgent = remaining <= const Duration(seconds: 5);
     final color = isUrgent ? scheme.error : scheme.primary;
+
+    if (remaining == Duration.zero &&
+        widget.state.game?.round.question?.softTimeLimit == true) {
+      return Text(
+        context.tr("Zeit abgelaufen · Der Spielleiter beendet die Runde."),
+        style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),
+      );
+    }
 
     return Row(
       children: [
@@ -1300,7 +1321,9 @@ class _BuzzerBoard extends StatelessWidget {
     final activeName = game.activePlayer?.name;
 
     if (round.buzzerQueue.isEmpty && !isRevealed) {
-      return const _PulsingBuzzerHint();
+      return _PulsingBuzzerHint(
+        ready: round.status.acceptsInput && !(game.poker?.betting ?? false),
+      );
     }
 
     return Column(
@@ -1452,7 +1475,8 @@ class _BuzzRow extends StatelessWidget {
 }
 
 class _PulsingBuzzerHint extends StatefulWidget {
-  const _PulsingBuzzerHint();
+  const _PulsingBuzzerHint({required this.ready});
+  final bool ready;
 
   @override
   State<_PulsingBuzzerHint> createState() => _PulsingBuzzerHintState();
@@ -1476,32 +1500,44 @@ class _PulsingBuzzerHintState extends State<_PulsingBuzzerHint>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ScaleTransition(
-            scale: Tween<double>(begin: 0.9, end: 1.1).animate(
-              CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-            ),
-            child: Icon(Icons.bolt, size: 200, color: scheme.tertiary),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: 1034,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ScaleTransition(
+                scale: Tween<double>(begin: 0.9, end: 1.1).animate(
+                  CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+                ),
+                child: Icon(Icons.bolt, size: 200, color: scheme.tertiary),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr(
+                  widget.ready
+                      ? "Buzzers are armed!"
+                      : "Mach dich bereit zu buzzern!",
+                ),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontSize: 64,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                context.tr(
+                  widget.ready ? "Be the first to hit your buzzer." : "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
+                ),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontSize: 34,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            context.tr("Buzzers are armed!"),
-            style: theme.textTheme.displaySmall?.copyWith(
-              fontSize: 64,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.tr("Be the first to hit your buzzer."),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontSize: 34,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1606,7 +1642,10 @@ class _StandingsPanel extends StatelessWidget {
                       child: Column(
                         children: [
                           for (final entry in standings.entries)
-                            _StandingRow(entry: entry),
+                            _StandingRow(
+                              key: ValueKey(entry.id ?? entry.label),
+                              entry: entry,
+                            ),
                           if (standings.hiddenCount > 0)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
@@ -1632,7 +1671,7 @@ class _StandingsPanel extends StatelessWidget {
 }
 
 class _StandingRow extends StatelessWidget {
-  const _StandingRow({required this.entry});
+  const _StandingRow({required this.entry, super.key});
 
   final TvStanding entry;
 
@@ -1710,14 +1749,7 @@ class _StandingRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Text(
-              '${entry.points}',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontSize: 44,
-                fontWeight: FontWeight.w800,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+            AnimatedScoreValue(points: entry.points),
           ],
         ),
       ),

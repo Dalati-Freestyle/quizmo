@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../l10n/app_localizations.dart';
 
@@ -40,6 +41,12 @@ class _SessionNotificationsState extends State<SessionNotifications> {
     if (!game.isFinished) _placementShown = false;
     final messages = <String>[];
     if (previous != null) {
+      if (widget.playerId != null &&
+          game.round.status == RoundStatus.revealed &&
+          (previous.round.status != RoundStatus.revealed ||
+              previous.round.question?.id != game.round.question?.id)) {
+        messages.add(roundFeedback(game, widget.playerId!, context: context));
+      }
       for (final player in game.players.values) {
         final wasConnected = previous.players[player.id]?.isConnected ?? false;
         if (player.isConnected != wasConnected) {
@@ -75,26 +82,28 @@ class _SessionNotificationsState extends State<SessionNotifications> {
             1 + scores.values.where((score) => score > myScore).length;
         showDialog<void>(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text(context.tr("Quiz beendet")),
-            content: Text(
-              context.tr("{0} Platz {1} mit {2} {3}!", [
-                teamCompetition
-                    ? context.tr("Dein Team erreicht")
-                    : context.tr("Du erreichst"),
-                place,
-                myScore,
-                game.poker == null
-                    ? context.tr("Punkten")
-                    : context.tr("Chips"),
-              ]),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(context.tr("OK")),
+          builder: (context) => PointerInterceptor(
+            child: AlertDialog(
+              title: Text(context.tr("Quiz beendet")),
+              content: Text(
+                context.tr("{0} Platz {1} mit {2} {3}!", [
+                  teamCompetition
+                      ? context.tr("Dein Team erreicht")
+                      : context.tr("Du erreichst"),
+                  place,
+                  myScore,
+                  game.poker == null
+                      ? context.tr("Punkten")
+                      : context.tr("Chips"),
+                ]),
               ),
-            ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(context.tr("OK")),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -103,4 +112,57 @@ class _SessionNotificationsState extends State<SessionNotifications> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+String roundFeedback(GameState game, String playerId, {BuildContext? context}) {
+  final question = game.round.question;
+  if (question == null) return '';
+  final teamId = game.players[playerId]?.teamId;
+  final teamMode = game.mode is TeamMode || game.poker != null;
+  final ids = teamMode && teamId != null
+      ? game.players.values
+            .where((p) => p.teamId == teamId)
+            .map((p) => p.id)
+            .toSet()
+      : {playerId};
+  final answers = game.round.answers.values.where(
+    (a) => ids.contains(a.playerId),
+  );
+  final verdicts = game.round.buzzerVerdicts.entries.where(
+    (v) => ids.contains(v.key),
+  );
+  final accuracy = question is BuzzerQuestion
+      ? (verdicts.any((v) => v.value == 1) ? 1.0 : 0.0)
+      : answers.fold<double>(0, (best, answer) {
+          final value = question.accuracy(answer);
+          return value > best ? value : best;
+        });
+  final answered = answers.isNotEmpty || verdicts.isNotEmpty;
+  final poker = game.poker;
+  final points = poker != null
+      ? (poker.wagers[teamId] ?? 0) * (accuracy == 1 ? 1 : -1)
+      : game.scores.history
+            .where(
+              (event) =>
+                  event.questionId == question.id &&
+                  ids.contains(event.playerId),
+            )
+            .fold<int>(0, (sum, event) => sum + event.points);
+  final verdict = !answered
+      ? 'Keine Antwort'
+      : accuracy == 1
+      ? 'Richtig!'
+      : accuracy > 0
+      ? 'Teilweise richtig'
+      : 'Leider falsch';
+  final template = poker == null ? '{0} · {1} Punkte' : '{0} · {1} Chips';
+  final arguments = [
+    context?.tr(verdict) ?? verdict,
+    '${points > 0 ? '+' : ''}$points',
+  ];
+  final result =
+      context?.tr(template, arguments) ??
+      AppLocalizations.formatMessage(template, arguments);
+  final practice = poker != null && (poker.wagers[teamId] ?? 0) == 0;
+  return '$result${practice ? ' · ${context?.tr("Ohne Einsatz: keine Wertung") ?? "Ohne Einsatz: keine Wertung"}' : ''}';
 }

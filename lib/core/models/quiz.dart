@@ -40,7 +40,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 4;
+  static const int currentSchemaVersion = 5;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -61,6 +61,7 @@ final class Quiz extends Equatable {
       2 => Quiz._fromJsonV2(json),
       3 => Quiz._fromJsonV3(json),
       4 => Quiz._fromJsonV4(json),
+      5 => Quiz._fromJsonV5(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -74,7 +75,9 @@ final class Quiz extends Equatable {
 
   factory Quiz._fromJsonV3(JsonMap json) => Quiz._fromJsonV4(json);
 
-  factory Quiz._fromJsonV4(JsonMap json) {
+  factory Quiz._fromJsonV4(JsonMap json) => Quiz._fromJsonV5(json);
+
+  factory Quiz._fromJsonV5(JsonMap json) {
     final quiz = Quiz(
       schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
@@ -186,9 +189,6 @@ final class Quiz extends Equatable {
       case PokerFormat(:final startingChips):
         if (startingChips < 1 || startingChips > 1000000) {
           errors.add('Startchips müssen zwischen 1 und 1000000 liegen.');
-        }
-        if (teams.isEmpty) {
-          errors.add('Pokerchips benötigt mindestens ein Team.');
         }
       case StandardFormat():
         break;

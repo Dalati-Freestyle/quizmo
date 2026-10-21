@@ -25,6 +25,7 @@ import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
+import '../common/question_result_view.dart';
 import 'questions/multiple_choice_question_view.dart';
 
 /// Player facing screen.
@@ -361,7 +362,8 @@ class _GameBoard extends StatelessWidget {
 
     final stage = Padding(
       padding: const EdgeInsets.all(20),
-      child: Center(
+      child: Align(
+        alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: SingleChildScrollView(child: _QuestionStage(state: state)),
@@ -595,6 +597,18 @@ class _QuestionStage extends StatelessWidget {
     final view = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (state.roundStatus == RoundStatus.revealed)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                roundFeedback(state.game!, state.playerId!, context: context),
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+          ),
+        input,
+        const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
           Text(
@@ -616,12 +630,16 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.media,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true ? false : null,
+            playing: state.game?.tvMediaPaused == true
+                ? false
+                : (state.game?.tvMediaCommandRevision ?? 0) > 0
+                ? true
+                : null,
             playbackRevision: state.game?.tvMediaRevision ?? 0,
+            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
           const SizedBox(height: 16),
         ],
-        input,
         if (state.roundStatus == RoundStatus.revealed) ...[
           const SizedBox(height: 24),
           if (question is! MultipleChoiceQuestion &&
@@ -636,8 +654,13 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.solutionMedia,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true ? false : null,
+            playing: state.game?.tvMediaPaused == true
+                ? false
+                : (state.game?.tvMediaCommandRevision ?? 0) > 0
+                ? true
+                : null,
             playbackRevision: state.game?.tvMediaRevision ?? 0,
+            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
         ],
       ],
@@ -652,6 +675,17 @@ class _QuestionStage extends StatelessWidget {
               poker.wagers[state.me?.teamId] ?? 0,
             ]),
           ),
+          if ((poker.chips[state.me?.teamId] ?? 0) == 0 &&
+              ((poker.wagers[state.me?.teamId] ?? 0) == 0 ||
+                  poker.settledTeamIds.contains(state.me?.teamId)))
+            Text(
+              context.tr(
+                "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
+              ),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
           if (!state.mayAnswerPoker && state.roundStatus.acceptsInput)
             Text(
               context.tr("Dein Team setzt aus oder wurde bereits gewertet."),
@@ -837,7 +871,37 @@ class PokerWagerView extends StatefulWidget {
 }
 
 class _PokerWagerViewState extends State<PokerWagerView> {
-  final _controller = TextEditingController(text: '10');
+  late final _controller = TextEditingController(
+    text: '${_defaultWager(widget.state)}',
+  );
+
+  int _defaultWager(PlayerSessionState state) {
+    final game = state.game!;
+    final poker = game.poker!;
+    final team = state.me?.teamId;
+    final available = (poker.chips[team] ?? 0) + (poker.wagers[team] ?? 0);
+    return (poker.wagers[team] ??
+            (poker.startingChips ~/
+                (game.totalQuestionCount > 0 ? game.totalQuestionCount : 1)))
+        .clamp(0, available);
+  }
+
+  @override
+  void didUpdateWidget(PokerWagerView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final team = widget.state.me?.teamId;
+    final oldPoker = oldWidget.state.game?.poker;
+    final poker = widget.state.game?.poker;
+    if (oldPoker?.chips[team] != poker?.chips[team] ||
+        oldPoker?.wagers[team] != poker?.wagers[team] ||
+        oldPoker?.startingChips != poker?.startingChips ||
+        oldWidget.state.game?.totalQuestionCount !=
+            widget.state.game?.totalQuestionCount ||
+        oldWidget.state.me?.teamId != team) {
+      _controller.text = '${_defaultWager(widget.state)}';
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -849,29 +913,22 @@ class _PokerWagerViewState extends State<PokerWagerView> {
     final state = widget.state;
     final poker = state.game!.poker!;
     final team = state.me?.teamId;
-    final chips = poker.chips[team] ?? 0;
+    final chips = (poker.chips[team] ?? 0) + (poker.wagers[team] ?? 0);
     final wager = poker.wagers[team];
     final value = int.tryParse(_controller.text);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          state.question!.prompt,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 16),
         Text(context.tr("Pokerchips · {0} Chips verfügbar", [chips])),
         const SizedBox(height: 16),
         if (team == null)
           Text(context.tr("Der Quizmaster muss dich einem Team zuweisen."))
-        else if (wager != null)
-          Text(
-            context.tr("Teameinsatz: {0} Chips. Warte auf die Antwortphase.", [
-              wager,
-            ]),
-          )
         else if (chips == 0)
-          Text(context.tr("Keine Chips mehr. Dein Team setzt aus."))
+          Text(
+            context.tr(
+              "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
+            ),
+          )
         else ...[
           TextField(
             controller: _controller,
@@ -890,13 +947,36 @@ class _PokerWagerViewState extends State<PokerWagerView> {
             onPressed: value != null && value >= 0 && value <= chips
                 ? () => widget.onWager(value)
                 : null,
-            child: Text(context.tr("Teameinsatz bestätigen")),
+            child: Text(
+              context.tr(
+                wager == null ? "Teameinsatz bestätigen" : "Teameinsatz ändern",
+              ),
+            ),
           ),
           TextButton(
             onPressed: () => widget.onWager(chips),
             child: const Text('All-in'),
           ),
         ],
+        if (wager != null)
+          Text(
+            context.tr(
+              "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
+              [wager],
+            ),
+          ),
+        const SizedBox(height: 16),
+        Text(
+          state.question!.prompt,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        QuestionResultView(question: state.question!, game: state.game!),
+        if (state.question!.media.isNotEmpty)
+          QuestionMediaView(
+            media: state.question!.media,
+            baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
+            playing: false,
+          ),
       ],
     );
   }
@@ -916,6 +996,14 @@ class DailyDoubleWagerView extends StatefulWidget {
 
 class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
   late final controller = TextEditingController(text: '${widget.maxWager}');
+  @override
+  void didUpdateWidget(DailyDoubleWagerView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.maxWager != widget.maxWager) {
+      controller.text = '${widget.maxWager}';
+    }
+  }
+
   @override
   void dispose() {
     controller.dispose();

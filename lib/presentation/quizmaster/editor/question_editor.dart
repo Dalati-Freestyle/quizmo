@@ -197,6 +197,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   bool _allowMultipleAnswers = false;
   late bool _lockOutOnMiss;
   bool _hostEndsRound = false;
+  bool _softTimeLimit = false;
   late final TextEditingController _retryLimitController;
   late _ScoringRuleKind _scoringKind;
 
@@ -204,6 +205,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   void initState() {
     super.initState();
     final question = widget.question;
+    _softTimeLimit = question.softTimeLimit;
     _hostEndsRound = question is BuzzerQuestion && question.hostEndsRound;
     _retryLimitController = TextEditingController(
       text: question is BuzzerQuestion
@@ -377,6 +379,18 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
                     validator: _positiveInt(
                       context.tr("Enter a positive time limit."),
                     ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(context.tr("Weiches Zeitlimit")),
+                    subtitle: Text(
+                      context.tr(
+                        "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
+                      ),
+                    ),
+                    value: _softTimeLimit,
+                    onChanged: (value) =>
+                        setState(() => _softTimeLimit = value),
                   ),
                 ],
               ),
@@ -720,6 +734,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     };
     question = Question.fromJson({
       ...question.toJson(),
+      'softTimeLimit': _softTimeLimit,
       'media': _media.map((m) => m.toJson()).toList(),
       'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
       'adminNotes': _notesController.text,

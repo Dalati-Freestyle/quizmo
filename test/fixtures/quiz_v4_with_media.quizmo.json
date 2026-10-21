@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 4,
+  "id": "legacy-v4",
+  "name": "Version 4 poker",
+  "description": "Historical quiz with question and solution media.",
+  "category": "Compatibility",
+  "createdAtMicros": 0,
+  "updatedAtMicros": 0,
+  "teams": [{"id": "a", "name": "A", "colorValue": 4278190335}],
+  "format": {"type": "poker", "startingChips": 100},
+  "questions": [{
+    "type": "buzzer",
+    "id": "q",
+    "prompt": "Name the film.",
+    "timeLimitMs": 20000,
+    "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+    "expectedAnswer": "Big Buck Bunny",
+    "hostEndsRound": true,
+    "retryLimit": 2,
+    "lockOutOnMiss": false,
+    "media": [{"type": "video", "youtubeId": "aqz-KE-bpKQ", "caption": "Film", "hideDetails": true}],
+    "solutionMedia": [{"type": "code", "code": "Big Buck Bunny", "language": "text", "caption": "Solution", "hideDetails": false}]
+  }]
+}

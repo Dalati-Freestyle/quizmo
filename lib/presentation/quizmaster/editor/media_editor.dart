@@ -191,7 +191,7 @@ class _MediaEditorState extends State<MediaEditor> {
                           publish();
                         },
                       ),
-                    if (attachment is AudioAttachment)
+                    if (attachment is AudioAttachment) ...[
                       TextFormField(
                         key: ValueKey(attachment.asset.id),
                         initialValue:
@@ -211,6 +211,7 @@ class _MediaEditorState extends State<MediaEditor> {
                             asset: attachment.asset,
                             caption: attachment.caption,
                             hideDetails: attachment.hideDetails,
+                            softPlaybackLimit: attachment.softPlaybackLimit,
                             playbackLimitSeconds: v.isEmpty
                                 ? null
                                 : int.tryParse(v) ?? 0,
@@ -218,6 +219,25 @@ class _MediaEditorState extends State<MediaEditor> {
                           publish();
                         },
                       ),
+                      SwitchListTile(
+                        title: Text(context.tr("Weiches Abspiellimit")),
+                        subtitle: Text(
+                          context.tr(
+                            "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.",
+                          ),
+                        ),
+                        value: attachment.softPlaybackLimit,
+                        onChanged: (value) {
+                          setState(
+                            () => media[i] = MediaAttachment.fromJson({
+                              ...media[i].toJson(),
+                              'softPlaybackLimit': value,
+                            }),
+                          );
+                          publish();
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -15,6 +15,7 @@ final class TvStanding extends Equatable {
     this.colorValue,
     this.subtitle,
     this.isOnline = true,
+    this.id,
   });
 
   /// One based position; ties share the better rank.
@@ -34,6 +35,7 @@ final class TvStanding extends Equatable {
 
   /// Whether the player (or any member of the team) is connected.
   final bool isOnline;
+  final String? id;
 
   @override
   List<Object?> get props => [
@@ -43,6 +45,7 @@ final class TvStanding extends Equatable {
     colorValue,
     subtitle,
     isOnline,
+    id,
   ];
 }
 
@@ -96,6 +99,7 @@ List<TvStanding> _playerRows(GameState game) {
       (
         points: game.scores.scoreOf(player.id),
         build: (int rank) => TvStanding(
+          id: player.id,
           rank: rank,
           label: player.name,
           points: game.scores.scoreOf(player.id),
@@ -128,6 +132,7 @@ List<TvStanding> _teamRows(GameState game) {
               .where((player) => player.teamId == team.id)
               .toList(growable: false);
           return TvStanding(
+            id: team.id,
             rank: rank,
             label: team.name,
             points: totals[team.id] ?? 0,

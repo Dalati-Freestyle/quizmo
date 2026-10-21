@@ -71,14 +71,6 @@ class _MultipleChoiceQuestionViewState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          question.prompt,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 24),
         for (final option in question.options) ...[
           _OptionTile(
             option: option,
@@ -116,6 +108,8 @@ class _MultipleChoiceQuestionViewState
                 : null,
             child: Text(context.tr("Antworten einloggen")),
           ),
+        const SizedBox(height: 16),
+        Text(question.prompt, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
           switch (status) {

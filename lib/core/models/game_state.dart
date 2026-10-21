@@ -99,6 +99,7 @@ final class GameState extends Equatable {
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
+    this.tvMediaCommandRevision = 0,
     this.allAnswersRevision = 0,
     this.isFinished = false,
     this.isStarted = false,
@@ -137,6 +138,9 @@ final class GameState extends Equatable {
     tvMediaRevision: json['tvMediaRevision'] == null
         ? 0
         : json.readInt('tvMediaRevision'),
+    tvMediaCommandRevision: json['tvMediaCommandRevision'] == null
+        ? 0
+        : json.readInt('tvMediaCommandRevision'),
   );
 
   /// Active competition mode.
@@ -210,6 +214,7 @@ final class GameState extends Equatable {
   final int hostTimeMicros;
   final bool tvMediaPaused;
   final int tvMediaRevision;
+  final int tvMediaCommandRevision;
   final int allAnswersRevision;
   final bool isFinished;
   final bool isStarted;
@@ -305,6 +310,7 @@ final class GameState extends Equatable {
     Object? hostTimeMicros = _unset,
     bool? tvMediaPaused,
     int? tvMediaRevision,
+    int? tvMediaCommandRevision,
     int? allAnswersRevision,
     bool? isFinished,
     bool? isStarted,
@@ -324,6 +330,8 @@ final class GameState extends Equatable {
     poker: identical(poker, _unset) ? this.poker : poker as PokerState?,
     tvMediaPaused: tvMediaPaused ?? this.tvMediaPaused,
     tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
+    tvMediaCommandRevision:
+        tvMediaCommandRevision ?? this.tvMediaCommandRevision,
     allAnswersRevision: allAnswersRevision ?? this.allAnswersRevision,
     isFinished: isFinished ?? this.isFinished,
     isStarted: isStarted ?? this.isStarted,
@@ -350,6 +358,7 @@ final class GameState extends Equatable {
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
+    'tvMediaCommandRevision': tvMediaCommandRevision,
     'allAnswersRevision': allAnswersRevision,
     'isFinished': isFinished,
     'isStarted': isStarted,
@@ -371,6 +380,7 @@ final class GameState extends Equatable {
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,
+    tvMediaCommandRevision,
     allAnswersRevision,
     isFinished,
     isStarted,

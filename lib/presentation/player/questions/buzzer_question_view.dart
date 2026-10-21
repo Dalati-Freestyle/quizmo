@@ -77,14 +77,6 @@ class BuzzerQuestionView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          question.prompt,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 28),
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 260),
@@ -95,6 +87,14 @@ class BuzzerQuestionView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
+        Text(
+          question.prompt,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 16),
         _LatencyBadge(
           clockOffsetMicros: clockOffsetMicros,
           roundTripMicros: roundTripMicros,

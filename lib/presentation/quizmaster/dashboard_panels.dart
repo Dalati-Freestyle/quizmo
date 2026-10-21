@@ -865,6 +865,15 @@ class _WagerFormState extends State<_WagerForm> {
   String? _error;
 
   @override
+  void didUpdateWidget(_WagerForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.maxWager != widget.maxWager) {
+      _controller.text = '${widget.maxWager}';
+      _error = null;
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -1052,8 +1061,13 @@ class LiveRoundPanel extends StatelessWidget {
                 ],
                 QuestionMediaView(
                   media: question.media,
-                  playing: game.tvMediaPaused ? false : null,
+                  playing: game.tvMediaPaused
+                      ? false
+                      : game.tvMediaCommandRevision > 0
+                      ? true
+                      : null,
                   playbackRevision: game.tvMediaRevision,
+                  commandRevision: game.tvMediaCommandRevision,
                 ),
                 switch (question) {
                   MultipleChoiceQuestion() => _MultipleChoiceMonitor(
@@ -1077,8 +1091,13 @@ class LiveRoundPanel extends StatelessWidget {
                 if (game.round.status == RoundStatus.revealed)
                   QuestionMediaView(
                     media: question.solutionMedia,
-                    playing: game.tvMediaPaused ? false : null,
+                    playing: game.tvMediaPaused
+                        ? false
+                        : game.tvMediaCommandRevision > 0
+                        ? true
+                        : null,
                     playbackRevision: game.tvMediaRevision,
+                    commandRevision: game.tvMediaCommandRevision,
                   ),
                 const SizedBox(height: 12),
                 _RoundActions(

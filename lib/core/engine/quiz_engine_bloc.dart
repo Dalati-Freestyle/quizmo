@@ -155,6 +155,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         _publish(
           game.copyWith(
             tvMediaPaused: event.action == TvMediaAction.pause,
+            tvMediaCommandRevision: game.tvMediaCommandRevision + 1,
             tvMediaRevision:
                 game.tvMediaRevision +
                 (event.action == TvMediaAction.restart ? 1 : 0),
@@ -167,13 +168,34 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (pokerStartingChips != null &&
         (pokerStartingChips < 1 ||
             pokerStartingChips > 1000000 ||
-            teams.isEmpty ||
             jeopardyBoard != null)) {
       throw ArgumentError('Invalid poker configuration.');
     }
     on<PlacePokerWagerEvent>(_onPlacePokerWager);
     on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
     on<ResetGameEvent>(_onResetGame);
+    on<ExpireRoundEvent>((event, emit) {
+      final game = state.game;
+      final round = game.round;
+      if (round.question?.id != event.questionId ||
+          round.startedAtHostMicros != event.startedAt ||
+          round.question!.softTimeLimit ||
+          !round.status.acceptsInput ||
+          (game.poker?.betting ?? false)) {
+        return;
+      }
+      _graceTimer?.cancel();
+      if (round.nextCandidate != null) {
+        _onLockBuzzer(const LockBuzzerEvent(), emit);
+        return;
+      }
+      emit(
+        _publish(
+          game.copyWith(round: round.copyWith(status: RoundStatus.locked)),
+          notice: 'Zeit abgelaufen. Antworten sind geschlossen.',
+        ),
+      );
+    });
   }
 
   /// How long the engine waits for in-flight presses before locking the buzzer.
@@ -184,6 +206,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   final List<Question> _initialBank;
   final JeopardyBoard? _initialBoard;
   Timer? _graceTimer;
+  Timer? _roundTimer;
 
   /// The host clock, exposed so the UI can render latency relative to it.
   int get hostNowMicros => _now();
@@ -191,6 +214,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   @override
   Future<void> close() {
     _graceTimer?.cancel();
+    _roundTimer?.cancel();
     return super.close();
   }
 
@@ -629,7 +653,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       ),
     );
-    if (allAnswered) add(const RevealRoundEvent());
+    if (allAnswered && !round.question!.softTimeLimit) {
+      add(const RevealRoundEvent());
+    }
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -704,8 +730,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   }
 
   void _onJudgeBuzzer(JudgeBuzzerEvent event, Emitter<QuizEngineState> emit) {
-    final game = state.game;
-    final round = game.round;
+    var game = state.game;
+    var round = game.round;
     final question = round.question;
     final activeId = round.activePlayerId;
 
@@ -716,6 +742,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    round = round.copyWith(
+      buzzerVerdicts: {
+        ...round.buzzerVerdicts,
+        activeId: event.wasCorrect ? 1 : 0,
+      },
+    );
+    game = game.copyWith(round: round);
     final continueAutomatically =
         autoContinueBuzzer &&
         !question.hostEndsRound &&
@@ -747,7 +780,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       final done = _pokerEveryoneSettled(updated);
       emit(
         _publish(
-          done && !question.hostEndsRound
+          done && !question.hostEndsRound && !question.softTimeLimit
               ? _reveal(
                   updated.copyWith(
                     allAnswersRevision: game.allAnswersRevision + 1,
@@ -786,7 +819,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (event.wasCorrect) {
       emit(
         _publish(
-          question.hostEndsRound
+          question.hostEndsRound || question.softTimeLimit
               ? game.copyWith(
                   scores: scores,
                   round: round.copyWith(
@@ -833,7 +866,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         } else {
           emit(
             _publish(
-              continueAutomatically ? _reveal(missed) : missed,
+              continueAutomatically && !question.softTimeLimit
+                  ? _reveal(missed)
+                  : missed,
               notice: '$playerName missed ($delta).',
             ),
           );
@@ -860,6 +895,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       lockedOutPlayerIds: lockedOut,
       resolvedAttempts: round.resolvedAttempts + 1,
       buzzerOpenForAll: round.buzzerOpenForAll,
+      buzzerVerdicts: round.buzzerVerdicts,
     );
 
     emit(
@@ -1217,11 +1253,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// Whether every player (on a board: every team) that may answer did.
   bool _everyoneAnswered(GameState game) {
     if (game.poker case final poker?) {
-      final teams = poker.wagers.entries.where((entry) => entry.value > 0);
+      final teams = game.teams.keys.where(
+        (id) => (poker.wagers[id] ?? 0) > 0 || (poker.chips[id] ?? 0) == 0,
+      );
       return teams.isNotEmpty &&
           teams.every(
-            (entry) => game.round.answers.keys.any(
-              (id) => game.players[id]?.teamId == entry.key,
+            (team) => game.round.answers.keys.any(
+              (id) => game.players[id]?.teamId == team,
             ),
           );
     }
@@ -1292,18 +1330,37 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   // --------------------------------------------------------------- helpers ---
 
   /// Wraps [game] into a state, stamping it with the current host clock.
-  QuizEngineState _publish(GameState game, {String? notice}) => QuizEngineState(
-    game: game.copyWith(
-      hostTimeMicros: _now(),
-      tvMediaPaused:
-          game.round.question?.id != state.game.round.question?.id ||
-              (game.round.status == RoundStatus.revealed &&
-                  state.game.round.status != RoundStatus.revealed)
-          ? false
-          : game.tvMediaPaused,
-    ),
-    notice: notice,
-  );
+  QuizEngineState _publish(GameState game, {String? notice}) {
+    _roundTimer?.cancel();
+    final round = game.round;
+    final question = round.question;
+    final start = round.startedAtHostMicros;
+    if (question != null &&
+        start != null &&
+        !question.softTimeLimit &&
+        round.status.acceptsInput &&
+        !(game.poker?.betting ?? false)) {
+      final remaining = start + question.timeLimit.inMicroseconds - _now();
+      _roundTimer = Timer(
+        Duration(microseconds: remaining < 0 ? 0 : remaining),
+        () {
+          if (!isClosed) add(ExpireRoundEvent(question.id, start));
+        },
+      );
+    }
+    return QuizEngineState(
+      game: game.copyWith(
+        hostTimeMicros: _now(),
+        tvMediaPaused:
+            game.round.question?.id != state.game.round.question?.id ||
+                (game.round.status == RoundStatus.revealed &&
+                    state.game.round.status != RoundStatus.revealed)
+            ? false
+            : game.tvMediaPaused,
+      ),
+      notice: notice,
+    );
+  }
 
   /// Marks the round revealed and files the question as played.
   ///
@@ -1350,13 +1407,19 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
+    if (!question.softTimeLimit &&
+        !(state.game.poker?.betting ?? false) &&
+        round.elapsedAt(_now()) >= question.timeLimit) {
+      return 'Zeit abgelaufen. Antworten sind geschlossen.';
+    }
     if (state.game.players[playerId]?.isConnected != true) {
       return 'Unknown or disconnected player.';
     }
     if (state.game.poker case final poker?) {
       final teamId = state.game.players[playerId]?.teamId;
       if (poker.betting) return 'Die Einsatzphase läuft noch.';
-      if ((poker.wagers[teamId] ?? 0) < 1) {
+      if (teamId == null ||
+          ((poker.wagers[teamId] ?? 0) < 1 && (poker.chips[teamId] ?? 0) > 0)) {
         return 'Dein Team hat keinen Einsatz.';
       }
       if (poker.settledTeamIds.contains(teamId)) {
@@ -1449,16 +1512,22 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         teamId == null ||
         !game.teams.containsKey(teamId) ||
         game.round.question?.id != event.questionId ||
-        poker.wagers.containsKey(teamId) ||
         event.wager < 0 ||
-        event.wager > (poker.chips[teamId] ?? 0)) {
+        event.wager >
+            (poker.chips[teamId] ?? 0) + (poker.wagers[teamId] ?? 0)) {
       return;
     }
     emit(
       _publish(
         game.copyWith(
           poker: poker.copyWith(
-            chips: {...poker.chips, teamId: poker.chips[teamId]! - event.wager},
+            chips: {
+              ...poker.chips,
+              teamId:
+                  poker.chips[teamId]! +
+                  (poker.wagers[teamId] ?? 0) -
+                  event.wager,
+            },
             wagers: {...poker.wagers, teamId: event.wager},
           ),
         ),
@@ -1499,9 +1568,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
   }
 
-  bool _pokerEveryoneSettled(GameState game) => game.poker!.wagers.entries
-      .where((entry) => entry.value > 0)
-      .every((entry) => game.poker!.settledTeamIds.contains(entry.key));
+  bool _pokerEveryoneSettled(GameState game) => game.teams.keys
+      .where(
+        (id) =>
+            (game.poker!.wagers[id] ?? 0) > 0 ||
+            (game.poker!.chips[id] ?? 0) == 0,
+      )
+      .every((id) => game.poker!.settledTeamIds.contains(id));
 
   void _startGraceWindow() {
     _graceTimer?.cancel();

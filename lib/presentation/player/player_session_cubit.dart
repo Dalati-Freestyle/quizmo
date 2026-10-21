@@ -87,7 +87,9 @@ final class PlayerSessionState extends Equatable {
     final poker = game?.poker;
     if (poker == null) return true;
     return !poker.betting &&
-        (poker.wagers[me?.teamId] ?? 0) > 0 &&
+        me?.teamId != null &&
+        ((poker.wagers[me?.teamId] ?? 0) > 0 ||
+            (poker.chips[me?.teamId] ?? 0) == 0) &&
         !poker.settledTeamIds.contains(me?.teamId) &&
         !game!.round.answers.keys.any(
           (id) => game!.players[id]?.teamId == me?.teamId,

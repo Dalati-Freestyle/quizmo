@@ -47,6 +47,7 @@ final class RoundState extends Equatable {
     this.resolvedAttempts = 0,
     this.buzzerAnswerCorrect = false,
     this.buzzerOpenForAll = false,
+    this.buzzerVerdicts = const {},
   });
 
   /// Restores a round from [json].
@@ -64,6 +65,9 @@ final class RoundState extends Equatable {
     resolvedAttempts: json.readInt('resolvedAttempts'),
     buzzerAnswerCorrect: json.readBool('buzzerAnswerCorrect'),
     buzzerOpenForAll: json.readBool('buzzerOpenForAll'),
+    buzzerVerdicts: json['buzzerVerdicts'] == null
+        ? const {}
+        : json.readIntMap('buzzerVerdicts'),
   );
 
   /// The neutral "nothing on stage" round.
@@ -100,6 +104,7 @@ final class RoundState extends Equatable {
   final int resolvedAttempts;
   final bool buzzerAnswerCorrect;
   final bool buzzerOpenForAll;
+  final Map<String, int> buzzerVerdicts;
 
   /// The fastest press, or `null` while nobody buzzed.
   BuzzerPress? get fastestPress =>
@@ -150,6 +155,7 @@ final class RoundState extends Equatable {
     int? resolvedAttempts,
     bool? buzzerAnswerCorrect,
     bool? buzzerOpenForAll,
+    Map<String, int>? buzzerVerdicts,
   }) => RoundState(
     question: identical(question, _unset)
         ? this.question
@@ -167,6 +173,7 @@ final class RoundState extends Equatable {
     resolvedAttempts: resolvedAttempts ?? this.resolvedAttempts,
     buzzerAnswerCorrect: buzzerAnswerCorrect ?? this.buzzerAnswerCorrect,
     buzzerOpenForAll: buzzerOpenForAll ?? this.buzzerOpenForAll,
+    buzzerVerdicts: buzzerVerdicts ?? this.buzzerVerdicts,
   );
 
   /// Serializes the round.
@@ -183,6 +190,7 @@ final class RoundState extends Equatable {
     'resolvedAttempts': resolvedAttempts,
     'buzzerAnswerCorrect': buzzerAnswerCorrect,
     'buzzerOpenForAll': buzzerOpenForAll,
+    'buzzerVerdicts': buzzerVerdicts,
   };
 
   @override
@@ -197,5 +205,6 @@ final class RoundState extends Equatable {
     resolvedAttempts,
     buzzerAnswerCorrect,
     buzzerOpenForAll,
+    buzzerVerdicts,
   ];
 }

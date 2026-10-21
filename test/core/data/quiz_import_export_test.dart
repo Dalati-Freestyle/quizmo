@@ -45,7 +45,10 @@ void main() {
 
     expect(imported, quiz);
     expect(await repository.loadAll(), [quiz]);
-    expect(contents, contains('\n  "schemaVersion": 4'));
+    expect(
+      contents,
+      contains('\n  "schemaVersion": ${Quiz.currentSchemaVersion}'),
+    );
   });
 
   test('rejects malformed JSON', () {

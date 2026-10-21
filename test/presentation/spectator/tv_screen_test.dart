@@ -48,6 +48,38 @@ void main() {
     'b': Player(id: 'b', name: 'Linus'),
   };
 
+  testWidgets('buzzer is not advertised as armed during poker betting', (
+    tester,
+  ) async {
+    final game = GameState(
+      poker: PokerState.start(100, ['team']).copyWith(betting: true),
+      teams: const {'team': Team(id: 'team', name: 'Team')},
+      round: const RoundState(
+        question: BuzzerQuestion(id: 'buzz', prompt: 'Buzz?'),
+        status: RoundStatus.acceptingAnswers,
+      ),
+    );
+    Future<void> show(GameState value) => pump(
+      tester,
+      SpectatorSessionState(
+        status: QuizClientStatus.connected,
+        game: value,
+        snapshotReceivedAt: DateTime.now(),
+      ),
+    );
+    await show(game);
+    expect(find.text('Get ready to buzz!'), findsOneWidget);
+    expect(find.text('Buzzers are ready!'), findsNothing);
+    await show(game.copyWith(poker: game.poker!.copyWith(betting: false)));
+    expect(find.text('Buzzers are ready!'), findsOneWidget);
+    await show(
+      game.copyWith(round: game.round.copyWith(status: RoundStatus.locked)),
+    );
+    expect(find.text('Buzzers are ready!'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   for (final (chips, count, expected) in [
     (
       100,

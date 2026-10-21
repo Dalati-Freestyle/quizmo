@@ -149,5 +149,6 @@ it with `dart run tool/bundle_web_client.dart` after every change.
 
 ### Pokerchips format
 * `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.
-* Stakes are deducted once per team. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips the question; chip balances never become negative.
+* Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.
+* Quiz templates may have no predefined teams. Teams created during joining receive the configured starting chips.
 * All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.

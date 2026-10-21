@@ -21,7 +21,7 @@ void main() {
       expect(quiz.questions, hasLength(12));
       expect(quiz.createdAt, timestamp);
       expect(quiz.updatedAt, timestamp);
-      expect(quiz.teams.length, greaterThanOrEqualTo(2));
+      expect(quiz.teams, isEmpty);
       expect(quiz.questions.map((q) => q.runtimeType).toSet(), {
         MultipleChoiceQuestion,
         BuzzerQuestion,

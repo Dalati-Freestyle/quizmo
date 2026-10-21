@@ -34,10 +34,10 @@ void main() {
     questions: [question],
   );
 
-  test('schema 4 round-trips settings and both media sides', () {
+  test('current schema round-trips settings and both media sides', () {
     final restored = parseQuizImport(exportQuizJson(quiz));
     expect(restored, quiz);
-    expect(restored.schemaVersion, 4);
+    expect(restored.schemaVersion, Quiz.currentSchemaVersion);
     final hidden = restored.questions.single.redacted() as BuzzerQuestion;
     expect(hidden.retryLimit, 2);
     expect(hidden.hostEndsRound, isTrue);
@@ -51,7 +51,7 @@ void main() {
         File('test/fixtures/quiz_v${version}_with_media.quizmo.json')
             .readAsStringSync(),
       );
-      expect(restored.schemaVersion, 4);
+      expect(restored.schemaVersion, Quiz.currentSchemaVersion);
       expect(restored.questions.first.media.single.asset!.bytes, isNotEmpty);
       expect(
         restored.questions.first.solutionMedia.single.asset!.bytes,

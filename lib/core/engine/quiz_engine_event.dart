@@ -43,6 +43,14 @@ final class RenameTeamEvent extends QuizEngineEvent {
   List<Object?> get props => [playerId, name];
 }
 
+final class ExpireRoundEvent extends QuizEngineEvent {
+  const ExpireRoundEvent(this.questionId, this.startedAt);
+  final String questionId;
+  final int startedAt;
+  @override
+  List<Object?> get props => [questionId, startedAt];
+}
+
 /// A client's socket closed.
 final class PlayerLeftEvent extends QuizEngineEvent {
   /// Marks [playerId] as disconnected.

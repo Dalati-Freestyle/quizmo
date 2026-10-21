@@ -15,7 +15,7 @@ YouTube videos and map tiles remain online references and require internet.
 ## Versions
 
 Every file contains an integer `schemaVersion` at its root. The current version
-is **2**. Version 2 adds `hideDetails` to media attachments; version 1 attachments default to showing details. `Quiz.fromJson` selects the importer for that version before reading
+is **5**. Version 2 adds `hideDetails` to media attachments; version 1 attachments default to showing details. Version 5 adds `softTimeLimit` to every question and `softPlaybackLimit` to audio attachments. Both default to `false` for historical files: hard question limits close answers automatically, and hard audio limits stop playback. Soft question limits remain open until the host ends the round; soft audio limits are advisory. Poker quiz definitions may omit predefined teams; joining players create them in the lobby. `Quiz.fromJson` selects the importer for that version before reading
 question content. Every quiz model change increases the schema version. Add a
 dedicated importer for each new version and update every older importer to
 produce the latest in-memory model. Keep all historical importers. The single

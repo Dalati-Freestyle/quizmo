@@ -148,6 +148,7 @@ sealed class MediaAttachment extends Equatable {
       caption: json.readString('caption'),
       hideDetails: json.readBool('hideDetails', orElse: false),
       playbackLimitSeconds: json.readIntOrNull('playbackLimitSeconds'),
+      softPlaybackLimit: json.readBool('softPlaybackLimit', orElse: false),
     ),
     'video' => VideoAttachment(
       asset: json['asset'] == null
@@ -235,24 +236,28 @@ final class AudioAttachment extends MediaAttachment {
   const AudioAttachment({
     required this.asset,
     this.playbackLimitSeconds,
+    this.softPlaybackLimit = false,
     super.caption,
     super.hideDetails,
   });
   @override
   final MediaAsset asset;
   final int? playbackLimitSeconds;
+  final bool softPlaybackLimit;
   @override
   JsonMap toJson({bool includeData = true}) => {
     'type': 'audio',
     'caption': caption,
     'hideDetails': hideDetails,
     'playbackLimitSeconds': playbackLimitSeconds,
+    'softPlaybackLimit': softPlaybackLimit,
     'asset': asset.toJson(includeData: includeData),
   };
   @override
   List<Object?> get props => [
     asset,
     playbackLimitSeconds,
+    softPlaybackLimit,
     caption,
     hideDetails,
   ];

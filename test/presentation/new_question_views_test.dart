@@ -31,18 +31,23 @@ void main() {
       ),
     );
     Future<void> choose(int index, String label) async {
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(index));
+      await tester.tap(find.byType(OutlinedButton).at(index));
       await tester.pumpAndSettle();
       await tester.tap(find.text(label).last);
       await tester.pumpAndSettle();
     }
 
     await choose(0, 'X');
-    final remaining = tester.widget<DropdownButton<String>>(
-      find.byType(DropdownButton<String>).at(1),
-    ).items!;
-    expect(remaining.map((item) => item.value), ['y', 'x']);
+    await tester.tap(find.byType(OutlinedButton).at(1));
+    await tester.pumpAndSettle();
+    final remaining = tester
+        .widgetList<ListTile>(find.byType(ListTile))
+        .toList();
+    expect((remaining[1].title as Text).data, 'Y');
+    expect((remaining.last.title as Text).data, 'X');
     expect(remaining.last.enabled, isFalse);
+    Navigator.of(tester.element(find.byType(ListTile).first)).pop();
+    await tester.pumpAndSettle();
     await choose(1, 'Y');
     await choose(1, 'Auswahl löschen');
     await choose(0, 'Y');

@@ -30,6 +30,7 @@ const englishMessages = <String, String>{
   "Add team": "Add team",
   "Admin-Notizen": "Host notes",
   "Admin-Notizen (nur Spielleiter)": "Host notes (quizmaster only)",
+  "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "All players / participating teams have answered.",
@@ -52,6 +53,8 @@ const englishMessages = <String, String>{
       "Audio cannot be played on this device.",
   "Audio konnte nicht abgespielt werden.": "Audio could not be played.",
   "Audioformat erwartet.": "An audio format is required.",
+  "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
+      "Eliminated · You can keep answering, but cannot earn points or chips.",
   "Auswahl löschen": "Clear selection",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}":
       "Could not save automatic reconnection after restart: {0}",
@@ -162,6 +165,8 @@ const englishMessages = <String, String>{
   "Delete question": "Delete question",
   "Delete quiz?": "Delete quiz?",
   "Delete row and its questions": "Delete row and its questions",
+  "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.":
+      "The buzzer is closed. Wait for the host to open it.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "The quizmaster must assign you to a team.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
@@ -255,6 +260,8 @@ const englishMessages = <String, String>{
   "General knowledge": "General knowledge",
   "Get ready to play!": "Get ready to play!",
   "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
+  "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hard: Audio stops at the limit. Soft: The time is advisory; the host stops playback.",
+  "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hard: Answers close when time runs out. Soft: The timer is advisory; only the host ends the round.",
   "Hinzufügen": "Add",
   "Host a quiz": "Host a quiz",
   "Host address": "Host address",
@@ -289,6 +296,7 @@ const englishMessages = <String, String>{
   "Joined players": "Joined players",
   "Just watch (TV view)": "Just watch (TV view)",
   "Kartenausschnitt": "Map section",
+  "Keine Antwort": "No answer",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "No captions or file names on player and TV screens. YouTube may show its own titles; upload MP4 for videos without titles.",
   "Keine Chips mehr. Dein Team setzt aus.":
       "No chips left. Your team sits out.",
@@ -306,6 +314,7 @@ const englishMessages = <String, String>{
   "Leave": "Leave",
   "Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.":
       "Empty: unlimited. 0: no retries. The quizmaster may still continue.",
+  "Leider falsch": "Incorrect",
   "Live round": "Live round",
   "Local-first, multi-device quiz platform":
       "Local-first, multi-device quiz platform",
@@ -324,6 +333,7 @@ const englishMessages = <String, String>{
   "MP4 hochladen": "Upload MP4",
   "MP4 oder gültige YouTube-ID angeben.":
       "Provide an MP4 file or a valid YouTube ID.",
+  "Mach dich bereit zu buzzern!": "Get ready to buzz!",
   "Make Daily Double": "Make Daily Double",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Make sure the TV and the quizmaster are on the same network and the host server is running.",
   "Manage quiz library": "Manage quiz library",
@@ -384,6 +394,7 @@ const englishMessages = <String, String>{
   "Nur durch Spielleiter beenden": "Only the quizmaster ends the question",
   "OK": "OK",
   "OPEN": "OPEN",
+  "Ohne Einsatz: keine Wertung": "No wager: not scored",
   "Ohne Export verlassen": "Leave without exporting",
   "Only the first answer counts.": "Only the first answer counts.",
   "Only the other teams may steal this question.":
@@ -468,6 +479,7 @@ const englishMessages = <String, String>{
   "Reveal the round before closing it.": "Reveal the round before closing it.",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Correct answer. The quizmaster ends the question.",
+  "Richtig!": "Correct!",
   "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.":
       "Correct: double payout. Wrong: stake lost. 0 = sit out.",
   "Round is not accepting input.": "Round is not accepting input.",
@@ -553,12 +565,14 @@ const englishMessages = <String, String>{
   "Team umbenennen: {0}": "Rename team: {0}",
   "Team wählen": "Choose a team",
   "Teameinsatz bestätigen": "Confirm team stake",
+  "Teameinsatz ändern": "Change team wager",
   "Teameinsatz: {0} Chips. Warte auf die Antwortphase.":
       "Team stake: {0} chips. Wait for the answer phase.",
   "Teamname": "Team name",
   "Teamnamen eingeben": "Enter a team name",
   "Teams": "Teams",
   "Teams (optional)": "Teams (optional)",
+  "Teilweise richtig": "Partly correct",
   "That question is not on the board.": "That question is not on the board.",
   "That question was already played.": "That question was already played.",
   "The Jeopardy board needs at least one category.":
@@ -655,6 +669,8 @@ const englishMessages = <String, String>{
       "Waiting for the quizmaster to start.",
   "Web player is hosted — guests can just open the LAN address in a browser.": "Web player is hosted — guests can just open the LAN address in a browser.",
   "Web player not bundled. Guests need the app, or run `dart run tool/bundle_web_client.dart` and rebuild.": "Web player not bundled. Guests need the app, or run `dart run tool/bundle_web_client.dart` and rebuild.",
+  "Weiches Abspiellimit": "Soft playback limit",
+  "Weiches Zeitlimit": "Soft time limit",
   "Weiter zur Teamauswahl": "Continue to team selection",
   "Wiederholungen dürfen nicht negativ sein.": "Retries must not be negative.",
   "Wrong": "Wrong",
@@ -670,6 +686,10 @@ const englishMessages = <String, String>{
   "Your name": "Your name",
   "Your team already answered.": "Your team already answered.",
   "Your team answers.": "Your team answers.",
+  "Zeit abgelaufen · Der Spielleiter beendet die Runde.":
+      "Time is up · The host will end the round.",
+  "Zeit abgelaufen. Antworten sind geschlossen.":
+      "Time is up. Answers are closed.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Allow zoom",
   "Zugreihenfolge": "Turn order",
@@ -745,6 +765,8 @@ const englishMessages = <String, String>{
   "{0} was right ({1}).": "{0} was right ({1}).",
   "{0} {1} online": "{0} {1} online",
   "{0} · Teameinsatz in Chips": "{0} · Team stake in chips",
+  "{0} · {1} Chips": "{0} · {1} chips",
+  "{0} · {1} Punkte": "{0} · {1} points",
   "{0} · {1}s · {2}": "{0} · {1}s · {2}",
   "{0}% accuracy": "{0}% accuracy",
   "{0}, place your wager!": "{0}, place your wager!",
@@ -782,6 +804,7 @@ const germanMessages = <String, String>{
   "Add team": "Team hinzufügen",
   "Admin-Notizen": "Admin-Notizen",
   "Admin-Notizen (nur Spielleiter)": "Admin-Notizen (nur Spielleiter)",
+  "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
   "Akzeptierte Antworten – eine pro Zeile":
       "Akzeptierte Antworten – eine pro Zeile",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
@@ -806,6 +829,7 @@ const germanMessages = <String, String>{
   "Audio konnte nicht abgespielt werden.":
       "Audio konnte nicht abgespielt werden.",
   "Audioformat erwartet.": "Audioformat erwartet.",
+  "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
   "Auswahl löschen": "Auswahl löschen",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}": "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}",
   "BUZZ": "BUZZERN",
@@ -916,6 +940,7 @@ const germanMessages = <String, String>{
   "Delete question": "Frage löschen",
   "Delete quiz?": "Quiz löschen?",
   "Delete row and its questions": "Zeile und ihre Fragen löschen",
+  "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.": "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "Der Spielleiter muss dich einem Team zuweisen.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
@@ -1014,6 +1039,8 @@ const germanMessages = <String, String>{
   "General knowledge": "Allgemeinwissen",
   "Get ready to play!": "Mach dich bereit!",
   "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
+  "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.",
+  "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
   "Hinzufügen": "Hinzufügen",
   "Host a quiz": "Quiz veranstalten",
   "Host address": "Adresse des Spielleiters",
@@ -1052,6 +1079,7 @@ const germanMessages = <String, String>{
   "Joined players": "Beigetretene Spieler",
   "Just watch (TV view)": "Nur zuschauen (TV-Ansicht)",
   "Kartenausschnitt": "Kartenausschnitt",
+  "Keine Antwort": "Keine Antwort",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.",
   "Keine Chips mehr. Dein Team setzt aus.":
       "Keine Chips mehr. Dein Team setzt aus.",
@@ -1067,6 +1095,7 @@ const germanMessages = <String, String>{
   "Latency {0} · clock offset {1}": "Latenz {0} · Zeitversatz {1}",
   "Leave": "Verlassen",
   "Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.": "Leer: unbegrenzt. 0: keine Wiederholung. Der Spielleiter darf trotzdem fortsetzen.",
+  "Leider falsch": "Leider falsch",
   "Live round": "Aktuelle Runde",
   "Local-first, multi-device quiz platform":
       "Quizplattform für mehrere Geräte – auch ohne Internet",
@@ -1085,6 +1114,7 @@ const germanMessages = <String, String>{
   "MP4 hochladen": "MP4 hochladen",
   "MP4 oder gültige YouTube-ID angeben.":
       "MP4 oder gültige YouTube-ID angeben.",
+  "Mach dich bereit zu buzzern!": "Mach dich bereit zu buzzern!",
   "Make Daily Double": "Als Daily Double markieren",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Prüfe, ob TV und Spielleiter im selben Netzwerk sind und der Server des Spielleiters läuft.",
   "Manage quiz library": "Quizbibliothek verwalten",
@@ -1146,6 +1176,7 @@ const germanMessages = <String, String>{
   "Nur durch Spielleiter beenden": "Nur durch Spielleiter beenden",
   "OK": "OK",
   "OPEN": "OFFEN",
+  "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
   "Ohne Export verlassen": "Ohne Export verlassen",
   "Only the first answer counts.": "Nur die erste Antwort zählt.",
   "Only the other teams may steal this question.":
@@ -1233,6 +1264,7 @@ const germanMessages = <String, String>{
       "Decke die Lösung auf, bevor du die Runde beendest.",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Richtig beantwortet. Der Spielleiter beendet die Frage.",
+  "Richtig!": "Richtig!",
   "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.":
       "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.",
   "Round is not accepting input.": "Diese Runde nimmt keine Eingaben an.",
@@ -1319,12 +1351,14 @@ const germanMessages = <String, String>{
   "Team umbenennen: {0}": "Team umbenennen: {0}",
   "Team wählen": "Team wählen",
   "Teameinsatz bestätigen": "Teameinsatz bestätigen",
+  "Teameinsatz ändern": "Teameinsatz ändern",
   "Teameinsatz: {0} Chips. Warte auf die Antwortphase.":
       "Teameinsatz: {0} Chips. Warte auf die Antwortphase.",
   "Teamname": "Teamname",
   "Teamnamen eingeben": "Teamnamen eingeben",
   "Teams": "Teams",
   "Teams (optional)": "Teams (optional)",
+  "Teilweise richtig": "Teilweise richtig",
   "That question is not on the board.":
       "Diese Frage ist nicht auf dem Spielfeld.",
   "That question was already played.": "Diese Frage wurde bereits gespielt.",
@@ -1425,6 +1459,8 @@ const germanMessages = <String, String>{
       "Warte auf den Start durch den Spielleiter.",
   "Web player is hosted — guests can just open the LAN address in a browser.": "Der Web-Client läuft – Gäste können die LAN-Adresse einfach im Browser öffnen.",
   "Web player not bundled. Guests need the app, or run `dart run tool/bundle_web_client.dart` and rebuild.": "Der Web-Client ist nicht enthalten. Gäste benötigen die App. Alternativ: `dart run tool/bundle_web_client.dart` ausführen und die App neu bauen.",
+  "Weiches Abspiellimit": "Weiches Abspiellimit",
+  "Weiches Zeitlimit": "Weiches Zeitlimit",
   "Weiter zur Teamauswahl": "Weiter zur Teamauswahl",
   "Wiederholungen dürfen nicht negativ sein.":
       "Wiederholungen dürfen nicht negativ sein.",
@@ -1440,6 +1476,10 @@ const germanMessages = <String, String>{
   "Your name": "Dein Name",
   "Your team already answered.": "Dein Team hat bereits geantwortet.",
   "Your team answers.": "Dein Team antwortet.",
+  "Zeit abgelaufen · Der Spielleiter beendet die Runde.":
+      "Zeit abgelaufen · Der Spielleiter beendet die Runde.",
+  "Zeit abgelaufen. Antworten sind geschlossen.":
+      "Zeit abgelaufen. Antworten sind geschlossen.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Zoom erlauben",
   "Zugreihenfolge": "Zugreihenfolge",
@@ -1515,6 +1555,8 @@ const germanMessages = <String, String>{
   "{0} was right ({1}).": "{0} hat richtig geantwortet ({1}).",
   "{0} {1} online": "{0} {1} online",
   "{0} · Teameinsatz in Chips": "{0} · Teameinsatz in Chips",
+  "{0} · {1} Chips": "{0} · {1} Chips",
+  "{0} · {1} Punkte": "{0} · {1} Punkte",
   "{0} · {1}s · {2}": "{0} · {1}s · {2}",
   "{0}% accuracy": "{0}% Genauigkeit",
   "{0}, place your wager!": "{0}, lege deinen Einsatz fest!",
