@@ -92,6 +92,7 @@ final class GameState extends Equatable {
     this.scores = const ScoreState(),
     this.round = RoundState.idle,
     this.questionBank = const [],
+    this.totalQuestionCount = 0,
     this.completedQuestionIds = const {},
     this.jeopardy,
     this.poker,
@@ -119,6 +120,9 @@ final class GameState extends Equatable {
     scores: ScoreState.fromJson(json.readObject('scores')),
     round: RoundState.fromJson(json.readObject('round')),
     questionBank: json.readList('questionBank', Question.fromJson),
+    totalQuestionCount: json['totalQuestionCount'] == null
+        ? 0
+        : json.readInt('totalQuestionCount'),
     completedQuestionIds: json.readStringList('completedQuestionIds').toSet(),
     jeopardy: switch (json.readObjectOrNull('jeopardy')) {
       final JsonMap value => JeopardyState.fromJson(value),
@@ -188,6 +192,8 @@ final class GameState extends Equatable {
 
   /// All questions of the session; empty in player facing snapshots.
   final List<Question> questionBank;
+
+  final int totalQuestionCount;
 
   /// Questions that were already revealed.
   final Set<String> completedQuestionIds;
@@ -272,6 +278,9 @@ final class GameState extends Equatable {
     final keepSolution = round.status == RoundStatus.revealed;
     return copyWith(
       questionBank: const [],
+      totalQuestionCount: questionBank.isEmpty
+          ? totalQuestionCount
+          : questionBank.length,
       jeopardy: jeopardy?.redacted(),
       round: round.copyWith(
         question: question?.forWire(reveal: keepSolution),
@@ -289,6 +298,7 @@ final class GameState extends Equatable {
     ScoreState? scores,
     RoundState? round,
     List<Question>? questionBank,
+    int? totalQuestionCount,
     Set<String>? completedQuestionIds,
     Object? jeopardy = _unset,
     Object? poker = _unset,
@@ -306,6 +316,7 @@ final class GameState extends Equatable {
     scores: scores ?? this.scores,
     round: round ?? this.round,
     questionBank: questionBank ?? this.questionBank,
+    totalQuestionCount: totalQuestionCount ?? this.totalQuestionCount,
     completedQuestionIds: completedQuestionIds ?? this.completedQuestionIds,
     jeopardy: identical(jeopardy, _unset)
         ? this.jeopardy
@@ -332,6 +343,7 @@ final class GameState extends Equatable {
     'questionBank': questionBank
         .map((question) => question.toJson())
         .toList(growable: false),
+    'totalQuestionCount': totalQuestionCount,
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
     'jeopardy': jeopardy?.toJson(),
     'poker': poker?.toJson(),
@@ -352,6 +364,7 @@ final class GameState extends Equatable {
     scores,
     round,
     questionBank,
+    totalQuestionCount,
     completedQuestionIds,
     jeopardy,
     poker,

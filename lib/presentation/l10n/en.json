@@ -1,4 +1,8 @@
 {
+  "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
+  "Punkte aus der Zeile": "Points come from the row",
+  "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget tip: {0} starting chips for {1} questions are not enough for 1 chip per question. Plan to skip some questions.",
+  "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget tip from the start: at most {0} chips per question ({1} starting chips / {2} questions). This funds the final question even if every answer is wrong.",
   "+{0} more": "+{0} more",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "A wrong answer loses the points of the row. A Daily Double always risks the wager.",
   "ARGB colour (for example FF5E6AD2)": "ARGB colour (for example FF5E6AD2)",

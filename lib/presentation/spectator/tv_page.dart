@@ -905,6 +905,29 @@ class _QuestionStage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 28),
+        if (game.poker case final poker?
+            when poker.betting && game.totalQuestionCount > 0) ...[
+          Text(
+            poker.startingChips < game.totalQuestionCount
+                ? context.tr(
+                    "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.",
+                    [poker.startingChips, game.totalQuestionCount],
+                  )
+                : context.tr(
+                    "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.",
+                    [
+                      poker.startingChips ~/ game.totalQuestionCount,
+                      poker.startingChips,
+                      game.totalQuestionCount,
+                    ],
+                  ),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontSize: 22,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         // The slot is always reserved so the answers do not jump when the
         // clock disappears after the reveal.
         SizedBox(

@@ -82,15 +82,13 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
   /// Repository shared with child editor routes.
   QuizRepository get repository => _repository;
 
-  /// Loads the library and persists the sample quiz if it is empty.
+  /// Loads the library and persists all format examples if it is empty.
   Future<void> load() async {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       var quizzes = await _repository.loadAll();
       if (quizzes.isEmpty) {
-        final sample = createSampleQuiz(_now());
-        await _repository.save(sample);
-        quizzes = [sample];
+        quizzes = await _saveExamples();
       }
       emit(QuizLibraryState(quizzes: quizzes, isLoading: false));
     } on Object catch (error) {
@@ -139,14 +137,20 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
       await _repository.delete(quiz.id);
       var quizzes = await _repository.loadAll();
       if (quizzes.isEmpty) {
-        final sample = createSampleQuiz(_now());
-        await _repository.save(sample);
-        quizzes = [sample];
+        quizzes = await _saveExamples();
       }
       emit(QuizLibraryState(quizzes: quizzes, isBusy: false));
     } on Object catch (error) {
       emit(state.copyWith(isBusy: false, error: _errorMessage(error)));
     }
+  }
+
+  Future<List<Quiz>> _saveExamples() async {
+    final examples = createSampleQuizzes(_now());
+    for (final quiz in examples) {
+      await _repository.save(quiz);
+    }
+    return examples;
   }
 
   static String _newId() =>

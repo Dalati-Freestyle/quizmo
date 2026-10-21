@@ -73,6 +73,8 @@ const englishMessages = <String, String>{
   "Board cleared — check the standings!":
       "Board cleared — check the standings!",
   "Breitengrad": "Latitude",
+  "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget tip from the start: at most {0} chips per question ({1} starting chips / {2} questions). This funds the final question even if every answer is wrong.",
+  "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget tip: {0} starting chips for {1} questions are not enough for 1 chip per question. Plan to skip some questions.",
   "Buzzer": "Buzzer",
   "Buzzer answer": "Buzzer answer",
   "Buzzer armed — nobody pressed yet.":
@@ -252,6 +254,7 @@ const englishMessages = <String, String>{
   "Game reset.": "Game reset.",
   "General knowledge": "General knowledge",
   "Get ready to play!": "Get ready to play!",
+  "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
   "Hinzufügen": "Add",
   "Host a quiz": "Host a quiz",
   "Host address": "Host address",
@@ -419,6 +422,7 @@ const englishMessages = <String, String>{
   "Prompt": "Prompt",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Points = maximum points × max(0, 1 − relative deviation).",
+  "Punkte aus der Zeile": "Points come from the row",
   "Punkten": "points",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
@@ -823,6 +827,8 @@ const germanMessages = <String, String>{
   "Board cleared — check the standings!":
       "Spielfeld abgeschlossen – schau in die Rangliste!",
   "Breitengrad": "Breitengrad",
+  "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.",
+  "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.",
   "Buzzer": "Buzzer",
   "Buzzer answer": "Buzzer-Antwort",
   "Buzzer armed — nobody pressed yet.":
@@ -1007,6 +1013,7 @@ const germanMessages = <String, String>{
   "Game reset.": "Spiel zurückgesetzt.",
   "General knowledge": "Allgemeinwissen",
   "Get ready to play!": "Mach dich bereit!",
+  "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
   "Hinzufügen": "Hinzufügen",
   "Host a quiz": "Quiz veranstalten",
   "Host address": "Adresse des Spielleiters",
@@ -1177,6 +1184,7 @@ const germanMessages = <String, String>{
   "Prompt": "Fragetext",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+  "Punkte aus der Zeile": "Punkte aus der Zeile",
   "Punkten": "Punkten",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",

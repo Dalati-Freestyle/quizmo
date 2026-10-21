@@ -218,6 +218,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
               ),
               StandardFormat() || PokerFormat() => _QuestionsPanel(
                 questions: state.draft.questions,
+                format: state.draft.format,
                 onAddTemplate: (template) => _editQuestion(
                   cubit,
                   template.create(widget.createId()),
@@ -262,7 +263,10 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
   }) async {
     final edited = await Navigator.of(context).push<Question>(
       MaterialPageRoute<Question>(
-        builder: (_) => QuestionEditorPage(question: question),
+        builder: (_) => QuestionEditorPage(
+          question: question,
+          format: cubit.state.draft.format,
+        ),
       ),
     );
     if (edited == null || !mounted) return;
@@ -336,6 +340,7 @@ class _TeamsPanel extends StatelessWidget {
 class _QuestionsPanel extends StatefulWidget {
   const _QuestionsPanel({
     required this.questions,
+    required this.format,
     required this.onAddTemplate,
     required this.onEdit,
     required this.onRemove,
@@ -343,6 +348,7 @@ class _QuestionsPanel extends StatefulWidget {
   });
 
   final List<Question> questions;
+  final QuizFormat format;
   final ValueChanged<QuestionTemplate> onAddTemplate;
   final ValueChanged<Question> onEdit;
   final ValueChanged<String> onRemove;
@@ -409,7 +415,15 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                   context.tr("{0} · {1}s · {2}", [
                     context.tr(question.kindLabel),
                     question.timeLimit.inSeconds,
-                    context.tr(question.scoringRule.label),
+                    switch (widget.format) {
+                      StandardFormat() => context.tr(
+                        question.scoringRule.label,
+                      ),
+                      PokerFormat() => context.tr(
+                        "Gewinn abhängig vom Einsatz",
+                      ),
+                      JeopardyFormat() => context.tr("Punkte aus der Zeile"),
+                    },
                   ]),
                 ),
                 onTap: () => widget.onEdit(question),

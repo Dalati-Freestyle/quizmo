@@ -158,19 +158,21 @@ class QuestionTemplateDropdown extends StatelessWidget {
 class QuestionEditorPage extends StatefulWidget {
   /// Creates an editor for [question].
   ///
-  /// With [usesBoardPoints] the scoring rule is neither shown nor changed: the
-  /// question sits on a Jeopardy board, where the row decides the points.
   const QuestionEditorPage({
     required this.question,
-    this.usesBoardPoints = false,
+    required this.format,
     super.key,
   });
 
   /// Question variant being edited.
   final Question question;
 
-  /// Whether the points come from a Jeopardy row instead of the question.
-  final bool usesBoardPoints;
+  final QuizFormat format;
+
+  bool get usesQuestionPoints => switch (format) {
+    StandardFormat() => true,
+    JeopardyFormat() || PokerFormat() => false,
+  };
 
   @override
   State<QuestionEditorPage> createState() => _QuestionEditorPageState();
@@ -391,7 +393,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
                 onChanged: (fields) => _contentFields = fields,
               ),
             },
-            if (!widget.usesBoardPoints) _scoringPanel(),
+            if (widget.usesQuestionPoints) _scoringPanel(),
             MediaEditor(
               media: _media,
               onChanged: (media) => _media = media,
@@ -674,9 +676,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   void _saveValid() {
     if (!_formKey.currentState!.validate()) return;
     final timeLimit = Duration(seconds: int.parse(_timeLimitController.text));
-    final rule = widget.usesBoardPoints
-        ? widget.question.scoringRule
-        : _buildScoringRule();
+    final rule = widget.usesQuestionPoints
+        ? _buildScoringRule()
+        : widget.question.scoringRule;
     var question = switch (widget.question) {
       MultipleChoiceQuestion(:final id) => MultipleChoiceQuestion(
         id: id,

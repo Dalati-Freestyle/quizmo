@@ -11,7 +11,11 @@ bool browserLibraryNeedsBackup(String? contents) {
             as Map<String, dynamic>;
     return (json['quizzes'] as List<dynamic>? ?? []).any(
       (dynamic quiz) =>
-          quiz['id'] != 'quiz-sample' ||
+          !const {
+            'quiz-sample',
+            'quiz-sample-jeopardy',
+            'quiz-sample-poker',
+          }.contains(quiz['id']) ||
           quiz['createdAtMicros'] != quiz['updatedAtMicros'],
     );
   } on Object {

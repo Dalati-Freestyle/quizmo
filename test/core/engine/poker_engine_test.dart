@@ -101,6 +101,7 @@ void main() {
     await send(const ResetGameEvent());
     expect(engine.state.game.teamScores, {'a': 100, 'b': 100});
     expect(engine.state.game.poker!.wagers, isEmpty);
+    expect(engine.state.game.totalQuestionCount, 1);
   });
 
   test(
@@ -120,6 +121,7 @@ void main() {
         isNull,
       );
       expect(snapshot.questionBank, isEmpty);
+      expect(snapshot.totalQuestionCount, 1);
     },
   );
 

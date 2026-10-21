@@ -57,6 +57,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
          QuizEngineState(
            game: GameState(
              questionBank: questionBank,
+             totalQuestionCount: questionBank.length,
              teams: teams,
              mode: pokerStartingChips == null ? mode : const TeamMode(),
              jeopardy: jeopardyBoard == null
@@ -1270,6 +1271,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           playerOrder: game.playerOrder,
           teams: teams,
           questionBank: _initialBank.isEmpty ? game.questionBank : _initialBank,
+          totalQuestionCount: _initialBank.isEmpty
+              ? game.questionBank.length
+              : _initialBank.length,
           jeopardy: board == null
               ? null
               : JeopardyState.start(board, teams.keys).copyWith(

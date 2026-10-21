@@ -138,6 +138,15 @@ void main() {
       expect(onStage.hasSolution, isFalse);
       expect(onStage.options, hasLength(1));
       expect(redacted.questionBank, isEmpty);
+      final restored = GameState.fromJson(redacted.toJson());
+      expect(restored.totalQuestionCount, sampleQuestionBank.length);
+      expect(
+        restored.redactedForPlayers().totalQuestionCount,
+        sampleQuestionBank.length,
+      );
+      expect(restored.questionBank, isEmpty);
+      final legacy = {...redacted.toJson()}..remove('totalQuestionCount');
+      expect(GameState.fromJson(legacy).totalQuestionCount, 0);
     });
 
     test('keeps the solution once the round is revealed', () {

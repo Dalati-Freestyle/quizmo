@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/presentation/app.dart';
+import 'package:quizmo/presentation/l10n/app_localizations.dart';
 import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
 import 'package:quizmo/presentation/spectator/tv_page.dart';
 
@@ -31,6 +32,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: const [AppLocalizations.delegate],
         theme: QuizmoApp.buildTheme(Brightness.dark),
         home: Scaffold(
           body: TvScreen(state: state, joinUri: joinUri),
@@ -45,6 +47,54 @@ void main() {
     'a': Player(id: 'a', name: 'Ada'),
     'b': Player(id: 'b', name: 'Linus'),
   };
+
+  for (final (chips, count, expected) in [
+    (
+      100,
+      6,
+      'at most 16 chips per question (100 starting chips / 6 questions)',
+    ),
+    (100, 1, 'at most 100 chips per question'),
+    (3, 6, 'Plan to skip some questions.'),
+    (100, 0, null),
+  ]) {
+    testWidgets('poker budget hint for $chips chips and $count questions', (
+      tester,
+    ) async {
+      final game = GameState(
+        mode: const TeamMode(),
+        totalQuestionCount: count,
+        teams: const {'team': Team(id: 'team', name: 'Team')},
+        poker: PokerState.start(chips, ['team']).copyWith(betting: true),
+        round: const RoundState(
+          question: choice,
+          status: RoundStatus.acceptingAnswers,
+        ),
+      );
+      Future<void> show(GameState snapshot) => pump(
+        tester,
+        SpectatorSessionState(
+          status: QuizClientStatus.connected,
+          game: snapshot,
+          snapshotReceivedAt: DateTime.now(),
+        ),
+      );
+      await show(game);
+      if (expected == null) {
+        expect(find.textContaining('Budget tip'), findsNothing);
+      } else {
+        expect(find.textContaining(expected), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+
+      await show(game.copyWith(poker: game.poker!.copyWith(betting: false)));
+      expect(find.textContaining('Budget tip'), findsNothing);
+      await show(game.copyWith(poker: null));
+      expect(find.textContaining('Budget tip'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   testWidgets('shows a connecting screen before the first snapshot', (
     tester,
@@ -164,4 +214,3 @@ void main() {
     expect(find.text('2 players online'), findsOneWidget);
   });
 }
-

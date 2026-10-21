@@ -1,4 +1,8 @@
 {
+  "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
+  "Punkte aus der Zeile": "Punkte aus der Zeile",
+  "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.",
+  "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.",
   "+{0} more": "+{0} weitere",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "Bei einer falschen Antwort gehen die Punkte der Zeile verloren. Bei einem Daily Double steht immer der Einsatz auf dem Spiel.",
   "ARGB colour (for example FF5E6AD2)": "ARGB-Farbe (zum Beispiel FF5E6AD2)",

@@ -61,6 +61,12 @@ void main() {
       await tester.tap(find.text('Save question'));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Who painted it?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Scoring rule'), findsNothing);
+      await tester.tap(find.text('Save question'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.text('Save quiz'));
       await tester.pumpAndSettle();
 
