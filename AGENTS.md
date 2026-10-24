@@ -112,8 +112,9 @@ The embedded host serves the Flutter Web player itself, so a guest only needs
 the LAN address — no install, no second web server.
 
 1. The build is packed into `assets/web_client/bundle.zip` by
-   `dart run tool/bundle_web_client.dart`; re-run it after every player UI change.
-2. Rebuild the host app afterwards so the updated archive is embedded.
+   `dart run tool/bundle_web_client.dart`; the release pipeline rebuilds it.
+2. When explicitly building a host locally, rebuild this bundle first so the
+   updated archive is embedded. No local build is required after an agent session.
 3. The zip is a build artifact (git-ignored). A missing archive must never break
    the host: it degrades to a placeholder page plus a warning in the server log.
 4. **Never** list the nested Flutter Web output directories in `pubspec.yaml`.
@@ -123,7 +124,8 @@ the LAN address — no install, no second web server.
 ### Changing the TV (Spectator) Screen
 `http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,
 streaming stick, casted tab). It is a route of the same web bundle, so rebuild
-it with `dart run tool/bundle_web_client.dart` after every change.
+it with `dart run tool/bundle_web_client.dart` when explicitly building a host;
+the release pipeline does this automatically.
 
 1. A TV connects with `WatchRequest` (`QuizClient.watch`), **never** `JoinRequest`: no roster entry,
    no clock sync, no submissions. The hub answers with `WatchAcceptedMessage` and the redacted snapshot.
@@ -143,9 +145,12 @@ it with `dart run tool/bundle_web_client.dart` after every change.
 
 
 ## 6. Required Feature Delivery
-* Every new feature MUST finish with a fresh Android release APK build (`flutter build apk --release`). Run the relevant tests and static analysis first.
-* If the player or TV UI changes, rebuild `assets/web_client/bundle.zip` with `dart run tool/bundle_web_client.dart` BEFORE building the APK so the embedded clients match the host.
-* Report the APK path and the verification results. If a build is blocked, report the concrete failure; never present an older APK as the new feature build.
+* Run the relevant tests and static analysis. Do NOT automatically build APKs, Windows executables, or web bundles, install apps, or deploy to a device at the end of an agent session. Only perform local builds/deployments when explicitly requested.
+* Every new feature MUST increase the app version in `pubspec.yaml`, normally a **minor** bump (`1.2.3+7` -> `1.3.0+8`). Increase the build number as well; never reset or reuse it. Use `powershell -NoProfile -File tool/bump_version.ps1` (default: minor). Bump once per delivered feature, not once per file or follow-up fix within that feature.
+* Use `-Part patch` for bug-fix-only deliveries and `-Part major` for breaking app changes or an explicit user request. App versions and quiz `schemaVersion` are separate: maintain both where required.
+* `.github/workflows/release.yml` owns release builds and publication. A version change pushed to `main`/`master` (or a matching `vMAJOR.MINOR.PATCH` tag/manual run) builds the web bundle, unsigned Windows installer, self-signed APK and Linux amd64 backend Docker image. After all builds/tests succeed, publish versioned images to GHCR and native downloads, Docker archive and deployment ZIP in a GitHub Release.
+* Android release keys are permanent and private. Never regenerate them per session/build or commit keys/passwords. `tool/create_android_signing.ps1` is a one-time setup outside the repository; `tool/use_android_signing.ps1` selects the same key for explicitly requested local builds. Never replace an existing key without an explicit migration request. Windows remains unsigned unless requested otherwise.
+* Report the new version and verification results; distinguish local checks from CI results. Never claim an artifact or release exists before the pipeline succeeds. Do not commit, push, tag, or publish on the user's behalf unless requested.
 
 ### Pokerchips format
 * `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.

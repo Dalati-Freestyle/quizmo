@@ -13,5 +13,9 @@ assets/web_client/bundle.zip
 android/.gradle
 android/local.properties
 **/*.jks
+**/*.keystore
+**/*.p12
+**/*.pfx
+**/github-secrets.json
 **/key.properties
 *.apk

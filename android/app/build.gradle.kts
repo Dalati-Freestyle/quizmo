@@ -4,6 +4,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
+val requireReleaseSigning = System.getenv("REQUIRE_RELEASE_SIGNING") == "true"
+if (requireReleaseSigning && releaseKeystore.isNullOrBlank()) {
+    error("Release CI requires ANDROID_KEYSTORE_PATH and signing credentials.")
+}
+
 android {
     namespace = "com.quizapp.quizmo"
     compileSdk = flutter.compileSdkVersion
@@ -29,11 +35,26 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (!releaseKeystore.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                    ?: error("Missing ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                    ?: error("Missing ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+                    ?: error("Missing ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Debug signing remains available for explicitly requested local builds only.
+            signingConfig = signingConfigs.getByName(
+                if (releaseKeystore.isNullOrBlank()) "debug" else "release"
+            )
         }
     }
 }

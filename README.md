@@ -31,6 +31,12 @@ Check `/api/health` from your monitor. The Docker build uses Flutter 3.47.5;
 pin both build/runtime images to reviewed digests in production and update
 them regularly. Build this image on Linux (or a Linux Docker builder).
 
+Releases also provide a prebuilt Linux amd64 image as a `.tar.gz` download
+and at `ghcr.io/OWNER/REPOSITORY-server:VERSION` (lowercase; exact reference
+in the release notes). A deployment ZIP contains Compose, Caddy and setup
+instructions. See [deploy/README.md](deploy/README.md) for source-free setup,
+LAN/HTTPS configuration and image import. ARM64 is not currently built.
+
 For a development run without Docker:
 
 ```powershell
@@ -360,6 +366,116 @@ bundling the web client. Launch
 folder**, including its DLLs and `data` folder. The target PC needs the
 Microsoft Visual C++ Redistributable for x64, but does not need Flutter or
 Visual Studio.
+
+### Automated versioned releases
+
+Local APK, EXE, web-bundle builds and device installations are **not** required
+after agent sessions. Agents still run relevant tests and static analysis and
+increase `pubspec.yaml` once per delivered feature. Default: minor version,
+patch reset to zero, build number incremented (for example `1.2.3+7` becomes
+`1.3.0+8`). Bug-fix-only deliveries use patch; breaking changes use major.
+Quiz file `schemaVersion` remains an independent compatibility version.
+
+```powershell
+powershell -NoProfile -File tool/bump_version.ps1                 # minor
+powershell -NoProfile -File tool/bump_version.ps1 -Part patch
+powershell -NoProfile -File tool/bump_version.ps1 -Part major -DryRun
+```
+
+Commit the feature and version change together. After pushing a changed
+`pubspec.yaml` to `main` or `master`, `.github/workflows/release.yml` runs
+analysis/tests, builds the current player/TV web bundle, and builds Android,
+Windows and the Docker backend on GitHub runners. Only after **all** builds
+and the Docker health check succeed does it publish the container and create a
+GitHub Release and its `vMAJOR.MINOR.PATCH` tag at that commit. A matching tag
+push or **Actions → Release → Run workflow** also works. Existing releases are
+skipped and are never overwritten; use a new version for changed downloads.
+Adjust the workflow's branch filter if your default branch has another name.
+
+Each release contains:
+
+* `quizmo-VERSION-windows-x64-setup.exe`: Windows installer including all app
+  files, shortcuts, uninstall support and Microsoft's Visual C++ runtime.
+* `quizmo-VERSION-windows-x64-portable.zip`: complete app folder; extract it
+  before launching `quizmo.exe`. Requires the Visual C++ x64 runtime separately.
+* `quizmo-VERSION-android.apk`: signed universal APK for direct installation.
+* `quizmo-VERSION-docker-linux-amd64.tar.gz`: backend and web clients; import
+  using `docker load --input FILE`, then use `quizmo-server:VERSION`.
+* `quizmo-VERSION-docker-deploy.zip`: Compose, Caddy, `.env.example` and setup
+  instructions. Set `QUIZMO_IMAGE` and start with `--no-build`.
+* `SHA256SUMS.txt`: download checksums.
+
+The same version/build number from `pubspec.yaml` is embedded in the native
+apps. CI artifacts are also available on the workflow run (14 days); the web
+bundle is an internal build artifact (7 days). Release downloads remain until
+the release is deleted. The Windows installer is **not code-signed**, so
+SmartScreen may warn. Its bundled Microsoft runtime signature is verified in CI.
+
+#### One-time GitHub setup
+
+Enable GitHub Actions and allow workflows to create releases and packages
+(`contents: write` and `packages: write` are scoped to the publishing job).
+GHCR uses the built-in `GITHUB_TOKEN`; no extra registry password is needed.
+The package is named `REPOSITORY-server`, with `VERSION` and `latest` tags.
+New GHCR packages may be private: make the package public in its settings if
+anonymous pulls are desired. For a pre-existing package, grant this repository
+Actions access to it. The downloadable image archive works without GHCR access.
+Flutter is pinned in the workflow; keep it compatible with the Dart constraint
+in `pubspec.yaml` and the Dockerfile.
+
+Create a dedicated Android release keystore **once**, or use the existing
+release key if an APK has already been distributed. Keep a secure backup; APK
+updates must use the same signing key and a higher build number. Never commit
+the keystore or its passwords. Under **Settings → Secrets and variables →
+Actions**, configure:
+
+| Secret | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded complete JKS/keystore file |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Signing key alias |
+| `ANDROID_KEY_PASSWORD` | Signing key password |
+
+On Windows, `tool/create_android_signing.ps1` creates a self-signed RSA-3072
+key (valid for 10,000 days), random password and a public certificate. It uses
+the JDK's `keytool` and stores everything outside the repository in
+`%USERPROFILE%\.quizmo\signing\android`, accessible to the current user and
+SYSTEM only. It refuses to overwrite an existing directory: generate **once**,
+not on every release. **This workspace's initial key has already been generated.**
+
+```powershell
+powershell -NoProfile -File tool/create_android_signing.ps1
+```
+
+The private `github-secrets.json` contains the exact values for the four
+GitHub secrets above. Copy each value into the GitHub UI without its JSON
+quotes, or use an authenticated GitHub CLI to upload them without displaying
+the values (replace `OWNER/REPOSITORY`):
+
+```powershell
+powershell -NoProfile -File tool/publish_android_secrets.ps1 -Repository OWNER/REPOSITORY
+```
+
+Securely back up the **whole signing directory**, including its passwords.
+Never upload it as a release asset or commit it. The public `.cer` alone
+cannot sign updates. No purchased certificate or Play Store account is needed.
+
+For an explicitly requested local release build with the **same key as CI**,
+dot-source this in the PowerShell terminal that will run Flutter:
+
+```powershell
+. ./tool/use_android_signing.ps1
+```
+
+This only sets signing environment variables; it does not build or deploy.
+Close the terminal afterwards to clear them. CI refuses to publish without
+signing secrets and deletes the temporary keystore after building. Local
+builds without these variables retain the existing debug-signing fallback.
+Previously debug-signed installations cannot update to this new key without
+uninstalling once (export quizzes first). Afterwards, local and GitHub APKs
+can update each other if their application ID/signing key matches and their
+build number increases. Windows remains unsigned; no Windows certificate or
+Windows signing secrets are required.
 
 Start hosting from **Host a quiz**, then let guests open the LAN address shown
 on the dashboard. The TV uses the same address with `/tv` appended. Allow Quizmo

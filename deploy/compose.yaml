@@ -1,5 +1,6 @@
 services:
   quizmo:
+    image: ${QUIZMO_IMAGE:-quizmo-server:local}
     build:
       context: ..
     environment:

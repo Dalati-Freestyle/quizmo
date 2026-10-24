@@ -1,0 +1,286 @@
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+    paths: [pubspec.yaml]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quizmo-release
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.5'
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.version.outputs.name }}
+      build: ${{ steps.version.outputs.build }}
+      tag: ${{ steps.version.outputs.tag }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate version and check existing release
+        id: version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $text = Get-Content pubspec.yaml -Raw
+          $m = [regex]::Match($text, '(?m)^version: (\d+)\.(\d+)\.(\d+)\+(\d+)\r?$')
+          if (-not $m.Success) { throw 'Expected MAJOR.MINOR.PATCH+BUILD in pubspec.yaml' }
+          foreach ($i in 1..4) {
+            if ([long]$m.Groups[$i].Value -gt 65535) { throw 'Windows version component exceeds 65535' }
+          }
+          if ([long]$m.Groups[4].Value -lt 1) { throw 'Build number must be positive' }
+          $name = "$($m.Groups[1]).$($m.Groups[2]).$($m.Groups[3])"
+          $tag = "v$name"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) {
+            throw "Tag must match pubspec.yaml: $tag"
+          }
+          $existingTag = git tag --list $tag
+          if ($LASTEXITCODE -ne 0) { throw 'Could not query Git tags' }
+          if ($existingTag) {
+            $tagCommit = git rev-list -n 1 $tag
+            if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $env:GITHUB_SHA) {
+              throw "Existing tag $tag points to another commit; increase the version"
+            }
+          }
+          $tags = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases" --jq '.[].tag_name')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not query existing releases' }
+          "name=$name" >> $env:GITHUB_OUTPUT
+          "build=$($m.Groups[4].Value)" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "publish=$($tags -notcontains $tag)".ToLowerInvariant() >> $env:GITHUB_OUTPUT
+
+  verify:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Test version helper
+        shell: pwsh
+        run: ./tool/test_bump_version.ps1
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build and pack current web player and TV client
+        run: dart run tool/bundle_web_client.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-client
+          path: assets/web_client/bundle.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  android:
+    needs: [version, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-client
+          path: assets/web_client
+      - name: Build signed release APK
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/quizmo-release.jks
+          REQUIRE_RELEASE_SIGNING: 'true'
+          APP_VERSION: ${{ needs.version.outputs.name }}
+          APP_BUILD: ${{ needs.version.outputs.build }}
+        run: |
+          set -euo pipefail
+          for key in KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing GitHub Actions secret: $key (KEYSTORE_BASE64 uses ANDROID_KEYSTORE_BASE64)"
+              exit 1
+            fi
+          done
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          flutter build apk --release --build-name="$APP_VERSION" --build-number="$APP_BUILD"
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/quizmo-$APP_VERSION-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    needs: [version, verify]
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-client
+          path: assets/web_client
+      - name: Build Windows app
+        env:
+          APP_VERSION: ${{ needs.version.outputs.name }}
+          APP_BUILD: ${{ needs.version.outputs.build }}
+        run: |
+          flutter build windows --release --build-name=$env:APP_VERSION --build-number=$env:APP_BUILD
+          if ($LASTEXITCODE -ne 0) { throw 'Windows build failed' }
+      - name: Package installer and portable app
+        env:
+          APP_VERSION: ${{ needs.version.outputs.name }}
+          APP_BUILD: ${{ needs.version.outputs.build }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item dist -ItemType Directory -Force | Out-Null
+          $source = Join-Path $env:GITHUB_WORKSPACE 'build/windows/x64/runner/Release'
+          Compress-Archive -Path "$source/*" -DestinationPath "dist/quizmo-$env:APP_VERSION-windows-x64-portable.zip"
+          $runtime = Join-Path $env:RUNNER_TEMP 'vc_redist.x64.exe'
+          Invoke-WebRequest 'https://aka.ms/vs/17/release/vc_redist.x64.exe' -OutFile $runtime
+          $signature = Get-AuthenticodeSignature $runtime
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            throw 'Visual C++ runtime signature verification failed'
+          }
+          $compiler = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+          }
+          & $compiler "/DAppVersion=$env:APP_VERSION" "/DAppBuild=$env:APP_BUILD" "/DSourceDir=$source" "/DRuntimeFile=$runtime" "/O$env:GITHUB_WORKSPACE/dist" tool/windows_installer.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  docker:
+    needs: [version, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: quizmo-server:${{ needs.version.outputs.name }}
+          labels: |
+            org.opencontainers.image.version=${{ needs.version.outputs.name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test and export image
+        shell: bash
+        env:
+          APP_VERSION: ${{ needs.version.outputs.name }}
+        run: |
+          set -euo pipefail
+          docker run -d --name quizmo-smoke --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --tmpfs /tmp:size=16m,noexec,nosuid \
+            -p 127.0.0.1:18080:8080 -e PUBLIC_ORIGIN=http://localhost:18080 \
+            "quizmo-server:$APP_VERSION"
+          trap 'docker logs quizmo-smoke; docker rm -f quizmo-smoke' EXIT
+          healthy=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/api/health > /dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+          if [ "$healthy" != true ]; then echo '::error::Backend health check failed'; exit 1; fi
+          mkdir -p dist
+          docker save "quizmo-server:$APP_VERSION" | gzip > "dist/quizmo-$APP_VERSION-docker-linux-amd64.tar.gz"
+          zip -j "dist/quizmo-$APP_VERSION-docker-deploy.zip" deploy/compose.yaml deploy/Caddyfile deploy/.env.example deploy/README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-release
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [version, android, windows, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-release'
+          merge-multiple: true
+          path: dist
+      - name: Publish versioned container image
+        id: container
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ needs.version.outputs.name }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY,,}-server"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          trap 'docker logout ghcr.io' EXIT
+          docker load --input "dist/quizmo-$APP_VERSION-docker-linux-amd64.tar.gz"
+          docker tag "quizmo-server:$APP_VERSION" "$image:$APP_VERSION"
+          docker push "$image:$APP_VERSION"
+          docker tag "quizmo-server:$APP_VERSION" "$image:latest"
+          docker push "$image:latest"
+          echo "image=$image:$APP_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Publish all downloads together
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+          CONTAINER_IMAGE: ${{ steps.container.outputs.image }}
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum *.exe *.zip *.apk *.tar.gz > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" dist/* \
+            --draft --target "$GITHUB_SHA" --title "Quizmo $RELEASE_TAG" --generate-notes \
+            --notes "Downloads: Windows x64 Setup, Windows portable ZIP, self-signed Android APK, Linux amd64 Docker image archive and Docker deployment ZIP. Container: $CONTAINER_IMAGE (also available with tag latest). Verify downloads with SHA256SUMS.txt. The Windows installer is not code-signed; SmartScreen may warn. See the deployment ZIP README for Docker setup."
+          gh release edit "$RELEASE_TAG" --draft=false
