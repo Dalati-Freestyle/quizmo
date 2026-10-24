@@ -202,6 +202,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: |
+            FLUTTER_VERSION=${{ env.FLUTTER_VERSION }}
           platforms: linux/amd64
           load: true
           tags: quizmo-server:${{ needs.version.outputs.name }}

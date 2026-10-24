@@ -27,9 +27,12 @@ Caddy obtains and renews TLS certificates and redirects HTTP to HTTPS. Only
 ports 80/443 are published; the backend is on the Docker network. Preserve the
 Caddy volumes containing certificates. The app runs without root, a writable
 root filesystem or Linux capabilities, with CPU, memory and process limits.
-Check `/api/health` from your monitor. The Docker build uses Flutter 3.47.5;
-pin both build/runtime images to reviewed digests in production and update
-them regularly. Build this image on Linux (or a Linux Docker builder).
+Check `/api/health` from your monitor. The Docker build installs the official
+Flutter Git tag on Ubuntu instead of depending on a third-party Flutter image.
+`FLUTTER_VERSION` defaults to 3.47.5; CI passes the same version used by its
+native builds as a Docker build argument. Pin Ubuntu images to reviewed digests
+in production and update them regularly. Build this image on Linux (or a Linux
+Docker builder).
 
 Releases also provide a prebuilt Linux amd64 image as a `.tar.gz` download
 and at `ghcr.io/OWNER/REPOSITORY-server:VERSION` (lowercase; exact reference

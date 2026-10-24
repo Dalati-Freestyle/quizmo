@@ -1,4 +1,17 @@
-FROM ghcr.io/cirruslabs/flutter:3.47.5 AS build
+FROM ubuntu:24.04 AS build
+ARG FLUTTER_VERSION=3.47.5
+ENV FLUTTER_ROOT=/opt/flutter
+ENV PATH="${FLUTTER_ROOT}/bin:${PATH}"
+ENV CI=true FLUTTER_SUPPRESS_ANALYTICS=true
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	ca-certificates curl git unzip xz-utils zip libglu1-mesa libstdc++6 \
+	&& rm -rf /var/lib/apt/lists/*
+# Use the official SDK tag, not a third-party image that may lack this version.
+RUN git clone --depth 1 --branch "${FLUTTER_VERSION}" \
+	https://github.com/flutter/flutter.git "${FLUTTER_ROOT}" \
+	&& flutter config --no-analytics \
+	&& flutter precache --web \
+	&& flutter --version
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
