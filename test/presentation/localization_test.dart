@@ -240,9 +240,13 @@ void main() {
       await tester.enterText(nameField, 'Wahr / Falsch');
       await tester.tap(find.byTooltip('Einstellungen'));
       await tester.pumpAndSettle();
+      expect(find.text('Erweiterte Einstellungen'), findsOneWidget);
+      expect(find.text('Beispielquizzes neu erstellen'), findsOneWidget);
       await tester.tap(find.text('English'));
       await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Advanced settings'), findsOneWidget);
+      expect(find.text('Recreate example quizzes'), findsOneWidget);
       expect(cubit.state.preference, LanguagePreference.en);
       await tester.pageBack();
       await tester.pumpAndSettle();

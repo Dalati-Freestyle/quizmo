@@ -30,6 +30,7 @@ const englishMessages = <String, String>{
   "Add team": "Add team",
   "Admin-Notizen": "Host notes",
   "Admin-Notizen (nur Spielleiter)": "Host notes (quizmaster only)",
+  "Advanced settings": "Advanced settings",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
@@ -124,6 +125,9 @@ const englishMessages = <String, String>{
   "Correct points": "Correct-answer points",
   "Could not export quiz: {0}": "Could not export quiz: {0}",
   "Could not import quiz: {0}": "Could not import quiz: {0}",
+  "Could not load advanced settings.": "Could not load advanced settings.",
+  "Could not recreate example quizzes: {0}":
+      "Could not recreate example quizzes: {0}",
   "Could not save this quiz: {0}": "Could not save this quiz: {0}",
   "Could not update the quiz library: {0}":
       "Could not update the quiz library: {0}",
@@ -221,6 +225,7 @@ const englishMessages = <String, String>{
   "Erlaubte Zeichenänderungen": "Allowed character edits",
   "Es gibt noch keine Teams.": "There are no teams yet.",
   "Estimation": "Estimation",
+  "Example quizzes recreated.": "Example quizzes recreated.",
   "Expected": "Expected",
   "Expected answer (optional)": "Expected answer (optional)",
   "Export Quizmo quiz (including media)":
@@ -468,6 +473,9 @@ const englishMessages = <String, String>{
   "Quizzes in diesem Browser": "Quizzes in this browser",
   "Quizzes vor dem Verlassen exportieren?": "Export quizzes before leaving?",
   "RECONNECTING": "RECONNECTING",
+  "Recreate example quizzes": "Recreate example quizzes",
+  "Recreate example quizzes?": "Recreate example quizzes?",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.",
   "Reihenfolge": "Ordering",
   "Reihenfolge senden": "Send order",
   "Remove Daily Double": "Remove Daily Double",
@@ -625,6 +633,7 @@ const englishMessages = <String, String>{
   "Type": "Type",
   "Uhr synchronisieren und beitreten …": "Syncing clock and joining…",
   "Unbekannter Medientyp \"{0}\".": "Unknown media type \"{0}\".",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.",
   "Ungültiger Kartenausschnitt.": "Invalid map viewport.",
   "Ungültiges Medien-Asset.": "Invalid media asset.",
   "Unknown game mode \"{0}\".": "Unknown game mode \"{0}\".",
@@ -804,6 +813,7 @@ const germanMessages = <String, String>{
   "Add team": "Team hinzufügen",
   "Admin-Notizen": "Admin-Notizen",
   "Admin-Notizen (nur Spielleiter)": "Admin-Notizen (nur Spielleiter)",
+  "Advanced settings": "Erweiterte Einstellungen",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
   "Akzeptierte Antworten – eine pro Zeile":
       "Akzeptierte Antworten – eine pro Zeile",
@@ -898,6 +908,10 @@ const germanMessages = <String, String>{
   "Correct points": "Punkte für richtige Antworten",
   "Could not export quiz: {0}": "Quiz konnte nicht exportiert werden: {0}",
   "Could not import quiz: {0}": "Quiz konnte nicht importiert werden: {0}",
+  "Could not load advanced settings.":
+      "Erweiterte Einstellungen konnten nicht geladen werden.",
+  "Could not recreate example quizzes: {0}":
+      "Beispielquizzes konnten nicht neu erstellt werden: {0}",
   "Could not save this quiz: {0}":
       "Dieses Quiz konnte nicht gespeichert werden: {0}",
   "Could not update the quiz library: {0}":
@@ -1000,6 +1014,7 @@ const germanMessages = <String, String>{
   "Erlaubte Zeichenänderungen": "Erlaubte Zeichenänderungen",
   "Es gibt noch keine Teams.": "Es gibt noch keine Teams.",
   "Estimation": "Schätzfrage",
+  "Example quizzes recreated.": "Beispielquizzes wurden neu erstellt.",
   "Expected": "Erwartet",
   "Expected answer (optional)": "Erwartete Antwort (optional)",
   "Export Quizmo quiz (including media)":
@@ -1252,6 +1267,9 @@ const germanMessages = <String, String>{
   "Quizzes vor dem Verlassen exportieren?":
       "Quizzes vor dem Verlassen exportieren?",
   "RECONNECTING": "VERBINDE ERNEUT",
+  "Recreate example quizzes": "Beispielquizzes neu erstellen",
+  "Recreate example quizzes?": "Beispielquizzes neu erstellen?",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Erstellt die Standardquizzes neu. Unbearbeitete Beispiele werden ersetzt; bearbeitete Beispiele und eigene Quizzes bleiben erhalten.",
   "Reihenfolge": "Reihenfolge",
   "Reihenfolge senden": "Reihenfolge senden",
   "Remove Daily Double": "Daily Double entfernen",
@@ -1414,6 +1432,7 @@ const germanMessages = <String, String>{
   "Type": "Format",
   "Uhr synchronisieren und beitreten …": "Uhr synchronisieren und beitreten …",
   "Unbekannter Medientyp \"{0}\".": "Unbekannter Medientyp „{0}“.",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unbearbeitete Beispiele werden entfernt und neu erstellt. Bearbeitete Beispiele und eigene Quizzes bleiben unverändert.",
   "Ungültiger Kartenausschnitt.": "Ungültiger Kartenausschnitt.",
   "Ungültiges Medien-Asset.": "Ungültiges Medien-Asset.",
   "Unknown game mode \"{0}\".": "Unbekannter Spielmodus „{0}“.",

@@ -3,9 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/app_localizations.dart';
 import 'locale_cubit.dart';
+import 'example_quiz_settings.dart' deferred as advanced;
 
 class SettingsButton extends StatelessWidget {
-  const SettingsButton({super.key});
+  const SettingsButton({this.onExamplesChanged, super.key});
+
+  final Future<void> Function()? onExamplesChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +22,7 @@ class SettingsButton extends StatelessWidget {
         MaterialPageRoute<void>(
           builder: (_) => BlocProvider.value(
             value: controller,
-            child: const SettingsPage(),
+            child: SettingsPage(onExamplesChanged: onExamplesChanged),
           ),
         ),
       ),
@@ -27,8 +30,17 @@ class SettingsButton extends StatelessWidget {
   }
 }
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({this.onExamplesChanged, super.key});
+
+  final Future<void> Function()? onExamplesChanged;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  final Future<void> _advancedLoad = advanced.loadLibrary();
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -82,6 +94,26 @@ class SettingsPage extends StatelessWidget {
               child: Text(context.tr('Retry')),
             ),
           ],
+          const Divider(height: 48),
+          Text(
+            context.tr('Advanced settings'),
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          FutureBuilder<void>(
+            future: _advancedLoad,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text(context.tr('Could not load advanced settings.'));
+              }
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return advanced.ExampleQuizSettings(
+                onChanged: widget.onExamplesChanged,
+              );
+            },
+          ),
         ],
       ),
     ),

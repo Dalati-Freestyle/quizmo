@@ -4,6 +4,14 @@ Quizmo can also be hosted under an HTTPS domain. Hosts create and edit quizzes
 in their browser; players and read-only TVs join an internet room through an
 invitation link. Native apps still support the existing standalone LAN server.
 
+## Example quizzes
+
+Use **Settings > Advanced settings > Recreate example quizzes** to restore the
+bundled Standard, Jeopardy and Poker examples. This replaces remaining unedited
+defaults and restores deleted ones. Saving an example in the editor makes it a
+normal quiz: it and all custom quizzes are preserved, even across repeated resets.
+Default status is local library metadata, not part of exported quiz files.
+
 ## Internet hosting under your domain
 
 Point your domain's DNS A/AAAA records at the server (only publish AAAA if IPv6
@@ -730,4 +738,3 @@ players therefore do not load host administration code on their initial path.
   the LAN URL. The `ServerEndpoint` model is the natural place to plug it in.
 * No authentication: anybody on the LAN can join, which is the point for a
   living-room quiz but not for the public internet.
-

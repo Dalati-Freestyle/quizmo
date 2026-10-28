@@ -1,4 +1,12 @@
 {
+  "Advanced settings": "Erweiterte Einstellungen",
+  "Could not load advanced settings.": "Erweiterte Einstellungen konnten nicht geladen werden.",
+  "Recreate example quizzes": "Beispielquizzes neu erstellen",
+  "Recreate example quizzes?": "Beispielquizzes neu erstellen?",
+  "Example quizzes recreated.": "Beispielquizzes wurden neu erstellt.",
+  "Could not recreate example quizzes: {0}": "Beispielquizzes konnten nicht neu erstellt werden: {0}",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Erstellt die Standardquizzes neu. Unbearbeitete Beispiele werden ersetzt; bearbeitete Beispiele und eigene Quizzes bleiben erhalten.",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unbearbeitete Beispiele werden entfernt und neu erstellt. Bearbeitete Beispiele und eigene Quizzes bleiben unverändert.",
   "Keine Antwort": "Keine Antwort",
   "Richtig!": "Richtig!",
   "Teilweise richtig": "Teilweise richtig",

@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import '../models/models.dart';
+import 'sample_quiz.dart';
 
 /// Describes an unavailable or malformed local quiz library.
 final class QuizRepositoryException implements Exception {
@@ -36,6 +37,9 @@ abstract interface class QuizRepository {
 
   /// Deletes the quiz identified by [quizId].
   Future<void> delete(String quizId);
+
+  /// Replaces unedited examples, preserving user quizzes and their stable IDs.
+  Future<void> recreateExamples(DateTime timestamp);
 }
 
 /// Serializes a complete library through an injected [QuizLibraryStore].
@@ -49,8 +53,14 @@ final class PersistentQuizRepository implements QuizRepository {
 
   @override
   Future<List<Quiz>> loadAll() async {
+    return (await _read()).quizzes;
+  }
+
+  Future<({List<Quiz> quizzes, Set<String> defaultIds})> _read() async {
     final contents = await _store.read();
-    if (contents == null || contents.trim().isEmpty) return const [];
+    if (contents == null || contents.trim().isEmpty) {
+      return (quizzes: <Quiz>[], defaultIds: <String>{});
+    }
 
     try {
       final decoded = jsonDecode(contents);
@@ -67,7 +77,14 @@ final class PersistentQuizRepository implements QuizRepository {
           'Expected $_schemaVersion.',
         );
       }
-      return List.unmodifiable(json.readList('quizzes', Quiz.fromJson));
+      final quizzes = json.readList('quizzes', Quiz.fromJson);
+      final defaultIds = json.containsKey('defaultQuizIds')
+          ? json.readStringList('defaultQuizIds').toSet()
+          : _legacyDefaultIds(quizzes);
+      return (
+        quizzes: List<Quiz>.unmodifiable(quizzes),
+        defaultIds: defaultIds,
+      );
     } on QuizRepositoryException {
       rethrow;
     } on FormatException catch (error) {
@@ -88,37 +105,58 @@ final class PersistentQuizRepository implements QuizRepository {
   @override
   Future<void> save(Quiz quiz) async {
     quiz.validate();
-    final quizzes = [...await loadAll()];
+    final library = await _read();
+    final quizzes = [...library.quizzes];
     final existingIndex = quizzes.indexWhere((item) => item.id == quiz.id);
     if (existingIndex < 0) {
       quizzes.add(quiz);
     } else {
       quizzes[existingIndex] = quiz;
     }
-    await _write(quizzes);
+    await _write(quizzes, library.defaultIds..remove(quiz.id));
   }
 
   @override
   Future<void> delete(String quizId) async {
-    final quizzes = await loadAll();
-    await _write(quizzes.where((quiz) => quiz.id != quizId).toList());
+    final library = await _read();
+    await _write(
+      library.quizzes.where((quiz) => quiz.id != quizId).toList(),
+      library.defaultIds..remove(quizId),
+    );
   }
 
-  Future<void> _write(List<Quiz> quizzes) => _store.write(
-    const JsonEncoder.withIndent('  ').convert({
-      'schemaVersion': _schemaVersion,
-      'quizzes': quizzes.map((quiz) => quiz.toJson()).toList(growable: false),
-    }),
-  );
+  @override
+  Future<void> recreateExamples(DateTime timestamp) async {
+    final library = await _read();
+    final replacement = _recreateExamples(
+      library.quizzes,
+      library.defaultIds,
+      timestamp,
+    );
+    await _write(replacement.quizzes, replacement.defaultIds);
+  }
+
+  Future<void> _write(List<Quiz> quizzes, Set<String> defaultIds) =>
+      _store.write(
+        const JsonEncoder.withIndent('  ').convert({
+          'schemaVersion': _schemaVersion,
+          'quizzes': quizzes
+              .map((quiz) => quiz.toJson())
+              .toList(growable: false),
+          'defaultQuizIds': defaultIds.toList(),
+        }),
+      );
 }
 
 /// Keeps quizzes in memory for tests and ephemeral previews.
 final class InMemoryQuizRepository implements QuizRepository {
   /// Creates a repository initialized with [initialQuizzes].
   InMemoryQuizRepository([Iterable<Quiz> initialQuizzes = const []])
-    : _quizzes = List<Quiz>.from(initialQuizzes);
+    : _quizzes = List<Quiz>.from(initialQuizzes),
+      _defaultIds = _legacyDefaultIds(initialQuizzes);
 
   final List<Quiz> _quizzes;
+  final Set<String> _defaultIds;
 
   @override
   Future<List<Quiz>> loadAll() async => List.unmodifiable(_quizzes);
@@ -126,6 +164,7 @@ final class InMemoryQuizRepository implements QuizRepository {
   @override
   Future<void> save(Quiz quiz) async {
     quiz.validate();
+    _defaultIds.remove(quiz.id);
     final existingIndex = _quizzes.indexWhere((item) => item.id == quiz.id);
     if (existingIndex < 0) {
       _quizzes.add(quiz);
@@ -137,5 +176,52 @@ final class InMemoryQuizRepository implements QuizRepository {
   @override
   Future<void> delete(String quizId) async {
     _quizzes.removeWhere((quiz) => quiz.id == quizId);
+    _defaultIds.remove(quizId);
   }
+
+  @override
+  Future<void> recreateExamples(DateTime timestamp) async {
+    final replacement = _recreateExamples(_quizzes, _defaultIds, timestamp);
+    _quizzes
+      ..clear()
+      ..addAll(replacement.quizzes);
+    _defaultIds
+      ..clear()
+      ..addAll(replacement.defaultIds);
+  }
+}
+
+Set<String> _legacyDefaultIds(Iterable<Quiz> quizzes) => {
+  for (final quiz in quizzes)
+    if (const {
+          'quiz-sample',
+          'quiz-sample-jeopardy',
+          'quiz-sample-poker',
+        }.contains(quiz.id) &&
+        quiz.createdAt == quiz.updatedAt)
+      quiz.id,
+};
+
+({List<Quiz> quizzes, Set<String> defaultIds}) _recreateExamples(
+  List<Quiz> quizzes,
+  Set<String> defaultIds,
+  DateTime timestamp,
+) {
+  final retained = quizzes
+      .where((quiz) => !defaultIds.contains(quiz.id))
+      .toList();
+  final usedIds = retained.map((quiz) => quiz.id).toSet();
+  final examples = <Quiz>[];
+  for (final example in createSampleQuizzes(timestamp)) {
+    var id = example.id;
+    var suffix = 1;
+    while (!usedIds.add(id)) {
+      id = '${example.id}-${suffix++}';
+    }
+    examples.add(example.copyWith(id: id));
+  }
+  return (
+    quizzes: [...retained, ...examples],
+    defaultIds: examples.map((quiz) => quiz.id).toSet(),
+  );
 }

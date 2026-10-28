@@ -1,4 +1,12 @@
 {
+  "Advanced settings": "Advanced settings",
+  "Could not load advanced settings.": "Could not load advanced settings.",
+  "Recreate example quizzes": "Recreate example quizzes",
+  "Recreate example quizzes?": "Recreate example quizzes?",
+  "Example quizzes recreated.": "Example quizzes recreated.",
+  "Could not recreate example quizzes: {0}": "Could not recreate example quizzes: {0}",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.",
   "Keine Antwort": "No answer",
   "Richtig!": "Correct!",
   "Teilweise richtig": "Partly correct",
