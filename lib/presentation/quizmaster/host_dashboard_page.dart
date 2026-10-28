@@ -225,6 +225,7 @@ class _HostDashboardView extends StatelessWidget {
                       state: engineState,
                       onJudge: (wasCorrect) =>
                           engine.add(JudgeBuzzerEvent(wasCorrect: wasCorrect)),
+                      onJudgeAnswer: engine.add,
                       onReveal: () => engine.add(const RevealRoundEvent()),
                       onLock: () => engine.add(const LockBuzzerEvent()),
                       onReopenBuzzer: () =>

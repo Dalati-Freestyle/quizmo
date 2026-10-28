@@ -12,6 +12,23 @@ defaults and restores deleted ones. Saving an example in the editor makes it a
 normal quiz: it and all custom quizzes are preserved, even across repeated resets.
 Default status is local library metadata, not part of exported quiz files.
 
+## Manual short-answer grading
+
+In the question editor, set a short-answer question's **Bewertung** to
+**Manuell durch den Spielleiter** instead of **Automatisch**. The host sees
+every submitted answer with a non-binding suggestion: exact solution match,
+possible typo (using the configured edit tolerance), or a differing answer.
+Mark each answer correct or incorrect; decisions can be changed until reveal.
+Close submissions when ready, then finalize the assessment. Points and poker
+payouts are booked only after all received answers have been judged. Speed and
+rank bonuses still use the original, clock-adjusted submission timestamps.
+
+The option works in Standard, Jeopardy (including steals and Daily Doubles) and
+Pokerchips. Existing one-answer-per-team restrictions remain unchanged on boards
+and in poker. Players and TVs do not receive host decisions before reveal.
+Quiz schema 6 stores this setting; schemas 1–5 remain importable and retain
+automatic grading. Exports always use the latest schema.
+
 ## Internet hosting under your domain
 
 Point your domain's DNS A/AAAA records at the server (only publish AAAA if IPv6

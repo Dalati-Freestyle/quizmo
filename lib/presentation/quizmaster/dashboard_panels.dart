@@ -18,6 +18,7 @@ import '../../core/sync/clock.dart';
 import '../common/adaptive_layout.dart';
 import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
+import 'manual_answer_monitor.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -964,6 +965,7 @@ class LiveRoundPanel extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
+    this.onJudgeAnswer,
     super.key,
   });
 
@@ -987,6 +989,7 @@ class LiveRoundPanel extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
+  final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
 
   @override
   Widget build(BuildContext context) {
@@ -1074,6 +1077,12 @@ class LiveRoundPanel extends StatelessWidget {
                     question: question,
                     game: game,
                   ),
+                  ShortAnswerQuestion(manualGrading: true) =>
+                    ManualAnswerMonitor(
+                      question: question,
+                      game: game,
+                      onJudge: onJudgeAnswer,
+                    ),
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||
@@ -1223,6 +1232,33 @@ class _RoundActions extends StatelessWidget {
         game.teams.length > 1;
 
     final question = round.question;
+    if (question?.requiresManualGrading == true &&
+        round.status != RoundStatus.revealed) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr(
+              'Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: round.status.acceptsInput || round.pendingGradeCount == 0
+                ? onReveal
+                : null,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: Text(
+              context.tr(
+                round.status.acceptsInput
+                    ? 'Antworten schließen & bewerten'
+                    : 'Bewertung abschließen',
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     final limitReached =
         question is BuzzerQuestion &&
         question.retryLimit != null &&

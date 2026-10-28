@@ -96,6 +96,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<BuzzerPressEvent>(_onBuzzerPress);
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
+    on<JudgeAnswerEvent>(_onJudgeAnswer);
     on<RevealRoundEvent>(_onRevealRound);
     on<CloseRoundEvent>(_onCloseRound);
     on<SelectJeopardyCellEvent>(_onSelectJeopardyCell);
@@ -239,9 +240,13 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
     final answers = {...game.round.answers};
+    final answerVerdicts = {...game.round.answerVerdicts};
     final answer = answers.remove(source.id);
+    final sourceVerdict = answerVerdicts.remove(source.id);
     if (answer != null && !answers.containsKey(target.id)) {
       answers[target.id] = answer.withPlayerId(target.id);
+      answerVerdicts.remove(target.id);
+      if (sourceVerdict != null) answerVerdicts[target.id] = sourceVerdict;
     }
     final totals = {...game.scores.byPlayer}..remove(source.id);
     totals[target.id] =
@@ -279,6 +284,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           scores: ScoreState(byPlayer: totals, history: history),
           round: cleaned.round.copyWith(
             answers: answers,
+            answerVerdicts: answerVerdicts,
             buzzerQueue: orderedQueue,
             status: game.round.status,
             activePlayerId: game.round.activePlayerId == source.id
@@ -322,6 +328,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
       round: game.round.copyWith(
         answers: answers,
+        answerVerdicts: {...game.round.answerVerdicts}..remove(id),
         buzzerQueue: game.round.buzzerQueue
             .where((e) => e.playerId != id)
             .toList(),
@@ -387,6 +394,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
     _graceTimer?.cancel();
+    if (_awaitManualGrades(game, emit)) return;
     final scored = question is BuzzerQuestion
         ? game
         : _scoreAnswers(game, question);
@@ -560,6 +568,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   // ---------------------------------------------------------------- round ---
 
   void _onStartRound(StartRoundEvent event, Emitter<QuizEngineState> emit) {
+    if (state.game.round.question?.requiresManualGrading == true &&
+        !state.canStartRound) {
+      emit(state.copyWith(notice: 'Finish the current question first.'));
+      return;
+    }
     final game = state.game.copyWith(isStarted: true);
     if (game.jeopardy != null) {
       // On a board every round starts by picking a cell, so that the points,
@@ -639,13 +652,18 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
-    final updated = game.copyWith(
+    var updated = game.copyWith(
       round: round.copyWith(
         answers: {...round.answers, answer.playerId: answer},
       ),
     );
 
     final allAnswered = _everyoneAnswered(updated);
+    if (allAnswered && round.question!.requiresManualGrading) {
+      updated = updated.copyWith(
+        round: updated.round.copyWith(status: RoundStatus.locked),
+      );
+    }
     emit(
       _publish(
         updated.copyWith(
@@ -653,9 +671,49 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       ),
     );
-    if (allAnswered && !round.question!.softTimeLimit) {
+    if (allAnswered &&
+        !round.question!.requiresManualGrading &&
+        !round.question!.softTimeLimit) {
       add(const RevealRoundEvent());
     }
+  }
+
+  void _onJudgeAnswer(JudgeAnswerEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final round = game.round;
+    if (round.question?.requiresManualGrading != true ||
+        round.question?.id != event.questionId ||
+        round.startedAtHostMicros != event.startedAtHostMicros ||
+        (round.status != RoundStatus.acceptingAnswers &&
+            round.status != RoundStatus.locked) ||
+        !round.answers.containsKey(event.playerId) ||
+        (game.poker?.betting ?? false)) {
+      emit(state.copyWith(notice: 'Diese Antwort kann nicht bewertet werden.'));
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          round: round.copyWith(
+            answerVerdicts: {
+              ...round.answerVerdicts,
+              event.playerId: event.wasCorrect ? 1 : 0,
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _awaitManualGrades(GameState game, Emitter<QuizEngineState> emit) {
+    if (game.round.pendingGradeCount == 0) return false;
+    emit(
+      _publish(
+        game.copyWith(round: game.round.copyWith(status: RoundStatus.locked)),
+        notice: 'Bitte erst alle eingegangenen Antworten bewerten.',
+      ),
+    );
+    return true;
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -921,6 +979,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         (game.poker?.betting ?? false)) {
       return;
     }
+    if (_awaitManualGrades(game, emit)) return;
 
     // Points are resolved per question kind — polymorphism, not a type switch
     // on a string identifier.
@@ -1464,7 +1523,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         result = _settlePoker(
           result,
           game.players[answer.playerId]!.teamId!,
-          question.accuracy(answer) == 1,
+          round.accuracyFor(answer) == 1,
         );
       }
       return result;
@@ -1477,7 +1536,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final rule = _ruleFor(game, question);
     for (var index = 0; index < submissions.length; index++) {
       final answer = submissions[index];
-      final accuracy = question.accuracy(answer);
+      final accuracy =
+          round.accuracyFor(answer) ??
+          (throw StateError('Cannot score an ungraded answer.'));
       final isCorrect = accuracy > 0;
       final delta = evaluateAccuracy(
         rule,

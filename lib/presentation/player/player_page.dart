@@ -624,6 +624,9 @@ class _QuestionStage extends StatelessWidget {
                 ),
               ),
             ),
+          if (question.requiresManualGrading &&
+              state.roundStatus != RoundStatus.revealed)
+            Text(context.tr('Der Spielleiter bewertet die Antworten.')),
           const SizedBox(height: 24),
         ],
         if (question.media.isNotEmpty) ...[

@@ -15,6 +15,12 @@ void main() {
       prompt: 'City?',
       acceptedAnswers: ['Berlin'],
     ),
+    const ShortAnswerQuestion(
+      id: 'short-manual',
+      prompt: 'City?',
+      acceptedAnswers: ['Berlin'],
+      manualGrading: true,
+    ),
     const OrderingQuestion(
       id: 'order',
       prompt: 'Order?',
@@ -37,7 +43,7 @@ void main() {
   ];
   for (final q in questions) {
     test(
-      '${q.kindLabel} works over WebSocket in standard and Jeopardy',
+      '${q.kindLabel}${q.requiresManualGrading ? ' (manual)' : ''} works over WebSocket in standard and Jeopardy',
       () async {
         for (final board in [false, true]) {
           final engine = QuizEngineBloc(
@@ -74,6 +80,11 @@ void main() {
             final revealed = client.games.firstWhere(
               (g) => g.round.status == RoundStatus.revealed,
             );
+            final grading = q.requiresManualGrading
+                ? client.games.firstWhere(
+                    (g) => g.round.status == RoundStatus.locked,
+                  )
+                : null;
             client.submitAnswer(
               (id, timestamp, offset) => switch (q) {
                 ShortAnswerQuestion() => ShortAnswer(
@@ -81,7 +92,7 @@ void main() {
                   questionId: q.id,
                   clientTimestampMicros: timestamp,
                   clockOffsetMicros: offset,
-                  text: 'Berln',
+                  text: q.requiresManualGrading ? 'Hamburg' : 'Berln',
                 ),
                 OrderingQuestion() => OrderingAnswer(
                   playerId: id,
@@ -115,8 +126,31 @@ void main() {
                 BuzzerQuestion() => throw StateError('Unexpected type'),
               },
             );
+            if (grading != null) {
+              final waiting = await grading.timeout(const Duration(seconds: 5));
+              expect(waiting.round.question!.hasSolution, isFalse);
+              expect(waiting.round.answerVerdicts, isEmpty);
+              expect(waiting.scores.scoreOf(client.playerId!), 0);
+              final judged = engine.stream.firstWhere(
+                (state) =>
+                    state.game.round.answerVerdicts[client.playerId!] == 1,
+              );
+              engine.add(
+                JudgeAnswerEvent(
+                  playerId: client.playerId!,
+                  questionId: q.id,
+                  startedAtHostMicros: waiting.round.startedAtHostMicros!,
+                  wasCorrect: true,
+                ),
+              );
+              await judged.timeout(const Duration(seconds: 5));
+              engine.add(const RevealRoundEvent());
+            }
             final result = await revealed.timeout(const Duration(seconds: 5));
             expect(result.round.question!.hasSolution, isTrue);
+            if (q.requiresManualGrading) {
+              expect(result.round.answerVerdicts, {client.playerId!: 1});
+            }
             expect(
               result.scores.scoreOf(client.playerId!),
               q is EstimationQuestion ? (board ? 90 : 9) : (board ? 100 : 10),

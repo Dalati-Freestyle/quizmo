@@ -290,6 +290,7 @@ final class GameState extends Equatable {
       round: round.copyWith(
         question: question?.forWire(reveal: keepSolution),
         answers: poker != null && !keepSolution ? const {} : round.answers,
+        answerVerdicts: keepSolution ? round.answerVerdicts : const {},
       ),
     );
   }

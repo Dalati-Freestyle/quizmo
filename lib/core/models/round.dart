@@ -17,7 +17,7 @@ enum RoundStatus {
   /// The question is visible and player input is accepted.
   acceptingAnswers,
 
-  /// A buzzer was taken; the quizmaster now judges the spoken answer.
+  /// Input is closed while the host judges answers or prepares the reveal.
   locked,
 
   /// The solution is public and the points are booked.
@@ -48,6 +48,7 @@ final class RoundState extends Equatable {
     this.buzzerAnswerCorrect = false,
     this.buzzerOpenForAll = false,
     this.buzzerVerdicts = const {},
+    this.answerVerdicts = const {},
   });
 
   /// Restores a round from [json].
@@ -68,6 +69,9 @@ final class RoundState extends Equatable {
     buzzerVerdicts: json['buzzerVerdicts'] == null
         ? const {}
         : json.readIntMap('buzzerVerdicts'),
+    answerVerdicts: json['answerVerdicts'] == null
+        ? const {}
+        : json.readIntMap('answerVerdicts'),
   );
 
   /// The neutral "nothing on stage" round.
@@ -105,6 +109,23 @@ final class RoundState extends Equatable {
   final bool buzzerAnswerCorrect;
   final bool buzzerOpenForAll;
   final Map<String, int> buzzerVerdicts;
+
+  /// Host decisions for written answers: one for correct, zero for incorrect.
+  final Map<String, int> answerVerdicts;
+
+  /// Number of submitted answers still awaiting a host decision.
+  int get pendingGradeCount => question?.requiresManualGrading == true
+      ? answers.keys.where((id) => !answerVerdicts.containsKey(id)).length
+      : 0;
+
+  /// Returns the effective accuracy, or `null` while manual grading is pending.
+  double? accuracyFor(AnswerSubmission answer) {
+    final current = question;
+    if (current == null) return null;
+    return current.requiresManualGrading
+        ? answerVerdicts[answer.playerId]?.toDouble()
+        : current.accuracy(answer);
+  }
 
   /// The fastest press, or `null` while nobody buzzed.
   BuzzerPress? get fastestPress =>
@@ -156,6 +177,7 @@ final class RoundState extends Equatable {
     bool? buzzerAnswerCorrect,
     bool? buzzerOpenForAll,
     Map<String, int>? buzzerVerdicts,
+    Map<String, int>? answerVerdicts,
   }) => RoundState(
     question: identical(question, _unset)
         ? this.question
@@ -174,6 +196,7 @@ final class RoundState extends Equatable {
     buzzerAnswerCorrect: buzzerAnswerCorrect ?? this.buzzerAnswerCorrect,
     buzzerOpenForAll: buzzerOpenForAll ?? this.buzzerOpenForAll,
     buzzerVerdicts: buzzerVerdicts ?? this.buzzerVerdicts,
+    answerVerdicts: answerVerdicts ?? this.answerVerdicts,
   );
 
   /// Serializes the round.
@@ -191,6 +214,7 @@ final class RoundState extends Equatable {
     'buzzerAnswerCorrect': buzzerAnswerCorrect,
     'buzzerOpenForAll': buzzerOpenForAll,
     'buzzerVerdicts': buzzerVerdicts,
+    'answerVerdicts': answerVerdicts,
   };
 
   @override
@@ -206,5 +230,6 @@ final class RoundState extends Equatable {
     buzzerAnswerCorrect,
     buzzerOpenForAll,
     buzzerVerdicts,
+    answerVerdicts,
   ];
 }

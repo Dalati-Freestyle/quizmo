@@ -70,6 +70,10 @@ sealed class Question extends Equatable {
   final String adminNotes;
   bool accepts(AnswerSubmission answer);
   double accuracy(AnswerSubmission answer);
+
+  /// Whether written answers require an explicit host verdict before scoring.
+  bool get requiresManualGrading => false;
+
   String get solutionLabel;
   List<String> get contentErrors => const [];
 
@@ -389,9 +393,16 @@ final class ShortAnswerQuestion extends Question {
     super.adminNotes,
     this.acceptedAnswers,
     this.maxEdits = 1,
+    this.manualGrading = false,
   });
   final List<String>? acceptedAnswers;
   final int maxEdits;
+
+  /// Whether the host judges each answer instead of applying fuzzy matching.
+  final bool manualGrading;
+
+  @override
+  bool get requiresManualGrading => manualGrading;
   factory ShortAnswerQuestion.fromJson(JsonMap json) => ShortAnswerQuestion(
     id: json.readString('id'),
     prompt: json.readString('prompt'),
@@ -406,6 +417,7 @@ final class ShortAnswerQuestion extends Question {
         ? null
         : json.readStringList('acceptedAnswers'),
     maxEdits: json.readInt('maxEdits'),
+    manualGrading: json.readBool('manualGrading'),
   );
   @override
   bool get hasSolution => acceptedAnswers != null;
@@ -445,12 +457,14 @@ final class ShortAnswerQuestion extends Question {
     scoringRule: scoringRule,
     media: media,
     maxEdits: maxEdits,
+    manualGrading: manualGrading,
   );
   @override
   JsonMap toJson() => {
     ...baseJson('shortAnswer'),
     'acceptedAnswers': acceptedAnswers,
     'maxEdits': maxEdits,
+    'manualGrading': manualGrading,
   };
   @override
   List<Object?> get props => [
@@ -463,6 +477,7 @@ final class ShortAnswerQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    manualGrading,
     acceptedAnswers,
     maxEdits,
   ];

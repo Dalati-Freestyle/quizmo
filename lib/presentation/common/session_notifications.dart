@@ -134,7 +134,7 @@ String roundFeedback(GameState game, String playerId, {BuildContext? context}) {
   final accuracy = question is BuzzerQuestion
       ? (verdicts.any((v) => v.value == 1) ? 1.0 : 0.0)
       : answers.fold<double>(0, (best, answer) {
-          final value = question.accuracy(answer);
+          final value = game.round.accuracyFor(answer) ?? 0;
           return value > best ? value : best;
         });
   final answered = answers.isNotEmpty || verdicts.isNotEmpty;

@@ -48,6 +48,7 @@ const englishMessages = <String, String>{
       "Answer locked in. Wait for the quizmaster…",
   "Antwort senden": "Send answer",
   "Antworten einloggen": "Lock in answers",
+  "Antworten schließen & bewerten": "Close answers & grade",
   "Antwortphase": "Answer phase",
   "Audio hochladen": "Upload audio",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
@@ -57,6 +58,7 @@ const englishMessages = <String, String>{
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
       "Eliminated · You can keep answering, but cannot earn points or chips.",
   "Auswahl löschen": "Clear selection",
+  "Automatisch": "Automatic",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}":
       "Could not save automatic reconnection after restart: {0}",
   "BUZZ": "BUZZ",
@@ -66,14 +68,19 @@ const englishMessages = <String, String>{
   "Be the first to hit your buzzer.": "Be the first to hit your buzzer.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
       "A wrong answer loses your team's wager.",
+  "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.": "With manual grading, this tolerance only affects the recommendation. The host decides.",
   "Beschriftung (optional)": "Caption (optional)",
   "Beschädigtes Medien-Asset.": "Corrupted media asset.",
   "Bestätigen": "Confirm",
+  "Bewertung": "Grading",
+  "Bewertung abschließen": "Finalize grading",
   "Bild hochladen": "Upload image",
   "Bild konnte nicht geladen werden.": "The image could not be loaded.",
   "Bildformat erwartet.": "An image format is required.",
   "Bitte Eingaben prüfen: {0}": "Please check your input: {0}",
   "Bitte eine ganze Zahl ab 0 eingeben.": "Enter a whole number of at least 0.",
+  "Bitte erst alle eingegangenen Antworten bewerten.":
+      "Please grade all submitted answers first.",
   "Board cleared — check the standings!":
       "Board cleared — check the standings!",
   "Breitengrad": "Latitude",
@@ -173,14 +180,17 @@ const englishMessages = <String, String>{
       "The buzzer is closed. Wait for the host to open it.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "The quizmaster must assign you to a team.",
+  "Der Spielleiter bewertet die Antworten.": "The host is grading the answers.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
       "The host removed you from the session.",
   "Der nächste Teilnehmer": "The next participant",
   "Description": "Description",
   "Details ausblenden": "Hide details",
   "Die Einsatzphase läuft noch.": "Betting is still open.",
+  "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Recommendations are not binding. Judge every submitted answer. You can change your decision until reveal.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "The question remains open until ended manually, even after a correct answer.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "The quizzes remain saved in the browser. You can export backups from the library now.",
+  "Diese Antwort kann nicht bewertet werden.": "This answer cannot be graded.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
   "Du bist dran! Wähle die nächste Frage.":
@@ -208,6 +218,11 @@ const englishMessages = <String, String>{
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
       "Items in correct order — one per line",
   "Embedded server": "Embedded server",
+  "Empfehlung: Fast richtig, vermutlich ein Tippfehler.":
+      "Recommendation: Almost correct, probably a typo.",
+  "Empfehlung: Passt zur Lösung.": "Recommendation: Matches the solution.",
+  "Empfehlung: Weicht von den hinterlegten Lösungen ab.":
+      "Recommendation: Differs from the accepted solutions.",
   "Empfohlene Wiederholungen (optional)": "Recommended retries (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Recommended retries reached. Suggestion: end the round. You can still continue.",
   "Endliche Zielzahl angeben.": "Provide a finite target number.",
@@ -342,6 +357,8 @@ const englishMessages = <String, String>{
   "Make Daily Double": "Make Daily Double",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Make sure the TV and the quizmaster are on the same network and the host server is running.",
   "Manage quiz library": "Manage quiz library",
+  "Manuell durch den Spielleiter": "Manually by the host",
+  "Manuelle Bewertung": "Manual grading",
   "Matching": "Matching",
   "Maximal zehn Anhänge.": "At most ten attachments.",
   "Maximal zehn Medien pro Frage.":
@@ -393,6 +410,7 @@ const englishMessages = <String, String>{
       "No teams: this quiz will start in solo mode.",
   "Nobody scored. The other teams may steal.":
       "Nobody scored. The other teams may steal.",
+  "Noch {0} Antworten zu bewerten": "{0} answers still need grading",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
@@ -439,6 +457,8 @@ const englishMessages = <String, String>{
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Points = maximum points × max(0, 1 − relative deviation).",
   "Punkte aus der Zeile": "Points come from the row",
+  "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.":
+      "Points and chips are awarded only after your assessment and reveal.",
   "Punkten": "points",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
@@ -485,6 +505,7 @@ const englishMessages = <String, String>{
   "Reset scores": "Reset scores",
   "Retry": "Retry",
   "Reveal the round before closing it.": "Reveal the round before closing it.",
+  "Richtig": "Correct",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Correct answer. The quizmaster ends the question.",
   "Richtig!": "Correct!",
@@ -832,6 +853,7 @@ const germanMessages = <String, String>{
       "Antwort eingeloggt. Warte auf den Spielleiter …",
   "Antwort senden": "Antwort senden",
   "Antworten einloggen": "Antworten einloggen",
+  "Antworten schließen & bewerten": "Antworten schließen & bewerten",
   "Antwortphase": "Antwortphase",
   "Audio hochladen": "Audio hochladen",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
@@ -841,6 +863,7 @@ const germanMessages = <String, String>{
   "Audioformat erwartet.": "Audioformat erwartet.",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
   "Auswahl löschen": "Auswahl löschen",
+  "Automatisch": "Automatisch",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}": "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}",
   "BUZZ": "BUZZERN",
   "BUZZER: everyone may answer": "BUZZER: Alle dürfen antworten",
@@ -849,15 +872,20 @@ const germanMessages = <String, String>{
   "Be the first to hit your buzzer.": "Drücke deinen Buzzer als Erster.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
       "Bei einer falschen Antwort verliert dein Team den Einsatz.",
+  "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.": "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.",
   "Beschriftung (optional)": "Beschriftung (optional)",
   "Beschädigtes Medien-Asset.": "Beschädigtes Medien-Asset.",
   "Bestätigen": "Bestätigen",
+  "Bewertung": "Bewertung",
+  "Bewertung abschließen": "Bewertung abschließen",
   "Bild hochladen": "Bild hochladen",
   "Bild konnte nicht geladen werden.": "Bild konnte nicht geladen werden.",
   "Bildformat erwartet.": "Bildformat erwartet.",
   "Bitte Eingaben prüfen: {0}": "Bitte Eingaben prüfen: {0}",
   "Bitte eine ganze Zahl ab 0 eingeben.":
       "Bitte eine ganze Zahl ab 0 eingeben.",
+  "Bitte erst alle eingegangenen Antworten bewerten.":
+      "Bitte erst alle eingegangenen Antworten bewerten.",
   "Board cleared — check the standings!":
       "Spielfeld abgeschlossen – schau in die Rangliste!",
   "Breitengrad": "Breitengrad",
@@ -957,14 +985,19 @@ const germanMessages = <String, String>{
   "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.": "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "Der Spielleiter muss dich einem Team zuweisen.",
+  "Der Spielleiter bewertet die Antworten.":
+      "Der Spielleiter bewertet die Antworten.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
       "Der Spielleiter hat dich aus der Sitzung entfernt.",
   "Der nächste Teilnehmer": "Der nächste Teilnehmer",
   "Description": "Beschreibung",
   "Details ausblenden": "Details ausblenden",
   "Die Einsatzphase läuft noch.": "Die Einsatzphase läuft noch.",
+  "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.",
+  "Diese Antwort kann nicht bewertet werden.":
+      "Diese Antwort kann nicht bewertet werden.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
   "Du bist dran! Wähle die nächste Frage.":
@@ -993,6 +1026,11 @@ const germanMessages = <String, String>{
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
       "Elemente in korrekter Reihenfolge – eines pro Zeile",
   "Embedded server": "Integrierter Server",
+  "Empfehlung: Fast richtig, vermutlich ein Tippfehler.":
+      "Empfehlung: Fast richtig, vermutlich ein Tippfehler.",
+  "Empfehlung: Passt zur Lösung.": "Empfehlung: Passt zur Lösung.",
+  "Empfehlung: Weicht von den hinterlegten Lösungen ab.":
+      "Empfehlung: Weicht von den hinterlegten Lösungen ab.",
   "Empfohlene Wiederholungen (optional)":
       "Empfohlene Wiederholungen (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.",
@@ -1133,6 +1171,8 @@ const germanMessages = <String, String>{
   "Make Daily Double": "Als Daily Double markieren",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Prüfe, ob TV und Spielleiter im selben Netzwerk sind und der Server des Spielleiters läuft.",
   "Manage quiz library": "Quizbibliothek verwalten",
+  "Manuell durch den Spielleiter": "Manuell durch den Spielleiter",
+  "Manuelle Bewertung": "Manuelle Bewertung",
   "Matching": "Zuordnung",
   "Maximal zehn Anhänge.": "Maximal zehn Anhänge.",
   "Maximal zehn Medien pro Frage.": "Maximal zehn Medien pro Frage.",
@@ -1185,6 +1225,7 @@ const germanMessages = <String, String>{
       "Ohne Teams startet dieses Quiz im Einzelmodus.",
   "Nobody scored. The other teams may steal.":
       "Niemand hat gepunktet. Die anderen Teams dürfen abstauben.",
+  "Noch {0} Antworten zu bewerten": "Noch {0} Antworten zu bewerten",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
@@ -1231,6 +1272,7 @@ const germanMessages = <String, String>{
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
   "Punkte aus der Zeile": "Punkte aus der Zeile",
+  "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.": "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.",
   "Punkten": "Punkten",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",
@@ -1280,6 +1322,7 @@ const germanMessages = <String, String>{
   "Retry": "Erneut versuchen",
   "Reveal the round before closing it.":
       "Decke die Lösung auf, bevor du die Runde beendest.",
+  "Richtig": "Richtig",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Richtig beantwortet. Der Spielleiter beendet die Frage.",
   "Richtig!": "Richtig!",

@@ -175,6 +175,30 @@ final class JudgeBuzzerEvent extends QuizEngineEvent {
   List<Object?> get props => [wasCorrect];
 }
 
+/// The host accepted or rejected a written answer in a specific round.
+final class JudgeAnswerEvent extends QuizEngineEvent {
+  /// Creates a verdict tied to the displayed question and its opening time.
+  const JudgeAnswerEvent({
+    required this.playerId,
+    required this.questionId,
+    required this.startedAtHostMicros,
+    required this.wasCorrect,
+  });
+
+  final String playerId;
+  final String questionId;
+  final int startedAtHostMicros;
+  final bool wasCorrect;
+
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    startedAtHostMicros,
+    wasCorrect,
+  ];
+}
+
 /// Closes the round, books the points and publishes the solution.
 final class RevealRoundEvent extends QuizEngineEvent {
   /// Reveals the round.
