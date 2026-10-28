@@ -26,6 +26,7 @@ import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
+import '../common/quiz_review_view.dart';
 import 'questions/multiple_choice_question_view.dart';
 
 /// Player facing screen.
@@ -116,7 +117,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                     }
                   },
                 ),
-              if (state.isConnected)
+              if (state.isConnected && state.game?.resultsHidden != true)
                 Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Center(
@@ -388,10 +389,14 @@ class _GameBoard extends StatelessWidget {
                       ? context.tr("Standings")
                       : context.tr("Pokerchips"),
                   icon: Icons.leaderboard_outlined,
-                  child: ScoreboardView(
-                    game: game,
-                    highlightPlayerId: state.playerId,
-                  ),
+                  child: game.resultsHidden
+                      ? Text(
+                          context.tr('Punktestand bis zum Quizende verborgen.'),
+                        )
+                      : ScoreboardView(
+                          game: game,
+                          highlightPlayerId: state.playerId,
+                        ),
                 ),
                 const SizedBox(height: 16),
                 PanelCard(
@@ -437,6 +442,22 @@ class _QuestionStage extends StatelessWidget {
     final theme = Theme.of(context);
     final question = state.question;
     final jeopardy = state.game?.jeopardy;
+
+    if (state.game case final game? when game.showFinalReview) {
+      return QuizReviewView(
+        game: game,
+        playerId: state.playerId,
+        mediaBaseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
+      );
+    }
+    if (state.game case final game?
+        when game.resultsHidden &&
+            game.completedQuestionIds.contains(question?.id)) {
+      return Text(
+        context.tr('Frage abgeschlossen. Die Auflösung folgt am Quizende.'),
+        style: theme.textTheme.titleLarge,
+      );
+    }
 
     if (question == null && jeopardy != null) {
       return _PlayerBoard(state: state, jeopardy: jeopardy);

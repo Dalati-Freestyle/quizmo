@@ -42,6 +42,8 @@ class _SessionNotificationsState extends State<SessionNotifications> {
     final messages = <String>[];
     if (previous != null) {
       if (widget.playerId != null &&
+          !game.resultsHidden &&
+          !game.showFinalReview &&
           game.round.status == RoundStatus.revealed &&
           (previous.round.status != RoundStatus.revealed ||
               previous.round.question?.id != game.round.question?.id)) {
@@ -65,7 +67,11 @@ class _SessionNotificationsState extends State<SessionNotifications> {
       }
     }
     final me = game.players[widget.playerId];
-    final showPlacement = game.isFinished && me != null && !_placementShown;
+    final showPlacement =
+        game.isFinished &&
+        !game.showFinalReview &&
+        me != null &&
+        !_placementShown;
     if (showPlacement) _placementShown = true;
     if (messages.isEmpty && !showPlacement) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {

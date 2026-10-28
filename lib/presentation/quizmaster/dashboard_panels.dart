@@ -1331,6 +1331,8 @@ class _RoundActions extends StatelessWidget {
                 label: Text(
                   passesToOthers
                       ? context.tr("Close & pass to other teams")
+                      : game.revealMode == SolutionRevealMode.atEnd
+                      ? context.tr('Frage abschließen')
                       : context.tr("Close & reveal"),
                 ),
               ),

@@ -115,4 +115,53 @@ void main() {
       isNull,
     );
   });
+
+  test('deferred solutions stay inaccessible until the final review, including past media', () async {
+    final image = svg('red');
+    final solution = svg('blue');
+    final engine = QuizEngineBloc(
+      revealMode: SolutionRevealMode.atEnd,
+      questionBank: [
+        TrueFalseQuestion(
+          id: 'q',
+          prompt: 'First?',
+          correctAnswer: true,
+          media: [ImageAttachment(asset: image)],
+          solutionMedia: [ImageAttachment(asset: solution)],
+        ),
+        const TrueFalseQuestion(
+          id: 'last',
+          prompt: 'Last?',
+          correctAnswer: false,
+        ),
+      ],
+    );
+    addTearDown(engine.close);
+    Future<void> send(QuizEngineEvent event) async {
+      engine.add(event);
+      await pumpEventQueue();
+    }
+
+    Response get(MediaAsset asset) => serveMedia(
+      Request('GET', Uri.parse('http://localhost/api/media/${asset.id}')),
+      asset.id,
+      engine,
+    );
+    await send(const StartRoundEvent('q'));
+    expect(get(image).statusCode, 200);
+    expect(get(solution).statusCode, 404);
+    await send(const RevealRoundEvent());
+    expect(get(solution).statusCode, 404);
+    await send(const NextQuestionEvent());
+    expect(get(image).statusCode, 404);
+    expect(get(solution).statusCode, 404);
+    await send(const RevealRoundEvent());
+    expect(get(image).statusCode, 200);
+    expect(get(solution).statusCode, 200);
+    await send(const CloseRoundEvent());
+    expect(get(solution).statusCode, 200);
+    await send(const ResetGameEvent());
+    expect(get(image).statusCode, 404);
+    expect(get(solution).statusCode, 404);
+  });
 }

@@ -33,8 +33,12 @@ const englishMessages = <String, String>{
   "Advanced settings": "Advanced settings",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
+  "Alle Fragen und Lösungen im Überblick.":
+      "An overview of all questions and solutions.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "All players / participating teams have answered.",
+  "Am Quizende": "At the end of the quiz",
+  "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "An option ID in question \"{0}\" must not be empty.":
       "An option ID in question \"{0}\" must not be empty.",
   "Anhang entfernen": "Remove attachment",
@@ -55,10 +59,13 @@ const englishMessages = <String, String>{
       "Audio cannot be played on this device.",
   "Audio konnte nicht abgespielt werden.": "Audio could not be played.",
   "Audioformat erwartet.": "An audio format is required.",
+  "Auflösung": "Solution reveal",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
       "Eliminated · You can keep answering, but cannot earn points or chips.",
   "Auswahl löschen": "Clear selection",
   "Automatisch": "Automatic",
+  "Automatischen Wechsel fortsetzen": "Resume automatic rotation",
+  "Automatischen Wechsel pausieren": "Pause automatic rotation",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}":
       "Could not save automatic reconnection after restart: {0}",
   "BUZZ": "BUZZ",
@@ -158,6 +165,7 @@ const englishMessages = <String, String>{
       "Files: maximum 20 MiB. Maps and YouTube require internet.",
   "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.":
       "File content does not match its media format or contains unsafe SVG.",
+  "Dein Punktestand: {0}": "Your score: {0}",
   "Dein Team erreicht": "Your team finishes in",
   "Dein Team hat keinen Einsatz.": "Your team has no stake.",
   "Dein Team ist dran! Wählt die nächste Frage.":
@@ -166,6 +174,7 @@ const englishMessages = <String, String>{
       "Your team is sitting out or has already been scored.",
   "Dein Team wurde bereits gewertet.": "Your team has already been scored.",
   "Deine Antwort": "Your answer",
+  "Deine Antwort: {0}": "Your answer: {0}",
   "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.": "Your quizzes are saved in this browser. Export backups before leaving the page or deleting browser data. When closing the tab, choose Cancel and export here.",
   "Deine Schätzung": "Your estimate",
   "Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.":
@@ -269,6 +278,9 @@ const englishMessages = <String, String>{
   "First-buzzer points": "First-buzzer points",
   "Fixed points": "Fixed points",
   "Fixed {0} pts": "Fixed {0} pts",
+  "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
+      "Question complete. Solutions will be revealed at the end of the quiz.",
+  "Frage abschließen": "Finish question",
   "Fragemedien": "Question media",
   "Fragenart": "Question type",
   "Fragenauswahl bestätigen": "Confirm question selection",
@@ -383,6 +395,7 @@ const englishMessages = <String, String>{
   "Multiple-choice question \"{0}\" needs a correctOptionId from its options.": "Multiple-choice question \"{0}\" needs a correctOptionId from its options.",
   "Multiple-choice question \"{0}\" needs at least two options.":
       "Multiple-choice question \"{0}\" needs at least two options.",
+  "Nach jeder Frage": "After each question",
   "Nach oben": "Move up",
   "Nach unten": "Move down",
   "Name": "Name",
@@ -415,6 +428,7 @@ const englishMessages = <String, String>{
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
   "Nur durch Spielleiter beenden": "Only the quizmaster ends the question",
+  "Nächste Lösung": "Next solution",
   "OK": "OK",
   "OPEN": "OPEN",
   "Ohne Einsatz: keine Wertung": "No wager: not scored",
@@ -460,6 +474,8 @@ const englishMessages = <String, String>{
   "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.":
       "Points and chips are awarded only after your assessment and reveal.",
   "Punkten": "points",
+  "Punktestand bis zum Quizende verborgen.":
+      "Scores are hidden until the end of the quiz.",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
   "Question": "Question",
@@ -487,6 +503,8 @@ const englishMessages = <String, String>{
   "Quiz type": "Quiz type",
   "Quiz updatedAt must not be before createdAt.":
       "Quiz updatedAt must not be before createdAt.",
+  "Quiz-Auflösung": "Quiz solutions",
+  "Quiz-Auflösung · {0} / {1}": "Quiz solutions · {0} / {1}",
   "Quizmaster · {0}": "Quizmaster · {0}",
   "Quizmo logo": "Quizmo logo",
   "Quizzes exportieren": "Export quizzes",
@@ -685,6 +703,7 @@ const englishMessages = <String, String>{
   "Video konnte nicht geladen werden.": "Video could not be loaded.",
   "Vollständige eindeutige Zuordnung angeben.":
       "Provide a complete, unique matching.",
+  "Vorherige Lösung": "Previous solution",
   "Wager (max {0})": "Wager (max {0})",
   "Wahr": "True",
   "Wahr / Falsch": "True / False",
@@ -838,8 +857,12 @@ const germanMessages = <String, String>{
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
   "Akzeptierte Antworten – eine pro Zeile":
       "Akzeptierte Antworten – eine pro Zeile",
+  "Alle Fragen und Lösungen im Überblick.":
+      "Alle Fragen und Lösungen im Überblick.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "Alle Spieler / teilnehmenden Teams haben geantwortet.",
+  "Am Quizende": "Am Quizende",
+  "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "An option ID in question \"{0}\" must not be empty.":
       "Eine Options-ID in Frage „{0}“ darf nicht leer sein.",
   "Anhang entfernen": "Anhang entfernen",
@@ -861,9 +884,12 @@ const germanMessages = <String, String>{
   "Audio konnte nicht abgespielt werden.":
       "Audio konnte nicht abgespielt werden.",
   "Audioformat erwartet.": "Audioformat erwartet.",
+  "Auflösung": "Auflösung",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
   "Auswahl löschen": "Auswahl löschen",
   "Automatisch": "Automatisch",
+  "Automatischen Wechsel fortsetzen": "Automatischen Wechsel fortsetzen",
+  "Automatischen Wechsel pausieren": "Automatischen Wechsel pausieren",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}": "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}",
   "BUZZ": "BUZZERN",
   "BUZZER: everyone may answer": "BUZZER: Alle dürfen antworten",
@@ -964,6 +990,7 @@ const germanMessages = <String, String>{
       "Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.",
   "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.":
       "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.",
+  "Dein Punktestand: {0}": "Dein Punktestand: {0}",
   "Dein Team erreicht": "Dein Team erreicht",
   "Dein Team hat keinen Einsatz.": "Dein Team hat keinen Einsatz.",
   "Dein Team ist dran! Wählt die nächste Frage.":
@@ -972,6 +999,7 @@ const germanMessages = <String, String>{
       "Dein Team setzt aus oder wurde bereits gewertet.",
   "Dein Team wurde bereits gewertet.": "Dein Team wurde bereits gewertet.",
   "Deine Antwort": "Deine Antwort",
+  "Deine Antwort: {0}": "Deine Antwort: {0}",
   "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.": "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.",
   "Deine Schätzung": "Deine Schätzung",
   "Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.":
@@ -1081,6 +1109,9 @@ const germanMessages = <String, String>{
   "First-buzzer points": "Punkte für den ersten Buzzer",
   "Fixed points": "Feste Punkte",
   "Fixed {0} pts": "Fest {0} Punkte",
+  "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
+      "Frage abgeschlossen. Die Auflösung folgt am Quizende.",
+  "Frage abschließen": "Frage abschließen",
   "Fragemedien": "Fragemedien",
   "Fragenart": "Fragenart",
   "Fragenauswahl bestätigen": "Fragenauswahl bestätigen",
@@ -1198,6 +1229,7 @@ const germanMessages = <String, String>{
       "Multiple-Choice-Frage „{0}“ benötigt eine gültige Lösungsoption.",
   "Multiple-choice question \"{0}\" needs at least two options.":
       "Multiple-Choice-Frage „{0}“ benötigt mindestens zwei Optionen.",
+  "Nach jeder Frage": "Nach jeder Frage",
   "Nach oben": "Nach oben",
   "Nach unten": "Nach unten",
   "Name": "Name",
@@ -1230,6 +1262,7 @@ const germanMessages = <String, String>{
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
   "Nur durch Spielleiter beenden": "Nur durch Spielleiter beenden",
+  "Nächste Lösung": "Nächste Lösung",
   "OK": "OK",
   "OPEN": "OFFEN",
   "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
@@ -1274,6 +1307,8 @@ const germanMessages = <String, String>{
   "Punkte aus der Zeile": "Punkte aus der Zeile",
   "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.": "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.",
   "Punkten": "Punkten",
+  "Punktestand bis zum Quizende verborgen.":
+      "Punktestand bis zum Quizende verborgen.",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",
   "Question": "Frage",
@@ -1302,6 +1337,8 @@ const germanMessages = <String, String>{
   "Quiz type": "Quizformat",
   "Quiz updatedAt must not be before createdAt.":
       "Das Änderungsdatum darf nicht vor dem Erstellungsdatum liegen.",
+  "Quiz-Auflösung": "Quiz-Auflösung",
+  "Quiz-Auflösung · {0} / {1}": "Quiz-Auflösung · {0} / {1}",
   "Quizmaster · {0}": "Spielleiter · {0}",
   "Quizmo logo": "Quizmo-Logo",
   "Quizzes exportieren": "Quizzes exportieren",
@@ -1508,6 +1545,7 @@ const germanMessages = <String, String>{
   "Video konnte nicht geladen werden.": "Video konnte nicht geladen werden.",
   "Vollständige eindeutige Zuordnung angeben.":
       "Vollständige eindeutige Zuordnung angeben.",
+  "Vorherige Lösung": "Vorherige Lösung",
   "Wager (max {0})": "Einsatz (max. {0})",
   "Wahr": "Wahr",
   "Wahr / Falsch": "Wahr / Falsch",

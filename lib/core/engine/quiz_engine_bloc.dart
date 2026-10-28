@@ -47,6 +47,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     GameMode mode = const SoloMode(),
     JeopardyBoard? jeopardyBoard,
     int? pokerStartingChips,
+    SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
     NowMicros now = systemNowMicros,
@@ -67,9 +68,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                  ? null
                  : PokerState.start(pokerStartingChips, teams.keys),
              hostTimeMicros: now(),
+             revealMode: revealMode,
            ),
          ),
        ) {
+    if (revealMode != SolutionRevealMode.afterEachQuestion &&
+        (jeopardyBoard != null || pokerStartingChips != null)) {
+      throw ArgumentError(
+        'Deferred reveal is only supported for standard quizzes.',
+      );
+    }
     on<StartGameEvent>((event, emit) {
       if (!state.game.isStarted) {
         emit(
@@ -1361,6 +1369,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       _publish(
         GameState(
           mode: game.mode,
+          revealMode: game.revealMode,
           poker: game.poker == null
               ? null
               : PokerState.start(game.poker!.startingChips, teams.keys),
@@ -1444,6 +1453,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                     id == question?.id,
               ),
       round: game.round.copyWith(status: RoundStatus.revealed),
+      roundHistory: game.revealMode == SolutionRevealMode.atEnd
+          ? [
+              ...game.roundHistory,
+              game.round.copyWith(status: RoundStatus.revealed),
+            ]
+          : game.roundHistory,
       completedQuestionIds: question == null
           ? game.completedQuestionIds
           : {...game.completedQuestionIds, question.id},

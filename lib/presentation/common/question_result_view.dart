@@ -16,7 +16,9 @@ class QuestionResultView extends StatelessWidget {
   final bool host;
   @override
   Widget build(BuildContext context) {
-    final revealed = game.round.status == RoundStatus.revealed;
+    final revealed =
+        game.round.status == RoundStatus.revealed &&
+        (host || !game.resultsHidden);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -10,12 +10,21 @@ Response serveMedia(Request request, String id, QuizEngineBloc engine) {
   if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(id)) {
     return Response.notFound('Unknown asset');
   }
-  final round = engine.state.game.round;
+  final game = engine.state.game;
+  final round = game.round;
   final question = round.question;
-  if (question == null) return Response.notFound('Unknown asset');
   final media = [
-    ...question.media,
-    if (round.status == RoundStatus.revealed) ...question.solutionMedia,
+    if (question != null) ...[
+      ...question.media,
+      if (round.status == RoundStatus.revealed && !game.resultsHidden)
+        ...question.solutionMedia,
+    ],
+    if (game.showFinalReview)
+      for (final completed in game.roundHistory)
+        if (completed.question case final archived?) ...[
+          ...archived.media,
+          ...archived.solutionMedia,
+        ],
   ];
   final asset = media
       .map((m) => m.asset)

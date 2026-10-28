@@ -177,6 +177,36 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                       }
                     },
                   ),
+                  if (state.draft.format case StandardFormat(
+                    :final revealMode,
+                  )) ...[
+                    const SizedBox(height: 16),
+                    SelectionDropdown<SolutionRevealMode>(
+                      label: context.tr('Auflösung'),
+                      value: revealMode,
+                      items: [
+                        DropdownMenuItem(
+                          value: SolutionRevealMode.afterEachQuestion,
+                          child: Text(context.tr('Nach jeder Frage')),
+                        ),
+                        DropdownMenuItem(
+                          value: SolutionRevealMode.atEnd,
+                          child: Text(context.tr('Am Quizende')),
+                        ),
+                      ],
+                      onChanged: (mode) {
+                        if (mode != null) {
+                          cubit.useStandardFormat(revealMode: mode);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        'Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.',
+                      ),
+                    ),
+                  ],
                   if (state.draft.format case PokerFormat(
                     :final startingChips,
                   )) ...[

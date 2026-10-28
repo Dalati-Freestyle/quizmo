@@ -26,8 +26,26 @@ rank bonuses still use the original, clock-adjusted submission timestamps.
 The option works in Standard, Jeopardy (including steals and Daily Doubles) and
 Pokerchips. Existing one-answer-per-team restrictions remain unchanged on boards
 and in poker. Players and TVs do not receive host decisions before reveal.
-Quiz schema 6 stores this setting; schemas 1–5 remain importable and retain
+Quiz schema 6 introduced this setting; schemas 1–5 remain importable and retain
 automatic grading. Exports always use the latest schema.
+
+## Standard quiz reveal modes
+
+The standard quiz editor offers **Auflösung > Nach jeder Frage** (the default)
+or **Am Quizende**. In the latter mode, the host still sees and grades answers
+normally, but players and TVs receive no solutions, verdicts or standings until
+the last question is completed. This also applies to REST snapshots and uploaded
+solution-media URLs, not just the visible controls.
+
+At the end, players get an expandable overview of every played question, its
+solution, their submitted answer and assessment, including question/solution
+media. The TV cycles through the solutions every 12 seconds; pause, previous and
+next controls are available. The final standings are shown alongside the TV
+overview. Reset clears the overview while retaining the configured reveal mode.
+Jeopardy and Pokerchips keep their existing per-question reveal behavior.
+
+Quiz schema 7 stores the reveal mode. All older schema versions remain readable,
+retain per-question reveal and keep their question content, grading and media.
 
 ## Internet hosting under your domain
 

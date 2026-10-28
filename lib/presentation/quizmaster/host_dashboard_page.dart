@@ -40,6 +40,11 @@ class HostDashboardPage extends StatelessWidget {
             autoContinueBuzzer: false,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
+            revealMode: switch (quiz.format) {
+              StandardFormat(:final revealMode) => revealMode,
+              JeopardyFormat() ||
+              PokerFormat() => SolutionRevealMode.afterEachQuestion,
+            },
             pokerStartingChips: switch (quiz.format) {
               PokerFormat(:final startingChips) => startingChips,
               StandardFormat() || JeopardyFormat() => null,

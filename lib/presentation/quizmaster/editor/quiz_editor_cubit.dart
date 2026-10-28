@@ -129,9 +129,13 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
   ///
   /// The questions stay; the board layout is remembered in case the host
   /// switches back to Jeopardy.
-  void useStandardFormat() {
+  void useStandardFormat({
+    SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
+  }) {
     if (_board case final board?) _stashedBoard = board;
-    _replaceDraft(state.draft.copyWith(format: const StandardFormat()));
+    _replaceDraft(
+      state.draft.copyWith(format: StandardFormat(revealMode: revealMode)),
+    );
   }
 
   /// Plays the quiz as a Jeopardy board.
