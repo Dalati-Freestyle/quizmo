@@ -10,6 +10,7 @@ import 'player.dart';
 import 'poker.dart';
 import 'question.dart';
 import 'round.dart';
+import 'report_round.dart';
 import 'quiz_format.dart';
 import 'score.dart';
 import 'team.dart';
@@ -109,10 +110,14 @@ final class GameState extends Equatable {
     this.roundHistory = const [],
     this.recoveryPaused = false,
     this.corrections = const [],
+    this.reportRounds = const [],
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    reportRounds: json['reportRounds'] == null
+        ? const []
+        : json.readList('reportRounds', ReportRound.fromJson),
     corrections: json['corrections'] == null
         ? const []
         : json.readList('corrections', ManualCorrection.fromJson),
@@ -244,6 +249,7 @@ final class GameState extends Equatable {
   final List<RoundState> roundHistory;
   final bool recoveryPaused;
   final List<ManualCorrection> corrections;
+  final List<ReportRound> reportRounds;
 
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
@@ -324,6 +330,7 @@ final class GameState extends Equatable {
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
     return copyWith(
       corrections: const [],
+      reportRounds: const [],
       questionBank: const [],
       totalQuestionCount: questionBank.isEmpty
           ? totalQuestionCount
@@ -384,6 +391,7 @@ final class GameState extends Equatable {
     List<RoundState>? roundHistory,
     bool? recoveryPaused,
     List<ManualCorrection>? corrections,
+    List<ReportRound>? reportRounds,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -409,6 +417,7 @@ final class GameState extends Equatable {
     roundHistory: roundHistory ?? this.roundHistory,
     recoveryPaused: recoveryPaused ?? this.recoveryPaused,
     corrections: corrections ?? this.corrections,
+    reportRounds: reportRounds ?? this.reportRounds,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -440,6 +449,7 @@ final class GameState extends Equatable {
     'roundHistory': roundHistory.map((round) => round.toJson()).toList(),
     'recoveryPaused': recoveryPaused,
     'corrections': corrections.map((entry) => entry.toJson()).toList(),
+    'reportRounds': reportRounds.map((entry) => entry.toJson()).toList(),
   };
 
   @override
@@ -466,5 +476,6 @@ final class GameState extends Equatable {
     roundHistory,
     recoveryPaused,
     corrections,
+    reportRounds,
   ];
 }

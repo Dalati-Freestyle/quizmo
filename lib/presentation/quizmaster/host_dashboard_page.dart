@@ -30,6 +30,7 @@ import 'recovery/recovery_store.dart';
 import 'recovery/rebind_recovery_panel.dart';
 import '../../core/engine/session_access.dart';
 import 'session_access_panel.dart';
+import 'session_report_panel.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
@@ -658,6 +659,8 @@ class _HostDashboardView extends StatelessWidget {
                       child: ScoreboardView(game: game),
                     ),
                     CorrectionHistoryPanel(game: game, engine: engine),
+                    if (game.isFinished)
+                      SessionReportPanel(game: game, quizName: quizName),
                     PlayersPanel(
                       game: game,
                       connectionsAvailable:

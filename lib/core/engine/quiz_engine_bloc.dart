@@ -1151,6 +1151,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         jeopardy: original.beforeJeopardy,
         isFinished: original.beforeFinished,
         completedQuestionIds: completed,
+        reportRounds: game.reportRounds
+            .where(
+              (r) =>
+                  r.round.question?.id != original.questionId ||
+                  r.round.startedAtHostMicros !=
+                      original.afterRound?.startedAtHostMicros ||
+                  r.isSteal != (original.afterJeopardy?.isStealRound ?? false),
+            )
+            .toList(),
         roundHistory: game.roundHistory
             .where(
               (r) =>
@@ -1451,8 +1460,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final lockedOut = question.lockOutOnMiss
         ? {...round.lockedOutPlayerIds, activeId}
         : round.lockedOutPlayerIds;
-    final next = RoundState(
-      question: question,
+    final next = round.copyWith(
+      activePlayerId: null,
+      buzzerAnswerCorrect: false,
       status: continueAutomatically
           ? RoundStatus.acceptingAnswers
           : RoundStatus.locked,
@@ -1773,6 +1783,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// Restarts the question on stage for the teams other than the picker.
   GameState _openStealRound(GameState game) {
     _graceTimer?.cancel();
+    game = _recordReportRound(game);
     return game.copyWith(
       round: RoundState(
         question: game.round.question,
@@ -1900,6 +1911,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// Wraps [game] into a state, stamping it with the current host clock.
   QuizEngineState _publish(GameState game, {String? notice}) {
+    game = _recordReportRound(game);
     _roundTimer?.cancel();
     final round = game.round;
     final question = round.question;
@@ -1933,6 +1945,121 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
       notice: notice,
     );
+  }
+
+  GameState _recordReportRound(GameState game) {
+    final round = game.round;
+    if (round.question == null ||
+        round.startedAtHostMicros == null ||
+        (game.poker?.betting ?? false)) {
+      return game;
+    }
+    if (state.game.recoveryPaused && !game.recoveryPaused) {
+      final oldStart = state.game.round.startedAtHostMicros;
+      final shift =
+          round.startedAtHostMicros! - (oldStart ?? round.startedAtHostMicros!);
+      final restoredIndex = game.reportRounds.lastIndexWhere(
+        (record) =>
+            record.round.question?.id == round.question?.id &&
+            record.round.startedAtHostMicros == oldStart &&
+            (round.status == RoundStatus.revealed ||
+                record.isSteal == (game.jeopardy?.isStealRound ?? false)),
+      );
+      game = game.copyWith(
+        reportRounds: [
+          for (final (index, record) in game.reportRounds.indexed)
+            if (index == restoredIndex)
+              record.withRound(
+                round,
+                presses: {
+                  for (final entry in record.presses.entries)
+                    entry.key: BuzzerPress(
+                      playerId: entry.value.playerId,
+                      questionId: entry.value.questionId,
+                      clientTimestampMicros:
+                          entry.value.clientTimestampMicros + shift,
+                      clockOffsetMicros: entry.value.clockOffsetMicros,
+                    ),
+                },
+              )
+            else
+              record,
+        ],
+      );
+    }
+    final index = game.reportRounds.lastIndexWhere(
+      (entry) =>
+          entry.round.question?.id == round.question?.id &&
+          entry.round.startedAtHostMicros == round.startedAtHostMicros &&
+          (round.status == RoundStatus.revealed ||
+              entry.isSteal == (game.jeopardy?.isStealRound ?? false)),
+    );
+    final previous = index < 0 ? null : game.reportRounds[index];
+    final frozen = previous?.round.status == RoundStatus.revealed;
+    final poker = game.poker;
+    final record = ReportRound(
+      round: frozen ? previous!.round : round,
+      players: frozen
+          ? previous!.players
+          : {...?previous?.players, ...game.players},
+      teamNames: frozen
+          ? previous!.teamNames
+          : {
+              ...?previous?.teamNames,
+              for (final team in game.teams.values) team.id: team.name,
+            },
+      eligiblePlayerIds: {
+        ...?previous?.eligiblePlayerIds,
+        if (!frozen &&
+            round.status != RoundStatus.revealed &&
+            !(poker?.betting ?? false))
+          for (final player in game.players.values)
+            if (game.mayAnswerQuestion(player.id) &&
+                (poker == null ||
+                    (poker.wagers[player.teamId] ?? 0) > 0 ||
+                    (poker.chips[player.teamId] ?? 0) == 0))
+              player.id,
+      },
+      disconnectedPlayerIds: {
+        ...?previous?.disconnectedPlayerIds,
+        if (!frozen)
+          for (final player in game.players.values)
+            if (!player.isConnected) player.id,
+        if (!frozen)
+          ...?previous?.players.keys.where(
+            (id) => !game.players.containsKey(id),
+          ),
+      },
+      presses: {
+        ...?previous?.presses,
+        for (final press in round.buzzerQueue) press.playerId: press,
+      },
+      playerScores: {...?previous?.playerScores, ...game.scores.byPlayer},
+      chips: Map.of(poker?.chips ?? const {}),
+      wagers: Map.of(poker?.wagers ?? const {}),
+      practiceTeamIds: {
+        ...?previous?.practiceTeamIds,
+        if (poker != null &&
+            !poker.betting &&
+            !frozen &&
+            round.status != RoundStatus.revealed)
+          for (final id in game.teams.keys)
+            if ((poker.wagers[id] ?? 0) == 0 && (poker.chips[id] ?? 0) == 0) id,
+      },
+      isSteal: previous?.isSteal ?? game.jeopardy?.isStealRound ?? false,
+      isDailyDouble:
+          previous?.isDailyDouble ??
+          game.jeopardy?.activeIsDailyDouble ??
+          false,
+      pointsAtStake: previous?.pointsAtStake ?? game.jeopardy?.activePoints,
+    );
+    final records = [...game.reportRounds];
+    if (index < 0) {
+      records.add(record);
+    } else {
+      records[index] = record;
+    }
+    return game.copyWith(reportRounds: records);
   }
 
   /// Marks the round revealed and files the question as played.

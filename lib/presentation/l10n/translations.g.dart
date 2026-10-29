@@ -21,6 +21,8 @@ const englishMessages = <String, String>{
   "Abspiellimit muss positiv sein.": "Playback limit must be positive.",
   "Abweichung für 0 Punkte bei Zielwert 0":
       "Deviation for 0 points when the target is 0",
+  "Accuracy / response time: {0} % / {1} ms":
+      "Accuracy / response time: {0} % / {1} ms",
   "Add": "Add",
   "Add a question before previewing.": "Add a question before previewing.",
   "Add at least two options and choose the correct one.":
@@ -55,6 +57,7 @@ const englishMessages = <String, String>{
   "Animated images are kept unchanged. Optimization would remove animation.": "Animated images are kept unchanged. Optimization would remove animation.",
   "Answer options": "Answer options",
   "Answer: {0}": "Answer: {0}",
+  "Answered by teammate": "Answered by teammate",
   "Answers received": "Answers received",
   "Antwort eingeloggt. Sie kann nicht mehr geändert werden.":
       "Answer locked in. It cannot be changed.",
@@ -133,6 +136,8 @@ const englishMessages = <String, String>{
   "Buzzer-Bewertung": "Buzzer judgment",
   "Buzzers are armed!": "Buzzers are ready!",
   "CONNECTING": "CONNECTING",
+  "CSV export": "CSV export",
+  "CSV export failed: {0}": "CSV export failed: {0}",
   "Cancel": "Cancel",
   "Cannot open recovery storage. Allow site storage.":
       "Cannot open recovery storage. Allow site storage.",
@@ -166,6 +171,7 @@ const englishMessages = <String, String>{
   "Confirmation missing. Your answer may not have arrived.":
       "Confirmation missing. Your answer may not have arrived.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+  "Connected at end": "Connected at end",
   "Connected to the host": "Connected to the host",
   "Connected verification ID": "Connected verification ID",
   "Connecting to the host...": "Connecting to the host...",
@@ -180,6 +186,10 @@ const englishMessages = <String, String>{
   "Copied {0}": "Copied {0}",
   "Correct option": "Correct option",
   "Correct points": "Correct-answer points",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms":
+      "Correct: {0}/{1} judged · Hit rate: {2} % · Mean time: {3} ms",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}":
+      "Correct: {0}/{1} judged · Hit rate: {2} % · Mean time: {3} ms · {4}",
   "Could not export quiz: {0}": "Could not export quiz: {0}",
   "Could not import quiz: {0}": "Could not import quiz: {0}",
   "Could not load advanced settings.": "Could not load advanced settings.",
@@ -194,6 +204,7 @@ const englishMessages = <String, String>{
   "Create quizzes here or join with the invitation link from your host.":
       "Create quizzes here or join with the invitation link from your host.",
   "DAILY DOUBLE": "DAILY DOUBLE",
+  "Daily Double": "Daily Double",
   "Daily Double! Place the wager on the board panel.":
       "Daily Double! Place the wager on the board panel.",
   "Daily Double! Place the wager.": "Daily Double! Place the wager.",
@@ -261,8 +272,10 @@ const englishMessages = <String, String>{
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
   "Discard": "Discard",
+  "Disconnected at end": "Disconnected at end",
   "Disconnected. Waiting for the player to reconnect.":
       "Disconnected. Waiting for the player to reconnect.",
+  "Disconnection observed during this phase": "Disconnection observed during this phase (not necessarily the cause of a missing answer)",
   "Du bist dran! Wähle die nächste Frage.":
       "Your turn! Choose the next question.",
   "Du erreichst": "You finish in",
@@ -340,6 +353,8 @@ const englishMessages = <String, String>{
   "Field \"{0}\" must be a boolean.": "Field \"{0}\" must be a boolean.",
   "Field \"{0}\" must be a finite number.":
       "Field \"{0}\" must be a finite number.",
+  "Final report": "Final report",
+  "Final standings": "Final standings",
   "Finish the current question first.": "Finish the current question first.",
   "Finish the current question to pick the next cell.":
       "Finish the current question to pick the next cell.",
@@ -532,6 +547,7 @@ const englishMessages = <String, String>{
   "Nicht unterstütztes Dateiformat.": "Unsupported file format.",
   "No Daily Double is waiting for a wager.":
       "No Daily Double is waiting for a wager.",
+  "No answer recorded": "No answer recorded",
   "No description.": "No description.",
   "No join code required.": "No join code required.",
   "No pending questions left.": "No pending questions left.",
@@ -555,7 +571,10 @@ const englishMessages = <String, String>{
       "Nobody scored. The other teams may steal.",
   "Noch keine manuellen Korrekturen.": "No manual corrections yet.",
   "Noch {0} Antworten zu bewerten": "{0} answers still need grading",
+  "Not applicable / unavailable": "Not applicable / unavailable",
   "Not connected": "Not connected",
+  "Not eligible to answer": "Not eligible to answer",
+  "Not judged": "Not judged",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
@@ -566,6 +585,7 @@ const englishMessages = <String, String>{
   "OPEN": "OPEN",
   "Ohne Einsatz: keine Wertung": "No wager: not scored",
   "Ohne Export verlassen": "Leave without exporting",
+  "Older save: detailed history is incomplete. Final standings are authoritative.": "Older save: detailed history is incomplete. Final standings are authoritative.",
   "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.",
   "Only the first answer counts.": "Only the first answer counts.",
   "Only the other teams may steal this question.":
@@ -598,6 +618,8 @@ const englishMessages = <String, String>{
   "Player is locked out for this round.":
       "Player is locked out for this round.",
   "Players ({0} online)": "Players ({0} online)",
+  "Points": "points",
+  "Points at stake: {0}": "Points at stake: {0}",
   "Points lost per rank": "Points lost per rank",
   "Points of this row": "Points of this row",
   "Pokerchips": "Pokerchips",
@@ -607,6 +629,7 @@ const englishMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Poker chips · {0} chips available",
   "Port": "Port",
   "Positive Sekunden angeben.": "Enter positive seconds.",
+  "Practice only": "Practice only (no points or chips)",
   "Preloading media...": "Preloading media...",
   "Preview": "Preview",
   "Preview optimized PNG copy": "Preview optimized PNG copy",
@@ -709,9 +732,13 @@ const englishMessages = <String, String>{
   "Remove question": "Remove question",
   "Remove test participant": "Remove test participant",
   "Remove {0}": "Remove {0}",
+  "Removed from roster": "Removed from roster (no final score)",
   "Replay round": "Replay round",
   "Report export failed. Check storage permissions and retry.":
       "Report export failed. Check storage permissions and retry.",
+  "Report exported.": "Report exported.",
+  "Report metrics explained": "Hit rate = fully correct / judged answers (missing and unjudged answers excluded); partial accuracy is shown separately. Times are milliseconds from the synchronized answer clock; buzzer times measure reaction, not spoken answers. Team metrics aggregate actual member submissions, not teammates who did not answer.",
+  "Report storage explained": "Host-only report, saved with automatic game recovery. Reset clears the report in the next save; delete the saved game in recovery to remove it from this device. Downloaded CSV files must be deleted separately. Exports contain names and answers but no room secrets or resume tokens.",
   "Reset scores": "Reset scores",
   "Restart preview": "Restart preview",
   "Restart the full timer": "Restart the full timer",
@@ -747,6 +774,7 @@ const englishMessages = <String, String>{
   "Scan to join with your phone": "Scan to join with your phone",
   "Schätzfrage": "Estimation",
   "Schätzung senden": "Send estimate",
+  "Score progression": "Score progression",
   "Scoreboard": "Scoreboard",
   "Scoreboard · {0}": "Scoreboard · {0}",
   "Scoring rule": "Scoring rule",
@@ -788,6 +816,7 @@ const englishMessages = <String, String>{
   "Spieler-Reihenfolge festlegen": "Set player order",
   "Sprache (z. B. dart, python, javascript)":
       "Language (e.g. dart, python, javascript)",
+  "Stake: {0} chips": "Stake: {0} chips",
   "Standard": "Standard",
   "Standings": "Standings",
   "Start": "Start",
@@ -797,6 +826,7 @@ const englishMessages = <String, String>{
       "Starting chips must be between 1 and 1000000.",
   "Startchips pro Team (1–1000000)": "Starting chips per team (1–1000000)",
   "Starts the embedded HTTP and web socket server on this device. Players join over your local network.": "Starts the embedded HTTP and web socket server on this device. Players join over your local network.",
+  "Steal": "Steal",
   "Steal round · other teams than {0}": "Steal round · teams other than {0}",
   "Steal round: only the other teams answer.":
       "Steal round: only the other teams answer.",
@@ -1111,6 +1141,8 @@ const germanMessages = <String, String>{
   "Abspiellimit muss positiv sein.": "Abspiellimit muss positiv sein.",
   "Abweichung für 0 Punkte bei Zielwert 0":
       "Abweichung für 0 Punkte bei Zielwert 0",
+  "Accuracy / response time: {0} % / {1} ms":
+      "Richtigkeit / Antwortzeit: {0} % / {1} ms",
   "Add": "Hinzufügen",
   "Add a question before previewing.":
       "Füge vor der Vorschau eine Frage hinzu.",
@@ -1147,6 +1179,7 @@ const germanMessages = <String, String>{
   "Animated images are kept unchanged. Optimization would remove animation.": "Animierte Bilder bleiben unverändert. Eine Optimierung würde die Animation entfernen.",
   "Answer options": "Antwortmöglichkeiten",
   "Answer: {0}": "Antwort: {0}",
+  "Answered by teammate": "Durch Teammitglied beantwortet",
   "Answers received": "Eingegangene Antworten",
   "Antwort eingeloggt. Sie kann nicht mehr geändert werden.":
       "Antwort eingeloggt. Sie kann nicht mehr geändert werden.",
@@ -1224,6 +1257,8 @@ const germanMessages = <String, String>{
   "Buzzer-Bewertung": "Buzzer-Bewertung",
   "Buzzers are armed!": "Buzzer sind bereit!",
   "CONNECTING": "VERBINDE",
+  "CSV export": "CSV-Export",
+  "CSV export failed: {0}": "CSV-Export fehlgeschlagen: {0}",
   "Cancel": "Abbrechen",
   "Cannot open recovery storage. Allow site storage.": "Wiederherstellungsspeicher lässt sich nicht öffnen. Erlaube Website-Speicher.",
   "Cannot replace the quiz of an existing saved game.":
@@ -1256,6 +1291,7 @@ const germanMessages = <String, String>{
   "Confirmation missing. Your answer may not have arrived.":
       "Bestätigung fehlt. Deine Antwort ist möglicherweise nicht angekommen.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Verbinde dich mit einem Spielleiter in deinem Netzwerk, wähle ein Team und nutze einen Buzzer mit Latenzausgleich.",
+  "Connected at end": "Am Ende verbunden",
   "Connected to the host": "Mit dem Host verbunden",
   "Connected verification ID": "Prüf-ID des verbundenen Teilnehmers",
   "Connecting to the host...": "Verbindung zum Host wird hergestellt ...",
@@ -1270,6 +1306,9 @@ const germanMessages = <String, String>{
   "Copied {0}": "{0} kopiert",
   "Correct option": "Richtige Antwortmöglichkeit",
   "Correct points": "Punkte für richtige Antworten",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms":
+      "Richtig: {0}/{1} bewertet · Trefferquote: {2} % · Mittlere Zeit: {3} ms",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}": "Richtig: {0}/{1} bewertet · Trefferquote: {2} % · Mittlere Zeit: {3} ms · {4}",
   "Could not export quiz: {0}": "Quiz konnte nicht exportiert werden: {0}",
   "Could not import quiz: {0}": "Quiz konnte nicht importiert werden: {0}",
   "Could not load advanced settings.":
@@ -1285,6 +1324,7 @@ const germanMessages = <String, String>{
   "Create quiz": "Quiz erstellen",
   "Create quizzes here or join with the invitation link from your host.": "Erstelle hier Quizzes oder tritt über den Einladungslink deines Spielleiters bei.",
   "DAILY DOUBLE": "DAILY DOUBLE",
+  "Daily Double": "Daily Double",
   "Daily Double! Place the wager on the board panel.":
       "Daily Double! Lege den Einsatz am Spielfeld fest.",
   "Daily Double! Place the wager.": "Daily Double! Lege den Einsatz fest.",
@@ -1354,8 +1394,10 @@ const germanMessages = <String, String>{
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
   "Discard": "Verwerfen",
+  "Disconnected at end": "Am Ende getrennt",
   "Disconnected. Waiting for the player to reconnect.":
       "Getrennt. Warte auf erneute Verbindung des Spielers.",
+  "Disconnection observed during this phase": "Verbindungsabbruch in dieser Phase beobachtet (nicht zwingend die Ursache einer fehlenden Antwort)",
   "Du bist dran! Wähle die nächste Frage.":
       "Du bist dran! Wähle die nächste Frage.",
   "Du erreichst": "Du erreichst",
@@ -1439,6 +1481,8 @@ const germanMessages = <String, String>{
   "Field \"{0}\" must be a boolean.": "Feld „{0}“ muss ein Wahrheitswert sein.",
   "Field \"{0}\" must be a finite number.":
       "Feld „{0}“ muss eine endliche Zahl sein.",
+  "Final report": "Abschlussbericht",
+  "Final standings": "Endwertung",
   "Finish the current question first.": "Beende zuerst die aktuelle Frage.",
   "Finish the current question to pick the next cell.":
       "Beende die aktuelle Frage, um das nächste Feld auszuwählen.",
@@ -1634,6 +1678,7 @@ const germanMessages = <String, String>{
   "Nicht unterstütztes Dateiformat.": "Nicht unterstütztes Dateiformat.",
   "No Daily Double is waiting for a wager.":
       "Kein Daily Double wartet auf einen Einsatz.",
+  "No answer recorded": "Keine Antwort aufgezeichnet",
   "No description.": "Keine Beschreibung.",
   "No join code required.": "Kein Beitrittscode erforderlich.",
   "No pending questions left.": "Keine offenen Fragen mehr.",
@@ -1657,7 +1702,10 @@ const germanMessages = <String, String>{
       "Niemand hat gepunktet. Die anderen Teams dürfen abstauben.",
   "Noch keine manuellen Korrekturen.": "Noch keine manuellen Korrekturen.",
   "Noch {0} Antworten zu bewerten": "Noch {0} Antworten zu bewerten",
+  "Not applicable / unavailable": "Nicht anwendbar / nicht verfügbar",
   "Not connected": "Nicht verbunden",
+  "Not eligible to answer": "Nicht antwortberechtigt",
+  "Not judged": "Unbewertet",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
@@ -1668,6 +1716,7 @@ const germanMessages = <String, String>{
   "OPEN": "OFFEN",
   "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
   "Ohne Export verlassen": "Ohne Export verlassen",
+  "Older save: detailed history is incomplete. Final standings are authoritative.": "Älterer Spielstand: Der Detailverlauf ist unvollständig. Die Endwertung ist maßgeblich.",
   "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Erst bestätigen, nachdem du die Prüf-ID {0} mit dem Teilnehmer verglichen hast. Der alte Zugang wird widerrufen; Identität, Team, Antworten und Punkte bleiben unverändert.",
   "Only the first answer counts.": "Nur die erste Antwort zählt.",
   "Only the other teams may steal this question.":
@@ -1700,6 +1749,8 @@ const germanMessages = <String, String>{
   "Player is locked out for this round.":
       "Spieler ist für diese Runde gesperrt.",
   "Players ({0} online)": "Spieler ({0} online)",
+  "Points": "Punkte",
+  "Points at stake: {0}": "Punktwert / Daily-Double-Einsatz: {0}",
   "Points lost per rank": "Punktabzug pro Rang",
   "Points of this row": "Punkte dieser Zeile",
   "Pokerchips": "Pokerchips",
@@ -1709,6 +1760,7 @@ const germanMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Pokerchips · {0} Chips verfügbar",
   "Port": "Port",
   "Positive Sekunden angeben.": "Positive Sekunden angeben.",
+  "Practice only": "Nur Übung (keine Punkte oder Chips)",
   "Preloading media...": "Medium wird vorgeladen …",
   "Preview": "Vorschau",
   "Preview optimized PNG copy": "Optimierte PNG-Kopie als Vorschau",
@@ -1808,8 +1860,12 @@ const germanMessages = <String, String>{
   "Remove question": "Frage entfernen",
   "Remove test participant": "Testteilnehmer entfernen",
   "Remove {0}": "{0} entfernen",
+  "Removed from roster": "Aus Teilnehmerliste entfernt (keine Endwertung)",
   "Replay round": "Runde wiederholen",
   "Report export failed. Check storage permissions and retry.": "Der Bericht konnte nicht exportiert werden. Prüfe Speicherberechtigungen und versuche es erneut.",
+  "Report exported.": "Bericht exportiert.",
+  "Report metrics explained": "Trefferquote = vollständig richtige / bewertete Antworten (fehlende und unbewertete Antworten ausgenommen); Teilrichtigkeit wird separat ausgewiesen. Zeiten in Millisekunden ab synchronisiertem Antwortstart; Buzzerzeiten messen die Reaktion, nicht die mündliche Antwort. Teamkennzahlen aggregieren tatsächliche Antworten der Mitglieder, nicht die nicht antwortenden Teammitglieder.",
+  "Report storage explained": "Hostseitiger Bericht, zusammen mit der automatischen Spielstandsicherung gespeichert. Zurücksetzen leert den Bericht bei der nächsten Sicherung; zum Entfernen vom Gerät den gespeicherten Spielstand in der Wiederherstellung löschen. Heruntergeladene CSV-Dateien separat löschen. Exporte enthalten Namen und Antworten, aber keine Raumgeheimnisse oder Resume-Tokens.",
   "Reset scores": "Punkte zurücksetzen",
   "Restart preview": "Vorschau neu starten",
   "Restart the full timer": "Timer mit voller Zeit neu starten",
@@ -1846,6 +1902,7 @@ const germanMessages = <String, String>{
   "Scan to join with your phone": "Scannen und mit dem Handy beitreten",
   "Schätzfrage": "Schätzfrage",
   "Schätzung senden": "Schätzung senden",
+  "Score progression": "Punkteverlauf",
   "Scoreboard": "Punktestand",
   "Scoreboard · {0}": "Punktestand · {0}",
   "Scoring rule": "Bewertungsregel",
@@ -1885,6 +1942,7 @@ const germanMessages = <String, String>{
   "Spieler-Reihenfolge festlegen": "Spieler-Reihenfolge festlegen",
   "Sprache (z. B. dart, python, javascript)":
       "Sprache (z. B. dart, python, javascript)",
+  "Stake: {0} chips": "Einsatz: {0} Chips",
   "Standard": "Standard",
   "Standings": "Rangliste",
   "Start": "Starten",
@@ -1894,6 +1952,7 @@ const germanMessages = <String, String>{
       "Startchips müssen zwischen 1 und 1000000 liegen.",
   "Startchips pro Team (1–1000000)": "Startchips pro Team (1–1000000)",
   "Starts the embedded HTTP and web socket server on this device. Players join over your local network.": "Startet den integrierten Server auf diesem Gerät. Spieler treten über dein lokales Netzwerk bei.",
+  "Steal": "Steal-Runde",
   "Steal round · other teams than {0}": "Abstaubrunde · alle Teams außer {0}",
   "Steal round: only the other teams answer.":
       "Abstaubrunde: Nur die anderen Teams dürfen antworten.",

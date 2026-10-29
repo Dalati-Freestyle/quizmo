@@ -14,6 +14,7 @@ export 'poker.dart';
 export 'question.dart';
 export 'quiz.dart';
 export 'quiz_format.dart';
+export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
 export 'team.dart';

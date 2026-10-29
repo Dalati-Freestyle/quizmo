@@ -33,7 +33,7 @@ final class SessionCheckpoint {
     this.accessState = const SessionAccessState(),
   });
 
-  static const schemaVersion = 3;
+  static const schemaVersion = 4;
   final SessionAccessState accessState;
   final String sessionId;
   final Quiz quiz;
@@ -56,6 +56,10 @@ final class SessionCheckpoint {
         ...game.toJson()..remove('questionBank'),
         'round': roundReference(game.round),
         'roundHistory': game.roundHistory.map(roundReference).toList(),
+        'reportRounds': [
+          for (final entry in game.reportRounds)
+            {...entry.toJson(), 'round': roundReference(entry.round)},
+        ],
         'corrections': [
           for (final entry in game.corrections)
             {
@@ -105,6 +109,7 @@ final class SessionCheckpoint {
         1 => _decodeV1(decoded, quizDocument),
         2 => _decodeSnapshot(decoded, quizDocument),
         3 => _decodeSnapshot(decoded, quizDocument),
+        4 => _decodeSnapshot(decoded, quizDocument),
         _ => throw const RecoveryException(
           'Unsupported recovery schemaVersion.',
         ),
@@ -190,6 +195,16 @@ final class SessionCheckpoint {
       'questionBank': quiz.questions.map((q) => q.toJson()).toList(),
       'round': expandRound(storedGame.readObject('round')),
       'roundHistory': storedGame.readList('roundHistory', expandRound),
+      'reportRounds':
+          envelope['schemaVersion'] != 4 && storedGame['reportRounds'] == null
+          ? <Object?>[]
+          : storedGame.readList(
+              'reportRounds',
+              (entry) => {
+                ...entry,
+                'round': expandRound(entry.readObject('round')),
+              },
+            ),
       'corrections': storedGame.readList(
         'corrections',
         (entry) => {
@@ -214,7 +229,8 @@ final class SessionCheckpoint {
       game: game,
       savedAtMicros: decoded.readInt('savedAtMicros'),
       resumeTokenHashes: hashes,
-      accessState: envelope['schemaVersion'] == 3
+      accessState:
+          envelope['schemaVersion'] == 3 || envelope['schemaVersion'] == 4
           ? SessionAccessState.fromJson(decoded.readObject('access'))
           : const SessionAccessState(),
       previousJoinUri: switch (decoded.readStringOrNull('previousJoinUri')) {
@@ -223,7 +239,10 @@ final class SessionCheckpoint {
       },
     );
     if (!decoded.containsKey('previousJoinUri') ||
-        decoded.length != (envelope['schemaVersion'] == 3 ? 7 : 6) ||
+        decoded.length !=
+            (envelope['schemaVersion'] == 3 || envelope['schemaVersion'] == 4
+                ? 7
+                : 6) ||
         decoded['savedAtMicros'] != checkpoint.savedAtMicros) {
       throw const RecoveryException('Incomplete recovery metadata.');
     }
@@ -290,7 +309,11 @@ final class SessionCheckpoint {
       !accessState.bannedPlayerIds.any(game.players.containsKey),
       'banned participant in roster.',
     );
-    for (final round in [game.round, ...game.roundHistory]) {
+    for (final round in [
+      game.round,
+      ...game.roundHistory,
+      ...game.reportRounds.map((entry) => entry.round),
+    ]) {
       final archived = !identical(round, game.round);
       final q = round.question;
       require(
@@ -340,6 +363,24 @@ final class SessionCheckpoint {
                 round.lockedOutPlayerIds.every(game.players.containsKey)) &&
             round.answerVerdicts.keys.every(round.answers.containsKey),
         'verdicts.',
+      );
+    }
+    for (final record in game.reportRounds) {
+      require(
+        record.round.question != null &&
+            record.round.startedAtHostMicros != null &&
+            record.players.entries.every((e) => e.key == e.value.id) &&
+            record.eligiblePlayerIds.every(record.players.containsKey) &&
+            record.disconnectedPlayerIds.every(record.players.containsKey) &&
+            record.presses.entries.every(
+              (e) =>
+                  e.key == e.value.playerId &&
+                  record.players.containsKey(e.key) &&
+                  e.value.questionId == record.round.question?.id,
+            ) &&
+            record.chips.values.every((v) => v >= 0) &&
+            record.wagers.values.every((v) => v >= 0),
+        'report participation or chips.',
       );
     }
     require(

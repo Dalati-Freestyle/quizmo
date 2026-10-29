@@ -37,10 +37,81 @@ Keep invitation links, codes and resume tokens confidential. They are never
 written to the diagnostic feed. Protected REST snapshots and media also require
 an admitted connection's read capability; its authority expires on disconnect,
 removal or spectator revocation. Code hashes, access policy and banned
-identities are saved in recovery schema 3 (schemas 1 and 2 remain readable).
+identities are saved in recovery schema 4 (schemas 1–3 remain readable).
 Pending approvals and short-lived read capabilities are not restored: unadmitted
 guests must request admission again. This changes session recovery, not the
 portable quiz schema.
+
+## Final report and CSV export
+
+After the final question, the host dashboard shows **Final report** with the
+authoritative final player/team standings, score progression, answers, accuracy
+and response times by question/phase and participant. Manual point/chip
+corrections and their reversals are reflected immediately; the CSV includes a
+whitelisted correction audit trail. Historical progression records the totals
+observed in each phase, not a reconstruction from correctness. Phase 0 is the
+initial balance; the final standings are authoritative after roster changes.
+Jeopardy keeps the picker's attempt and any steal as separate phases, labels
+Daily Doubles and excludes participants who were not eligible. Poker reports
+team chip balances and stakes; individual player points are **N/A**, skipped
+zero-stake teams are not counted as wrong, and bankrupt practice answers are
+explicitly marked. Standard team metrics aggregate actual member submissions;
+board/Poker teammates who did not submit do not add another answer.
+
+Hit rate means **fully correct answers / judged answers**; missing, ineligible
+and unjudged submissions are excluded, not silently counted as wrong. Partial
+accuracy is retained separately and does not count as a full hit (including
+Poker's all-or-nothing payout). Practice answers contribute to accuracy but
+never earn chips. Mean time includes recorded inputs only. Times are
+milliseconds on the synchronized host answer clock, preserving accepted elapsed
+times across recovery/timer restarts; Poker betting time is excluded and a steal
+has its own clock. Buzzer times measure reaction, **not** the unrecorded spoken
+answer. A disconnection flag means the host observed a disconnected participant
+at some point in that phase; it does not assert why an answer is missing.
+
+**CSV contract (report version 1):** UTF-8 with BOM, comma separator, CRLF
+records, every field quoted, embedded quotes doubled, embedded newlines
+preserved. Import it as comma-separated UTF-8 if a spreadsheet's locale expects
+semicolons. Column names/order and machine-readable statuses do not depend on
+the app language. Text beginning with a spreadsheet formula marker (also after
+whitespace/control characters) is prefixed with an apostrophe; genuine numeric
+negative scores stay numeric. Consumers must not remove this protection before
+opening untrusted content in a spreadsheet.
+
+| Columns | Meaning |
+| --- | --- |
+| `report_version`, `row_type`, `quiz`, `format`, `finished`, `history_complete` | Version and context; row types: `summary`, `answer`, `question_summary` (team), `progress`, `correction`. Formats: `standard`, `jeopardy`, `poker`. |
+| `phase`, `question_id`, `question` | Chronological phase number and question identity/prompt; Jeopardy steals have another phase. |
+| `entity_type`, `entity_id`, `name`, `team_id`, `team` | Player/team identity; answer rows identify the actual submitting player or the player without an answer. Historical names/membership are kept per phase. |
+| `answer`, `status`, `accuracy_ratio` | Answer content; `correct`, `partial`, `incorrect`, `ungraded`, `noAnswer`, `notEligible`, `teamAnswered`. Team question summaries use `answered`, `noAnswer`, `notEligible`; correction rows use the correction kind. Accuracy is 0–1. |
+| `response_time_ms`, `response_time_kind`, `connection` | Milliseconds; `buzzer_reaction` or `answer_submission`. Answer rows use `disconnection_observed` / `no_disconnection_observed`; summaries use `connected_at_end`, `disconnected_at_end` or `removed_from_roster` (no authoritative final score). |
+| `practice_only`, `wager_chips`, `points_at_stake`, `steal`, `daily_double` | Booleans, Poker stake in chips, Jeopardy row value / Daily Double wager in points. |
+| `score_unit`, `score` | `points` or `chips`; authoritative totals in summaries, observed cumulative balances in progression. |
+| `evaluated_answers`, `fully_correct_answers`, `hit_rate_ratio`, `mean_response_time_ms` | Counts, 0–1 hit rate, mean milliseconds; team question summaries aggregate actual submissions for that phase. |
+| `correction_id`, `reason`, `value_before`, `value_after`, `reverses_correction`, `score_delta` | Correction audit; before/after values are verdicts (0/1) for answer/buzzer corrections and points/chips for balance corrections; signed delta uses `score_unit`. |
+
+`N/A` explicitly denotes unavailable or inapplicable values, never zero.
+Choice/ordering answers contain JSON arrays of option IDs and labels; matching
+answers contain JSON arrays of left/right IDs and labels (duplicate labels
+remain distinguishable). Boolean answers use `true`/`false`; estimation answers
+use a decimal point followed by the configured unit, if any. Spoken buzzer answers are not recorded. Report versioning
+is separate from portable quiz-file versioning.
+
+Report history is **host-only**: it is removed from player/TV snapshots and
+never includes room credentials in the export. The CSV deliberately exports
+only report fields, not complete game/checkpoint JSON, solution media, host
+notes, invitation URLs, room codes, token hashes or resume tokens. Names and
+answer text are still personal data: keep exports private and obtain any
+necessary participant consent.
+
+History is saved in the existing automatic recovery slot from #1, using recovery
+schema **4** (schemas 1–3 remain readable). This is not a separate permanent
+report library. On an older save, absent detail is explicitly marked incomplete;
+it is never fabricated. Resetting the game clears report history in the next
+successful recovery save. Deleting the saved game in recovery removes its
+stored report from this device; a failed save/deletion is reported and the last
+durable checkpoint may still exist. Downloaded/shared CSVs and external backups
+must be deleted separately. No additional report data is uploaded.
 
 ## Connection and submission status
 

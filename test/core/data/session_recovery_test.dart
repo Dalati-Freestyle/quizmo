@@ -170,7 +170,7 @@ void main() {
   });
 
   test(
-    'schema 2 recovery migrates to unrestricted access and saves schema 3',
+    'schema 2 recovery migrates to unrestricted access and saves schema 4',
     () async {
       final quiz = quizFor(const StandardFormat());
       final engine = engineFor(quiz);
@@ -196,7 +196,7 @@ void main() {
         quizDocument: jsonEncode(quiz.toJson()),
       );
       expect(saved.accessState.toJson(), const SessionAccessState().toJson());
-      expect(jsonDecode(saved.encode())['schemaVersion'], 3);
+      expect(jsonDecode(saved.encode())['schemaVersion'], 4);
     },
   );
 
@@ -222,7 +222,7 @@ void main() {
     );
     expect(saved.game.round.answers['p'], isA<TrueFalseAnswer>());
     expect(saved.game.corrections, isEmpty);
-    expect(jsonDecode(saved.encode())['schemaVersion'], 3);
+    expect(jsonDecode(saved.encode())['schemaVersion'], 4);
     expect(
       saved.quiz.questions.single.media.single.asset!.bytes,
       saved.quiz.questions.single.solutionMedia.single.asset!.bytes,
