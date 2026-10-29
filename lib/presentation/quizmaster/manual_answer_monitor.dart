@@ -5,7 +5,7 @@ import '../../core/engine/quiz_engine_event.dart';
 import '../../core/models/models.dart';
 import '../l10n/app_localizations.dart';
 
-class ManualAnswerMonitor extends StatelessWidget {
+class ManualAnswerMonitor extends StatefulWidget {
   const ManualAnswerMonitor({
     required this.question,
     required this.game,
@@ -18,7 +18,33 @@ class ManualAnswerMonitor extends StatelessWidget {
   final ValueChanged<JudgeAnswerEvent>? onJudge;
 
   @override
+  State<ManualAnswerMonitor> createState() => _ManualAnswerMonitorState();
+}
+
+class _ManualAnswerMonitorState extends State<ManualAnswerMonitor> {
+  final _reason = TextEditingController();
+
+  @override
+  void didUpdateWidget(ManualAnswerMonitor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game.round.startedAtHostMicros !=
+            widget.game.round.startedAtHostMicros ||
+        oldWidget.question.id != widget.question.id) {
+      _reason.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final game = widget.game;
+    final question = widget.question;
+    final onJudge = widget.onJudge;
     final round = game.round;
     final revealed = round.status == RoundStatus.revealed;
     final startedAt = round.startedAtHostMicros;
@@ -33,6 +59,13 @@ class ManualAnswerMonitor extends StatelessWidget {
         const SizedBox(height: 8),
         Text(context.tr('Lösung: {0}', [question.solutionLabel])),
         if (!revealed) ...[
+          TextField(
+            controller: _reason,
+            decoration: InputDecoration(
+              labelText: context.tr('Grund (optional)'),
+            ),
+            enabled: canJudge,
+          ),
           const SizedBox(height: 8),
           Text(
             context.tr(
@@ -88,14 +121,18 @@ class ManualAnswerMonitor extends StatelessWidget {
                                 round.answerVerdicts[answer.playerId] ==
                                 (correct ? 1 : 0),
                             onSelected: canJudge
-                                ? (_) => onJudge!(
-                                    JudgeAnswerEvent(
-                                      playerId: answer.playerId,
-                                      questionId: question.id,
-                                      startedAtHostMicros: startedAt,
-                                      wasCorrect: correct,
-                                    ),
-                                  )
+                                ? (_) {
+                                    onJudge(
+                                      JudgeAnswerEvent(
+                                        playerId: answer.playerId,
+                                        questionId: question.id,
+                                        startedAtHostMicros: startedAt,
+                                        wasCorrect: correct,
+                                        reason: _reason.text.trim(),
+                                      ),
+                                    );
+                                    _reason.clear();
+                                  }
                                 : null,
                           ),
                       ],

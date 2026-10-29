@@ -15,6 +15,56 @@ void main() {
   );
 
   testWidgets(
+    'buzzer judgment includes optional reason and displayed round identity',
+    (tester) async {
+      JudgeBuzzerEvent? received;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: LiveRoundPanel(
+                state: const QuizEngineState(
+                  game: GameState(
+                    players: {'p': Player(id: 'p', name: 'One')},
+                    round: RoundState(
+                      question: BuzzerQuestion(id: 'q', prompt: 'Test'),
+                      status: RoundStatus.locked,
+                      activePlayerId: 'p',
+                      startedAtHostMicros: 1700000000000000,
+                      resolvedAttempts: 2,
+                    ),
+                  ),
+                ),
+                onJudge: (_) =>
+                    fail('The scoped judgment callback must be used.'),
+                onJudgeBuzzer: (event) => received = event,
+                onReveal: () {},
+                onLock: () {},
+                onNext: () {},
+                onCloseRound: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Grund (optional)'),
+        'Not accepted',
+      );
+      await tester.ensureVisible(find.text('Wrong'));
+      await tester.tap(find.text('Wrong'));
+      expect(received?.reason, 'Not accepted');
+      expect(received?.playerId, 'p');
+      expect(received?.questionId, 'q');
+      expect(received?.startedAtHostMicros, 1700000000000000);
+      expect(received?.resolvedAttempts, 2);
+      expect(received?.wasCorrect, isFalse);
+      await tester.pumpWidget(const SizedBox());
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'retry limit suggests ending but host can reopen; media is paused',
     (tester) async {
       var reopens = 0;

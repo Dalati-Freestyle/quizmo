@@ -142,17 +142,42 @@ continuation. Corrupt/incomplete records are not overwritten or silently rolled
 back; they require retry or explicit discard. Low-level permission/I/O failures
 also prevent hosting until resolved.
 
-The recovery envelope starts at **schema 1**, independently of quiz schema 7
+The recovery envelope writes **schema 2**, independently of quiz schema 7
 and the app version. It checks both the checkpoint and the referenced quiz,
 requires complete/lossless fields and validates cross-references. Future recovery
 schemas must retain a dedicated importer for each previous schema, migrate both
 the game state and quiz references into the current model, and add fixed
 compatibility fixtures. Unsupported newer schemas request a Quizmo update.
 The existing quiz importers remain responsible for historical quiz definitions;
-recovery writers write only the current recovery schema. Existing score history
-and manual verdicts are preserved; #7's future correction/undo ledger must be
-added with a recovery-schema migration, not reconstructed by replaying scores.
+recovery writers write only the current recovery schema. Schema 1 records remain
+readable and migrate with an empty correction ledger: historical manual decisions
+are not invented by replaying scores. Schema 2 preserves the host-only correction
+ledger, including counter-corrections and duplicate-request protection.
 The private session report is a data foundation for #6, not its final reporting UI.
+
+### Manual corrections and undo
+
+The host dashboard's **Correction history** records each written-answer and
+buzzer judgment, as well as explicit point/chip adjustments. Entries retain the
+question and round opening time, player/team name, old/new value, timestamp and
+optional reason. Selecting an unchanged written-answer verdict is a no-op.
+The host can enter signed point/chip adjustments for the current round; poker
+adjustments affect the team's chip balance, not an unused player point score.
+
+**Undo** requires confirmation and appends a counter-correction; it never deletes
+the original entry. Point/chip adjustments are reversed by their delta, preserving
+later adjustments and updating the standings. Negative chip balances are rejected.
+Written-answer judgments can be undone before settlement, provided no later
+judgment of that answer is still effective. Buzzer undo restores the floor,
+bookings and format bookkeeping only while no dependent round/board action has
+occurred. Already spent chips, changed participants/teams, settled written answers
+and dependent game actions block undo with an explanation. Use an explicit
+point/chip adjustment when the original decision can no longer be safely undone.
+Recovery clock changes can also invalidate round-bound judgment undo; financial
+counter-bookings remain available after resuming. Reset clears scores and ledger.
+
+The ledger and free-form reasons never travel to player or TV clients, even after
+the results are revealed. Existing deferred-result/solution redaction still applies.
 
 Resume tokens remain private in each player's browser profile/app storage; only
 their SHA-256 verifiers are persisted by the host. A stable, **public** session

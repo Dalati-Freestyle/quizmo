@@ -169,6 +169,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
     on<JudgeAnswerEvent>(_onJudgeAnswer);
+    on<CorrectScoreEvent>(_onCorrectScore);
+    on<UndoCorrectionEvent>(_onUndoCorrection);
     on<RevealRoundEvent>(_onRevealRound);
     on<CloseRoundEvent>(_onCloseRound);
     on<SelectJeopardyCellEvent>(_onSelectJeopardyCell);
@@ -872,15 +874,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'Diese Antwort kann nicht bewertet werden.'));
       return;
     }
+    final value = event.wasCorrect ? 1 : 0;
+    if (round.answerVerdicts[event.playerId] == value) return;
+    final updated = game.copyWith(
+      round: round.copyWith(
+        answerVerdicts: {...round.answerVerdicts, event.playerId: value},
+      ),
+    );
     emit(
       _publish(
-        game.copyWith(
-          round: round.copyWith(
-            answerVerdicts: {
-              ...round.answerVerdicts,
-              event.playerId: event.wasCorrect ? 1 : 0,
-            },
-          ),
+        _recordJudgment(
+          game,
+          updated,
+          event.playerId,
+          CorrectionKind.answer,
+          round.answerVerdicts[event.playerId],
+          value,
+          event.reason,
         ),
       ),
     );
@@ -895,6 +905,284 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
     );
     return true;
+  }
+
+  GameState _recordJudgment(
+    GameState before,
+    GameState after,
+    String playerId,
+    CorrectionKind kind,
+    int? beforeValue,
+    int afterValue,
+    String? reason,
+  ) {
+    final player = before.players[playerId]!;
+    final buzzer = kind == CorrectionKind.buzzer;
+    return after.copyWith(
+      corrections: [
+        ...before.corrections,
+        ManualCorrection(
+          id: 'judgment-${before.corrections.length + 1}',
+          kind: kind,
+          questionId: before.round.question!.id,
+          roundStartedAt: before.round.startedAtHostMicros!,
+          playerId: playerId,
+          teamId: before.mode is TeamMode ? player.teamId : null,
+          participantName: before.mode is TeamMode
+              ? '${before.teams[player.teamId]?.name ?? player.teamId} / ${player.name}'
+              : player.name,
+          beforeValue: beforeValue,
+          afterValue: afterValue,
+          atHostMicros: _now(),
+          reason: reason,
+          scoreDeltas: {
+            for (final id in before.players.keys)
+              if (after.scores.scoreOf(id) != before.scores.scoreOf(id))
+                id: after.scores.scoreOf(id) - before.scores.scoreOf(id),
+          },
+          chipDeltas: {
+            for (final id in before.poker?.chips.keys ?? const <String>[])
+              if (after.poker!.chips[id] != before.poker!.chips[id])
+                id: after.poker!.chips[id]! - before.poker!.chips[id]!,
+          },
+          beforeRound: buzzer ? before.round : null,
+          afterRound: buzzer ? after.round : null,
+          beforeJeopardy: buzzer ? before.jeopardy : null,
+          afterJeopardy: buzzer ? after.jeopardy : null,
+          beforePoker: buzzer ? before.poker : null,
+          afterPoker: buzzer ? after.poker : null,
+          beforeFinished: before.isFinished,
+          afterFinished: after.isFinished,
+          wasCompleted: before.completedQuestionIds.contains(
+            before.round.question!.id,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onCorrectScore(CorrectScoreEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final player = game.players[event.playerId];
+    if (game.recoveryPaused ||
+        player == null ||
+        event.requestId.isEmpty ||
+        event.delta == 0 ||
+        game.round.question?.id != event.questionId ||
+        game.round.startedAtHostMicros != event.roundStartedAt ||
+        (game.poker != null && !game.poker!.chips.containsKey(player.teamId))) {
+      emit(state.copyWith(notice: 'Diese Korrektur ist nicht zulässig.'));
+      return;
+    }
+    final id = 'score-${event.requestId}';
+    if (game.corrections.any((entry) => entry.id == id)) {
+      emit(state.copyWith(notice: 'Diese Korrektur wurde bereits angewendet.'));
+      return;
+    }
+    final poker = game.poker;
+    final previous = poker == null
+        ? game.scores.scoreOf(player.id)
+        : poker.chips[player.teamId]!;
+    final next = previous + event.delta;
+    if (poker != null && next < 0) {
+      emit(
+        state.copyWith(notice: 'Die Korrektur würde negative Chips erzeugen.'),
+      );
+      return;
+    }
+    final entry = ManualCorrection(
+      id: id,
+      kind: poker == null ? CorrectionKind.points : CorrectionKind.chips,
+      questionId: event.questionId,
+      roundStartedAt: event.roundStartedAt,
+      playerId: player.id,
+      teamId: game.mode is TeamMode ? player.teamId : null,
+      participantName: game.mode is TeamMode
+          ? '${game.teams[player.teamId]?.name ?? player.teamId} / ${player.name}'
+          : player.name,
+      beforeValue: previous,
+      afterValue: next,
+      atHostMicros: _now(),
+      reason: event.reason,
+      scoreDeltas: poker == null ? {player.id: event.delta} : const {},
+      chipDeltas: poker == null ? const {} : {player.teamId!: event.delta},
+    );
+    emit(
+      _publish(
+        _applyCorrectionDeltas(
+          game,
+          entry,
+        ).copyWith(corrections: [...game.corrections, entry]),
+      ),
+    );
+  }
+
+  String? correctionUndoError(ManualCorrection entry) {
+    final game = state.game;
+    if (game.recoveryPaused) return 'Zuerst die Wiederherstellung fortsetzen.';
+    if (entry.reversesId != null) {
+      return 'Gegenkorrekturen können nicht zurückgenommen werden.';
+    }
+    if (!game.corrections.contains(entry)) return 'Unbekannte Korrektur.';
+    if (game.corrections.any((e) => e.reversesId == entry.id)) {
+      return 'Diese Korrektur wurde bereits zurückgenommen.';
+    }
+    final player = game.players[entry.playerId];
+    if (player == null ||
+        (game.mode is TeamMode ? player.teamId : null) != entry.teamId ||
+        entry.scoreDeltas.keys.any((id) => !game.players.containsKey(id))) {
+      return 'Die betroffenen Teilnehmer oder Teams wurden verändert.';
+    }
+    for (final delta in entry.chipDeltas.entries) {
+      final chips = game.poker?.chips[delta.key];
+      if (chips == null || chips - delta.value < 0) {
+        return 'Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.';
+      }
+    }
+    switch (entry.kind) {
+      case CorrectionKind.points:
+      case CorrectionKind.chips:
+        return null;
+      case CorrectionKind.answer:
+        if (game.round.question?.id != entry.questionId ||
+            game.round.startedAtHostMicros != entry.roundStartedAt ||
+            game.round.status == RoundStatus.revealed ||
+            game.round.answerVerdicts[entry.playerId] != entry.afterValue ||
+            !game.round.answers.containsKey(entry.playerId)) {
+          return 'Die Runde wurde bereits aufgelöst oder die Bewertung verändert.';
+        }
+        final index = game.corrections.indexOf(entry);
+        final reversed = game.corrections.map((e) => e.reversesId).toSet();
+        if (game.corrections
+            .skip(index + 1)
+            .any(
+              (e) =>
+                  e.kind == CorrectionKind.answer &&
+                  e.reversesId == null &&
+                  !reversed.contains(e.id) &&
+                  e.playerId == entry.playerId &&
+                  e.questionId == entry.questionId &&
+                  e.roundStartedAt == entry.roundStartedAt,
+            )) {
+          return 'Zuerst die spätere Bewertung zurücknehmen.';
+        }
+        return null;
+      case CorrectionKind.buzzer:
+        if (game.round != entry.afterRound ||
+            game.jeopardy != entry.afterJeopardy ||
+            game.poker?.copyWith(chips: entry.afterPoker?.chips) !=
+                entry.afterPoker ||
+            game.isFinished != entry.afterFinished) {
+          return 'Weitere Spielaktionen hängen von dieser Bewertung ab.';
+        }
+        return null;
+    }
+  }
+
+  void _onUndoCorrection(
+    UndoCorrectionEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final entry = game.corrections
+        .where((e) => e.id == event.correctionId)
+        .firstOrNull;
+    final error = entry == null
+        ? 'Unbekannte Korrektur.'
+        : correctionUndoError(entry);
+    if (error != null) {
+      emit(state.copyWith(notice: error));
+      return;
+    }
+    final original = entry!;
+    final inverse = ManualCorrection(
+      id: 'undo-${original.id}',
+      kind: original.kind,
+      questionId: original.questionId,
+      roundStartedAt: original.roundStartedAt,
+      playerId: original.playerId,
+      teamId: original.teamId,
+      participantName: original.participantName,
+      beforeValue: switch (original.kind) {
+        CorrectionKind.points => game.scores.scoreOf(original.playerId),
+        CorrectionKind.chips => game.poker!.chips[original.teamId]!,
+        _ => original.afterValue,
+      },
+      afterValue: switch (original.kind) {
+        CorrectionKind.points =>
+          game.scores.scoreOf(original.playerId) -
+              original.scoreDeltas[original.playerId]!,
+        CorrectionKind.chips =>
+          game.poker!.chips[original.teamId]! -
+              original.chipDeltas[original.teamId]!,
+        _ => original.beforeValue,
+      },
+      atHostMicros: _now(),
+      reason: event.reason,
+      reversesId: original.id,
+      scoreDeltas: original.scoreDeltas.map(
+        (id, delta) => MapEntry(id, -delta),
+      ),
+      chipDeltas: original.chipDeltas.map((id, delta) => MapEntry(id, -delta)),
+    );
+    var updated = _applyCorrectionDeltas(game, inverse);
+    if (original.kind == CorrectionKind.answer) {
+      final verdicts = {...game.round.answerVerdicts}
+        ..remove(original.playerId);
+      if (original.beforeValue != null) {
+        verdicts[original.playerId] = original.beforeValue!;
+      }
+      updated = updated.copyWith(
+        round: game.round.copyWith(answerVerdicts: verdicts),
+      );
+    } else if (original.kind == CorrectionKind.buzzer) {
+      _graceTimer?.cancel();
+      final completed = {...game.completedQuestionIds};
+      if (!original.wasCompleted) completed.remove(original.questionId);
+      updated = updated.copyWith(
+        round: original.beforeRound!,
+        jeopardy: original.beforeJeopardy,
+        isFinished: original.beforeFinished,
+        completedQuestionIds: completed,
+        roundHistory: game.roundHistory
+            .where(
+              (r) =>
+                  r.question?.id != original.questionId ||
+                  r.startedAtHostMicros != original.roundStartedAt,
+            )
+            .toList(),
+        poker: original.beforePoker?.copyWith(chips: updated.poker?.chips),
+      );
+    }
+    emit(
+      _publish(
+        updated.copyWith(corrections: [...game.corrections, inverse]),
+        notice: 'Korrektur als Gegenkorrektur zurückgenommen.',
+      ),
+    );
+  }
+
+  GameState _applyCorrectionDeltas(GameState game, ManualCorrection entry) {
+    var scores = game.scores;
+    for (final delta in entry.scoreDeltas.entries) {
+      scores = scores.apply(
+        playerId: delta.key,
+        questionId: entry.questionId,
+        delta: ScoreDelta(delta.value, reason: 'Manual correction'),
+        atHostMicros: entry.atHostMicros,
+      );
+    }
+    final poker = game.poker;
+    return game.copyWith(
+      scores: scores,
+      poker: poker?.copyWith(
+        chips: {
+          ...poker.chips,
+          for (final delta in entry.chipDeltas.entries)
+            delta.key: poker.chips[delta.key]! + delta.value,
+        },
+      ),
+    );
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -977,6 +1265,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   }
 
   void _onJudgeBuzzer(JudgeBuzzerEvent event, Emitter<QuizEngineState> emit) {
+    final before = state.game;
     var game = state.game;
     var round = game.round;
     final question = round.question;
@@ -984,10 +1273,30 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     if (question is! BuzzerQuestion ||
         round.status != RoundStatus.locked ||
-        activeId == null) {
+        activeId == null ||
+        (event.playerId != null && event.playerId != activeId) ||
+        (event.questionId != null && event.questionId != question.id) ||
+        (event.startedAtHostMicros != null &&
+            event.startedAtHostMicros != round.startedAtHostMicros) ||
+        (event.resolvedAttempts != null &&
+            event.resolvedAttempts != round.resolvedAttempts)) {
       emit(state.copyWith(notice: 'Nothing to judge right now.'));
       return;
     }
+
+    QuizEngineState publishJudgment(GameState updated, {String? notice}) =>
+        _publish(
+          _recordJudgment(
+            before,
+            updated,
+            activeId,
+            CorrectionKind.buzzer,
+            before.round.buzzerVerdicts[activeId],
+            event.wasCorrect ? 1 : 0,
+            event.reason,
+          ),
+          notice: notice,
+        );
 
     round = round.copyWith(
       buzzerVerdicts: {
@@ -1026,7 +1335,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       );
       final done = _pokerEveryoneSettled(updated);
       emit(
-        _publish(
+        publishJudgment(
           done && !question.hostEndsRound && !round.hasSoftTimer
               ? _reveal(
                   updated.copyWith(
@@ -1069,7 +1378,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     if (event.wasCorrect) {
       emit(
-        _publish(
+        publishJudgment(
           question.hostEndsRound || round.hasSoftTimer
               ? game.copyWith(
                   scores: scores,
@@ -1105,7 +1414,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         if (_canOpenSteal(missed)) {
           final steal = _openStealRound(missed);
           emit(
-            _publish(
+            publishJudgment(
               continueAutomatically
                   ? steal
                   : steal.copyWith(
@@ -1116,7 +1425,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           );
         } else {
           emit(
-            _publish(
+            publishJudgment(
               continueAutomatically && !round.hasSoftTimer
                   ? _reveal(missed)
                   : missed,
@@ -1150,7 +1459,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
 
     emit(
-      _publish(
+      publishJudgment(
         game.copyWith(scores: scores, round: next),
         notice: continueAutomatically
             ? '$playerName missed ($delta). Buzzer is open again.'

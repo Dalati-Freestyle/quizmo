@@ -152,6 +152,8 @@ void main() {
       quizDocument: quizDocument,
     );
     expect(saved.game.round.answers['p'], isA<TrueFalseAnswer>());
+    expect(saved.game.corrections, isEmpty);
+    expect(jsonDecode(saved.encode())['schemaVersion'], 2);
     expect(
       saved.quiz.questions.single.media.single.asset!.bytes,
       saved.quiz.questions.single.solutionMedia.single.asset!.bytes,
@@ -396,7 +398,7 @@ void main() {
       () => SessionCheckpoint.decode('bad JSON', quizDocument: quizJson),
       throwsA(isA<RecoveryException>()),
     );
-    for (final version in [null, 1.5, 0, 2]) {
+    for (final version in [null, 1.5, 0, SessionCheckpoint.schemaVersion + 1]) {
       final envelope = jsonDecode(encoded) as Map<String, dynamic>;
       envelope['schemaVersion'] = version;
       expect(

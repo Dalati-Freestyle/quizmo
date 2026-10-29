@@ -31,7 +31,7 @@ final class SessionCheckpoint {
     this.previousJoinUri,
   });
 
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
   final String sessionId;
   final Quiz quiz;
   final GameState game;
@@ -53,6 +53,18 @@ final class SessionCheckpoint {
         ...game.toJson()..remove('questionBank'),
         'round': roundReference(game.round),
         'roundHistory': game.roundHistory.map(roundReference).toList(),
+        'corrections': [
+          for (final entry in game.corrections)
+            {
+              ...entry.toJson(),
+              'beforeRound': entry.beforeRound == null
+                  ? null
+                  : roundReference(entry.beforeRound!),
+              'afterRound': entry.afterRound == null
+                  ? null
+                  : roundReference(entry.afterRound!),
+            },
+        ],
       },
       'savedAtMicros': savedAtMicros,
       'resumeTokenHashes': resumeTokenHashes,
@@ -87,6 +99,7 @@ final class SessionCheckpoint {
       }
       return switch (version.toInt()) {
         1 => _decodeV1(decoded, quizDocument),
+        2 => _decodeSnapshot(decoded, quizDocument),
         _ => throw const RecoveryException(
           'Unsupported recovery schemaVersion.',
         ),
@@ -108,7 +121,14 @@ final class SessionCheckpoint {
     }
   }
 
-  static SessionCheckpoint _decodeV1(JsonMap envelope, String quizDocument) {
+  static SessionCheckpoint _decodeV1(JsonMap envelope, String quizDocument) =>
+      _decodeSnapshot(envelope, quizDocument, legacy: true);
+
+  static SessionCheckpoint _decodeSnapshot(
+    JsonMap envelope,
+    String quizDocument, {
+    bool legacy = false,
+  }) {
     if (envelope.length != 3) {
       throw const RecoveryException('Incomplete or unknown recovery fields.');
     }
@@ -149,6 +169,12 @@ final class SessionCheckpoint {
     }
 
     final storedGame = decoded.readObject('game');
+    if (legacy) {
+      if (storedGame.containsKey('corrections')) {
+        throw const RecoveryException('Unknown legacy recovery fields.');
+      }
+      storedGame['corrections'] = <Object?>[];
+    }
     if (storedGame.containsKey('questionBank')) {
       throw const RecoveryException(
         'Invalid recovery question bank reference.',
@@ -159,6 +185,20 @@ final class SessionCheckpoint {
       'questionBank': quiz.questions.map((q) => q.toJson()).toList(),
       'round': expandRound(storedGame.readObject('round')),
       'roundHistory': storedGame.readList('roundHistory', expandRound),
+      'corrections': storedGame.readList(
+        'corrections',
+        (entry) => {
+          ...entry,
+          'beforeRound': switch (entry.readObjectOrNull('beforeRound')) {
+            final round? => expandRound(round),
+            null => null,
+          },
+          'afterRound': switch (entry.readObjectOrNull('afterRound')) {
+            final round? => expandRound(round),
+            null => null,
+          },
+        },
+      ),
     };
     final game = GameState.fromJson(rawGame);
     _requireComplete(rawGame, game.toJson());
@@ -310,6 +350,107 @@ final class SessionCheckpoint {
           ),
       'score totals do not match score history.',
     );
+    final corrections = <String, ManualCorrection>{};
+    final reversed = <String>{};
+    for (final entry in game.corrections) {
+      require(
+        entry.id.isNotEmpty &&
+            !corrections.containsKey(entry.id) &&
+            questions.containsKey(entry.questionId) &&
+            entry.roundStartedAt > 0 &&
+            entry.playerId.isNotEmpty &&
+            entry.atHostMicros > 0 &&
+            entry.atHostMicros <= game.hostTimeMicros &&
+            entry.participantName.isNotEmpty,
+        'correction identity or timestamp.',
+      );
+      final before = entry.beforeValue;
+      final after = entry.afterValue;
+      final isReversal = entry.reversesId != null;
+      final monetary =
+          entry.kind == CorrectionKind.points ||
+          entry.kind == CorrectionKind.chips;
+      require(switch (entry.kind) {
+        CorrectionKind.points =>
+          before != null &&
+              after != null &&
+              entry.scoreDeltas.length == 1 &&
+              entry.scoreDeltas[entry.playerId] == after - before &&
+              after != before &&
+              entry.chipDeltas.isEmpty,
+        CorrectionKind.chips =>
+          before != null &&
+              after != null &&
+              before >= 0 &&
+              after >= 0 &&
+              entry.teamId != null &&
+              entry.chipDeltas.length == 1 &&
+              entry.chipDeltas[entry.teamId] == after - before &&
+              after != before &&
+              entry.scoreDeltas.isEmpty,
+        CorrectionKind.answer =>
+          (before == null || before == 0 || before == 1) &&
+              (after == 0 || after == 1 || (isReversal && after == null)) &&
+              before != after &&
+              entry.scoreDeltas.isEmpty &&
+              entry.chipDeltas.isEmpty,
+        CorrectionKind.buzzer =>
+          (before == null || before == 0 || before == 1) &&
+              (after == 0 || after == 1 || (isReversal && after == null)) &&
+              (isReversal ||
+                  (entry.beforeRound?.activePlayerId == entry.playerId &&
+                      entry.beforeRound?.status == RoundStatus.locked &&
+                      entry.afterRound?.buzzerVerdicts[entry.playerId] ==
+                          after)),
+      }, 'correction values or effects.');
+      require(
+        entry.scoreDeltas.keys.every((id) => id.isNotEmpty) &&
+            entry.chipDeltas.keys.every((id) => id.isNotEmpty) &&
+            ((entry.kind == CorrectionKind.buzzer && !isReversal)
+                ? entry.beforeRound != null && entry.afterRound != null
+                : entry.beforeRound == null &&
+                      entry.afterRound == null &&
+                      entry.beforeJeopardy == null &&
+                      entry.afterJeopardy == null &&
+                      entry.beforePoker == null &&
+                      entry.afterPoker == null),
+        'correction context.',
+      );
+      final original = corrections[entry.reversesId];
+      require(
+        entry.reversesId == null ||
+            (original != null &&
+                original.reversesId == null &&
+                reversed.add(original.id) &&
+                entry.kind == original.kind &&
+                entry.playerId == original.playerId &&
+                entry.teamId == original.teamId &&
+                entry.questionId == original.questionId &&
+                entry.roundStartedAt == original.roundStartedAt &&
+                (monetary ||
+                    (before == original.afterValue &&
+                        after == original.beforeValue)) &&
+                entry.scoreDeltas.length == original.scoreDeltas.length &&
+                entry.chipDeltas.length == original.chipDeltas.length &&
+                entry.scoreDeltas.entries.every(
+                  (e) => e.value == -(original.scoreDeltas[e.key] ?? 0),
+                ) &&
+                entry.chipDeltas.entries.every(
+                  (e) => e.value == -(original.chipDeltas[e.key] ?? 0),
+                )),
+        'invalid counter-correction.',
+      );
+      require(
+        (entry.beforeRound == null ||
+                (entry.beforeRound!.question == questions[entry.questionId] &&
+                    entry.beforeRound!.startedAtHostMicros ==
+                        entry.roundStartedAt)) &&
+            (entry.afterRound == null ||
+                entry.afterRound!.question == questions[entry.questionId]),
+        'correction round.',
+      );
+      corrections[entry.id] = entry;
+    }
     switch (quiz.format) {
       case StandardFormat(:final revealMode):
         require(

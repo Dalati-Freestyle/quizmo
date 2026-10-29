@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 
 import 'jeopardy.dart';
 import 'json.dart';
+import 'manual_correction.dart';
 import 'player.dart';
 import 'poker.dart';
 import 'question.dart';
@@ -107,10 +108,14 @@ final class GameState extends Equatable {
     this.revealMode = SolutionRevealMode.afterEachQuestion,
     this.roundHistory = const [],
     this.recoveryPaused = false,
+    this.corrections = const [],
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    corrections: json['corrections'] == null
+        ? const []
+        : json.readList('corrections', ManualCorrection.fromJson),
     recoveryPaused: json.readBool('recoveryPaused'),
     allAnswersRevision: json['allAnswersRevision'] == null
         ? 0
@@ -238,6 +243,7 @@ final class GameState extends Equatable {
   /// Completed rounds retained for the final solution overview.
   final List<RoundState> roundHistory;
   final bool recoveryPaused;
+  final List<ManualCorrection> corrections;
 
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
@@ -251,17 +257,22 @@ final class GameState extends Equatable {
 
   Map<String, String> get questionWinners {
     final winners = <String, Set<String>>{};
+    final netPoints = <String, Map<String, int>>{};
     for (final entry in scores.history) {
-      if (entry.points <= 0 ||
-          !completedQuestionIds.contains(entry.questionId)) {
-        continue;
+      final totals = netPoints[entry.questionId] ??= {};
+      totals[entry.playerId] = (totals[entry.playerId] ?? 0) + entry.points;
+    }
+    for (final question in netPoints.entries) {
+      if (!completedQuestionIds.contains(question.key)) continue;
+      for (final entry in question.value.entries) {
+        if (entry.value <= 0) continue;
+        final player = players[entry.key];
+        final name =
+            (mode is TeamMode ? teams[player?.teamId]?.name : null) ??
+            player?.name ??
+            entry.key;
+        (winners[question.key] ??= {}).add(name);
       }
-      final player = players[entry.playerId];
-      final name =
-          (mode is TeamMode ? teams[player?.teamId]?.name : null) ??
-          player?.name ??
-          entry.playerId;
-      (winners[entry.questionId] ??= {}).add(name);
     }
     return winners.map((id, names) => MapEntry(id, names.join(", ")));
   }
@@ -312,6 +323,7 @@ final class GameState extends Equatable {
     final question = round.question;
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
     return copyWith(
+      corrections: const [],
       questionBank: const [],
       totalQuestionCount: questionBank.isEmpty
           ? totalQuestionCount
@@ -371,6 +383,7 @@ final class GameState extends Equatable {
     SolutionRevealMode? revealMode,
     List<RoundState>? roundHistory,
     bool? recoveryPaused,
+    List<ManualCorrection>? corrections,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -395,6 +408,7 @@ final class GameState extends Equatable {
     revealMode: revealMode ?? this.revealMode,
     roundHistory: roundHistory ?? this.roundHistory,
     recoveryPaused: recoveryPaused ?? this.recoveryPaused,
+    corrections: corrections ?? this.corrections,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -425,6 +439,7 @@ final class GameState extends Equatable {
     'revealMode': revealMode.name,
     'roundHistory': roundHistory.map((round) => round.toJson()).toList(),
     'recoveryPaused': recoveryPaused,
+    'corrections': corrections.map((entry) => entry.toJson()).toList(),
   };
 
   @override
@@ -450,5 +465,6 @@ final class GameState extends Equatable {
     revealMode,
     roundHistory,
     recoveryPaused,
+    corrections,
   ];
 }

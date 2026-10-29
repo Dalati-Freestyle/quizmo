@@ -966,6 +966,7 @@ class LiveRoundPanel extends StatelessWidget {
     this.onReopenBuzzerForAll,
     this.onEndRound,
     this.onJudgeAnswer,
+    this.onJudgeBuzzer,
     super.key,
   });
 
@@ -990,6 +991,7 @@ class LiveRoundPanel extends StatelessWidget {
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
   final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
+  final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
 
   @override
   Widget build(BuildContext context) {
@@ -1112,6 +1114,7 @@ class LiveRoundPanel extends StatelessWidget {
                 _RoundActions(
                   state: state,
                   onJudge: onJudge,
+                  onJudgeBuzzer: onJudgeBuzzer,
                   onReveal: onReveal,
                   onLock: onLock,
                   onNext: onNext,
@@ -1190,7 +1193,7 @@ class _JeopardyRoundBanner extends StatelessWidget {
   }
 }
 
-class _RoundActions extends StatelessWidget {
+class _RoundActions extends StatefulWidget {
   const _RoundActions({
     required this.state,
     required this.onJudge,
@@ -1201,6 +1204,7 @@ class _RoundActions extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
+    this.onJudgeBuzzer,
   });
 
   final QuizEngineState state;
@@ -1212,11 +1216,63 @@ class _RoundActions extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
+  final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
+
+  @override
+  State<_RoundActions> createState() => _RoundActionsState();
+}
+
+class _RoundActionsState extends State<_RoundActions> {
+  final _reason = TextEditingController();
+
+  @override
+  void didUpdateWidget(_RoundActions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.game.round.activePlayerId !=
+            widget.state.game.round.activePlayerId ||
+        oldWidget.state.game.round.startedAtHostMicros !=
+            widget.state.game.round.startedAtHostMicros) {
+      _reason.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final onReveal = widget.onReveal;
+    final onLock = widget.onLock;
+    final onNext = widget.onNext;
+    final onCloseRound = widget.onCloseRound;
+    final onReopenBuzzer = widget.onReopenBuzzer;
+    final onReopenBuzzerForAll = widget.onReopenBuzzerForAll;
+    final onEndRound = widget.onEndRound;
     final game = state.game;
     final round = game.round;
+    void judge(bool correct) {
+      final onJudgeBuzzer = widget.onJudgeBuzzer;
+      if (onJudgeBuzzer == null) {
+        widget.onJudge(correct);
+      } else {
+        onJudgeBuzzer(
+          JudgeBuzzerEvent(
+            wasCorrect: correct,
+            reason: _reason.text.trim(),
+            playerId: round.activePlayerId,
+            questionId: round.question?.id,
+            startedAtHostMicros: round.startedAtHostMicros,
+            resolvedAttempts: round.resolvedAttempts,
+          ),
+        );
+      }
+      _reason.clear();
+    }
+
     if (game.poker?.betting ?? false) {
       return Text(
         context.tr("Einsatzphase: Einsätze im Pokerchips-Panel schließen."),
@@ -1268,6 +1324,18 @@ class _RoundActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (round.status == RoundStatus.locked &&
+            round.activePlayerId != null &&
+            widget.onJudgeBuzzer != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              controller: _reason,
+              decoration: InputDecoration(
+                labelText: context.tr('Grund (optional)'),
+              ),
+            ),
+          ),
         if (round.status == RoundStatus.locked && round.activePlayerId == null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -1366,7 +1434,7 @@ class _RoundActions extends StatelessWidget {
                 ),
               if (round.activePlayerId != null)
                 FilledButton.icon(
-                  onPressed: () => onJudge(true),
+                  onPressed: () => judge(true),
                   icon: const Icon(Icons.check),
                   label: Text(
                     context.tr("{0} is right", [
@@ -1376,7 +1444,7 @@ class _RoundActions extends StatelessWidget {
                 ),
               if (round.activePlayerId != null)
                 OutlinedButton.icon(
-                  onPressed: () => onJudge(false),
+                  onPressed: () => judge(false),
                   icon: const Icon(Icons.close),
                   label: Text(context.tr("Wrong")),
                 ),

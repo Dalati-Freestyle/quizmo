@@ -8,6 +8,7 @@ export 'answer.dart';
 export 'game_state.dart';
 export 'jeopardy.dart';
 export 'json.dart';
+export 'manual_correction.dart';
 export 'player.dart';
 export 'poker.dart';
 export 'question.dart';

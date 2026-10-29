@@ -68,6 +68,8 @@ const englishMessages = <String, String>{
   "Auflösung": "Solution reveal",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
       "Eliminated · You can keep answering, but cannot earn points or chips.",
+  "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.":
+      "Awarded chips have already been spent. Undo is blocked.",
   "Auswahl löschen": "Clear selection",
   "Automatic / solo": "Automatic / solo",
   "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.",
@@ -120,6 +122,7 @@ const englishMessages = <String, String>{
   "Buzzer für alle freigegeben.": "Buzzer reopened for everyone.",
   "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.":
       "Buzzer closed. The quizmaster opens the next attempt or ends the round.",
+  "Buzzer-Bewertung": "Buzzer judgment",
   "Buzzers are armed!": "Buzzers are ready!",
   "CONNECTING": "CONNECTING",
   "Cancel": "Cancel",
@@ -135,6 +138,8 @@ const englishMessages = <String, String>{
   "Category {0}": "Category {0}",
   "Category {0} needs a name.": "Category {0} needs a name.",
   "Chips": "chips",
+  "Chips korrigieren": "Adjust chips",
+  "Chipänderung: {0}": "Chip adjustment: {0}",
   "Choose an available team or create a new one.":
       "Choose an available team or create a new one.",
   "Choose an option as the correct answer.":
@@ -224,8 +229,20 @@ const englishMessages = <String, String>{
   "Die Einsatzphase läuft noch.": "Betting is still open.",
   "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Recommendations are not binding. Judge every submitted answer. You can change your decision until reveal.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "The question remains open until ended manually, even after a correct answer.",
+  "Die Korrektur würde negative Chips erzeugen.":
+      "The correction would result in negative chips.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "The quizzes remain saved in the browser. You can export backups from the library now.",
+  "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.":
+      "The round has already been settled or the judgment has changed.",
+  "Die betroffenen Teilnehmer oder Teams wurden verändert.":
+      "The affected participants or teams have changed.",
+  "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.": "The adjustment for {0} will be recorded as a new counter-correction. Later changes are preserved.",
   "Diese Antwort kann nicht bewertet werden.": "This answer cannot be graded.",
+  "Diese Korrektur ist nicht zulässig.": "This correction is not allowed.",
+  "Diese Korrektur wurde bereits angewendet.":
+      "This correction has already been applied.",
+  "Diese Korrektur wurde bereits zurückgenommen.":
+      "This correction has already been undone.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
   "Discard": "Discard",
@@ -240,6 +257,7 @@ const englishMessages = <String, String>{
   "Edit {0} question": "Edit {0} question",
   "Ein Druck loggt deine Antwort verbindlich ein.":
       "One press locks in your answer.",
+  "Eine ganze Zahl ungleich 0 eingeben.": "Enter a non-zero integer.",
   "Eingaben prüfen: {0}": "Check your input: {0}",
   "Einheit (optional)": "Unit (optional)",
   "Einsatz (0–{0})": "Stake (0–{0})",
@@ -320,9 +338,13 @@ const englishMessages = <String, String>{
   "Game mode": "Game mode",
   "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Game paused for recovery. Reconnect participants before continuing. Media stays paused.",
   "Game reset.": "Game reset.",
+  "Gegenkorrektur zu {0}": "Counter-correction for {0}",
+  "Gegenkorrekturen können nicht zurückgenommen werden.":
+      "Counter-corrections cannot be undone.",
   "General knowledge": "General knowledge",
   "Get ready to play!": "Get ready to play!",
   "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
+  "Grund (optional)": "Reason (optional)",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hard: Audio stops at the limit. Soft: The time is advisory; the host stops playback.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hard: Answers close when time runs out. Soft: The timer is advisory; only the host ends the round.",
   "Hinzufügen": "Add",
@@ -387,6 +409,11 @@ const englishMessages = <String, String>{
       "No chips left. Your team sits out.",
   "Keine Punkte": "No points",
   "Korrekte Zahl": "Correct number",
+  "Korrektur als Gegenkorrektur zurückgenommen.":
+      "Correction undone with a counter-correction.",
+  "Korrektur anwenden": "Apply correction",
+  "Korrektur zurücknehmen?": "Undo correction?",
+  "Korrekturverlauf": "Correction history",
   "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.",
   "LAN games": "LAN games",
   "LAN host published as \"{0}\".": "LAN host published as \"{0}\".",
@@ -484,11 +511,13 @@ const englishMessages = <String, String>{
       "No teams: this quiz will start in solo mode.",
   "Nobody scored. The other teams may steal.":
       "Nobody scored. The other teams may steal.",
+  "Noch keine manuellen Korrekturen.": "No manual corrections yet.",
   "Noch {0} Antworten zu bewerten": "{0} answers still need grading",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
   "Nur durch Spielleiter beenden": "Only the quizmaster ends the question",
+  "Nur für den Host · {0} Einträge": "Host only · {0} entries",
   "Nächste Lösung": "Next solution",
   "OK": "OK",
   "OPEN": "OPEN",
@@ -543,11 +572,13 @@ const englishMessages = <String, String>{
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Points = maximum points × max(0, 1 − relative deviation).",
   "Punkte aus der Zeile": "Points come from the row",
+  "Punkte korrigieren": "Adjust points",
   "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.":
       "Points and chips are awarded only after your assessment and reveal.",
   "Punkten": "points",
   "Punktestand bis zum Quizende verborgen.":
       "Scores are hidden until the end of the quiz.",
+  "Punkteänderung: {0}": "Points adjustment: {0}",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
   "Question": "Question",
@@ -650,6 +681,8 @@ const englishMessages = <String, String>{
   "Rule": "Rule",
   "Runde beenden": "End round",
   "Runde beendet.": "Round ended.",
+  "Rücknahme": "Undo",
+  "Rücknahme bestätigen": "Confirm undo",
   "SOLUTION": "SOLUTION",
   "STEAL: everyone but {0}": "STEAL: everyone except {0}",
   "Save": "Save",
@@ -806,7 +839,9 @@ const englishMessages = <String, String>{
   "True / false": "True / False",
   "Type": "Type",
   "Uhr synchronisieren und beitreten …": "Syncing clock and joining…",
+  "Unbekannte Korrektur.": "Unknown correction.",
   "Unbekannter Medientyp \"{0}\".": "Unknown media type \"{0}\".",
+  "Unbewertet": "Ungraded",
   "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.",
   "Ungültiger Kartenausschnitt.": "Invalid map viewport.",
   "Ungültiges Medien-Asset.": "Invalid media asset.",
@@ -859,6 +894,8 @@ const englishMessages = <String, String>{
   "Weiches Abspiellimit": "Soft playback limit",
   "Weiches Zeitlimit": "Soft time limit",
   "Weiter zur Teamauswahl": "Continue to team selection",
+  "Weitere Spielaktionen hängen von dieser Bewertung ab.":
+      "Later game actions depend on this judgment.",
   "Wiederholungen dürfen nicht negativ sein.": "Retries must not be negative.",
   "Wrong": "Wrong",
   "Wrong answers cost points": "Wrong answers cost points",
@@ -879,6 +916,10 @@ const englishMessages = <String, String>{
       "Time is up. Answers are closed.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Allow zoom",
+  "Zuerst die Wiederherstellung fortsetzen.":
+      "Resume the recovered game first.",
+  "Zuerst die spätere Bewertung zurücknehmen.":
+      "Undo the later judgment first.",
   "Zugreihenfolge": "Turn order",
   "Zugreihenfolge festlegen": "Set turn order",
   "Zuordnen": "Match",
@@ -958,6 +999,7 @@ const englishMessages = <String, String>{
   "{0}% accuracy": "{0}% accuracy",
   "{0}, place your wager!": "{0}, place your wager!",
   "{0}: {1} Chips · Einsatz: {2}": "{0}: {1} chips · Stake: {2}",
+  "Änderung (+/-)": "Adjustment (+/-)",
   "Übernehmen": "Apply",
 };
 const germanMessages = <String, String>{
@@ -1030,6 +1072,8 @@ const germanMessages = <String, String>{
   "Audioformat erwartet.": "Audioformat erwartet.",
   "Auflösung": "Auflösung",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
+  "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.":
+      "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.",
   "Auswahl löschen": "Auswahl löschen",
   "Automatic / solo": "Automatisch / Solo",
   "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Die automatische LAN-Suche ist auf dieser Plattform nicht verfügbar. Verwende einen QR-Code, Link oder eine Host-Adresse.",
@@ -1081,6 +1125,7 @@ const germanMessages = <String, String>{
   "Buzzer für alle freigegeben": "Buzzer für alle freigegeben",
   "Buzzer für alle freigegeben.": "Buzzer für alle freigegeben.",
   "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.": "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.",
+  "Buzzer-Bewertung": "Buzzer-Bewertung",
   "Buzzers are armed!": "Buzzer sind bereit!",
   "CONNECTING": "VERBINDE",
   "Cancel": "Abbrechen",
@@ -1095,6 +1140,8 @@ const germanMessages = <String, String>{
   "Category {0}": "Kategorie {0}",
   "Category {0} needs a name.": "Kategorie {0} benötigt einen Namen.",
   "Chips": "Chips",
+  "Chips korrigieren": "Chips korrigieren",
+  "Chipänderung: {0}": "Chipänderung: {0}",
   "Choose an available team or create a new one.":
       "Wähle ein verfügbares Team oder erstelle ein neues.",
   "Choose an option as the correct answer.":
@@ -1186,9 +1233,21 @@ const germanMessages = <String, String>{
   "Die Einsatzphase läuft noch.": "Die Einsatzphase läuft noch.",
   "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.",
+  "Die Korrektur würde negative Chips erzeugen.":
+      "Die Korrektur würde negative Chips erzeugen.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.",
+  "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.":
+      "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.",
+  "Die betroffenen Teilnehmer oder Teams wurden verändert.":
+      "Die betroffenen Teilnehmer oder Teams wurden verändert.",
+  "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.": "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.",
   "Diese Antwort kann nicht bewertet werden.":
       "Diese Antwort kann nicht bewertet werden.",
+  "Diese Korrektur ist nicht zulässig.": "Diese Korrektur ist nicht zulässig.",
+  "Diese Korrektur wurde bereits angewendet.":
+      "Diese Korrektur wurde bereits angewendet.",
+  "Diese Korrektur wurde bereits zurückgenommen.":
+      "Diese Korrektur wurde bereits zurückgenommen.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
   "Discard": "Verwerfen",
@@ -1203,6 +1262,8 @@ const germanMessages = <String, String>{
   "Edit {0} question": "{0}-Frage bearbeiten",
   "Ein Druck loggt deine Antwort verbindlich ein.":
       "Ein Druck loggt deine Antwort verbindlich ein.",
+  "Eine ganze Zahl ungleich 0 eingeben.":
+      "Eine ganze Zahl ungleich 0 eingeben.",
   "Eingaben prüfen: {0}": "Eingaben prüfen: {0}",
   "Einheit (optional)": "Einheit (optional)",
   "Einsatz (0–{0})": "Einsatz (0–{0})",
@@ -1288,9 +1349,13 @@ const germanMessages = <String, String>{
   "Game mode": "Spielmodus",
   "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Spiel zur Wiederherstellung pausiert. Teilnehmer vor dem Fortsetzen erneut verbinden. Medien bleiben pausiert.",
   "Game reset.": "Spiel zurückgesetzt.",
+  "Gegenkorrektur zu {0}": "Gegenkorrektur zu {0}",
+  "Gegenkorrekturen können nicht zurückgenommen werden.":
+      "Gegenkorrekturen können nicht zurückgenommen werden.",
   "General knowledge": "Allgemeinwissen",
   "Get ready to play!": "Mach dich bereit!",
   "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
+  "Grund (optional)": "Grund (optional)",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
   "Hinzufügen": "Hinzufügen",
@@ -1359,6 +1424,11 @@ const germanMessages = <String, String>{
       "Keine Chips mehr. Dein Team setzt aus.",
   "Keine Punkte": "Keine Punkte",
   "Korrekte Zahl": "Korrekte Zahl",
+  "Korrektur als Gegenkorrektur zurückgenommen.":
+      "Korrektur als Gegenkorrektur zurückgenommen.",
+  "Korrektur anwenden": "Korrektur anwenden",
+  "Korrektur zurücknehmen?": "Korrektur zurücknehmen?",
+  "Korrekturverlauf": "Korrekturverlauf",
   "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "Die LAN-Suche ist fehlgeschlagen. Prüfe WLAN, lokale Netzwerkberechtigungen und Firewall und aktualisiere die Suche. Der manuelle Beitritt bleibt verfügbar.",
   "LAN games": "LAN-Spiele",
   "LAN host published as \"{0}\".": "LAN-Host als „{0}“ veröffentlicht.",
@@ -1456,11 +1526,13 @@ const germanMessages = <String, String>{
       "Ohne Teams startet dieses Quiz im Einzelmodus.",
   "Nobody scored. The other teams may steal.":
       "Niemand hat gepunktet. Die anderen Teams dürfen abstauben.",
+  "Noch keine manuellen Korrekturen.": "Noch keine manuellen Korrekturen.",
   "Noch {0} Antworten zu bewerten": "Noch {0} Antworten zu bewerten",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
   "Nur durch Spielleiter beenden": "Nur durch Spielleiter beenden",
+  "Nur für den Host · {0} Einträge": "Nur für den Host · {0} Einträge",
   "Nächste Lösung": "Nächste Lösung",
   "OK": "OK",
   "OPEN": "OFFEN",
@@ -1515,10 +1587,12 @@ const germanMessages = <String, String>{
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
   "Punkte aus der Zeile": "Punkte aus der Zeile",
+  "Punkte korrigieren": "Punkte korrigieren",
   "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.": "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.",
   "Punkten": "Punkten",
   "Punktestand bis zum Quizende verborgen.":
       "Punktestand bis zum Quizende verborgen.",
+  "Punkteänderung: {0}": "Punkteänderung: {0}",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",
   "Question": "Frage",
@@ -1619,6 +1693,8 @@ const germanMessages = <String, String>{
   "Rule": "Regel",
   "Runde beenden": "Runde beenden",
   "Runde beendet.": "Runde beendet.",
+  "Rücknahme": "Rücknahme",
+  "Rücknahme bestätigen": "Rücknahme bestätigen",
   "SOLUTION": "LÖSUNG",
   "STEAL: everyone but {0}": "ABSTAUBEN: Alle außer {0}",
   "Save": "Speichern",
@@ -1774,7 +1850,9 @@ const germanMessages = <String, String>{
   "True / false": "Wahr / Falsch",
   "Type": "Format",
   "Uhr synchronisieren und beitreten …": "Uhr synchronisieren und beitreten …",
+  "Unbekannte Korrektur.": "Unbekannte Korrektur.",
   "Unbekannter Medientyp \"{0}\".": "Unbekannter Medientyp „{0}“.",
+  "Unbewertet": "Unbewertet",
   "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unbearbeitete Beispiele werden entfernt und neu erstellt. Bearbeitete Beispiele und eigene Quizzes bleiben unverändert.",
   "Ungültiger Kartenausschnitt.": "Ungültiger Kartenausschnitt.",
   "Ungültiges Medien-Asset.": "Ungültiges Medien-Asset.",
@@ -1829,6 +1907,8 @@ const germanMessages = <String, String>{
   "Weiches Abspiellimit": "Weiches Abspiellimit",
   "Weiches Zeitlimit": "Weiches Zeitlimit",
   "Weiter zur Teamauswahl": "Weiter zur Teamauswahl",
+  "Weitere Spielaktionen hängen von dieser Bewertung ab.":
+      "Weitere Spielaktionen hängen von dieser Bewertung ab.",
   "Wiederholungen dürfen nicht negativ sein.":
       "Wiederholungen dürfen nicht negativ sein.",
   "Wrong": "Falsch",
@@ -1849,6 +1929,10 @@ const germanMessages = <String, String>{
       "Zeit abgelaufen. Antworten sind geschlossen.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Zoom erlauben",
+  "Zuerst die Wiederherstellung fortsetzen.":
+      "Zuerst die Wiederherstellung fortsetzen.",
+  "Zuerst die spätere Bewertung zurücknehmen.":
+      "Zuerst die spätere Bewertung zurücknehmen.",
   "Zugreihenfolge": "Zugreihenfolge",
   "Zugreihenfolge festlegen": "Zugreihenfolge festlegen",
   "Zuordnen": "Zuordnen",
@@ -1928,5 +2012,6 @@ const germanMessages = <String, String>{
   "{0}% accuracy": "{0}% Genauigkeit",
   "{0}, place your wager!": "{0}, lege deinen Einsatz fest!",
   "{0}: {1} Chips · Einsatz: {2}": "{0}: {1} Chips · Einsatz: {2}",
+  "Änderung (+/-)": "Änderung (+/-)",
   "Übernehmen": "Übernehmen",
 };

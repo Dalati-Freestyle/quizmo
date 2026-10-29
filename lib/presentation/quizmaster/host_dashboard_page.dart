@@ -24,6 +24,7 @@ import '../common/session_notifications.dart';
 import '../player/player_page.dart';
 import '../spectator/tv_page.dart';
 import 'dashboard_panels.dart';
+import 'correction_history_panel.dart';
 import 'host_server_cubit.dart';
 import 'recovery/recovery_store.dart';
 import 'recovery/rebind_recovery_panel.dart';
@@ -506,9 +507,17 @@ class _HostDashboardView extends StatelessWidget {
                       ),
                     LiveRoundPanel(
                       state: engineState,
-                      onJudge: (wasCorrect) =>
-                          engine.add(JudgeBuzzerEvent(wasCorrect: wasCorrect)),
+                      onJudge: (wasCorrect) => engine.add(
+                        JudgeBuzzerEvent(
+                          wasCorrect: wasCorrect,
+                          playerId: game.round.activePlayerId,
+                          questionId: game.round.question?.id,
+                          startedAtHostMicros: game.round.startedAtHostMicros,
+                          resolvedAttempts: game.round.resolvedAttempts,
+                        ),
+                      ),
                       onJudgeAnswer: engine.add,
+                      onJudgeBuzzer: engine.add,
                       onReveal: () => engine.add(const RevealRoundEvent()),
                       onLock: () => engine.add(const LockBuzzerEvent()),
                       onReopenBuzzer: () =>
@@ -641,6 +650,7 @@ class _HostDashboardView extends StatelessWidget {
                       icon: Icons.leaderboard_outlined,
                       child: ScoreboardView(game: game),
                     ),
+                    CorrectionHistoryPanel(game: game, engine: engine),
                     PlayersPanel(
                       game: game,
                       onSetOrder:
