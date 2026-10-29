@@ -382,9 +382,11 @@ the most recently committed live match state.
 Player refresh/reconnect and unattended TV reconnect retain their existing
 behavior while the host room is alive. Rooms expire after 12 hours or 60 seconds
 without a host heartbeat. Server restarts/deployments terminate active rooms.
-Schedule deployments between games. Uploaded media in a single outgoing
-snapshot must fit the relay's 64 MiB message limit; use smaller files or remote
-YouTube references for large videos. LAN mode remains independent of the relay.
+Schedule deployments between games. Snapshots carry media references, not embedded
+uploads. Released files are fetched through `/rooms/<room>/api/media/<sha256>`;
+the host checks admission and visibility for each request. One file remains limited
+to 20 MiB (about 27 MiB Base64 per relay envelope), below the unchanged 64 MiB
+relay message limit. LAN mode remains independent of the relay.
 
 ### Security and infrastructure recommendations
 
@@ -416,8 +418,14 @@ second limit. Upgrade quotas are 20 host attempts and 300 guest attempts/minute
 per direct peer, with bounded quota bookkeeping. Behind the included proxy,
 these quotas apply to its shared address; the app deliberately does not trust
 client-supplied forwarding headers. Tune capacity only after measuring memory,
-media sizes, concurrent users and outbound bandwidth. Large uploads are repeated
-in snapshots, so use small media for internet sessions.
+media sizes, concurrent users and outbound bandwidth. Each room allows at most
+16 pending media requests, with a 20-second relay timeout. Players and TVs cache
+verified media in a session-local, bounded in-memory LRU, so unchanged uploads are
+not retransmitted for each snapshot. Downloads start only when the question or
+solution is published, show progress, and offer retry after failure; future
+questions and unrevealed solutions are never prefetched. Image resizing is
+optional with a preview and explicit copy selection; originals remain the default.
+See [media management](docs/question-types-and-media.md) for limits and behavior.
 
 Recommended before exposing a public installation:
 

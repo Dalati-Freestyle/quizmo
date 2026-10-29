@@ -19,6 +19,8 @@ final class _Room {
   final created = DateTime.now();
   DateTime heartbeat = DateTime.now();
   int nextGuest = 0;
+  int nextMediaRequest = 0;
+  final mediaRequests = <String, Completer<Response>>{};
 }
 
 /// Same-origin room relay. The dedicated host socket is the room capability:
@@ -155,8 +157,17 @@ final class InternetServer {
           response = await webSocketHandler(
             (channel, _) => _guestConnected(id, room, channel),
           )(request);
+        } else if (request.url.pathSegments case [
+          'rooms',
+          final id,
+          'api',
+          'media',
+          final asset,
+        ]) {
+          response = await _media(request, id, asset);
         } else if (path.startsWith('api/') ||
             path.startsWith('relay/') ||
+            path.contains('/api/') ||
             path.endsWith('/ws')) {
           response = Response.notFound('Not found');
         } else {
@@ -236,6 +247,40 @@ final class InternetServer {
                 room.guests[guest]?.sink.add(data);
               case {'type': 'close', 'id': final String guest}:
                 room.guests[guest]?.sink.close(1000);
+              case {
+                'type': 'mediaResponse',
+                'request': final String request,
+                'status': final int status,
+                'headers': final Map<String, dynamic> headers,
+                'body': final String body,
+              }:
+                final pending = room.mediaRequests[request];
+                if (pending == null) break;
+                if (status < 200 ||
+                    status > 599 ||
+                    body.length > 28 * 1024 * 1024) {
+                  pending.complete(Response(502));
+                  room.mediaRequests.remove(request);
+                  break;
+                }
+                pending.complete(
+                  Response(
+                    status,
+                    body: base64Decode(body),
+                    headers: {
+                      for (final name in const [
+                        'content-type',
+                        'content-length',
+                        'content-range',
+                        'accept-ranges',
+                        'cache-control',
+                        'content-security-policy',
+                      ])
+                        if (headers[name] case final String value) name: value,
+                    },
+                  ),
+                );
+                room.mediaRequests.remove(request);
               default:
                 unawaited(_closeRoom(id));
             }
@@ -247,6 +292,42 @@ final class InternetServer {
         onError: (Object _) => unawaited(_closeRoom(id)),
       ),
     );
+  }
+
+  Future<Response> _media(Request request, String id, String asset) async {
+    if (request.method != 'GET' && request.method != 'HEAD') {
+      return Response(405);
+    }
+    final room = _rooms[id];
+    if (room == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(asset)) {
+      return Response.notFound('Unknown room or asset');
+    }
+    if (room.mediaRequests.length >= 16) {
+      return Response(429, headers: {'retry-after': '2'});
+    }
+    final key = '${room.nextMediaRequest++}';
+    final pending = Completer<Response>();
+    room.mediaRequests[key] = pending;
+    try {
+      _send(room.host, {
+        'type': 'mediaRequest',
+        'request': key,
+        'asset': asset,
+        'method': request.method,
+        'access':
+            request.headers['authorization']?.startsWith('Bearer ') == true
+            ? request.headers['authorization']!.substring(7)
+            : request.url.queryParameters['access'],
+        'range': request.headers['range'],
+      });
+      return await pending.future.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () =>
+            Response(504, body: 'Media download timed out; retry.'),
+      );
+    } finally {
+      room.mediaRequests.remove(key);
+    }
   }
 
   void _guestConnected(String roomId, _Room room, WebSocketChannel channel) {
@@ -297,6 +378,10 @@ final class InternetServer {
   Future<void> _closeRoom(String id) async {
     final room = _rooms.remove(id);
     if (room == null) return;
+    for (final pending in room.mediaRequests.values) {
+      pending.complete(Response(410, body: 'Room closed'));
+    }
+    room.mediaRequests.clear();
     for (final subscription in room.subscriptions.toList()) {
       await subscription.cancel();
     }

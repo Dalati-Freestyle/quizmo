@@ -145,64 +145,70 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                 ),
             ],
           ),
-          body: SessionNotifications(
-            game: state.game,
-            playerId: state.playerId,
-            child: SafeArea(
-              child: Column(
-                children: [
-                  ConnectionStatusView(status: state.status),
-                  SubmissionStatusView(state: state),
-                  if (!state.isConnected && state.error != null)
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(context.tr(state.error!)),
-                    ),
-                  Expanded(
-                    child: state.playerId != null && state.game != null
-                        ? AbsorbPointer(
-                            absorbing: !state.isConnected,
-                            child: _GameBoard(state: state),
-                          )
-                        : state.waitingForApproval
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  context.tr(
-                                    'Waiting for host approval. You are not in the game yet.',
+          body: SessionMediaAccess(
+            baseUri: state.playerId == null
+                ? null
+                : context.read<PlayerSessionCubit>().mediaBaseUri,
+            child: SessionNotifications(
+              game: state.game,
+              playerId: state.playerId,
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    ConnectionStatusView(status: state.status),
+                    SubmissionStatusView(state: state),
+                    if (!state.isConnected && state.error != null)
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(context.tr(state.error!)),
+                      ),
+                    Expanded(
+                      child: state.playerId != null && state.game != null
+                          ? AbsorbPointer(
+                              absorbing: !state.isConnected,
+                              child: _GameBoard(state: state),
+                            )
+                          : state.waitingForApproval
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    context.tr(
+                                      'Waiting for host approval. You are not in the game yet.',
+                                    ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () => context
-                                      .read<PlayerSessionCubit>()
-                                      .disconnect(),
-                                  child: Text(context.tr('Cancel')),
-                                ),
-                              ],
+                                  TextButton(
+                                    onPressed: () => context
+                                        .read<PlayerSessionCubit>()
+                                        .disconnect(),
+                                    child: Text(context.tr('Cancel')),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : state.isChoosingTeam
+                          ? TeamJoinView(
+                              lobby: state.lobby!,
+                              busy: state.status == QuizClientStatus.connecting,
+                              error: state.error,
+                              onJoin: (id, code) => context
+                                  .read<PlayerSessionCubit>()
+                                  .joinTeam(teamId: id, joinCode: code),
+                              onCreate: (name, code) => context
+                                  .read<PlayerSessionCubit>()
+                                  .joinTeam(newTeamName: name, joinCode: code),
+                              onBack: () => context
+                                  .read<PlayerSessionCubit>()
+                                  .disconnect(),
+                            )
+                          : _JoinForm(
+                              state: state,
+                              initialHostUri: widget.initialHostUri,
                             ),
-                          )
-                        : state.isChoosingTeam
-                        ? TeamJoinView(
-                            lobby: state.lobby!,
-                            busy: state.status == QuizClientStatus.connecting,
-                            error: state.error,
-                            onJoin: (id, code) => context
-                                .read<PlayerSessionCubit>()
-                                .joinTeam(teamId: id, joinCode: code),
-                            onCreate: (name, code) => context
-                                .read<PlayerSessionCubit>()
-                                .joinTeam(newTeamName: name, joinCode: code),
-                            onBack: () =>
-                                context.read<PlayerSessionCubit>().disconnect(),
-                          )
-                        : _JoinForm(
-                            state: state,
-                            initialHostUri: widget.initialHostUri,
-                          ),
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

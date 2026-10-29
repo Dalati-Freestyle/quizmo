@@ -52,6 +52,7 @@ const englishMessages = <String, String>{
       "An option ID in question \"{0}\" must not be empty.",
   "Anhang entfernen": "Remove attachment",
   "Anhang hinzufügen": "Add attachment",
+  "Animated images are kept unchanged. Optimization would remove animation.": "Animated images are kept unchanged. Optimization would remove animation.",
   "Answer options": "Answer options",
   "Answer: {0}": "Answer: {0}",
   "Answers received": "Answers received",
@@ -314,6 +315,7 @@ const englishMessages = <String, String>{
   "Enter the join code supplied by the host.":
       "Enter the join code supplied by the host.",
   "Erlaubte Zeichenänderungen": "Allowed character edits",
+  "Erneut versuchen": "Retry",
   "Es gibt noch keine Teams.": "There are no teams yet.",
   "Estimation": "Estimation",
   "Example quizzes recreated.": "Example quizzes recreated.",
@@ -380,6 +382,8 @@ const englishMessages = <String, String>{
   "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.": "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.",
   "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Identity reassignment could not be saved. Ask the host to retry before continuing.",
   "If the LAN address times out, try:": "If the LAN address times out, try:",
+  "Image optimization failed.": "Image optimization failed.",
+  "Image preview unavailable.": "Image preview unavailable.",
   "Import": "Import",
   "Import Quizmo quiz (including media)":
       "Import Quizmo quiz (including media)",
@@ -427,6 +431,8 @@ const englishMessages = <String, String>{
   "Kartenausschnitt": "Map section",
   "Keep invitation links, join codes and resume tokens confidential.":
       "Keep invitation links, join codes and resume tokens confidential.",
+  "Keep original": "Keep original",
+  "Keep original or optimize image": "Keep original or optimize image",
   "Keine Antwort": "No answer",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "No captions or file names on player and TV screens. YouTube may show its own titles; upload MP4 for videos without titles.",
   "Keine Chips mehr. Dein Team setzt aus.":
@@ -487,6 +493,7 @@ const englishMessages = <String, String>{
   "Maximal zehn Medien pro Frage.":
       "At most ten media attachments per question.",
   "Maximum delay (ms)": "Maximum delay (ms)",
+  "Maximum edge length (pixels)": "Maximum edge length (pixels)",
   "Maximum speed bonus": "Maximum speed bonus",
   "Medien dürfen maximal 20 MiB groß sein.":
       "Media files must not exceed 20 MiB.",
@@ -496,6 +503,7 @@ const englishMessages = <String, String>{
   "Medien-Datei fehlt im Quiz.": "A media file is missing from the quiz.",
   "Medienanhang": "Media attachment",
   "Medienwiedergabe": "Media playback",
+  "Medium konnte nicht geladen werden.": "Media could not be loaded. Check the connection and room admission, then retry.",
   "Mehrere richtige Antworten": "Multiple correct answers",
   "Mindestens eine Textlösung angeben.": "Provide at least one text answer.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
@@ -566,11 +574,14 @@ const englishMessages = <String, String>{
   "Open player view": "Open player view",
   "Open question": "Open question",
   "Open quizmaster dashboard": "Open quizmaster dashboard",
+  "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB":
+      "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB",
   "Option \"{0}\" in question \"{1}\" needs a label.":
       "Option \"{0}\" in question \"{1}\" needs a label.",
   "Option {0}": "Option {0}",
   "Ordering": "Ordering",
   "Original participant": "Original participant",
+  "Original: {0} KiB": "Original: {0} KiB",
   "Other teams may steal": "Other teams may steal",
   "Own test team": "Own test team",
   "POKERCHIPS · ANTWORTEN": "POKER CHIPS · ANSWERS",
@@ -582,6 +593,7 @@ const englishMessages = <String, String>{
   "Pick the next question on the board.":
       "Pick the next question on the board.",
   "Picks next:": "Picks next:",
+  "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.": "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.",
   "Player": "Player",
   "Player is locked out for this round.":
       "Player is locked out for this round.",
@@ -595,7 +607,9 @@ const englishMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Poker chips · {0} chips available",
   "Port": "Port",
   "Positive Sekunden angeben.": "Enter positive seconds.",
+  "Preloading media...": "Preloading media...",
   "Preview": "Preview",
+  "Preview optimized PNG copy": "Preview optimized PNG copy",
   "Preview quiz": "Preview quiz",
   "Preview the TV screen": "Preview the TV screen",
   "Preview · {0}": "Preview · {0}",
@@ -850,6 +864,8 @@ const englishMessages = <String, String>{
       "The local quiz library is not a JSON object.",
   "The local quiz library is unavailable on this platform.":
       "The local quiz library is unavailable on this platform.",
+  "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.": "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.",
+  "The picker could not determine the file size. Choose a local file whose size is available.": "The picker could not determine the file size. Choose a local file whose size is available.",
   "The picking team": "The picking team",
   "The picking team answers first.": "The picking team answers first.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.",
@@ -874,10 +890,12 @@ const englishMessages = <String, String>{
       "The turn cannot change during a question.",
   "The wager must be between 1 and {0}.":
       "The wager must be between 1 and {0}.",
+  "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "This PNG copy is not smaller. Keep the original or try a smaller edge length.",
   "This connection has already joined.": "This connection has already joined.",
   "This device": "This device",
   "This game is open in another host. Close it before recovering.":
       "This game is open in another host. Close it before recovering.",
+  "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.",
   "This participant cannot be reassigned.":
       "This participant cannot be reassigned.",
   "This participant is banned for this session.":
@@ -930,6 +948,7 @@ const englishMessages = <String, String>{
   "Untitled question": "Untitled question",
   "Untitled quiz": "Untitled quiz",
   "Update Quizmo to import this quiz": "Update Quizmo to import this quiz",
+  "Use optimized copy": "Use optimized copy",
   "Use the system or browser language, or choose a language for this device.": "Use the system or browser language, or choose a language for this device.",
   "Verbindung unterbrochen. Erneuter Versuch ...": "Connection lost. Retrying…",
   "Verbindung wird hergestellt …": "Connecting…",
@@ -1125,6 +1144,7 @@ const germanMessages = <String, String>{
       "Eine Options-ID in Frage „{0}“ darf nicht leer sein.",
   "Anhang entfernen": "Anhang entfernen",
   "Anhang hinzufügen": "Anhang hinzufügen",
+  "Animated images are kept unchanged. Optimization would remove animation.": "Animierte Bilder bleiben unverändert. Eine Optimierung würde die Animation entfernen.",
   "Answer options": "Antwortmöglichkeiten",
   "Answer: {0}": "Antwort: {0}",
   "Answers received": "Eingegangene Antworten",
@@ -1394,6 +1414,7 @@ const germanMessages = <String, String>{
   "Enter the join code supplied by the host.":
       "Bitte den Beitrittscode des Hosts eingeben.",
   "Erlaubte Zeichenänderungen": "Erlaubte Zeichenänderungen",
+  "Erneut versuchen": "Erneut versuchen",
   "Es gibt noch keine Teams.": "Es gibt noch keine Teams.",
   "Estimation": "Schätzfrage",
   "Example quizzes recreated.": "Beispielquizzes wurden neu erstellt.",
@@ -1462,6 +1483,8 @@ const germanMessages = <String, String>{
   "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Die neue Zuordnung konnte nicht gesichert werden. Bitte den Host vor dem Fortsetzen um einen erneuten Versuch.",
   "If the LAN address times out, try:":
       "Wenn die LAN-Adresse nicht erreichbar ist, versuche Folgendes:",
+  "Image optimization failed.": "Die Bildoptimierung ist fehlgeschlagen.",
+  "Image preview unavailable.": "Die Bildvorschau ist nicht verfügbar.",
   "Import": "Importieren",
   "Import Quizmo quiz (including media)":
       "Quizmo-Quiz importieren (einschließlich Medien)",
@@ -1510,6 +1533,8 @@ const germanMessages = <String, String>{
   "Just watch (TV view)": "Nur zuschauen (TV-Ansicht)",
   "Kartenausschnitt": "Kartenausschnitt",
   "Keep invitation links, join codes and resume tokens confidential.": "Einladungslinks, Beitrittscodes und Resume-Tokens vertraulich behandeln.",
+  "Keep original": "Original behalten",
+  "Keep original or optimize image": "Original behalten oder Bild optimieren",
   "Keine Antwort": "Keine Antwort",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.",
   "Keine Chips mehr. Dein Team setzt aus.":
@@ -1567,6 +1592,7 @@ const germanMessages = <String, String>{
   "Maximal zehn Anhänge.": "Maximal zehn Anhänge.",
   "Maximal zehn Medien pro Frage.": "Maximal zehn Medien pro Frage.",
   "Maximum delay (ms)": "Maximale Verzögerung (ms)",
+  "Maximum edge length (pixels)": "Maximale Kantenlänge (Pixel)",
   "Maximum speed bonus": "Maximaler Zeitbonus",
   "Medien dürfen maximal 20 MiB groß sein.":
       "Medien dürfen maximal 20 MiB groß sein.",
@@ -1576,6 +1602,7 @@ const germanMessages = <String, String>{
   "Medien-Datei fehlt im Quiz.": "Medien-Datei fehlt im Quiz.",
   "Medienanhang": "Medienanhang",
   "Medienwiedergabe": "Medienwiedergabe",
+  "Medium konnte nicht geladen werden.": "Medium konnte nicht geladen werden. Verbindung und Raumzugang prüfen und erneut versuchen.",
   "Mehrere richtige Antworten": "Mehrere richtige Antworten",
   "Mindestens eine Textlösung angeben.": "Mindestens eine Textlösung angeben.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
@@ -1649,11 +1676,14 @@ const germanMessages = <String, String>{
   "Open player view": "Spieler-Ansicht öffnen",
   "Open question": "Frage öffnen",
   "Open quizmaster dashboard": "Spielleiter-Ansicht öffnen",
+  "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB":
+      "Optimiert: {0} × {1} → {2} × {3} Pixel, {4} KiB",
   "Option \"{0}\" in question \"{1}\" needs a label.":
       "Option „{0}“ in Frage „{1}“ benötigt eine Beschriftung.",
   "Option {0}": "Antwortmöglichkeit {0}",
   "Ordering": "Reihenfolge",
   "Original participant": "Ursprünglicher Teilnehmer",
+  "Original: {0} KiB": "Original: {0} KiB",
   "Other teams may steal": "Andere Teams dürfen abstauben",
   "Own test team": "Eigenes Testteam",
   "POKERCHIPS · ANTWORTEN": "POKERCHIPS · ANTWORTEN",
@@ -1665,6 +1695,7 @@ const germanMessages = <String, String>{
   "Pick the next question on the board.":
       "Wähle die nächste Frage auf dem Spielfeld.",
   "Picks next:": "Wählt als Nächstes:",
+  "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.": "Die Wiedergabe hängt von Gerät, Browser und installierten Codecs ab. MP4 ist ein Container und garantiert keine Codec-Unterstützung. H.264-Video mit AAC-Audio und MP3-Audio sind meist am kompatibelsten. Teste vor dem Quiz auf jedem Spieler- und TV-Gerät.",
   "Player": "Spieler",
   "Player is locked out for this round.":
       "Spieler ist für diese Runde gesperrt.",
@@ -1678,7 +1709,9 @@ const germanMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Pokerchips · {0} Chips verfügbar",
   "Port": "Port",
   "Positive Sekunden angeben.": "Positive Sekunden angeben.",
+  "Preloading media...": "Medium wird vorgeladen …",
   "Preview": "Vorschau",
+  "Preview optimized PNG copy": "Optimierte PNG-Kopie als Vorschau",
   "Preview quiz": "Quiz-Vorschau",
   "Preview the TV screen": "TV-Vorschau öffnen",
   "Preview · {0}": "Vorschau · {0}",
@@ -1929,6 +1962,8 @@ const germanMessages = <String, String>{
       "Die lokale Quizbibliothek ist kein JSON-Objekt.",
   "The local quiz library is unavailable on this platform.":
       "Die lokale Quizbibliothek ist auf dieser Plattform nicht verfügbar.",
+  "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.": "Standardmäßig bleibt das Original erhalten. Optionales Verkleinern erhält das Seitenverhältnis und vergrößert Bilder niemals. PNG wird verlustfrei kodiert, aber Verkleinern entfernt Details und Metadaten; die Kopie kann größer sein.",
+  "The picker could not determine the file size. Choose a local file whose size is available.": "Die Dateiauswahl konnte die Dateigröße nicht ermitteln. Wähle eine lokale Datei mit verfügbarer Größenangabe.",
   "The picking team": "Das auswählende Team",
   "The picking team answers first.": "Das auswählende Team antwortet zuerst.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "Das auswählende Team antwortet zuerst. Nach einer falschen Antwort dürfen die anderen Teams antworten. Ausgeschaltet: keine automatische Abstaubrunde.",
@@ -1951,10 +1986,12 @@ const germanMessages = <String, String>{
       "Während einer Frage kann der Zug nicht geändert werden.",
   "The wager must be between 1 and {0}.":
       "Der Einsatz muss zwischen 1 und {0} liegen.",
+  "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "Diese PNG-Kopie ist nicht kleiner. Behalte das Original oder versuche eine kleinere Kantenlänge.",
   "This connection has already joined.":
       "Diese Verbindung ist bereits beigetreten.",
   "This device": "Dieses Gerät",
   "This game is open in another host. Close it before recovering.": "Dieses Spiel ist bereits in einem anderen Host geöffnet. Schließe ihn vor der Wiederherstellung.",
+  "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "Dieses Bild ist beschädigt oder auf dieser Plattform nicht lesbar. Wähle PNG, JPEG oder WebP.",
   "This participant cannot be reassigned.":
       "Dieser Teilnehmer kann nicht neu zugeordnet werden.",
   "This participant is banned for this session.":
@@ -2008,6 +2045,7 @@ const germanMessages = <String, String>{
   "Untitled quiz": "Unbenanntes Quiz",
   "Update Quizmo to import this quiz":
       "Quizmo aktualisieren, um dieses Quiz zu importieren",
+  "Use optimized copy": "Optimierte Kopie verwenden",
   "Use the system or browser language, or choose a language for this device.": "System- oder Browsersprache verwenden oder eine Sprache für dieses Gerät auswählen.",
   "Verbindung unterbrochen. Erneuter Versuch ...":
       "Verbindung unterbrochen. Erneuter Versuch …",
