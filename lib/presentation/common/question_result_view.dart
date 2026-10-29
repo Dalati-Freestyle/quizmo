@@ -16,7 +16,9 @@ class QuestionResultView extends StatelessWidget {
   final bool host;
   @override
   Widget build(BuildContext context) {
-    final revealed = game.round.status == RoundStatus.revealed;
+    final revealed =
+        game.round.status == RoundStatus.revealed &&
+        (host || !game.resultsHidden);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -24,6 +26,11 @@ class QuestionResultView extends StatelessWidget {
           context.tr(question.kindLabel),
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
+        if (question.requiresManualGrading && !host && !revealed)
+          Text(
+            context.tr('Der Spielleiter bewertet die Antworten.'),
+            style: const TextStyle(fontSize: 22),
+          ),
         if (question case MultipleChoiceQuestion(
           :final options,
           :final solutionOptionIds,
@@ -52,11 +59,23 @@ class QuestionResultView extends StatelessWidget {
             ]),
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
           ),
-          for (final answer in game.round.answers.values.take(host ? 50 : 8))
+          for (final answer in game.round.answers.values.take(
+            host ? 50 : 8,
+          )) ...[
             Text(
               '${game.players[answer.playerId]?.name ?? answer.playerId}: ${answerLabel(answer, question, context: context)}',
               style: const TextStyle(fontSize: 22),
             ),
+            if (revealed && question.requiresManualGrading)
+              Text(
+                context.tr(
+                  game.round.answerVerdicts[answer.playerId] == 1
+                      ? 'Richtig'
+                      : 'Wrong',
+                ),
+                style: const TextStyle(fontSize: 22),
+              ),
+          ],
         ],
         const SizedBox(height: 12),
         Text(

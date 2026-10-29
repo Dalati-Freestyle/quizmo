@@ -4,6 +4,373 @@ Quizmo can also be hosted under an HTTPS domain. Hosts create and edit quizzes
 in their browser; players and read-only TVs join an internet room through an
 invitation link. Native apps still support the existing standalone LAN server.
 
+## Session access and moderation
+
+The host's **Session access** panel controls both LAN and internet games. A
+6–64-character join code and host approval are independently optional. New
+players wait without receiving game snapshots or being added to a team until
+approved. Closing the lobby rejects pending requests and blocks new admissions;
+already admitted players can still resume with their existing identity and
+secret token, without entering the code again. Reopening permits new requests.
+Disabling approval does not silently approve requests already waiting.
+
+**Remove** revokes the old resume token and removes the roster entry; joining
+again requires a new admission. **Ban for this session** additionally rejects
+the known identity throughout this session, including after server restarts or
+saved-game recovery. Neither action identifies a person using another browser,
+cleared browser storage or a different device: without accounts this cannot be
+guaranteed. Use codes and host approval to control those new identities.
+
+Spectators have a separate allow/deny switch. They use the same join code, but
+never require individual approval and are independent of the player lobby lock.
+Disabling spectators or changing/removing the code disconnects existing TVs;
+they keep the last snapshot and retry, and can enter the current code on the TV.
+Spectators never enter the roster or gain permission to submit answers.
+
+Code guessing is limited to five failed attempts per socket and ten per minute
+across the entire host hub, so opening another LAN or relay socket does not
+reset the session-wide budget. Missing codes do not consume guesses. The shared
+budget deliberately trades availability during guessing for brute-force
+protection; after it is exhausted, wait one minute and reconnect.
+
+Keep invitation links, codes and resume tokens confidential. They are never
+written to the diagnostic feed. Protected REST snapshots and media also require
+an admitted connection's read capability; its authority expires on disconnect,
+removal or spectator revocation. Code hashes, access policy and banned
+identities are saved in recovery schema 4 (schemas 1–3 remain readable).
+Pending approvals and short-lived read capabilities are not restored: unadmitted
+guests must request admission again. This changes session recovery, not the
+portable quiz schema.
+
+## Final report and CSV export
+
+After the final question, the host dashboard shows **Final report** with the
+authoritative final player/team standings, score progression, answers, accuracy
+and response times by question/phase and participant. Manual point/chip
+corrections and their reversals are reflected immediately; the CSV includes a
+whitelisted correction audit trail. Historical progression records the totals
+observed in each phase, not a reconstruction from correctness. Phase 0 is the
+initial balance; the final standings are authoritative after roster changes.
+Jeopardy keeps the picker's attempt and any steal as separate phases, labels
+Daily Doubles and excludes participants who were not eligible. Poker reports
+team chip balances and stakes; individual player points are **N/A**, skipped
+zero-stake teams are not counted as wrong, and bankrupt practice answers are
+explicitly marked. Standard team metrics aggregate actual member submissions;
+board/Poker teammates who did not submit do not add another answer.
+
+Hit rate means **fully correct answers / judged answers**; missing, ineligible
+and unjudged submissions are excluded, not silently counted as wrong. Partial
+accuracy is retained separately and does not count as a full hit (including
+Poker's all-or-nothing payout). Practice answers contribute to accuracy but
+never earn chips. Mean time includes recorded inputs only. Times are
+milliseconds on the synchronized host answer clock, preserving accepted elapsed
+times across recovery/timer restarts; Poker betting time is excluded and a steal
+has its own clock. Buzzer times measure reaction, **not** the unrecorded spoken
+answer. A disconnection flag means the host observed a disconnected participant
+at some point in that phase; it does not assert why an answer is missing.
+
+**CSV contract (report version 1):** UTF-8 with BOM, comma separator, CRLF
+records, every field quoted, embedded quotes doubled, embedded newlines
+preserved. Import it as comma-separated UTF-8 if a spreadsheet's locale expects
+semicolons. Column names/order and machine-readable statuses do not depend on
+the app language. Text beginning with a spreadsheet formula marker (also after
+whitespace/control characters) is prefixed with an apostrophe; genuine numeric
+negative scores stay numeric. Consumers must not remove this protection before
+opening untrusted content in a spreadsheet.
+
+| Columns | Meaning |
+| --- | --- |
+| `report_version`, `row_type`, `quiz`, `format`, `finished`, `history_complete` | Version and context; row types: `summary`, `answer`, `question_summary` (team), `progress`, `correction`. Formats: `standard`, `jeopardy`, `poker`. |
+| `phase`, `question_id`, `question` | Chronological phase number and question identity/prompt; Jeopardy steals have another phase. |
+| `entity_type`, `entity_id`, `name`, `team_id`, `team` | Player/team identity; answer rows identify the actual submitting player or the player without an answer. Historical names/membership are kept per phase. |
+| `answer`, `status`, `accuracy_ratio` | Answer content; `correct`, `partial`, `incorrect`, `ungraded`, `noAnswer`, `notEligible`, `teamAnswered`. Team question summaries use `answered`, `noAnswer`, `notEligible`; correction rows use the correction kind. Accuracy is 0–1. |
+| `response_time_ms`, `response_time_kind`, `connection` | Milliseconds; `buzzer_reaction` or `answer_submission`. Answer rows use `disconnection_observed` / `no_disconnection_observed`; summaries use `connected_at_end`, `disconnected_at_end` or `removed_from_roster` (no authoritative final score). |
+| `practice_only`, `wager_chips`, `points_at_stake`, `steal`, `daily_double` | Booleans, Poker stake in chips, Jeopardy row value / Daily Double wager in points. |
+| `score_unit`, `score` | `points` or `chips`; authoritative totals in summaries, observed cumulative balances in progression. |
+| `evaluated_answers`, `fully_correct_answers`, `hit_rate_ratio`, `mean_response_time_ms` | Counts, 0–1 hit rate, mean milliseconds; team question summaries aggregate actual submissions for that phase. |
+| `correction_id`, `reason`, `value_before`, `value_after`, `reverses_correction`, `score_delta` | Correction audit; before/after values are verdicts (0/1) for answer/buzzer corrections and points/chips for balance corrections; signed delta uses `score_unit`. |
+
+`N/A` explicitly denotes unavailable or inapplicable values, never zero.
+Choice/ordering answers contain JSON arrays of option IDs and labels; matching
+answers contain JSON arrays of left/right IDs and labels (duplicate labels
+remain distinguishable). Boolean answers use `true`/`false`; estimation answers
+use a decimal point followed by the configured unit, if any. Spoken buzzer answers are not recorded. Report versioning
+is separate from portable quiz-file versioning.
+
+Report history is **host-only**: it is removed from player/TV snapshots and
+never includes room credentials in the export. The CSV deliberately exports
+only report fields, not complete game/checkpoint JSON, solution media, host
+notes, invitation URLs, room codes, token hashes or resume tokens. Names and
+answer text are still personal data: keep exports private and obtain any
+necessary participant consent.
+
+History is saved in the existing automatic recovery slot from #1, using recovery
+schema **4** (schemas 1–3 remain readable). This is not a separate permanent
+report library. On an older save, absent detail is explicitly marked incomplete;
+it is never fabricated. Resetting the game clears report history in the next
+successful recovery save. Deleting the saved game in recovery removes its
+stored report from this device; a failed save/deletion is reported and the last
+durable checkpoint may still exist. Downloaded/shared CSVs and external backups
+must be deleted separately. No additional report data is uploaded.
+
+## Connection and submission status
+
+Players see text and icons for connecting, connected, reconnecting and a closed
+room; status changes are announced as accessibility live regions. During a
+network interruption the last board remains visible, but input is disabled.
+The host roster explicitly labels connected/disconnected players. Silent sockets
+are detected through periodic clock probes and a host-side inactivity timeout.
+Returning from a long device lock checks socket freshness immediately and
+rejoining starts with fresh clock samples.
+
+Sending is not acceptance. An answer or buzzer press stays pending until the
+host's committed snapshot confirms that player's submission for the current
+round. This private confirmation contains no answer content, including in Poker.
+After five seconds without confirmation the player shows an uncertain outcome
+and rejoins to reconcile it. Reconnect and browser refresh restore the saved
+identity and authoritative state while that session still exists. Unconfirmed
+answers are **not queued or replayed**: if the host has no submission, the player
+may retry manually while the round is open. The existing first-answer and
+round/timestamp rules prevent duplicate scoring and reject late input.
+
+An explicit host stop or a relay's closed-room response is terminal for players:
+join a new room rather than waiting for reconnect. Timeouts and unreachable
+hosts alone never prove that a room ended. TVs retain their existing indefinite
+retry policy. This does not guarantee recovery of the host itself.
+
+Automated fault-injection tests cover lost submissions, lost confirmations,
+duplicate delivery, late input, clock changes after suspension, saved-identity
+restoration and private Poker confirmations. Complement these with device
+checks on Android/iOS and mobile browsers before release: switch Wi-Fi during
+submission, lock/unlock for over 30 seconds, background/foreground the browser,
+refresh after submitting, and explicitly stop the host. Check that no pending
+input claims success, the roster detects the interruption, identity/scores
+remain stable, and the same round's confirmed answer stays locked. Physical
+device/network checks are not replaced by the automated suspension simulation.
+
+## Example quizzes
+
+Use **Settings > Advanced settings > Recreate example quizzes** to restore the
+bundled Standard, Jeopardy and Poker examples. This replaces remaining unedited
+defaults and restores deleted ones. Saving an example in the editor makes it a
+normal quiz: it and all custom quizzes are preserved, even across repeated resets.
+Default status is local library metadata, not part of exported quiz files.
+
+## Editor preview
+
+Choose **Preview quiz / Quiz-Vorschau** in the quiz editor to play the current
+unsaved draft without saving it. The preview clones the draft into a separate
+in-memory engine. It starts no server or internet room, writes no recovery
+record or report, and never modifies the library or a real game's scores.
+Invalid drafts show validation errors before the preview opens.
+
+Switch between **Host**, **Player** and **TV**. The host uses the real round
+controls; the player uses the real answer forms, buzzer and format controls.
+Choose a test participant to answer manually. Player and TV snapshots use the
+same redaction as real guests, including deferred results and solution media;
+visible uploaded media remains available locally without a media server.
+
+Add manual participants or bots, optionally in existing teams or their own test
+teams. Each bot has a target success probability (0–100%) and an inclusive
+minimum/maximum delay in milliseconds. Delays are drawn separately for actions,
+including answers, buzzer presses and simulated host grading. The success rate
+is a probability per answer, not an exact score for a short quiz. Correct bots
+submit a full solution; incorrect bots choose a valid wrong choice, a nonmatching
+text, a rotated ordering/matching, the opposite boolean or a zero-credit estimate.
+Buzzer answers are judged with the configured probability. Manually graded bot
+text is assessed automatically by the simulation; manual participants remain
+under host control.
+
+Jeopardy bots randomly choose an unplayed cell only on their turn, wait for host
+confirmation, and randomly wager from 1 to the engine's Daily Double limit.
+Poker bots reserve an affordable positive stake (zero if bankrupt), wait for
+the host to close betting, then answer under the real one-answer-per-team and
+practice-only rules. The host controls progression, buzzer reopening, round
+completion and manual verdicts, just as in a real game.
+
+The displayed **Seed** and the same sequence of inputs reproduce bot decisions
+and virtual timestamps. Pause the simulation to enter inputs at exact times,
+then use **Step +1 s**; pausing freezes engine timeouts as well as bot time.
+**Automatic bots** suspends only bots, not the round clock. A new seed takes
+effect with **Restart preview**, which resets scores, chips and all timers while
+retaining test participants. **Replay round** restores the beginning of the
+current question, including its initial roster, scores, board state and betting
+phase; it restarts the seeded generator for that round. Leaving or restarting
+disposes all simulation and engine timers. Bots are not available in real rooms.
+
+## Manual short-answer grading
+
+In the question editor, set a short-answer question's **Bewertung** to
+**Manuell durch den Spielleiter** instead of **Automatisch**. The host sees
+every submitted answer with a non-binding suggestion: exact solution match,
+possible typo (using the configured edit tolerance), or a differing answer.
+Mark each answer correct or incorrect; decisions can be changed until reveal.
+Close submissions when ready, then finalize the assessment. Points and poker
+payouts are booked only after all received answers have been judged. Speed and
+rank bonuses still use the original, clock-adjusted submission timestamps.
+
+The option works in Standard, Jeopardy (including steals and Daily Doubles) and
+Pokerchips. Existing one-answer-per-team restrictions remain unchanged on boards
+and in poker. Players and TVs do not receive host decisions before reveal.
+Quiz schema 6 introduced this setting; schemas 1–5 remain importable and retain
+automatic grading. Exports always use the latest schema.
+
+## Standard quiz reveal modes
+
+The standard quiz editor offers **Auflösung > Nach jeder Frage** (the default)
+or **Am Quizende**. In the latter mode, the host still sees and grades answers
+normally, but players and TVs receive no solutions, verdicts or standings until
+the last question is completed. This also applies to REST snapshots and uploaded
+solution-media URLs, not just the visible controls.
+
+At the end, players get an expandable overview of every played question, its
+solution, their submitted answer and assessment, including question/solution
+media. The TV cycles through the solutions every 12 seconds; pause, previous and
+next controls are available. The final standings are shown alongside the TV
+overview. Reset clears the overview while retaining the configured reveal mode.
+Jeopardy and Pokerchips keep their existing per-question reveal behavior.
+
+Quiz schema 7 stores the reveal mode. All older schema versions remain readable,
+retain per-question reveal and keep their question content, grading and media.
+
+## Interrupted games and recovery
+
+Quizmo saves a separate, versioned recovery record on engine transitions and
+every second during answering/betting. On the next start it explicitly offers
+**Continue saved game**, **Export private session report**, or **Discard**.
+It never starts an old game silently. Leave the host dashboard to return to
+that choice, including after a completed game. The quiz library is independent
+and is not overwritten by recovery.
+
+Recovery retains the quiz and uploaded question/solution media, players and
+teams, accepted answers and manual verdicts, score history, completed questions,
+deferred-reveal history, Jeopardy turns/steals/Daily Doubles and Pokerchips
+balances/reservations/settlements. It loads **paused**, with everyone initially
+offline and media paused. Start hosting, reconnect/reassign participants, then
+explicitly choose **saved remaining time**, **a full timer restart**, or **a
+soft timer** (no automatic timeout; the host ends the round). Downtime never
+consumes the saved timer. A full restart retains earlier answers and their
+original speed/rank scoring; it does not permit another answer. A pending
+buzzer queue keeps its clock-adjusted ordering and is locked on continuation.
+Closed/revealed rounds do not reopen. Timer overrides apply to the current
+round only; new questions keep their configured timing rules.
+
+Native recovery uses `recovery/session.json` and `recovery/quiz.json` under
+`getApplicationSupportDirectory()` (the platform's per-user app-support
+directory, not the quiz library). The immutable quiz/media document is written
+once, flushed, and referenced by SHA-256. Small snapshots are flushed to
+`session.pending` and atomically renamed over `session.json`. Interrupted
+temporary files are never treated as successful snapshots. A file lock excludes
+another host process; an in-process lock also excludes a second dashboard.
+Browser recovery uses the origin/profile-local IndexedDB database
+`quizmo-host-recovery-v1`, object store `checkpoints` (`current` and `quiz`).
+Transactions commit the quiz and checkpoint together with strict durability;
+Web Locks permit only one active host per origin. HTTPS (localhost excepted),
+IndexedDB and Web Locks are required. No SharedPreferences/localStorage fallback
+pretends to provide transactional host storage.
+
+One latest committed session is retained, including finished games, until
+explicit **Discard** with confirmation. This removes its recovery document,
+quiz/media and server-side resume hashes, not the quiz library. Native lock
+files contain no session data and may remain. Browser site-data deletion,
+private-mode cleanup, OS storage removal, uninstall or disk failure can remove
+recovery; this is not a cloud backup or a guarantee against hardware/power loss.
+At interruption, the newest durable checkpoint is authoritative; a transition
+whose write had not committed may need to be repeated.
+Player/TV broadcasts, REST snapshots and solution-media access use the committed
+state; clients are not told that an answer/result is accepted before its save.
+Uncommitted host-side transitions can still be lost on abrupt termination.
+Save failures display
+an error, pause the engine and preserve the previous commit. Retry saving before
+continuation. Corrupt/incomplete records are not overwritten or silently rolled
+back; they require retry or explicit discard. Low-level permission/I/O failures
+also prevent hosting until resolved.
+
+The recovery envelope writes **schema 2**, independently of quiz schema 7
+and the app version. It checks both the checkpoint and the referenced quiz,
+requires complete/lossless fields and validates cross-references. Future recovery
+schemas must retain a dedicated importer for each previous schema, migrate both
+the game state and quiz references into the current model, and add fixed
+compatibility fixtures. Unsupported newer schemas request a Quizmo update.
+The existing quiz importers remain responsible for historical quiz definitions;
+recovery writers write only the current recovery schema. Schema 1 records remain
+readable and migrate with an empty correction ledger: historical manual decisions
+are not invented by replaying scores. Schema 2 preserves the host-only correction
+ledger, including counter-corrections and duplicate-request protection.
+The private session report is a data foundation for #6, not its final reporting UI.
+
+### Manual corrections and undo
+
+The host dashboard's **Correction history** records each written-answer and
+buzzer judgment, as well as explicit point/chip adjustments. Entries retain the
+question and round opening time, player/team name, old/new value, timestamp and
+optional reason. Selecting an unchanged written-answer verdict is a no-op.
+The host can enter signed point/chip adjustments for the current round; poker
+adjustments affect the team's chip balance, not an unused player point score.
+
+**Undo** requires confirmation and appends a counter-correction; it never deletes
+the original entry. Point/chip adjustments are reversed by their delta, preserving
+later adjustments and updating the standings. Negative chip balances are rejected.
+Written-answer judgments can be undone before settlement, provided no later
+judgment of that answer is still effective. Buzzer undo restores the floor,
+bookings and format bookkeeping only while no dependent round/board action has
+occurred. Already spent chips, changed participants/teams, settled written answers
+and dependent game actions block undo with an explanation. Use an explicit
+point/chip adjustment when the original decision can no longer be safely undone.
+Recovery clock changes can also invalidate round-bound judgment undo; financial
+counter-bookings remain available after resuming. Reset clears scores and ledger.
+
+The ledger and free-form reasons never travel to player or TV clients, even after
+the results are revealed. Existing deferred-result/solution redaction still applies.
+
+Resume tokens remain private in each player's browser profile/app storage; only
+their SHA-256 verifiers are persisted by the host. A stable, **public** session
+identifier in invitation links lets the same client find its saved identity
+after a LAN address change or a new internet room. Internet reuse requires the
+same origin. The player session now retains the complete room URL, not just its
+origin. Old clients without a saved session identifier must be explicitly
+reassigned after a room change. A different LAN browser origin, lost site data
+or a replacement device also needs reassignment: while recovery is paused,
+join as a new participant, compare its **verification ID** on the participant's
+screen with the host's roster and confirm reassignment. This keeps the original
+player ID, team, answers and score, and revokes the old credential. Never approve
+by display name alone. Choose an existing team during recovery; creating an
+extra team for an identity replacement would change format progress and is
+therefore rejected until continuation. Ordinary reconnect within a live room still replaces
+the stale socket using the original credential.
+
+Recovery storage is **not encrypted by Quizmo**; protect the OS user/profile,
+use device/disk encryption and do not copy private app-support/site data to
+public shares. Browser scripts on the same origin can access its storage.
+Tokens/hashes are never included in player/TV snapshots or logs. **Export private
+session report** intentionally omits credentials, session IDs and room links,
+but includes confidential answers, solutions, identities and media: it is not
+a public/share-safe export, a portable recovery credential or an importable quiz.
+Store it privately. Discard does not remotely erase a participant's own cached
+credential; that credential becomes unusable at the deleted host.
+
+### Internet room replacement
+
+The relay remains ephemeral: host refresh/closure, expiry or relay restart
+invalidates the old room and its player/TV links. Local recovery does **not**
+recreate that room or recover its host socket. A restored browser host deliberately
+creates a **new random room**, displays new invitation/TV links, and warns that
+the previous links are invalid. Distribute the complete new links (including
+the public session identifier); players reopen them in the same profile or use
+verified host reassignment. TVs open the new `/tv` link; they remain read-only
+and keep reconnecting to a live room, but cannot discover a replacement room.
+Loss of the relay while the host tab is still alive also pauses the engine;
+restart hosting, redistribute links, and confirm the timer rule. There is no
+cross-device quiz sync (#11), relay-side durable engine or multi-server failover.
+
+Recovery tests run with `flutter test`. The renderer-independent browser check
+is `test/browser/recovery_store_check.dart`: compile it with `dart compile js`
+to a temporary `recovery_store_check.js`, place
+`test/browser/recovery_store_check.html` beside it, and serve that directory on
+localhost/HTTPS. Its page must display `PASS` for IndexedDB commit/abort,
+media retention, explicit deletion and exclusive Web Locks. This check does not
+need Flutter renderer assets or an application web build.
+
 ## Internet hosting under your domain
 
 Point your domain's DNS A/AAAA records at the server (only publish AAAA if IPv6
@@ -81,13 +448,16 @@ skip it entirely. Saved quizzes remain locally stored after a normal close.
 Keep the host tab open and the device awake. The browser owns the existing
 game engine; the relay transfers player traffic and redacted snapshots. Closing,
 reloading or losing the host connection ends the internet room. Restart hosting
-and share the new link; quizzes remain saved, live match state does not persist.
+and share the new link; use the explicit paused recovery flow above to retain
+the most recently committed live match state.
 Player refresh/reconnect and unattended TV reconnect retain their existing
 behavior while the host room is alive. Rooms expire after 12 hours or 60 seconds
 without a host heartbeat. Server restarts/deployments terminate active rooms.
-Schedule deployments between games. Uploaded media in a single outgoing
-snapshot must fit the relay's 64 MiB message limit; use smaller files or remote
-YouTube references for large videos. LAN mode remains independent of the relay.
+Schedule deployments between games. Snapshots carry media references, not embedded
+uploads. Released files are fetched through `/rooms/<room>/api/media/<sha256>`;
+the host checks admission and visibility for each request. One file remains limited
+to 20 MiB (about 27 MiB Base64 per relay envelope), below the unchanged 64 MiB
+relay message limit. LAN mode remains independent of the relay.
 
 ### Security and infrastructure recommendations
 
@@ -119,8 +489,14 @@ second limit. Upgrade quotas are 20 host attempts and 300 guest attempts/minute
 per direct peer, with bounded quota bookkeeping. Behind the included proxy,
 these quotas apply to its shared address; the app deliberately does not trust
 client-supplied forwarding headers. Tune capacity only after measuring memory,
-media sizes, concurrent users and outbound bandwidth. Large uploads are repeated
-in snapshots, so use small media for internet sessions.
+media sizes, concurrent users and outbound bandwidth. Each room allows at most
+16 pending media requests, with a 20-second relay timeout. Players and TVs cache
+verified media in a session-local, bounded in-memory LRU, so unchanged uploads are
+not retransmitted for each snapshot. Downloads start only when the question or
+solution is published, show progress, and offer retry after failure; future
+questions and unrevealed solutions are never prefetched. Image resizing is
+optional with a preview and explicit copy selection; originals remain the default.
+See [media management](docs/question-types-and-media.md) for limits and behavior.
 
 Recommended before exposing a public installation:
 
@@ -395,6 +771,30 @@ push or **Actions → Release → Run workflow** also works. Existing releases a
 skipped and are never overwritten; use a new version for changed downloads.
 Adjust the workflow's branch filter if your default branch has another name.
 
+Every push to `develop` (including a merged pull request, even without a
+`pubspec.yaml` change) runs **Beta release** via `.github/workflows/beta.yml`.
+It reuses the production pipeline, checks, signing secrets and downloads.
+Beta releases are GitHub prereleases named/tagged `vMAJOR.MINOR.PATCH-beta`;
+download filenames and versioned container tags also end the version in `-beta`.
+Native app/installer versions remain numeric with the `pubspec.yaml` build
+number. Manual runs of **Release** on `develop` also use the beta channel.
+
+Production and beta runs share one concurrency group. Once a replacement beta's
+checks and builds succeed, the workflow deletes all previous Quizmo `-beta`
+releases (including drafts), their downloads and tags before creating the new
+one, so at most one beta release exists, including for repeated builds of the
+same version. A failed build leaves the previous beta intact; a publication
+failure after cleanup may leave no published beta until a rerun succeeds.
+Production publication removes only the beta with the same `MAJOR.MINOR.PATCH`,
+regardless of build number. If that production version is already published,
+beta publication is skipped and its matching beta is cleaned up instead.
+Other production releases and unrelated prereleases are never deleted.
+
+Beta containers use `VERSION-beta` and the rolling `beta` tag; they never move
+production's `latest` tag or GitHub's latest-release selection. Old GHCR image
+versions and workflow-run artifacts retain their existing retention behavior;
+the single-beta policy applies to GitHub Releases and their tags/downloads.
+
 Each release contains:
 
 * `quizmo-VERSION-windows-x64-setup.exe`: Windows installer including all app
@@ -417,7 +817,8 @@ SmartScreen may warn. Its bundled Microsoft runtime signature is verified in CI.
 #### One-time GitHub setup
 
 Enable GitHub Actions and allow workflows to create releases and packages
-(`contents: write` and `packages: write` are scoped to the publishing job).
+(`contents: write` is scoped to publication/cleanup and `packages: write` to
+publication).
 GHCR uses the built-in `GITHUB_TOKEN`; no extra registry password is needed.
 The package is named `REPOSITORY-server`, with `VERSION` and `latest` tags.
 New GHCR packages may be private: make the package public in its settings if
@@ -719,6 +1120,79 @@ a client cannot buzz on somebody else's behalf.
 The quizmaster/editor route is defer-loaded from the role screen. Browser
 players therefore do not load host administration code on their initial path.
 
+### LAN games via mDNS / DNS-SD
+
+Native Android, iOS, macOS and Windows clients list LAN games on the join
+screen. Starting a native host advertises `_quizmo._tcp` using the quiz name
+and the actual bound `ServerEndpoint.port`. DNS-SD handles name collisions;
+the list additionally displays the address and port, so identically named
+hosts remain distinguishable. Select a **Reachable** entry, enter a player
+name and continue to team selection. Reachability is checked against
+`/api/health`; an unreachable entry cannot be selected.
+
+The advertisement contains only a service name, type, hostname and port:
+no TXT payload, invitation secrets, recovery/resume tokens, answers or quiz
+content. Discovery is a convenience, not authentication. QR codes, links and
+manual URLs remain available. Browser clients never invoke NSD and show the
+manual-join fallback; Linux/headless Dart/Docker hosts do not advertise through
+this Flutter plugin.
+
+**Refresh LAN games** restarts discovery and clears cached entries. Lost-service
+events remove entries immediately; a fresh browse every 20 seconds rechecks
+reachability. Hosts that have been unreachable for a full refresh interval
+are hidden even if the OS still returns cached DNS-SD records (allow another
+2 seconds per address for probes). Native interface changes are checked every
+3 seconds and restart discovery/registration. Backgrounding the app releases
+discovery and advertisements; resuming recreates them if still needed. Leaving
+the join screen or stopping/closing the host releases the respective resources.
+Mobile operating systems may also suspend the server itself in the background.
+
+Android declares `CHANGE_WIFI_MULTICAST_STATE`; Apple targets declare the
+Bonjour service and local-network usage description, and macOS enables client
+and server sandbox networking. Allow local-network access when prompted.
+If no hosts appear, check Wi-Fi, permissions, VPN/firewall rules and client
+isolation. mDNS needs UDP 5353 multicast; joining also needs the host TCP port
+(normally 8080). Guest WLANs often block peer traffic. An empty list cannot
+distinguish blocked multicast from a network with no active hosts; the UI
+explains both and retains manual joining. Windows requires Windows 10 1903+
+and an appropriate private-network firewall rule.
+
+#### Multi-device LAN acceptance procedure
+
+This is a manual hardware procedure, **not an automated or already completed
+multi-device test**. Record OS/app versions, host/client devices, network and
+results when running it.
+
+1. Put two native hosts and two native clients on the same non-isolated LAN.
+   Start hosts with the same quiz name (and different ports if on one machine).
+   Verify both distinct address/port entries appear, show **Reachable**, and
+   each selected host admits the intended player through team selection.
+2. Stop one host; verify its entry disappears. Kill it without a graceful stop
+   and verify stale entries clear after the next 20-second refresh. Block its
+   TCP port and verify its entry becomes unselectable after a new probe.
+3. Refresh repeatedly, leave/reopen the join screen and stop/start each host.
+   Background/resume both roles. Verify no duplicate entries or accumulated
+   native discovery/registration operations and no host advertisement while
+   the host is stopped/backgrounded.
+4. Move host/client between Wi-Fi networks, disconnect/reconnect Wi-Fi and
+   toggle a VPN. Verify old entries clear and discovery/advertising recovers
+   in the new LAN (3-second interface poll plus OS DNS-SD resolution). Repeat
+   with multiple adapters and verify the reachable address is selected.
+5. Deny/re-enable Apple local-network permission; block UDP 5353 while allowing
+   the host TCP port; try isolated guest Wi-Fi. Verify understandable
+   permission/network hints and successful manual/link/QR joining whenever
+   unicast traffic is permitted.
+6. Join via browser and test an unsupported platform: no native NSD calls,
+   manual join and existing links/QR still work. Inspect DNS-SD records with
+   `dns-sd -B _quizmo._tcp` and `dns-sd -L "<instance>" _quizmo._tcp local.`
+   (or a LAN service browser): only public discovery
+   metadata, no TXT secrets or solutions. Verify renaming/collision suffixes
+   remain readable with long and non-ASCII quiz names.
+
+Local regression coverage: `flutter test test/presentation/lan_discovery_test.dart test/presentation/nsd_lan_discovery_test.dart test/backend/lan_discovery_join_test.dart`
+exercises lifecycle races, stale results, reachability, duplicates, fallback
+platforms, host publication and a real HTTP/WebSocket join.
+
 ### Known gaps (deliberate for an MVP)
 
 * **`freezed` / `json_serializable`** are declared in `pubspec.yaml` but not yet
@@ -726,8 +1200,5 @@ players therefore do not load host administration code on their initial path.
   ergonomics, exhaustive pattern matching, zero generated files to keep in sync
   while the domain is still moving. Migrating later is mechanical — the public
   API of every model already matches what `freezed` would emit.
-* **`nsd` (mDNS auto discovery)** is declared but unused; players type or scan
-  the LAN URL. The `ServerEndpoint` model is the natural place to plug it in.
 * No authentication: anybody on the LAN can join, which is the point for a
   living-room quiz but not for the public internet.
-

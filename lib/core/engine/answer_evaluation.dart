@@ -3,6 +3,25 @@ import 'dart:math' as math;
 String normalizeAnswer(String value) =>
     value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
 
+/// A non-binding suggestion for the host's manual text-answer assessment.
+enum TextAnswerRecommendation { exactMatch, possibleTypo, different }
+
+/// Compares [input] with the solutions using the configured typo tolerance.
+TextAnswerRecommendation recommendTextAnswer(
+  String input,
+  List<String> acceptedAnswers,
+  int maxEdits,
+) {
+  final normalized = normalizeAnswer(input);
+  if (normalized.isEmpty) return TextAnswerRecommendation.different;
+  if (acceptedAnswers.any((answer) => normalizeAnswer(answer) == normalized)) {
+    return TextAnswerRecommendation.exactMatch;
+  }
+  return acceptedAnswers.any((answer) => fuzzyEquals(input, answer, maxEdits))
+      ? TextAnswerRecommendation.possibleTypo
+      : TextAnswerRecommendation.different;
+}
+
 bool fuzzyEquals(String input, String expected, int maxEdits) {
   final a = normalizeAnswer(input).runes.toList();
   final b = normalizeAnswer(expected).runes.toList();

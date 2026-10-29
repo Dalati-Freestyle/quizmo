@@ -5,10 +5,13 @@ import 'package:equatable/equatable.dart';
 
 import 'jeopardy.dart';
 import 'json.dart';
+import 'manual_correction.dart';
 import 'player.dart';
 import 'poker.dart';
 import 'question.dart';
 import 'round.dart';
+import 'report_round.dart';
+import 'quiz_format.dart';
 import 'score.dart';
 import 'team.dart';
 
@@ -103,15 +106,33 @@ final class GameState extends Equatable {
     this.allAnswersRevision = 0,
     this.isFinished = false,
     this.isStarted = false,
+    this.revealMode = SolutionRevealMode.afterEachQuestion,
+    this.roundHistory = const [],
+    this.recoveryPaused = false,
+    this.corrections = const [],
+    this.reportRounds = const [],
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    reportRounds: json['reportRounds'] == null
+        ? const []
+        : json.readList('reportRounds', ReportRound.fromJson),
+    corrections: json['corrections'] == null
+        ? const []
+        : json.readList('corrections', ManualCorrection.fromJson),
+    recoveryPaused: json.readBool('recoveryPaused'),
     allAnswersRevision: json['allAnswersRevision'] == null
         ? 0
         : json.readInt('allAnswersRevision'),
     isFinished: json.readBool('isFinished', orElse: false),
     isStarted: json.readBool('isStarted'),
+    revealMode: SolutionRevealMode.fromName(
+      json.readStringOrNull('revealMode') ?? 'afterEachQuestion',
+    ),
+    roundHistory: json['roundHistory'] == null
+        ? const []
+        : json.readList('roundHistory', RoundState.fromJson),
     mode: GameMode.fromJson(json.readObject('mode')),
     players: json.readMap('players', Player.fromJson),
     playerOrder: json['playerOrder'] == null
@@ -174,7 +195,8 @@ final class GameState extends Equatable {
   ];
   bool mayPickQuestion(String? playerId) {
     final player = players[playerId];
-    return isStarted &&
+    return !recoveryPaused &&
+        isStarted &&
         player != null &&
         player.isConnected &&
         jeopardy?.currentTeamId != null &&
@@ -182,8 +204,9 @@ final class GameState extends Equatable {
   }
 
   bool mayAnswerQuestion(String? playerId) =>
-      round.buzzerOpenForAll ||
-      (jeopardy?.mayAnswer(participantId(players[playerId])) ?? true);
+      !recoveryPaused &&
+      (round.buzzerOpenForAll ||
+          (jeopardy?.mayAnswer(participantId(players[playerId])) ?? true));
 
   /// Configured teams, keyed by id.
   final Map<String, Team> teams;
@@ -219,19 +242,43 @@ final class GameState extends Equatable {
   final bool isFinished;
   final bool isStarted;
 
+  /// Timing of guest-visible results for a standard quiz.
+  final SolutionRevealMode revealMode;
+
+  /// Completed rounds retained for the final solution overview.
+  final List<RoundState> roundHistory;
+  final bool recoveryPaused;
+  final List<ManualCorrection> corrections;
+  final List<ReportRound> reportRounds;
+
+  /// Whether guests must not yet receive solutions, verdicts or standings.
+  bool get resultsHidden =>
+      revealMode == SolutionRevealMode.atEnd && !isFinished;
+
+  /// Whether the final solution overview is available to players and TVs.
+  bool get showFinalReview =>
+      revealMode == SolutionRevealMode.atEnd &&
+      isFinished &&
+      roundHistory.isNotEmpty;
+
   Map<String, String> get questionWinners {
     final winners = <String, Set<String>>{};
+    final netPoints = <String, Map<String, int>>{};
     for (final entry in scores.history) {
-      if (entry.points <= 0 ||
-          !completedQuestionIds.contains(entry.questionId)) {
-        continue;
+      final totals = netPoints[entry.questionId] ??= {};
+      totals[entry.playerId] = (totals[entry.playerId] ?? 0) + entry.points;
+    }
+    for (final question in netPoints.entries) {
+      if (!completedQuestionIds.contains(question.key)) continue;
+      for (final entry in question.value.entries) {
+        if (entry.value <= 0) continue;
+        final player = players[entry.key];
+        final name =
+            (mode is TeamMode ? teams[player?.teamId]?.name : null) ??
+            player?.name ??
+            entry.key;
+        (winners[question.key] ??= {}).add(name);
       }
-      final player = players[entry.playerId];
-      final name =
-          (mode is TeamMode ? teams[player?.teamId]?.name : null) ??
-          player?.name ??
-          entry.playerId;
-      (winners[entry.questionId] ??= {}).add(name);
     }
     return winners.map((id, names) => MapEntry(id, names.join(", ")));
   }
@@ -275,21 +322,47 @@ final class GameState extends Equatable {
 
   /// Returns a copy that is safe to hand to a player client.
   ///
-  /// Two things are stripped: the upcoming question bank and the solution of
-  /// the running round. Once the host reveals the round the solution is kept so
-  /// that players can see what the right answer was.
-  GameState redactedForPlayers() {
+  /// Always strips the upcoming bank and host notes. In deferred mode, also
+  /// withholds solutions, verdicts, standings and archived rounds until the
+  /// quiz is finished; otherwise each round reveals its solution immediately.
+  GameState redactedForPlayers({bool includeMediaData = false}) {
     final question = round.question;
-    final keepSolution = round.status == RoundStatus.revealed;
+    final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
     return copyWith(
+      corrections: const [],
+      reportRounds: const [],
       questionBank: const [],
       totalQuestionCount: questionBank.isEmpty
           ? totalQuestionCount
           : questionBank.length,
       jeopardy: jeopardy?.redacted(),
+      scores: resultsHidden ? const ScoreState() : scores,
+      roundHistory: showFinalReview
+          ? [
+              for (final completed in roundHistory)
+                completed.copyWith(
+                  question: completed.question?.forWire(
+                    reveal: true,
+                    includeMediaData: includeMediaData,
+                  ),
+                ),
+            ]
+          : const [],
       round: round.copyWith(
-        question: question?.forWire(reveal: keepSolution),
+        status: resultsHidden && round.status == RoundStatus.revealed
+            ? RoundStatus.locked
+            : round.status,
+        question: question?.forWire(
+          reveal: keepSolution,
+          includeMediaData: includeMediaData,
+        ),
         answers: poker != null && !keepSolution ? const {} : round.answers,
+        acceptedElapsedMicros: poker != null && !keepSolution
+            ? const {}
+            : round.acceptedElapsedMicros,
+        answerVerdicts: keepSolution ? round.answerVerdicts : const {},
+        buzzerVerdicts: resultsHidden ? const {} : round.buzzerVerdicts,
+        buzzerAnswerCorrect: resultsHidden ? false : round.buzzerAnswerCorrect,
       ),
     );
   }
@@ -314,6 +387,11 @@ final class GameState extends Equatable {
     int? allAnswersRevision,
     bool? isFinished,
     bool? isStarted,
+    SolutionRevealMode? revealMode,
+    List<RoundState>? roundHistory,
+    bool? recoveryPaused,
+    List<ManualCorrection>? corrections,
+    List<ReportRound>? reportRounds,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -335,6 +413,11 @@ final class GameState extends Equatable {
     allAnswersRevision: allAnswersRevision ?? this.allAnswersRevision,
     isFinished: isFinished ?? this.isFinished,
     isStarted: isStarted ?? this.isStarted,
+    revealMode: revealMode ?? this.revealMode,
+    roundHistory: roundHistory ?? this.roundHistory,
+    recoveryPaused: recoveryPaused ?? this.recoveryPaused,
+    corrections: corrections ?? this.corrections,
+    reportRounds: reportRounds ?? this.reportRounds,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -362,6 +445,11 @@ final class GameState extends Equatable {
     'allAnswersRevision': allAnswersRevision,
     'isFinished': isFinished,
     'isStarted': isStarted,
+    'revealMode': revealMode.name,
+    'roundHistory': roundHistory.map((round) => round.toJson()).toList(),
+    'recoveryPaused': recoveryPaused,
+    'corrections': corrections.map((entry) => entry.toJson()).toList(),
+    'reportRounds': reportRounds.map((entry) => entry.toJson()).toList(),
   };
 
   @override
@@ -384,5 +472,10 @@ final class GameState extends Equatable {
     allAnswersRevision,
     isFinished,
     isStarted,
+    revealMode,
+    roundHistory,
+    recoveryPaused,
+    corrections,
+    reportRounds,
   ];
 }

@@ -6,7 +6,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../../core/data/quiz_import_export.dart';
 import '../../../core/data/quiz_repository.dart';
-import '../../../core/data/sample_quiz.dart';
 import '../../../core/models/models.dart';
 
 /// Snapshot of the quiz library screen.
@@ -146,11 +145,8 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
   }
 
   Future<List<Quiz>> _saveExamples() async {
-    final examples = createSampleQuizzes(_now());
-    for (final quiz in examples) {
-      await _repository.save(quiz);
-    }
-    return examples;
+    await _repository.recreateExamples(_now());
+    return _repository.loadAll();
   }
 
   static String _newId() =>

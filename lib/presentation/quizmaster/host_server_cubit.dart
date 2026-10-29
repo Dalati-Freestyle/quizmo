@@ -10,6 +10,9 @@ import '../../backend/server_contract.dart';
 import '../../backend/server_launcher.dart';
 import '../../backend/web_client_bundle.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
+import '../../core/net/lan_discovery.dart';
+import '../discovery/lan_discovery_backend.dart';
+import '../discovery/lan_host_list.dart' show lanDiscoveryProblemMessage;
 
 /// Lifecycle of the embedded server.
 enum HostServerStatus {
@@ -99,9 +102,34 @@ class HostServerCubit extends Cubit<HostServerState> {
     required QuizEngineBloc engine,
     this.serverName = 'Quizmo Host',
     WebClientBundle? webClient,
+    LanDiscoveryCubit? discovery,
   }) : _engine = engine,
        _webClient = webClient,
-       super(const HostServerState());
+       _discovery =
+           discovery ?? LanDiscoveryCubit(backend: createLanDiscoveryBackend()),
+       super(const HostServerState()) {
+    _discoverySubscription = _discovery.stream.listen((state) {
+      if (state.problem case final problem?) {
+        _appendLog(
+          ServerLogEntry(
+            level: ServerLogLevel.warning,
+            message:
+                '${lanDiscoveryProblemMessage(problem)}'
+                '${state.details == null ? "" : "\n${state.details}"}',
+            atMicros: DateTime.now().microsecondsSinceEpoch,
+          ),
+        );
+      } else if (state.publishedName case final name?) {
+        _appendLog(
+          ServerLogEntry(
+            level: ServerLogLevel.info,
+            message: 'LAN host published as "$name".',
+            atMicros: DateTime.now().microsecondsSinceEpoch,
+          ),
+        );
+      }
+    });
+  }
 
   /// Friendly name announced to clients.
   final String serverName;
@@ -111,11 +139,20 @@ class HostServerCubit extends Cubit<HostServerState> {
 
   final QuizEngineBloc _engine;
   final WebClientBundle? _webClient;
+  final LanDiscoveryCubit _discovery;
+  StreamSubscription<LanDiscoveryState>? _discoverySubscription;
   EmbeddedQuizServer? _server;
   StreamSubscription<ServerLogEntry>? _logSubscription;
+  Future<void> _lifecycle = Future.value();
+  bool _closing = false;
 
   /// Binds the server to [port].
-  Future<void> start({int? port}) async {
+  Future<void> start({int? port}) {
+    if (_closing) return _lifecycle;
+    return _lifecycle = _lifecycle.then((_) => _start(port: port));
+  }
+
+  Future<void> _start({int? port}) async {
     if (state.status == HostServerStatus.running ||
         state.status == HostServerStatus.starting) {
       return;
@@ -139,6 +176,7 @@ class HostServerCubit extends Cubit<HostServerState> {
       _server = server;
       _logSubscription = server.logs.listen(_appendLog);
       final endpoint = await server.start(port: targetPort);
+      await _engine.persistRecovery?.call();
       emit(
         state.copyWith(
           status: HostServerStatus.running,
@@ -147,6 +185,9 @@ class HostServerCubit extends Cubit<HostServerState> {
           servesWebClient: server.servesWebClient,
         ),
       );
+      if (endpoint.publicUri == null) {
+        await _discovery.publish(name: serverName, port: endpoint.port);
+      }
     } on Object catch (error) {
       await _teardown();
       emit(
@@ -161,7 +202,12 @@ class HostServerCubit extends Cubit<HostServerState> {
   }
 
   /// Stops the server and releases the port.
-  Future<void> stop() async {
+  Future<void> stop() {
+    if (_closing) return _lifecycle;
+    return _lifecycle = _lifecycle.then((_) => _stop());
+  }
+
+  Future<void> _stop() async {
     await _teardown();
     emit(
       state.copyWith(
@@ -174,11 +220,19 @@ class HostServerCubit extends Cubit<HostServerState> {
 
   @override
   Future<void> close() async {
+    _closing = true;
+    await _lifecycle;
     await _teardown();
+    await _discoverySubscription?.cancel();
+    await _discovery.close();
     return super.close();
   }
 
+  Future<void> setDiscoverySuspended(bool suspended) =>
+      _discovery.setSuspended(suspended);
+
   Future<void> _teardown() async {
+    await _discovery.stop();
     await _logSubscription?.cancel();
     _logSubscription = null;
     await _server?.dispose();
@@ -190,6 +244,7 @@ class HostServerCubit extends Cubit<HostServerState> {
     if (entry.level == ServerLogLevel.error &&
         _server?.isRunning == false &&
         state.status == HostServerStatus.running) {
+      unawaited(_discovery.stop());
       emit(
         state.copyWith(
           status: HostServerStatus.failed,

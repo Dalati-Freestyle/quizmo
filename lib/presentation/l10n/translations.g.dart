@@ -9,6 +9,8 @@ const englishMessages = <String, String>{
       "A quiz file must include an integer \"schemaVersion\".",
   "A returning player cannot create another team.":
       "A returning player cannot create another team.",
+  "A saved game already exists or changed. Reopen recovery before hosting.":
+      "A saved game already exists or changed. Reopen recovery before hosting.",
   "A team ID must not be empty.": "A team ID must not be empty.",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "A wrong answer loses the points of the row. A Daily Double always risks the wager.",
   "ARGB colour (for example FF5E6AD2)": "ARGB colour (for example FF5E6AD2)",
@@ -19,6 +21,10 @@ const englishMessages = <String, String>{
   "Abspiellimit muss positiv sein.": "Playback limit must be positive.",
   "Abweichung für 0 Punkte bei Zielwert 0":
       "Deviation for 0 points when the target is 0",
+  "Accuracy / response time: {0} % / {1} ms":
+      "Accuracy / response time: {0} % / {1} ms",
+  "Add": "Add",
+  "Add a question before previewing.": "Add a question before previewing.",
   "Add at least two options and choose the correct one.":
       "Add at least two options and choose the correct one.",
   "Add category (column)": "Add category (column)",
@@ -28,18 +34,30 @@ const englishMessages = <String, String>{
   "Add questions before hosting this quiz.":
       "Add questions before hosting this quiz.",
   "Add team": "Add team",
+  "Add test participant": "Add test participant",
   "Admin-Notizen": "Host notes",
   "Admin-Notizen (nur Spielleiter)": "Host notes (quizmaster only)",
+  "Admitted players can still reconnect with their resume token.":
+      "Admitted players can still reconnect with their resume token.",
+  "Advanced settings": "Advanced settings",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
+  "Alle Fragen und Lösungen im Überblick.":
+      "An overview of all questions and solutions.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "All players / participating teams have answered.",
+  "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.",
+  "Allow spectators": "Allow spectators",
+  "Am Quizende": "At the end of the quiz",
+  "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "An option ID in question \"{0}\" must not be empty.":
       "An option ID in question \"{0}\" must not be empty.",
   "Anhang entfernen": "Remove attachment",
   "Anhang hinzufügen": "Add attachment",
+  "Animated images are kept unchanged. Optimization would remove animation.": "Animated images are kept unchanged. Optimization would remove animation.",
   "Answer options": "Answer options",
   "Answer: {0}": "Answer: {0}",
+  "Answered by teammate": "Answered by teammate",
   "Answers received": "Answers received",
   "Antwort eingeloggt. Sie kann nicht mehr geändert werden.":
       "Answer locked in. It cannot be changed.",
@@ -47,35 +65,58 @@ const englishMessages = <String, String>{
       "Answer locked in. Wait for the quizmaster…",
   "Antwort senden": "Send answer",
   "Antworten einloggen": "Lock in answers",
+  "Antworten schließen & bewerten": "Close answers & grade",
   "Antwortphase": "Answer phase",
+  "Approve": "Approve",
+  "Approve new participants": "Approve new participants",
   "Audio hochladen": "Upload audio",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
       "Audio cannot be played on this device.",
   "Audio konnte nicht abgespielt werden.": "Audio could not be played.",
   "Audioformat erwartet.": "An audio format is required.",
+  "Auflösung": "Solution reveal",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
       "Eliminated · You can keep answering, but cannot earn points or chips.",
+  "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.":
+      "Awarded chips have already been spent. Undo is blocked.",
   "Auswahl löschen": "Clear selection",
+  "Automatic / solo": "Automatic / solo",
+  "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.",
+  "Automatic bot": "Automatic bot",
+  "Automatic bots": "Automatic bots",
+  "Automatic recovery save: {0}": "Automatic recovery save: {0}",
+  "Automatisch": "Automatic",
+  "Automatischen Wechsel fortsetzen": "Resume automatic rotation",
+  "Automatischen Wechsel pausieren": "Pause automatic rotation",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}":
       "Could not save automatic reconnection after restart: {0}",
   "BUZZ": "BUZZ",
   "BUZZER: everyone may answer": "BUZZER: everyone may answer",
   "Back to the board": "Back to the board",
+  "Ban for this session": "Ban for this session",
+  "Banned identities: {0}": "Banned identities: {0}",
   "Base points": "Base points",
   "Be the first to hit your buzzer.": "Be the first to hit your buzzer.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
       "A wrong answer loses your team's wager.",
+  "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.": "With manual grading, this tolerance only affects the recommendation. The host decides.",
   "Beschriftung (optional)": "Caption (optional)",
   "Beschädigtes Medien-Asset.": "Corrupted media asset.",
   "Bestätigen": "Confirm",
+  "Bewertung": "Grading",
+  "Bewertung abschließen": "Finalize grading",
   "Bild hochladen": "Upload image",
   "Bild konnte nicht geladen werden.": "The image could not be loaded.",
   "Bildformat erwartet.": "An image format is required.",
   "Bitte Eingaben prüfen: {0}": "Please check your input: {0}",
   "Bitte eine ganze Zahl ab 0 eingeben.": "Enter a whole number of at least 0.",
+  "Bitte erst alle eingegangenen Antworten bewerten.":
+      "Please grade all submitted answers first.",
   "Board cleared — check the standings!":
       "Board cleared — check the standings!",
+  "Bot: {0}% · {1}–{2} ms": "Bot: {0}% · {1}–{2} ms",
   "Breitengrad": "Latitude",
+  "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.": "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.",
   "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget tip from the start: at most {0} chips per question ({1} starting chips / {2} questions). This funds the final question even if every answer is wrong.",
   "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget tip: {0} starting chips for {1} questions are not enough for 1 chip per question. Plan to skip some questions.",
   "Buzzer": "Buzzer",
@@ -92,9 +133,16 @@ const englishMessages = <String, String>{
   "Buzzer für alle freigegeben.": "Buzzer reopened for everyone.",
   "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.":
       "Buzzer closed. The quizmaster opens the next attempt or ends the round.",
+  "Buzzer-Bewertung": "Buzzer judgment",
   "Buzzers are armed!": "Buzzers are ready!",
   "CONNECTING": "CONNECTING",
+  "CSV export": "CSV export",
+  "CSV export failed: {0}": "CSV export failed: {0}",
   "Cancel": "Cancel",
+  "Cannot open recovery storage. Allow site storage.":
+      "Cannot open recovery storage. Allow site storage.",
+  "Cannot replace the quiz of an existing saved game.":
+      "Cannot replace the quiz of an existing saved game.",
   "Cannot save quiz": "Cannot save quiz",
   "Category": "Category",
   "Category \"{0}\" has more cells than the board has rows.":
@@ -103,6 +151,8 @@ const englishMessages = <String, String>{
   "Category {0}": "Category {0}",
   "Category {0} needs a name.": "Category {0} needs a name.",
   "Chips": "chips",
+  "Chips korrigieren": "Adjust chips",
+  "Chipänderung: {0}": "Chip adjustment: {0}",
   "Choose an available team or create a new one.":
       "Choose an available team or create a new one.",
   "Choose an option as the correct answer.":
@@ -116,14 +166,35 @@ const englishMessages = <String, String>{
   "Close TV view": "Close TV view",
   "Code und gültige Sprache angeben.": "Provide code and a valid language.",
   "Code-Snippet": "Code snippet",
+  "Confirm": "Confirm",
+  "Confirm identity reassignment": "Confirm identity reassignment",
+  "Confirmation missing. Your answer may not have arrived.":
+      "Confirmation missing. Your answer may not have arrived.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+  "Connected at end": "Connected at end",
+  "Connected to the host": "Connected to the host",
+  "Connected verification ID": "Connected verification ID",
+  "Connecting to the host...": "Connecting to the host...",
   "Connecting to the quiz…": "Connecting to the quiz…",
   "Connection": "Connection",
+  "Connection ended": "Connection ended",
+  "Connection interrupted. Reconnecting to the room...":
+      "Connection interrupted. Reconnecting to the room...",
+  "Continue saved game": "Continue saved game",
+  "Continue with a soft timer": "Continue with a soft timer",
+  "Continue with saved time": "Continue with saved time",
   "Copied {0}": "Copied {0}",
   "Correct option": "Correct option",
   "Correct points": "Correct-answer points",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms":
+      "Correct: {0}/{1} judged · Hit rate: {2} % · Mean time: {3} ms",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}":
+      "Correct: {0}/{1} judged · Hit rate: {2} % · Mean time: {3} ms · {4}",
   "Could not export quiz: {0}": "Could not export quiz: {0}",
   "Could not import quiz: {0}": "Could not import quiz: {0}",
+  "Could not load advanced settings.": "Could not load advanced settings.",
+  "Could not recreate example quizzes: {0}":
+      "Could not recreate example quizzes: {0}",
   "Could not save this quiz: {0}": "Could not save this quiz: {0}",
   "Could not update the quiz library: {0}":
       "Could not update the quiz library: {0}",
@@ -133,6 +204,7 @@ const englishMessages = <String, String>{
   "Create quizzes here or join with the invitation link from your host.":
       "Create quizzes here or join with the invitation link from your host.",
   "DAILY DOUBLE": "DAILY DOUBLE",
+  "Daily Double": "Daily Double",
   "Daily Double! Place the wager on the board panel.":
       "Daily Double! Place the wager on the board panel.",
   "Daily Double! Place the wager.": "Daily Double! Place the wager.",
@@ -147,6 +219,7 @@ const englishMessages = <String, String>{
       "Files: maximum 20 MiB. Maps and YouTube require internet.",
   "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.":
       "File content does not match its media format or contains unsafe SVG.",
+  "Dein Punktestand: {0}": "Your score: {0}",
   "Dein Team erreicht": "Your team finishes in",
   "Dein Team hat keinen Einsatz.": "Your team has no stake.",
   "Dein Team ist dran! Wählt die nächste Frage.":
@@ -155,40 +228,66 @@ const englishMessages = <String, String>{
       "Your team is sitting out or has already been scored.",
   "Dein Team wurde bereits gewertet.": "Your team has already been scored.",
   "Deine Antwort": "Your answer",
+  "Deine Antwort: {0}": "Your answer: {0}",
   "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.": "Your quizzes are saved in this browser. Export backups before leaving the page or deleting browser data. When closing the tab, choose Cancel and export here.",
   "Deine Schätzung": "Your estimate",
   "Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.":
       "Your session was resumed in another window or on another device.",
+  "Delay range must satisfy 0 ≤ min ≤ max ≤ 3600000 ms.":
+      "Delay range must satisfy 0 ≤ min ≤ max ≤ 3600000 ms.",
   "Delete": "Delete",
   "Delete \"{0}\" from this device?": "Delete \"{0}\" from this device?",
   "Delete category and its questions": "Delete category and its questions",
   "Delete question": "Delete question",
   "Delete quiz?": "Delete quiz?",
   "Delete row and its questions": "Delete row and its questions",
+  "Delete saved game?": "Delete saved game?",
   "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.":
       "The buzzer is closed. Wait for the host to open it.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "The quizmaster must assign you to a team.",
+  "Der Spielleiter bewertet die Antworten.": "The host is grading the answers.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
       "The host removed you from the session.",
   "Der nächste Teilnehmer": "The next participant",
   "Description": "Description",
   "Details ausblenden": "Hide details",
   "Die Einsatzphase läuft noch.": "Betting is still open.",
+  "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Recommendations are not binding. Judge every submitted answer. You can change your decision until reveal.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "The question remains open until ended manually, even after a correct answer.",
+  "Die Korrektur würde negative Chips erzeugen.":
+      "The correction would result in negative chips.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "The quizzes remain saved in the browser. You can export backups from the library now.",
+  "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.":
+      "The round has already been settled or the judgment has changed.",
+  "Die betroffenen Teilnehmer oder Teams wurden verändert.":
+      "The affected participants or teams have changed.",
+  "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.": "The adjustment for {0} will be recorded as a new counter-correction. Later changes are preserved.",
+  "Diese Antwort kann nicht bewertet werden.": "This answer cannot be graded.",
+  "Diese Korrektur ist nicht zulässig.": "This correction is not allowed.",
+  "Diese Korrektur wurde bereits angewendet.":
+      "This correction has already been applied.",
+  "Diese Korrektur wurde bereits zurückgenommen.":
+      "This correction has already been undone.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
+  "Discard": "Discard",
+  "Disconnected at end": "Disconnected at end",
+  "Disconnected. Waiting for the player to reconnect.":
+      "Disconnected. Waiting for the player to reconnect.",
+  "Disconnection observed during this phase": "Disconnection observed during this phase (not necessarily the cause of a missing answer)",
   "Du bist dran! Wähle die nächste Frage.":
       "Your turn! Choose the next question.",
   "Du erreichst": "You finish in",
   "Duplicate {0} ID \"{1}\".": "Duplicate {0} ID \"{1}\".",
+  "During recovery, choose an existing team. The host can reassign your original identity.": "During recovery, choose an existing team. The host can reassign your original identity.",
   "Edit": "Edit",
   "Edit team": "Edit team",
   "Edit {0}": "Edit {0}",
   "Edit {0} question": "Edit {0} question",
   "Ein Druck loggt deine Antwort verbindlich ein.":
       "One press locks in your answer.",
+  "Eine ganze Zahl ungleich 0 eingeben.": "Enter a non-zero integer.",
   "Eingaben prüfen: {0}": "Check your input: {0}",
   "Einheit (optional)": "Unit (optional)",
   "Einsatz (0–{0})": "Stake (0–{0})",
@@ -204,6 +303,11 @@ const englishMessages = <String, String>{
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
       "Items in correct order — one per line",
   "Embedded server": "Embedded server",
+  "Empfehlung: Fast richtig, vermutlich ein Tippfehler.":
+      "Recommendation: Almost correct, probably a typo.",
+  "Empfehlung: Passt zur Lösung.": "Recommendation: Matches the solution.",
+  "Empfehlung: Weicht von den hinterlegten Lösungen ab.":
+      "Recommendation: Differs from the accepted solutions.",
   "Empfohlene Wiederholungen (optional)": "Recommended retries (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Recommended retries reached. Suggestion: end the round. You can still continue.",
   "Endliche Zielzahl angeben.": "Provide a finite target number.",
@@ -215,18 +319,26 @@ const englishMessages = <String, String>{
   "Enter a whole number.": "Enter a whole number.",
   "Enter an 8-digit hexadecimal ARGB colour.":
       "Enter an 8-digit hexadecimal ARGB colour.",
+  "Enter an integer.": "Enter an integer.",
   "Enter an option label.": "Enter an option label.",
   "Enter the address shown on the quizmaster dashboard.":
       "Enter the address shown on the quizmaster dashboard.",
+  "Enter the code and press Enter to reconnect.":
+      "Enter the code and press Enter to reconnect.",
+  "Enter the join code supplied by the host.":
+      "Enter the join code supplied by the host.",
   "Erlaubte Zeichenänderungen": "Allowed character edits",
+  "Erneut versuchen": "Retry",
   "Es gibt noch keine Teams.": "There are no teams yet.",
   "Estimation": "Estimation",
+  "Example quizzes recreated.": "Example quizzes recreated.",
   "Expected": "Expected",
   "Expected answer (optional)": "Expected answer (optional)",
   "Export Quizmo quiz (including media)":
       "Export Quizmo quiz (including media)",
   "Export file": "Export file",
   "Export including media": "Export including media",
+  "Export private session report": "Export private session report",
   "Export quiz with media": "Export quiz with media",
   "Exported \"{0}\" including media.": "Exported \"{0}\" including media.",
   "Exporting quiz files is unavailable on this platform.":
@@ -241,6 +353,8 @@ const englishMessages = <String, String>{
   "Field \"{0}\" must be a boolean.": "Field \"{0}\" must be a boolean.",
   "Field \"{0}\" must be a finite number.":
       "Field \"{0}\" must be a finite number.",
+  "Final report": "Final report",
+  "Final standings": "Final standings",
   "Finish the current question first.": "Finish the current question first.",
   "Finish the current question to pick the next cell.":
       "Finish the current question to pick the next cell.",
@@ -249,6 +363,9 @@ const englishMessages = <String, String>{
   "First-buzzer points": "First-buzzer points",
   "Fixed points": "Fixed points",
   "Fixed {0} pts": "Fixed {0} pts",
+  "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
+      "Question complete. Solutions will be revealed at the end of the quiz.",
+  "Frage abschließen": "Finish question",
   "Fragemedien": "Question media",
   "Fragenart": "Question type",
   "Fragenauswahl bestätigen": "Confirm question selection",
@@ -256,13 +373,19 @@ const englishMessages = <String, String>{
       "Question selection awaits the quizmaster's confirmation.",
   "Freitext": "Short answer",
   "Game mode": "Game mode",
+  "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Game paused for recovery. Reconnect participants before continuing. Media stays paused.",
   "Game reset.": "Game reset.",
+  "Gegenkorrektur zu {0}": "Counter-correction for {0}",
+  "Gegenkorrekturen können nicht zurückgenommen werden.":
+      "Counter-corrections cannot be undone.",
   "General knowledge": "General knowledge",
   "Get ready to play!": "Get ready to play!",
   "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
+  "Grund (optional)": "Reason (optional)",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hard: Audio stops at the limit. Soft: The time is advisory; the host stops playback.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hard: Answers close when time runs out. Soft: The timer is advisory; only the host ends the round.",
   "Hinzufügen": "Add",
+  "Host": "Host",
   "Host a quiz": "Host a quiz",
   "Host address": "Host address",
   "Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.": "Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.",
@@ -272,18 +395,39 @@ const englishMessages = <String, String>{
   "Hosting is unavailable on this platform.":
       "Hosting is unavailable on this platform.",
   "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.": "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.",
+  "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Identity reassignment could not be saved. Ask the host to retry before continuing.",
   "If the LAN address times out, try:": "If the LAN address times out, try:",
+  "Image optimization failed.": "Image optimization failed.",
+  "Image preview unavailable.": "Image preview unavailable.",
   "Import": "Import",
   "Import Quizmo quiz (including media)":
       "Import Quizmo quiz (including media)",
   "Imported \"{0}\".": "Imported \"{0}\".",
   "Importing quiz files is unavailable on this platform.":
       "Importing quiz files is unavailable on this platform.",
+  "Incomplete or unknown recovery fields.":
+      "Incomplete or unknown recovery fields.",
+  "Incomplete recovery fields.": "Incomplete recovery fields.",
+  "Incomplete recovery file: {0}": "Incomplete recovery file: {0}",
+  "Incomplete recovery list.": "Incomplete recovery list.",
+  "Incomplete recovery metadata.": "Incomplete recovery metadata.",
   "Internet hosting": "Internet hosting",
+  "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.": "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.",
+  "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.": "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.",
   "Invalid answer for this question.": "Invalid answer for this question.",
   "Invalid message.": "Invalid message.",
+  "Invalid or lossy recovery value.": "Invalid or lossy recovery value.",
   "Invalid poker configuration.": "Invalid poker configuration.",
+  "Invalid recovery question bank reference.":
+      "Invalid recovery question bank reference.",
+  "Invalid recovery question reference.":
+      "Invalid recovery question reference.",
+  "Invalid recovery quiz: {0}": "Invalid recovery quiz: {0}",
+  "Invalid recovery state: {0}": "Invalid recovery state: {0}",
+  "Invalid saved quiz.": "Invalid saved quiz.",
   "Invitation": "Invitation",
+  "Isolated preview: unsaved draft, no room, no saved scores.":
+      "Isolated preview: unsaved draft, no room, no saved scores.",
   "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.": "Each team bets per question. Correct: double stake returned. Wrong or no answer: stake lost. 0 chips = sit out. Create at least one team.",
   "Jeopardy": "Jeopardy",
   "Jeopardy board": "Jeopardy board",
@@ -291,23 +435,41 @@ const englishMessages = <String, String>{
   "Join a session": "Join a session",
   "Join a team before renaming it.": "Join a team before renaming it.",
   "Join as player": "Join as player",
+  "Join code": "Join code",
+  "Join code enabled.": "Join code enabled.",
   "Join this session as a local player": "Join this session as a local player",
   "Join: {0}": "Join: {0}",
   "Joined players": "Joined players",
+  "Joining could not be saved. Ask the host to retry recovery storage.":
+      "Joining could not be saved. Ask the host to retry recovery storage.",
   "Just watch (TV view)": "Just watch (TV view)",
   "Kartenausschnitt": "Map section",
+  "Keep invitation links, join codes and resume tokens confidential.":
+      "Keep invitation links, join codes and resume tokens confidential.",
+  "Keep original": "Keep original",
+  "Keep original or optimize image": "Keep original or optimize image",
   "Keine Antwort": "No answer",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "No captions or file names on player and TV screens. YouTube may show its own titles; upload MP4 for videos without titles.",
   "Keine Chips mehr. Dein Team setzt aus.":
       "No chips left. Your team sits out.",
   "Keine Punkte": "No points",
   "Korrekte Zahl": "Correct number",
+  "Korrektur als Gegenkorrektur zurückgenommen.":
+      "Correction undone with a counter-correction.",
+  "Korrektur anwenden": "Apply correction",
+  "Korrektur zurücknehmen?": "Undo correction?",
+  "Korrekturverlauf": "Correction history",
+  "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.",
+  "LAN games": "LAN games",
+  "LAN host published as \"{0}\".": "LAN host published as \"{0}\".",
   "LIVE": "LIVE",
   "LOCKED": "LOCKED",
   "Language": "Language",
   "Language settings could not be loaded. Select your language again.":
       "Language settings could not be loaded. Select your language again.",
   "Language settings could not be saved. Check browser storage or device permissions and try again.": "Language settings could not be saved. Check browser storage or device permissions and try again.",
+  "Last confirmed: the host accepted your submission.":
+      "Last confirmed: the host accepted your submission.",
   "Latency": "Latency",
   "Latency adjusted ranking": "Latency-adjusted ranking",
   "Latency {0} · clock offset {1}": "Latency {0} · clock offset {1}",
@@ -319,6 +481,7 @@ const englishMessages = <String, String>{
   "Local-first, multi-device quiz platform":
       "Local-first, multi-device quiz platform",
   "Lock buzzer now": "Lock buzzer now",
+  "Lock new joins": "Lock new joins",
   "Lock out a player after a wrong answer":
       "Lock out a player after a wrong answer",
   "Locked out this round": "Locked out this round",
@@ -337,10 +500,15 @@ const englishMessages = <String, String>{
   "Make Daily Double": "Make Daily Double",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Make sure the TV and the quizmaster are on the same network and the host server is running.",
   "Manage quiz library": "Manage quiz library",
+  "Manual input": "Manual input",
+  "Manuell durch den Spielleiter": "Manually by the host",
+  "Manuelle Bewertung": "Manual grading",
   "Matching": "Matching",
   "Maximal zehn Anhänge.": "At most ten attachments.",
   "Maximal zehn Medien pro Frage.":
       "At most ten media attachments per question.",
+  "Maximum delay (ms)": "Maximum delay (ms)",
+  "Maximum edge length (pixels)": "Maximum edge length (pixels)",
   "Maximum speed bonus": "Maximum speed bonus",
   "Medien dürfen maximal 20 MiB groß sein.":
       "Media files must not exceed 20 MiB.",
@@ -350,10 +518,13 @@ const englishMessages = <String, String>{
   "Medien-Datei fehlt im Quiz.": "A media file is missing from the quiz.",
   "Medienanhang": "Media attachment",
   "Medienwiedergabe": "Media playback",
+  "Medium konnte nicht geladen werden.": "Media could not be loaded. Check the connection and room admission, then retry.",
   "Mehrere richtige Antworten": "Multiple correct answers",
   "Mindestens eine Textlösung angeben.": "Provide at least one text answer.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
       "Select at least one correct answer.",
+  "Minimum delay (ms)": "Minimum delay (ms)",
+  "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.",
   "Missing required field \"{0}\".": "Missing required field \"{0}\".",
   "Mit {0} zusammenführen (+{1} Punkte)": "Merge with {0} (+{1} points)",
   "Mode switched to {0}.": "Mode switched to {0}.",
@@ -361,19 +532,26 @@ const englishMessages = <String, String>{
   "Multiple-choice question \"{0}\" needs a correctOptionId from its options.": "Multiple-choice question \"{0}\" needs a correctOptionId from its options.",
   "Multiple-choice question \"{0}\" needs at least two options.":
       "Multiple-choice question \"{0}\" needs at least two options.",
+  "Nach jeder Frage": "After each question",
   "Nach oben": "Move up",
   "Nach unten": "Move down",
   "Name": "Name",
   "Names must contain 1 to 60 characters. Choose an existing team or create one.": "Names must contain 1 to 60 characters. Choose an existing team or create one.",
   "Neu starten": "Restart",
   "Neuer Teamname": "New team name",
+  "New join code (6 to 64 characters)": "New join code (6 to 64 characters)",
+  "New participants need host approval.":
+      "New participants need host approval.",
   "Next question": "Next question",
   "Next question coming up…": "Next question coming up…",
   "Nicht unterstütztes Dateiformat.": "Unsupported file format.",
   "No Daily Double is waiting for a wager.":
       "No Daily Double is waiting for a wager.",
+  "No answer recorded": "No answer recorded",
   "No description.": "No description.",
+  "No join code required.": "No join code required.",
   "No pending questions left.": "No pending questions left.",
+  "No pending requests.": "No pending requests.",
   "No players yet": "No players yet",
   "No question on stage.": "No question on stage.",
   "No question on stage. Pick a cell on the board.":
@@ -381,21 +559,34 @@ const englishMessages = <String, String>{
   "No question on stage. Pick one from the bank.":
       "No question on stage. Pick one from the bank.",
   "No quizzes available": "No quizzes available",
+  "No reachable LAN hosts found yet.": "No reachable LAN hosts found yet.",
   "No scores yet.": "No scores yet.",
+  "No submission accepted. Answer again if the round is still open.":
+      "No submission accepted. Answer again if the round is still open.",
   "No teams configured.": "No teams configured.",
   "No teams yet": "No teams yet",
   "No teams: this quiz will start in solo mode.":
       "No teams: this quiz will start in solo mode.",
   "Nobody scored. The other teams may steal.":
       "Nobody scored. The other teams may steal.",
+  "Noch keine manuellen Korrekturen.": "No manual corrections yet.",
+  "Noch {0} Antworten zu bewerten": "{0} answers still need grading",
+  "Not applicable / unavailable": "Not applicable / unavailable",
+  "Not connected": "Not connected",
+  "Not eligible to answer": "Not eligible to answer",
+  "Not judged": "Not judged",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
   "Nur durch Spielleiter beenden": "Only the quizmaster ends the question",
+  "Nur für den Host · {0} Einträge": "Host only · {0} entries",
+  "Nächste Lösung": "Next solution",
   "OK": "OK",
   "OPEN": "OPEN",
   "Ohne Einsatz: keine Wertung": "No wager: not scored",
   "Ohne Export verlassen": "Leave without exporting",
+  "Older save: detailed history is incomplete. Final standings are authoritative.": "Older save: detailed history is incomplete. Final standings are authoritative.",
+  "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.",
   "Only the first answer counts.": "Only the first answer counts.",
   "Only the other teams may steal this question.":
       "Only the other teams may steal this question.",
@@ -403,23 +594,32 @@ const englishMessages = <String, String>{
   "Open player view": "Open player view",
   "Open question": "Open question",
   "Open quizmaster dashboard": "Open quizmaster dashboard",
+  "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB":
+      "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB",
   "Option \"{0}\" in question \"{1}\" needs a label.":
       "Option \"{0}\" in question \"{1}\" needs a label.",
   "Option {0}": "Option {0}",
   "Ordering": "Ordering",
+  "Original participant": "Original participant",
+  "Original: {0} KiB": "Original: {0} KiB",
   "Other teams may steal": "Other teams may steal",
+  "Own test team": "Own test team",
   "POKERCHIPS · ANTWORTEN": "POKER CHIPS · ANSWERS",
   "POKERCHIPS · EINSÄTZE": "POKER CHIPS · BETTING",
   "Paare – pro Zeile: links = rechts": "Pairs — one per line: left = right",
   "Pause": "Pause",
+  "Pause simulation": "Pause simulation",
   "Pick a name": "Pick a name",
   "Pick the next question on the board.":
       "Pick the next question on the board.",
   "Picks next:": "Picks next:",
+  "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.": "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.",
   "Player": "Player",
   "Player is locked out for this round.":
       "Player is locked out for this round.",
   "Players ({0} online)": "Players ({0} online)",
+  "Points": "points",
+  "Points at stake: {0}": "Points at stake: {0}",
   "Points lost per rank": "Points lost per rank",
   "Points of this row": "Points of this row",
   "Pokerchips": "Pokerchips",
@@ -429,12 +629,28 @@ const englishMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Poker chips · {0} chips available",
   "Port": "Port",
   "Positive Sekunden angeben.": "Enter positive seconds.",
+  "Practice only": "Practice only (no points or chips)",
+  "Preloading media...": "Preloading media...",
+  "Preview": "Preview",
+  "Preview optimized PNG copy": "Preview optimized PNG copy",
+  "Preview quiz": "Preview quiz",
   "Preview the TV screen": "Preview the TV screen",
+  "Preview · {0}": "Preview · {0}",
+  "Previous invitation (may be invalid): {0}":
+      "Previous invitation (may be invalid): {0}",
+  "Probability per answer, not a guaranteed quiz score.":
+      "Probability per answer, not a guaranteed quiz score.",
   "Prompt": "Prompt",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Points = maximum points × max(0, 1 − relative deviation).",
   "Punkte aus der Zeile": "Points come from the row",
+  "Punkte korrigieren": "Adjust points",
+  "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.":
+      "Points and chips are awarded only after your assessment and reveal.",
   "Punkten": "points",
+  "Punktestand bis zum Quizende verborgen.":
+      "Scores are hidden until the end of the quiz.",
+  "Punkteänderung: {0}": "Points adjustment: {0}",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
   "Question": "Question",
@@ -462,21 +678,75 @@ const englishMessages = <String, String>{
   "Quiz type": "Quiz type",
   "Quiz updatedAt must not be before createdAt.":
       "Quiz updatedAt must not be before createdAt.",
+  "Quiz-Auflösung": "Quiz solutions",
+  "Quiz-Auflösung · {0} / {1}": "Quiz solutions · {0} / {1}",
   "Quizmaster · {0}": "Quizmaster · {0}",
   "Quizmo logo": "Quizmo logo",
   "Quizzes exportieren": "Export quizzes",
   "Quizzes in diesem Browser": "Quizzes in this browser",
   "Quizzes vor dem Verlassen exportieren?": "Export quizzes before leaving?",
   "RECONNECTING": "RECONNECTING",
+  "Reachable": "Reachable",
+  "Recovered game resumed. Media stays paused.":
+      "Recovered game resumed. Media stays paused.",
+  "Recovery checksum failed. The saved game was not changed.":
+      "Recovery checksum failed. The saved game was not changed.",
+  "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.": "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.",
+  "Recovery file contains invalid JSON.":
+      "Recovery file contains invalid JSON.",
+  "Recovery file must be a JSON object.":
+      "Recovery file must be a JSON object.",
+  "Recovery is already open.": "Recovery is already open.",
+  "Recovery is closed.": "Recovery is closed.",
+  "Recovery paused": "Recovery paused",
+  "Recovery paused. Confirm how to resume first.":
+      "Recovery paused. Confirm how to resume first.",
+  "Recovery payload must be a JSON object.":
+      "Recovery payload must be a JSON object.",
+  "Recovery quiz or media is missing or damaged.":
+      "Recovery quiz or media is missing or damaged.",
+  "Recovery schemaVersion must be an integer.":
+      "Recovery schemaVersion must be an integer.",
+  "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.": "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.",
+  "Recovery storage cannot be opened. Check free space and storage permissions.": "Recovery storage cannot be opened. Check free space and storage permissions.",
+  "Recovery storage is blocked. Close other Quizmo tabs and retry.":
+      "Recovery storage is blocked. Close other Quizmo tabs and retry.",
+  "Recovery storage is not locked.": "Recovery storage is not locked.",
+  "Recovery transaction failed. Check free space and allow site storage.":
+      "Recovery transaction failed. Check free space and allow site storage.",
+  "Recovery view could not be opened. Reload Quizmo and retry.":
+      "Recovery view could not be opened. Reload Quizmo and retry.",
+  "Recreate example quizzes": "Recreate example quizzes",
+  "Recreate example quizzes?": "Recreate example quizzes?",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.",
+  "Refresh LAN games": "Refresh LAN games",
   "Reihenfolge": "Ordering",
   "Reihenfolge senden": "Send order",
+  "Reject": "Reject",
+  "Rejoin verification ID: {0}": "Rejoin verification ID: {0}",
+  "Remove (new admission allowed)": "Remove (new admission allowed)",
   "Remove Daily Double": "Remove Daily Double",
+  "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.": "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.",
+  "Remove join code": "Remove join code",
   "Remove option": "Remove option",
   "Remove question": "Remove question",
+  "Remove test participant": "Remove test participant",
   "Remove {0}": "Remove {0}",
+  "Removed from roster": "Removed from roster (no final score)",
+  "Replay round": "Replay round",
+  "Report export failed. Check storage permissions and retry.":
+      "Report export failed. Check storage permissions and retry.",
+  "Report exported.": "Report exported.",
+  "Report metrics explained": "Hit rate = fully correct / judged answers (missing and unjudged answers excluded); partial accuracy is shown separately. Times are milliseconds from the synchronized answer clock; buzzer times measure reaction, not spoken answers. Team metrics aggregate actual member submissions, not teammates who did not answer.",
+  "Report storage explained": "Host-only report, saved with automatic game recovery. Reset clears the report in the next save; delete the saved game in recovery to remove it from this device. Downloaded CSV files must be deleted separately. Exports contain names and answers but no room secrets or resume tokens.",
   "Reset scores": "Reset scores",
+  "Restart preview": "Restart preview",
+  "Restart the full timer": "Restart the full timer",
+  "Resume simulation": "Resume simulation",
+  "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.": "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.",
   "Retry": "Retry",
   "Reveal the round before closing it.": "Reveal the round before closing it.",
+  "Richtig": "Correct",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Correct answer. The quizmaster ends the question.",
   "Richtig!": "Correct!",
@@ -491,30 +761,50 @@ const englishMessages = <String, String>{
   "Rule": "Rule",
   "Runde beenden": "End round",
   "Runde beendet.": "Round ended.",
+  "Rücknahme": "Undo",
+  "Rücknahme bestätigen": "Confirm undo",
   "SOLUTION": "SOLUTION",
   "STEAL: everyone but {0}": "STEAL: everyone except {0}",
   "Save": "Save",
   "Save question": "Save question",
   "Save quiz": "Save quiz",
   "Save team": "Save team",
+  "Saved game recovery": "Saved game recovery",
+  "Saved timer: {0} s remaining": "Saved timer: {0} s remaining",
   "Scan to join with your phone": "Scan to join with your phone",
   "Schätzfrage": "Estimation",
   "Schätzung senden": "Send estimate",
+  "Score progression": "Score progression",
+  "Scoreboard": "Scoreboard",
   "Scoreboard · {0}": "Scoreboard · {0}",
   "Scoring rule": "Scoring rule",
+  "Seed": "Seed",
   "Seite verlassen": "Leave page",
+  "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.",
   "Send a join request before submitting.":
       "Send a join request before submitting.",
+  "Sending. Waiting for host confirmation...":
+      "Sending. Waiting for host confirmation...",
   "Sent…": "Sent…",
   "Server log": "Server log",
+  "Session access": "Session access",
+  "Session access settings could not be saved. Retry recovery storage.":
+      "Session access settings could not be saved. Retry recovery storage.",
+  "Set join code": "Set join code",
   "Settings": "Settings",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Share the invitation or TV link. Keep this tab open and this device awake while hosting.",
   "Short answer": "Short answer",
+  "Simulation: {0} ms": "Simulation: {0} ms",
   "Sitzung konnte nicht geladen werden: {0}": "Could not load the session: {0}",
   "Skala für Zielwert 0 muss positiv sein.":
       "The scale for a target of 0 must be positive.",
   "Solo": "Solo",
   "Solo scoring": "Solo scoring",
+  "Spectator access changed. Enter the current code to reconnect.":
+      "Spectator access changed. Enter the current code to reconnect.",
+  "Spectator access is disabled by the host.":
+      "Spectator access is disabled by the host.",
+  "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.": "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.",
   "Speed bonus": "Speed bonus",
   "Speichern": "Save",
   "Spiel beitreten": "Join game",
@@ -526,6 +816,7 @@ const englishMessages = <String, String>{
   "Spieler-Reihenfolge festlegen": "Set player order",
   "Sprache (z. B. dart, python, javascript)":
       "Language (e.g. dart, python, javascript)",
+  "Stake: {0} chips": "Stake: {0} chips",
   "Standard": "Standard",
   "Standings": "Standings",
   "Start": "Start",
@@ -535,21 +826,25 @@ const englishMessages = <String, String>{
       "Starting chips must be between 1 and 1000000.",
   "Startchips pro Team (1–1000000)": "Starting chips per team (1–1000000)",
   "Starts the embedded HTTP and web socket server on this device. Players join over your local network.": "Starts the embedded HTTP and web socket server on this device. Players join over your local network.",
+  "Steal": "Steal",
   "Steal round · other teams than {0}": "Steal round · teams other than {0}",
   "Steal round: only the other teams answer.":
       "Steal round: only the other teams answer.",
   "Steal! Your team may answer now.": "Steal! Your team may answer now.",
+  "Step +1 s": "Step +1 s",
   "Stop server": "Stop server",
   "Submission targets a stale round.": "Submission targets a stale round.",
   "Submission timestamp is outside the current round. Resync your clock.":
       "Submission timestamp is outside the current round. Resync your clock.",
   "System language": "System language",
+  "TV": "TV",
   "TV screen": "TV screen",
   "TV screen needs the bundled web player (see above).":
       "TV screen needs the bundled web player (see above).",
   "TV screen: open the link above in the browser of a smart TV or streaming stick, or cast a Chrome tab showing it. It never shows solutions before the reveal.": "TV screen: open the link above in the browser of a smart TV or streaming stick, or cast a Chrome tab showing it. It never shows solutions before the reveal.",
   "TV: Wiedergabe angefordert": "TV: playback requested",
   "TV: pausiert": "TV: paused",
+  "Target accuracy: {0}%": "Target accuracy: {0}%",
   "Team": "Team",
   "Team \"{0}\" needs a name.": "Team \"{0}\" needs a name.",
   "Team (individual buzzers)": "Team (individual buzzers)",
@@ -573,6 +868,7 @@ const englishMessages = <String, String>{
   "Teams": "Teams",
   "Teams (optional)": "Teams (optional)",
   "Teilweise richtig": "Partly correct",
+  "Test participants": "Test participants",
   "That question is not on the board.": "That question is not on the board.",
   "That question was already played.": "That question was already played.",
   "The Jeopardy board needs at least one category.":
@@ -581,6 +877,15 @@ const englishMessages = <String, String>{
       "The Jeopardy board needs at least one row.",
   "The Jeopardy board references unknown question \"{0}\".":
       "The Jeopardy board references unknown question \"{0}\".",
+  "The host accepted your submission.": "The host accepted your submission.",
+  "The host declined your join request.":
+      "The host declined your join request.",
+  "The host has closed this room. Join a new room to continue.":
+      "The host has closed this room. Join a new room to continue.",
+  "The join code is missing or incorrect.":
+      "The join code is missing or incorrect.",
+  "The lobby is locked. Existing players can still reconnect.":
+      "The lobby is locked. Existing players can still reconnect.",
   "The local quiz library contains invalid JSON: {0}":
       "The local quiz library contains invalid JSON: {0}",
   "The local quiz library is invalid: {0}":
@@ -589,6 +894,8 @@ const englishMessages = <String, String>{
       "The local quiz library is not a JSON object.",
   "The local quiz library is unavailable on this platform.":
       "The local quiz library is unavailable on this platform.",
+  "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.": "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.",
+  "The picker could not determine the file size. Choose a local file whose size is available.": "The picker could not determine the file size. Choose a local file whose size is available.",
   "The picking team": "The picking team",
   "The picking team answers first.": "The picking team answers first.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.",
@@ -597,6 +904,10 @@ const englishMessages = <String, String>{
       "The quiz file contains invalid encoded media: {0}",
   "The quiz file is invalid: {0}": "The quiz file is invalid: {0}",
   "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.": "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.",
+  "The saved game changed. Reload recovery before deleting.":
+      "The saved game changed. Reload recovery before deleting.",
+  "The saved game was removed. Reopen recovery.":
+      "The saved game was removed. Reopen recovery.",
   "The selected file is larger than the 100 MiB quiz import limit.":
       "The selected file is larger than the 100 MiB quiz import limit.",
   "The selected file is not valid JSON: {0}":
@@ -609,14 +920,29 @@ const englishMessages = <String, String>{
       "The turn cannot change during a question.",
   "The wager must be between 1 and {0}.":
       "The wager must be between 1 and {0}.",
+  "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "This PNG copy is not smaller. Keep the original or try a smaller edge length.",
   "This connection has already joined.": "This connection has already joined.",
   "This device": "This device",
+  "This game is open in another host. Close it before recovering.":
+      "This game is open in another host. Close it before recovering.",
+  "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.",
+  "This participant cannot be reassigned.":
+      "This participant cannot be reassigned.",
+  "This participant is banned for this session.":
+      "This participant is banned for this session.",
+  "This permanently deletes the saved game and participant resume credentials.": "This permanently deletes the saved game and participant resume credentials.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.",
+  "This recovery file needs a newer Quizmo. Update Quizmo and retry.":
+      "This recovery file needs a newer Quizmo. Update Quizmo and retry.",
   "This round has no buzzer.": "This round has no buzzer.",
   "This session has no Jeopardy board.": "This session has no Jeopardy board.",
   "Time limit in seconds": "Time limit in seconds",
   "Time's up": "Time's up",
+  "Timer choices affect the current round only. Closed rounds stay closed.":
+      "Timer choices affect the current round only. Closed rounds stay closed.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.",
+  "Too many code attempts. Wait one minute and reconnect.":
+      "Too many code attempts. Wait one minute and reconnect.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Join an existing team or create your own.",
   "Trotzdem Buzzer freigeben": "Reopen buzzer anyway",
@@ -624,7 +950,10 @@ const englishMessages = <String, String>{
   "True / false": "True / False",
   "Type": "Type",
   "Uhr synchronisieren und beitreten …": "Syncing clock and joining…",
+  "Unbekannte Korrektur.": "Unknown correction.",
   "Unbekannter Medientyp \"{0}\".": "Unknown media type \"{0}\".",
+  "Unbewertet": "Ungraded",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.",
   "Ungültiger Kartenausschnitt.": "Invalid map viewport.",
   "Ungültiges Medien-Asset.": "Invalid media asset.",
   "Unknown game mode \"{0}\".": "Unknown game mode \"{0}\".",
@@ -637,15 +966,19 @@ const englishMessages = <String, String>{
   "Unknown submission kind \"{0}\".": "Unknown submission kind \"{0}\".",
   "Unknown team.": "Unknown team.",
   "Unnamed": "Unnamed",
+  "Unreachable - check host or firewall":
+      "Unreachable - check host or firewall",
   "Unsupported local library schemaVersion {0}. Expected {1}.":
       "Unsupported local library schemaVersion {0}. Expected {1}.",
   "Unsupported quiz schemaVersion {0}. Expected {1}.":
       "Unsupported quiz schemaVersion {0}. Expected {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.": "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.": "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.",
+  "Unsupported recovery schemaVersion.": "Unsupported recovery schemaVersion.",
   "Untitled question": "Untitled question",
   "Untitled quiz": "Untitled quiz",
   "Update Quizmo to import this quiz": "Update Quizmo to import this quiz",
+  "Use optimized copy": "Use optimized copy",
   "Use the system or browser language, or choose a language for this device.": "Use the system or browser language, or choose a language for this device.",
   "Verbindung unterbrochen. Erneuter Versuch ...": "Connection lost. Retrying…",
   "Verbindung wird hergestellt …": "Connecting…",
@@ -655,13 +988,17 @@ const englishMessages = <String, String>{
   "Video konnte nicht geladen werden.": "Video could not be loaded.",
   "Vollständige eindeutige Zuordnung angeben.":
       "Provide a complete, unique matching.",
+  "Vorherige Lösung": "Previous solution",
   "Wager (max {0})": "Wager (max {0})",
   "Wahr": "True",
   "Wahr / Falsch": "True / False",
   "Wahr oder Falsch als Lösung wählen.":
       "Choose true or false as the solution.",
+  "Waiting for approval": "Waiting for approval",
   "Waiting for clients. Share the LAN address above.":
       "Waiting for clients. Share the LAN address above.",
+  "Waiting for host approval. You are not in the game yet.":
+      "Waiting for host approval. You are not in the game yet.",
   "Waiting for the first player…": "Waiting for the first player…",
   "Waiting for the next question…": "Waiting for the next question…",
   "Waiting for the quizmaster…": "Waiting for the quizmaster…",
@@ -672,6 +1009,8 @@ const englishMessages = <String, String>{
   "Weiches Abspiellimit": "Soft playback limit",
   "Weiches Zeitlimit": "Soft time limit",
   "Weiter zur Teamauswahl": "Continue to team selection",
+  "Weitere Spielaktionen hängen von dieser Bewertung ab.":
+      "Later game actions depend on this judgment.",
   "Wiederholungen dürfen nicht negativ sein.": "Retries must not be negative.",
   "Wrong": "Wrong",
   "Wrong answers cost points": "Wrong answers cost points",
@@ -681,6 +1020,9 @@ const englishMessages = <String, String>{
       "Select all correct answers and lock them in.",
   "You have the floor — answer out loud!":
       "You have the floor — answer out loud!",
+  "You were removed from this session.": "You were removed from this session.",
+  "You were removed. Joining again requires a new admission.":
+      "You were removed. Joining again requires a new admission.",
   "YouTube-Link": "YouTube link",
   "YouTube-Video öffnen": "Open YouTube video",
   "Your name": "Your name",
@@ -692,6 +1034,10 @@ const englishMessages = <String, String>{
       "Time is up. Answers are closed.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Allow zoom",
+  "Zuerst die Wiederherstellung fortsetzen.":
+      "Resume the recovered game first.",
+  "Zuerst die spätere Bewertung zurücknehmen.":
+      "Undo the later judgment first.",
   "Zugreihenfolge": "Turn order",
   "Zugreihenfolge festlegen": "Set turn order",
   "Zuordnen": "Match",
@@ -771,6 +1117,7 @@ const englishMessages = <String, String>{
   "{0}% accuracy": "{0}% accuracy",
   "{0}, place your wager!": "{0}, place your wager!",
   "{0}: {1} Chips · Einsatz: {2}": "{0}: {1} chips · Stake: {2}",
+  "Änderung (+/-)": "Adjustment (+/-)",
   "Übernehmen": "Apply",
 };
 const germanMessages = <String, String>{
@@ -783,6 +1130,7 @@ const germanMessages = <String, String>{
       "Eine Quizdatei benötigt eine ganzzahlige „schemaVersion“.",
   "A returning player cannot create another team.":
       "Ein zurückkehrender Spieler kann kein weiteres Team erstellen.",
+  "A saved game already exists or changed. Reopen recovery before hosting.": "Ein gespeichertes Spiel existiert bereits oder wurde geändert. Öffne die Wiederherstellung erneut, bevor du hostest.",
   "A team ID must not be empty.": "Eine Team-ID darf nicht leer sein.",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "Bei einer falschen Antwort gehen die Punkte der Zeile verloren. Bei einem Daily Double steht immer der Einsatz auf dem Spiel.",
   "ARGB colour (for example FF5E6AD2)": "ARGB-Farbe (zum Beispiel FF5E6AD2)",
@@ -793,6 +1141,11 @@ const germanMessages = <String, String>{
   "Abspiellimit muss positiv sein.": "Abspiellimit muss positiv sein.",
   "Abweichung für 0 Punkte bei Zielwert 0":
       "Abweichung für 0 Punkte bei Zielwert 0",
+  "Accuracy / response time: {0} % / {1} ms":
+      "Richtigkeit / Antwortzeit: {0} % / {1} ms",
+  "Add": "Hinzufügen",
+  "Add a question before previewing.":
+      "Füge vor der Vorschau eine Frage hinzu.",
   "Add at least two options and choose the correct one.":
       "Füge mindestens zwei Antwortmöglichkeiten hinzu und wähle die richtige.",
   "Add category (column)": "Kategorie (Spalte) hinzufügen",
@@ -802,19 +1155,31 @@ const germanMessages = <String, String>{
   "Add questions before hosting this quiz.":
       "Füge Fragen hinzu, bevor du dieses Quiz veranstaltest.",
   "Add team": "Team hinzufügen",
+  "Add test participant": "Testteilnehmer hinzufügen",
   "Admin-Notizen": "Admin-Notizen",
   "Admin-Notizen (nur Spielleiter)": "Admin-Notizen (nur Spielleiter)",
+  "Admitted players can still reconnect with their resume token.":
+      "Bereits zugelassene Spieler können mit ihrem Resume-Token zurückkehren.",
+  "Advanced settings": "Erweiterte Einstellungen",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
   "Akzeptierte Antworten – eine pro Zeile":
       "Akzeptierte Antworten – eine pro Zeile",
+  "Alle Fragen und Lösungen im Überblick.":
+      "Alle Fragen und Lösungen im Überblick.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "Alle Spieler / teilnehmenden Teams haben geantwortet.",
+  "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Erlaube den Zugriff auf das lokale Netzwerk in den Systemeinstellungen und aktualisiere die Suche. Alternativ kannst du einen QR-Code, Link oder eine Host-Adresse verwenden.",
+  "Allow spectators": "Zuschauer zulassen",
+  "Am Quizende": "Am Quizende",
+  "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "An option ID in question \"{0}\" must not be empty.":
       "Eine Options-ID in Frage „{0}“ darf nicht leer sein.",
   "Anhang entfernen": "Anhang entfernen",
   "Anhang hinzufügen": "Anhang hinzufügen",
+  "Animated images are kept unchanged. Optimization would remove animation.": "Animierte Bilder bleiben unverändert. Eine Optimierung würde die Animation entfernen.",
   "Answer options": "Antwortmöglichkeiten",
   "Answer: {0}": "Antwort: {0}",
+  "Answered by teammate": "Durch Teammitglied beantwortet",
   "Answers received": "Eingegangene Antworten",
   "Antwort eingeloggt. Sie kann nicht mehr geändert werden.":
       "Antwort eingeloggt. Sie kann nicht mehr geändert werden.",
@@ -822,35 +1187,58 @@ const germanMessages = <String, String>{
       "Antwort eingeloggt. Warte auf den Spielleiter …",
   "Antwort senden": "Antwort senden",
   "Antworten einloggen": "Antworten einloggen",
+  "Antworten schließen & bewerten": "Antworten schließen & bewerten",
   "Antwortphase": "Antwortphase",
+  "Approve": "Freigeben",
+  "Approve new participants": "Neue Teilnehmer einzeln freigeben",
   "Audio hochladen": "Audio hochladen",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
       "Audio kann auf diesem Gerät nicht abgespielt werden.",
   "Audio konnte nicht abgespielt werden.":
       "Audio konnte nicht abgespielt werden.",
   "Audioformat erwartet.": "Audioformat erwartet.",
+  "Auflösung": "Auflösung",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
+  "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.":
+      "Ausgezahlte Chips wurden bereits eingesetzt. Rücknahme gesperrt.",
   "Auswahl löschen": "Auswahl löschen",
+  "Automatic / solo": "Automatisch / Solo",
+  "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Die automatische LAN-Suche ist auf dieser Plattform nicht verfügbar. Verwende einen QR-Code, Link oder eine Host-Adresse.",
+  "Automatic bot": "Automatischer Bot",
+  "Automatic bots": "Automatische Bots",
+  "Automatic recovery save: {0}": "Automatisch gesicherter Spielstand: {0}",
+  "Automatisch": "Automatisch",
+  "Automatischen Wechsel fortsetzen": "Automatischen Wechsel fortsetzen",
+  "Automatischen Wechsel pausieren": "Automatischen Wechsel pausieren",
   "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}": "Automatischer Reconnect nach Neustart konnte nicht gespeichert werden: {0}",
   "BUZZ": "BUZZERN",
   "BUZZER: everyone may answer": "BUZZER: Alle dürfen antworten",
   "Back to the board": "Zurück zum Spielfeld",
+  "Ban for this session": "Für diese Sitzung sperren",
+  "Banned identities: {0}": "Gesperrte Identitäten: {0}",
   "Base points": "Grundpunkte",
   "Be the first to hit your buzzer.": "Drücke deinen Buzzer als Erster.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
       "Bei einer falschen Antwort verliert dein Team den Einsatz.",
+  "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.": "Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.",
   "Beschriftung (optional)": "Beschriftung (optional)",
   "Beschädigtes Medien-Asset.": "Beschädigtes Medien-Asset.",
   "Bestätigen": "Bestätigen",
+  "Bewertung": "Bewertung",
+  "Bewertung abschließen": "Bewertung abschließen",
   "Bild hochladen": "Bild hochladen",
   "Bild konnte nicht geladen werden.": "Bild konnte nicht geladen werden.",
   "Bildformat erwartet.": "Bildformat erwartet.",
   "Bitte Eingaben prüfen: {0}": "Bitte Eingaben prüfen: {0}",
   "Bitte eine ganze Zahl ab 0 eingeben.":
       "Bitte eine ganze Zahl ab 0 eingeben.",
+  "Bitte erst alle eingegangenen Antworten bewerten.":
+      "Bitte erst alle eingegangenen Antworten bewerten.",
   "Board cleared — check the standings!":
       "Spielfeld abgeschlossen – schau in die Rangliste!",
+  "Bot: {0}% · {1}–{2} ms": "Bot: {0}% · {1}–{2} ms",
   "Breitengrad": "Breitengrad",
+  "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.": "Browser-Wiederherstellung benötigt HTTPS, IndexedDB und Web Locks. Erlaube Website-Speicher und versuche es erneut.",
   "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.",
   "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.",
   "Buzzer": "Buzzer",
@@ -866,9 +1254,15 @@ const germanMessages = <String, String>{
   "Buzzer für alle freigegeben": "Buzzer für alle freigegeben",
   "Buzzer für alle freigegeben.": "Buzzer für alle freigegeben.",
   "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.": "Buzzer gesperrt. Der Spielleiter gibt die nächste Antwort frei oder beendet die Runde.",
+  "Buzzer-Bewertung": "Buzzer-Bewertung",
   "Buzzers are armed!": "Buzzer sind bereit!",
   "CONNECTING": "VERBINDE",
+  "CSV export": "CSV-Export",
+  "CSV export failed: {0}": "CSV-Export fehlgeschlagen: {0}",
   "Cancel": "Abbrechen",
+  "Cannot open recovery storage. Allow site storage.": "Wiederherstellungsspeicher lässt sich nicht öffnen. Erlaube Website-Speicher.",
+  "Cannot replace the quiz of an existing saved game.":
+      "Das Quiz eines vorhandenen Spielstands darf nicht ersetzt werden.",
   "Cannot save quiz": "Quiz kann nicht gespeichert werden",
   "Category": "Kategorie",
   "Category \"{0}\" has more cells than the board has rows.":
@@ -877,6 +1271,8 @@ const germanMessages = <String, String>{
   "Category {0}": "Kategorie {0}",
   "Category {0} needs a name.": "Kategorie {0} benötigt einen Namen.",
   "Chips": "Chips",
+  "Chips korrigieren": "Chips korrigieren",
+  "Chipänderung: {0}": "Chipänderung: {0}",
   "Choose an available team or create a new one.":
       "Wähle ein verfügbares Team oder erstelle ein neues.",
   "Choose an option as the correct answer.":
@@ -890,14 +1286,35 @@ const germanMessages = <String, String>{
   "Close TV view": "TV-Ansicht schließen",
   "Code und gültige Sprache angeben.": "Code und gültige Sprache angeben.",
   "Code-Snippet": "Code-Snippet",
+  "Confirm": "Bestätigen",
+  "Confirm identity reassignment": "Identität neu zuordnen",
+  "Confirmation missing. Your answer may not have arrived.":
+      "Bestätigung fehlt. Deine Antwort ist möglicherweise nicht angekommen.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Verbinde dich mit einem Spielleiter in deinem Netzwerk, wähle ein Team und nutze einen Buzzer mit Latenzausgleich.",
+  "Connected at end": "Am Ende verbunden",
+  "Connected to the host": "Mit dem Host verbunden",
+  "Connected verification ID": "Prüf-ID des verbundenen Teilnehmers",
+  "Connecting to the host...": "Verbindung zum Host wird hergestellt ...",
   "Connecting to the quiz…": "Verbinde mit dem Quiz …",
   "Connection": "Verbindung",
+  "Connection ended": "Endgültig getrennt",
+  "Connection interrupted. Reconnecting to the room...":
+      "Verbindung unterbrochen. Verbindung zum Raum wird wiederhergestellt ...",
+  "Continue saved game": "Gespeichertes Spiel fortsetzen",
+  "Continue with a soft timer": "Mit Soft-Timer fortsetzen",
+  "Continue with saved time": "Mit gesicherter Restzeit fortsetzen",
   "Copied {0}": "{0} kopiert",
   "Correct option": "Richtige Antwortmöglichkeit",
   "Correct points": "Punkte für richtige Antworten",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms":
+      "Richtig: {0}/{1} bewertet · Trefferquote: {2} % · Mittlere Zeit: {3} ms",
+  "Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}": "Richtig: {0}/{1} bewertet · Trefferquote: {2} % · Mittlere Zeit: {3} ms · {4}",
   "Could not export quiz: {0}": "Quiz konnte nicht exportiert werden: {0}",
   "Could not import quiz: {0}": "Quiz konnte nicht importiert werden: {0}",
+  "Could not load advanced settings.":
+      "Erweiterte Einstellungen konnten nicht geladen werden.",
+  "Could not recreate example quizzes: {0}":
+      "Beispielquizzes konnten nicht neu erstellt werden: {0}",
   "Could not save this quiz: {0}":
       "Dieses Quiz konnte nicht gespeichert werden: {0}",
   "Could not update the quiz library: {0}":
@@ -907,6 +1324,7 @@ const germanMessages = <String, String>{
   "Create quiz": "Quiz erstellen",
   "Create quizzes here or join with the invitation link from your host.": "Erstelle hier Quizzes oder tritt über den Einladungslink deines Spielleiters bei.",
   "DAILY DOUBLE": "DAILY DOUBLE",
+  "Daily Double": "Daily Double",
   "Daily Double! Place the wager on the board panel.":
       "Daily Double! Lege den Einsatz am Spielfeld fest.",
   "Daily Double! Place the wager.": "Daily Double! Lege den Einsatz fest.",
@@ -922,6 +1340,7 @@ const germanMessages = <String, String>{
       "Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.",
   "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.":
       "Dateiinhalt passt nicht zum Medienformat oder enthält unsicheres SVG.",
+  "Dein Punktestand: {0}": "Dein Punktestand: {0}",
   "Dein Team erreicht": "Dein Team erreicht",
   "Dein Team hat keinen Einsatz.": "Dein Team hat keinen Einsatz.",
   "Dein Team ist dran! Wählt die nächste Frage.":
@@ -930,39 +1349,68 @@ const germanMessages = <String, String>{
       "Dein Team setzt aus oder wurde bereits gewertet.",
   "Dein Team wurde bereits gewertet.": "Dein Team wurde bereits gewertet.",
   "Deine Antwort": "Deine Antwort",
+  "Deine Antwort: {0}": "Deine Antwort: {0}",
   "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.": "Deine Quizzes bleiben in diesem Browser gespeichert. Exportiere sie als Sicherung, bevor du die Seite verlässt oder Browserdaten löschst. Beim Schließen des Tabs: Abbrechen wählen und hier exportieren.",
   "Deine Schätzung": "Deine Schätzung",
   "Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.":
       "Deine Sitzung wurde auf einem anderen Fenster oder Gerät fortgesetzt.",
+  "Delay range must satisfy 0 ≤ min ≤ max ≤ 3600000 ms.":
+      "Der Bereich muss 0 ≤ min ≤ max ≤ 3600000 ms erfüllen.",
   "Delete": "Löschen",
   "Delete \"{0}\" from this device?": "„{0}“ von diesem Gerät löschen?",
   "Delete category and its questions": "Kategorie und ihre Fragen löschen",
   "Delete question": "Frage löschen",
   "Delete quiz?": "Quiz löschen?",
   "Delete row and its questions": "Zeile und ihre Fragen löschen",
+  "Delete saved game?": "Gespeicherten Spielstand löschen?",
   "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.": "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "Der Spielleiter muss dich einem Team zuweisen.",
+  "Der Spielleiter bewertet die Antworten.":
+      "Der Spielleiter bewertet die Antworten.",
   "Der Spielleiter hat dich aus der Sitzung entfernt.":
       "Der Spielleiter hat dich aus der Sitzung entfernt.",
   "Der nächste Teilnehmer": "Der nächste Teilnehmer",
   "Description": "Beschreibung",
   "Details ausblenden": "Details ausblenden",
   "Die Einsatzphase läuft noch.": "Die Einsatzphase läuft noch.",
+  "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.": "Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.",
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.",
+  "Die Korrektur würde negative Chips erzeugen.":
+      "Die Korrektur würde negative Chips erzeugen.",
   "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.": "Die Quizzes bleiben im Browser gespeichert. Für eine Sicherung kannst du sie jetzt in der Bibliothek exportieren.",
+  "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.":
+      "Die Runde wurde bereits aufgelöst oder die Bewertung verändert.",
+  "Die betroffenen Teilnehmer oder Teams wurden verändert.":
+      "Die betroffenen Teilnehmer oder Teams wurden verändert.",
+  "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.": "Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.",
+  "Diese Antwort kann nicht bewertet werden.":
+      "Diese Antwort kann nicht bewertet werden.",
+  "Diese Korrektur ist nicht zulässig.": "Diese Korrektur ist nicht zulässig.",
+  "Diese Korrektur wurde bereits angewendet.":
+      "Diese Korrektur wurde bereits angewendet.",
+  "Diese Korrektur wurde bereits zurückgenommen.":
+      "Diese Korrektur wurde bereits zurückgenommen.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
+  "Discard": "Verwerfen",
+  "Disconnected at end": "Am Ende getrennt",
+  "Disconnected. Waiting for the player to reconnect.":
+      "Getrennt. Warte auf erneute Verbindung des Spielers.",
+  "Disconnection observed during this phase": "Verbindungsabbruch in dieser Phase beobachtet (nicht zwingend die Ursache einer fehlenden Antwort)",
   "Du bist dran! Wähle die nächste Frage.":
       "Du bist dran! Wähle die nächste Frage.",
   "Du erreichst": "Du erreichst",
   "Duplicate {0} ID \"{1}\".": "Doppelte {0}-ID „{1}“.",
+  "During recovery, choose an existing team. The host can reassign your original identity.": "Wähle während der Wiederherstellung ein vorhandenes Team. Der Host kann deine ursprüngliche Identität wieder zuordnen.",
   "Edit": "Bearbeiten",
   "Edit team": "Team bearbeiten",
   "Edit {0}": "{0} bearbeiten",
   "Edit {0} question": "{0}-Frage bearbeiten",
   "Ein Druck loggt deine Antwort verbindlich ein.":
       "Ein Druck loggt deine Antwort verbindlich ein.",
+  "Eine ganze Zahl ungleich 0 eingeben.":
+      "Eine ganze Zahl ungleich 0 eingeben.",
   "Eingaben prüfen: {0}": "Eingaben prüfen: {0}",
   "Einheit (optional)": "Einheit (optional)",
   "Einsatz (0–{0})": "Einsatz (0–{0})",
@@ -979,6 +1427,11 @@ const germanMessages = <String, String>{
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
       "Elemente in korrekter Reihenfolge – eines pro Zeile",
   "Embedded server": "Integrierter Server",
+  "Empfehlung: Fast richtig, vermutlich ein Tippfehler.":
+      "Empfehlung: Fast richtig, vermutlich ein Tippfehler.",
+  "Empfehlung: Passt zur Lösung.": "Empfehlung: Passt zur Lösung.",
+  "Empfehlung: Weicht von den hinterlegten Lösungen ab.":
+      "Empfehlung: Weicht von den hinterlegten Lösungen ab.",
   "Empfohlene Wiederholungen (optional)":
       "Empfohlene Wiederholungen (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.",
@@ -993,19 +1446,27 @@ const germanMessages = <String, String>{
   "Enter a whole number.": "Gib eine ganze Zahl ein.",
   "Enter an 8-digit hexadecimal ARGB colour.":
       "Gib eine achtstellige hexadezimale ARGB-Farbe ein.",
+  "Enter an integer.": "Gib eine ganze Zahl ein.",
   "Enter an option label.":
       "Gib eine Beschriftung für die Antwortmöglichkeit ein.",
   "Enter the address shown on the quizmaster dashboard.":
       "Gib die Adresse aus der Spielleiter-Ansicht ein.",
+  "Enter the code and press Enter to reconnect.":
+      "Code eingeben und mit Enter erneut verbinden.",
+  "Enter the join code supplied by the host.":
+      "Bitte den Beitrittscode des Hosts eingeben.",
   "Erlaubte Zeichenänderungen": "Erlaubte Zeichenänderungen",
+  "Erneut versuchen": "Erneut versuchen",
   "Es gibt noch keine Teams.": "Es gibt noch keine Teams.",
   "Estimation": "Schätzfrage",
+  "Example quizzes recreated.": "Beispielquizzes wurden neu erstellt.",
   "Expected": "Erwartet",
   "Expected answer (optional)": "Erwartete Antwort (optional)",
   "Export Quizmo quiz (including media)":
       "Quizmo-Quiz exportieren (einschließlich Medien)",
   "Export file": "Datei exportieren",
   "Export including media": "Mit Medien exportieren",
+  "Export private session report": "Privaten Spielbericht exportieren",
   "Export quiz with media": "Quiz mit Medien exportieren",
   "Exported \"{0}\" including media.": "„{0}“ mit Medien exportiert.",
   "Exporting quiz files is unavailable on this platform.":
@@ -1020,6 +1481,8 @@ const germanMessages = <String, String>{
   "Field \"{0}\" must be a boolean.": "Feld „{0}“ muss ein Wahrheitswert sein.",
   "Field \"{0}\" must be a finite number.":
       "Feld „{0}“ muss eine endliche Zahl sein.",
+  "Final report": "Abschlussbericht",
+  "Final standings": "Endwertung",
   "Finish the current question first.": "Beende zuerst die aktuelle Frage.",
   "Finish the current question to pick the next cell.":
       "Beende die aktuelle Frage, um das nächste Feld auszuwählen.",
@@ -1028,6 +1491,9 @@ const germanMessages = <String, String>{
   "First-buzzer points": "Punkte für den ersten Buzzer",
   "Fixed points": "Feste Punkte",
   "Fixed {0} pts": "Fest {0} Punkte",
+  "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
+      "Frage abgeschlossen. Die Auflösung folgt am Quizende.",
+  "Frage abschließen": "Frage abschließen",
   "Fragemedien": "Fragemedien",
   "Fragenart": "Fragenart",
   "Fragenauswahl bestätigen": "Fragenauswahl bestätigen",
@@ -1035,13 +1501,19 @@ const germanMessages = <String, String>{
       "Fragenauswahl wartet auf Bestätigung durch den Spielleiter.",
   "Freitext": "Freitext",
   "Game mode": "Spielmodus",
+  "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Spiel zur Wiederherstellung pausiert. Teilnehmer vor dem Fortsetzen erneut verbinden. Medien bleiben pausiert.",
   "Game reset.": "Spiel zurückgesetzt.",
+  "Gegenkorrektur zu {0}": "Gegenkorrektur zu {0}",
+  "Gegenkorrekturen können nicht zurückgenommen werden.":
+      "Gegenkorrekturen können nicht zurückgenommen werden.",
   "General knowledge": "Allgemeinwissen",
   "Get ready to play!": "Mach dich bereit!",
   "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
+  "Grund (optional)": "Grund (optional)",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
   "Hinzufügen": "Hinzufügen",
+  "Host": "Host",
   "Host a quiz": "Quiz veranstalten",
   "Host address": "Adresse des Spielleiters",
   "Host an internet game on this website. Quizzes are saved in this browser. Keep the host tab open during play.": "Veranstalte ein Online-Quiz auf dieser Website. Quizzes werden in diesem Browser gespeichert. Lass den Spielleiter-Tab während des Spiels geöffnet.",
@@ -1052,19 +1524,41 @@ const germanMessages = <String, String>{
   "Hosting is unavailable on this platform.":
       "Auf dieser Plattform können keine Quizzes veranstaltet werden.",
   "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.": "Zum Veranstalten ist eine unterstützte Plattform erforderlich. Nutze Android, iOS, macOS, Windows oder Linux.",
+  "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Die neue Zuordnung konnte nicht gesichert werden. Bitte den Host vor dem Fortsetzen um einen erneuten Versuch.",
   "If the LAN address times out, try:":
       "Wenn die LAN-Adresse nicht erreichbar ist, versuche Folgendes:",
+  "Image optimization failed.": "Die Bildoptimierung ist fehlgeschlagen.",
+  "Image preview unavailable.": "Die Bildvorschau ist nicht verfügbar.",
   "Import": "Importieren",
   "Import Quizmo quiz (including media)":
       "Quizmo-Quiz importieren (einschließlich Medien)",
   "Imported \"{0}\".": "„{0}“ importiert.",
   "Importing quiz files is unavailable on this platform.":
       "Auf dieser Plattform können keine Quizdateien importiert werden.",
+  "Incomplete or unknown recovery fields.":
+      "Unvollständige oder unbekannte Spielstandfelder.",
+  "Incomplete recovery fields.": "Unvollständige Spielstandfelder.",
+  "Incomplete recovery file: {0}":
+      "Unvollständige Wiederherstellungsdatei: {0}",
+  "Incomplete recovery list.": "Unvollständige Liste im Spielstand.",
+  "Incomplete recovery metadata.": "Unvollständige Metadaten des Spielstands.",
   "Internet hosting": "Online-Spiel",
+  "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.": "Im Internet entsteht ein neuer Raum. Alte Internetlinks sind ungültig; verteile die neuen Einladungs- und TV-Links. Auch LAN-Adressen können sich ändern.",
+  "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.": "Internetraum nicht erreichbar. Falls der Host das Spiel wiederhergestellt hat, öffne den neuen Einladungslink. Der Wiederbeitritt zu diesem Raum wird weiterhin versucht.",
   "Invalid answer for this question.": "Ungültige Antwort für diese Frage.",
   "Invalid message.": "Ungültige Nachricht.",
+  "Invalid or lossy recovery value.":
+      "Ungültiger oder nicht verlustfrei lesbarer Wert im Spielstand.",
   "Invalid poker configuration.": "Ungültige Poker-Konfiguration.",
+  "Invalid recovery question bank reference.":
+      "Ungültiger Fragenbankverweis im Spielstand.",
+  "Invalid recovery question reference.":
+      "Ungültiger Fragenverweis im Spielstand.",
+  "Invalid recovery quiz: {0}": "Ungültiges Quiz im Spielstand: {0}",
+  "Invalid recovery state: {0}": "Ungültiger Spielstand: {0}",
+  "Invalid saved quiz.": "Ungültiges gespeichertes Quiz.",
   "Invitation": "Einladung",
+  "Isolated preview: unsaved draft, no room, no saved scores.": "Isolierte Vorschau: ungespeicherter Entwurf, kein Raum, keine gespeicherten Ergebnisse.",
   "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.": "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.",
   "Jeopardy": "Jeopardy",
   "Jeopardy board": "Jeopardy-Spielfeld",
@@ -1073,23 +1567,39 @@ const germanMessages = <String, String>{
   "Join a team before renaming it.":
       "Tritt einem Team bei, bevor du es umbenennst.",
   "Join as player": "Als Spieler beitreten",
+  "Join code": "Beitrittscode",
+  "Join code enabled.": "Beitrittscode aktiviert.",
   "Join this session as a local player":
       "Diesem Spiel als lokaler Spieler beitreten",
   "Join: {0}": "Beitreten: {0}",
   "Joined players": "Beigetretene Spieler",
+  "Joining could not be saved. Ask the host to retry recovery storage.": "Der Beitritt konnte nicht gesichert werden. Bitte den Host, die Spielstandsicherung erneut zu versuchen.",
   "Just watch (TV view)": "Nur zuschauen (TV-Ansicht)",
   "Kartenausschnitt": "Kartenausschnitt",
+  "Keep invitation links, join codes and resume tokens confidential.": "Einladungslinks, Beitrittscodes und Resume-Tokens vertraulich behandeln.",
+  "Keep original": "Original behalten",
+  "Keep original or optimize image": "Original behalten oder Bild optimieren",
   "Keine Antwort": "Keine Antwort",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.",
   "Keine Chips mehr. Dein Team setzt aus.":
       "Keine Chips mehr. Dein Team setzt aus.",
   "Keine Punkte": "Keine Punkte",
   "Korrekte Zahl": "Korrekte Zahl",
+  "Korrektur als Gegenkorrektur zurückgenommen.":
+      "Korrektur als Gegenkorrektur zurückgenommen.",
+  "Korrektur anwenden": "Korrektur anwenden",
+  "Korrektur zurücknehmen?": "Korrektur zurücknehmen?",
+  "Korrekturverlauf": "Korrekturverlauf",
+  "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "Die LAN-Suche ist fehlgeschlagen. Prüfe WLAN, lokale Netzwerkberechtigungen und Firewall und aktualisiere die Suche. Der manuelle Beitritt bleibt verfügbar.",
+  "LAN games": "LAN-Spiele",
+  "LAN host published as \"{0}\".": "LAN-Host als „{0}“ veröffentlicht.",
   "LIVE": "LIVE",
   "LOCKED": "GESPERRT",
   "Language": "Sprache",
   "Language settings could not be loaded. Select your language again.": "Spracheinstellungen konnten nicht geladen werden. Wähle deine Sprache erneut.",
   "Language settings could not be saved. Check browser storage or device permissions and try again.": "Spracheinstellungen konnten nicht gespeichert werden. Prüfe den Browserspeicher oder die Geräteberechtigungen und versuche es erneut.",
+  "Last confirmed: the host accepted your submission.":
+      "Zuletzt bestätigt: Der Host hat deine Eingabe angenommen.",
   "Latency": "Latenz",
   "Latency adjusted ranking": "Rangfolge mit Latenzausgleich",
   "Latency {0} · clock offset {1}": "Latenz {0} · Zeitversatz {1}",
@@ -1100,6 +1610,7 @@ const germanMessages = <String, String>{
   "Local-first, multi-device quiz platform":
       "Quizplattform für mehrere Geräte – auch ohne Internet",
   "Lock buzzer now": "Buzzer jetzt sperren",
+  "Lock new joins": "Neue Beitritte sperren",
   "Lock out a player after a wrong answer":
       "Spieler nach einer falschen Antwort sperren",
   "Locked out this round": "Für diese Runde gesperrt",
@@ -1118,9 +1629,14 @@ const germanMessages = <String, String>{
   "Make Daily Double": "Als Daily Double markieren",
   "Make sure the TV and the quizmaster are on the same network and the host server is running.": "Prüfe, ob TV und Spielleiter im selben Netzwerk sind und der Server des Spielleiters läuft.",
   "Manage quiz library": "Quizbibliothek verwalten",
+  "Manual input": "Manuelle Eingabe",
+  "Manuell durch den Spielleiter": "Manuell durch den Spielleiter",
+  "Manuelle Bewertung": "Manuelle Bewertung",
   "Matching": "Zuordnung",
   "Maximal zehn Anhänge.": "Maximal zehn Anhänge.",
   "Maximal zehn Medien pro Frage.": "Maximal zehn Medien pro Frage.",
+  "Maximum delay (ms)": "Maximale Verzögerung (ms)",
+  "Maximum edge length (pixels)": "Maximale Kantenlänge (Pixel)",
   "Maximum speed bonus": "Maximaler Zeitbonus",
   "Medien dürfen maximal 20 MiB groß sein.":
       "Medien dürfen maximal 20 MiB groß sein.",
@@ -1130,10 +1646,13 @@ const germanMessages = <String, String>{
   "Medien-Datei fehlt im Quiz.": "Medien-Datei fehlt im Quiz.",
   "Medienanhang": "Medienanhang",
   "Medienwiedergabe": "Medienwiedergabe",
+  "Medium konnte nicht geladen werden.": "Medium konnte nicht geladen werden. Verbindung und Raumzugang prüfen und erneut versuchen.",
   "Mehrere richtige Antworten": "Mehrere richtige Antworten",
   "Mindestens eine Textlösung angeben.": "Mindestens eine Textlösung angeben.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
       "Mindestens eine richtige Antwort wählen.",
+  "Minimum delay (ms)": "Minimale Verzögerung (ms)",
+  "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Private Zugangsdaten fehlen? Als neuer Teilnehmer beitreten, die Prüf-ID auf dessen Bildschirm vergleichen und dann die ursprüngliche Identität ausdrücklich zuordnen.",
   "Missing required field \"{0}\".": "Pflichtfeld „{0}“ fehlt.",
   "Mit {0} zusammenführen (+{1} Punkte)":
       "Mit {0} zusammenführen (+{1} Punkte)",
@@ -1143,19 +1662,27 @@ const germanMessages = <String, String>{
       "Multiple-Choice-Frage „{0}“ benötigt eine gültige Lösungsoption.",
   "Multiple-choice question \"{0}\" needs at least two options.":
       "Multiple-Choice-Frage „{0}“ benötigt mindestens zwei Optionen.",
+  "Nach jeder Frage": "Nach jeder Frage",
   "Nach oben": "Nach oben",
   "Nach unten": "Nach unten",
   "Name": "Name",
   "Names must contain 1 to 60 characters. Choose an existing team or create one.": "Namen müssen 1 bis 60 Zeichen lang sein. Wähle ein bestehendes Team oder erstelle eines.",
   "Neu starten": "Neu starten",
   "Neuer Teamname": "Neuer Teamname",
+  "New join code (6 to 64 characters)":
+      "Neuer Beitrittscode (6 bis 64 Zeichen)",
+  "New participants need host approval.":
+      "Neue Teilnehmer müssen vom Host freigegeben werden.",
   "Next question": "Nächste Frage",
   "Next question coming up…": "Die nächste Frage kommt …",
   "Nicht unterstütztes Dateiformat.": "Nicht unterstütztes Dateiformat.",
   "No Daily Double is waiting for a wager.":
       "Kein Daily Double wartet auf einen Einsatz.",
+  "No answer recorded": "Keine Antwort aufgezeichnet",
   "No description.": "Keine Beschreibung.",
+  "No join code required.": "Kein Beitrittscode erforderlich.",
   "No pending questions left.": "Keine offenen Fragen mehr.",
+  "No pending requests.": "Keine offenen Beitrittsanfragen.",
   "No players yet": "Noch keine Spieler",
   "No question on stage.": "Keine aktive Frage.",
   "No question on stage. Pick a cell on the board.":
@@ -1163,21 +1690,34 @@ const germanMessages = <String, String>{
   "No question on stage. Pick one from the bank.":
       "Keine aktive Frage. Wähle eine aus der Fragensammlung.",
   "No quizzes available": "Noch keine Quizzes vorhanden",
+  "No reachable LAN hosts found yet.":
+      "Noch keine erreichbaren LAN-Hosts gefunden.",
   "No scores yet.": "Noch keine Punkte.",
+  "No submission accepted. Answer again if the round is still open.": "Keine Eingabe angenommen. Antworte erneut, falls die Runde noch offen ist.",
   "No teams configured.": "Noch keine Teams angelegt.",
   "No teams yet": "Noch keine Teams",
   "No teams: this quiz will start in solo mode.":
       "Ohne Teams startet dieses Quiz im Einzelmodus.",
   "Nobody scored. The other teams may steal.":
       "Niemand hat gepunktet. Die anderen Teams dürfen abstauben.",
+  "Noch keine manuellen Korrekturen.": "Noch keine manuellen Korrekturen.",
+  "Noch {0} Antworten zu bewerten": "Noch {0} Antworten zu bewerten",
+  "Not applicable / unavailable": "Nicht anwendbar / nicht verfügbar",
+  "Not connected": "Nicht verbunden",
+  "Not eligible to answer": "Nicht antwortberechtigt",
+  "Not judged": "Unbewertet",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
   "Nur durch Spielleiter beenden": "Nur durch Spielleiter beenden",
+  "Nur für den Host · {0} Einträge": "Nur für den Host · {0} Einträge",
+  "Nächste Lösung": "Nächste Lösung",
   "OK": "OK",
   "OPEN": "OFFEN",
   "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
   "Ohne Export verlassen": "Ohne Export verlassen",
+  "Older save: detailed history is incomplete. Final standings are authoritative.": "Älterer Spielstand: Der Detailverlauf ist unvollständig. Die Endwertung ist maßgeblich.",
+  "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Erst bestätigen, nachdem du die Prüf-ID {0} mit dem Teilnehmer verglichen hast. Der alte Zugang wird widerrufen; Identität, Team, Antworten und Punkte bleiben unverändert.",
   "Only the first answer counts.": "Nur die erste Antwort zählt.",
   "Only the other teams may steal this question.":
       "Nur die anderen Teams dürfen diese Frage abstauben.",
@@ -1185,23 +1725,32 @@ const germanMessages = <String, String>{
   "Open player view": "Spieler-Ansicht öffnen",
   "Open question": "Frage öffnen",
   "Open quizmaster dashboard": "Spielleiter-Ansicht öffnen",
+  "Optimized: {0} × {1} → {2} × {3} pixels, {4} KiB":
+      "Optimiert: {0} × {1} → {2} × {3} Pixel, {4} KiB",
   "Option \"{0}\" in question \"{1}\" needs a label.":
       "Option „{0}“ in Frage „{1}“ benötigt eine Beschriftung.",
   "Option {0}": "Antwortmöglichkeit {0}",
   "Ordering": "Reihenfolge",
+  "Original participant": "Ursprünglicher Teilnehmer",
+  "Original: {0} KiB": "Original: {0} KiB",
   "Other teams may steal": "Andere Teams dürfen abstauben",
+  "Own test team": "Eigenes Testteam",
   "POKERCHIPS · ANTWORTEN": "POKERCHIPS · ANTWORTEN",
   "POKERCHIPS · EINSÄTZE": "POKERCHIPS · EINSÄTZE",
   "Paare – pro Zeile: links = rechts": "Paare – pro Zeile: links = rechts",
   "Pause": "Pause",
+  "Pause simulation": "Simulation pausieren",
   "Pick a name": "Gib einen Namen ein.",
   "Pick the next question on the board.":
       "Wähle die nächste Frage auf dem Spielfeld.",
   "Picks next:": "Wählt als Nächstes:",
+  "Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.": "Die Wiedergabe hängt von Gerät, Browser und installierten Codecs ab. MP4 ist ein Container und garantiert keine Codec-Unterstützung. H.264-Video mit AAC-Audio und MP3-Audio sind meist am kompatibelsten. Teste vor dem Quiz auf jedem Spieler- und TV-Gerät.",
   "Player": "Spieler",
   "Player is locked out for this round.":
       "Spieler ist für diese Runde gesperrt.",
   "Players ({0} online)": "Spieler ({0} online)",
+  "Points": "Punkte",
+  "Points at stake: {0}": "Punktwert / Daily-Double-Einsatz: {0}",
   "Points lost per rank": "Punktabzug pro Rang",
   "Points of this row": "Punkte dieser Zeile",
   "Pokerchips": "Pokerchips",
@@ -1211,12 +1760,27 @@ const germanMessages = <String, String>{
   "Pokerchips · {0} Chips verfügbar": "Pokerchips · {0} Chips verfügbar",
   "Port": "Port",
   "Positive Sekunden angeben.": "Positive Sekunden angeben.",
+  "Practice only": "Nur Übung (keine Punkte oder Chips)",
+  "Preloading media...": "Medium wird vorgeladen …",
+  "Preview": "Vorschau",
+  "Preview optimized PNG copy": "Optimierte PNG-Kopie als Vorschau",
+  "Preview quiz": "Quiz-Vorschau",
   "Preview the TV screen": "TV-Vorschau öffnen",
+  "Preview · {0}": "Vorschau · {0}",
+  "Previous invitation (may be invalid): {0}":
+      "Vorherige Einladung (gegebenenfalls ungültig): {0}",
+  "Probability per answer, not a guaranteed quiz score.":
+      "Wahrscheinlichkeit je Antwort, keine garantierte Quote pro Quiz.",
   "Prompt": "Fragetext",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
   "Punkte aus der Zeile": "Punkte aus der Zeile",
+  "Punkte korrigieren": "Punkte korrigieren",
+  "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.": "Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.",
   "Punkten": "Punkten",
+  "Punktestand bis zum Quizende verborgen.":
+      "Punktestand bis zum Quizende verborgen.",
+  "Punkteänderung: {0}": "Punkteänderung: {0}",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",
   "Question": "Frage",
@@ -1245,6 +1809,8 @@ const germanMessages = <String, String>{
   "Quiz type": "Quizformat",
   "Quiz updatedAt must not be before createdAt.":
       "Das Änderungsdatum darf nicht vor dem Erstellungsdatum liegen.",
+  "Quiz-Auflösung": "Quiz-Auflösung",
+  "Quiz-Auflösung · {0} / {1}": "Quiz-Auflösung · {0} / {1}",
   "Quizmaster · {0}": "Spielleiter · {0}",
   "Quizmo logo": "Quizmo-Logo",
   "Quizzes exportieren": "Quizzes exportieren",
@@ -1252,16 +1818,63 @@ const germanMessages = <String, String>{
   "Quizzes vor dem Verlassen exportieren?":
       "Quizzes vor dem Verlassen exportieren?",
   "RECONNECTING": "VERBINDE ERNEUT",
+  "Reachable": "Erreichbar",
+  "Recovered game resumed. Media stays paused.":
+      "Wiederhergestelltes Spiel fortgesetzt. Medien bleiben pausiert.",
+  "Recovery checksum failed. The saved game was not changed.": "Die Prüfsumme des Spielstands stimmt nicht. Der gespeicherte Stand wurde nicht verändert.",
+  "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.": "Spielstand konnte nicht gesichert werden. Prüfe freien Speicher und Speicherberechtigungen; der letzte erfolgreiche Stand bleibt erhalten. Vor dem Weiterspielen erneut versuchen.",
+  "Recovery file contains invalid JSON.":
+      "Die Wiederherstellungsdatei enthält ungültiges JSON.",
+  "Recovery file must be a JSON object.":
+      "Die Wiederherstellungsdatei muss ein JSON-Objekt enthalten.",
+  "Recovery is already open.": "Die Wiederherstellung ist bereits geöffnet.",
+  "Recovery is closed.": "Die Wiederherstellung ist geschlossen.",
+  "Recovery paused": "Wiederherstellung pausiert",
+  "Recovery paused. Confirm how to resume first.": "Wiederherstellung pausiert. Bestätige zuerst, wie das Spiel fortgesetzt werden soll.",
+  "Recovery payload must be a JSON object.":
+      "Die Spielstanddaten müssen ein JSON-Objekt enthalten.",
+  "Recovery quiz or media is missing or damaged.":
+      "Quiz oder Medien des Spielstands fehlen oder sind beschädigt.",
+  "Recovery schemaVersion must be an integer.":
+      "Die schemaVersion des Spielstands muss ganzzahlig sein.",
+  "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.": "Die Wiederherstellung startet pausiert. Wähle im Host-Dashboard gesicherte Restzeit, einen neuen Timer oder einen Soft-Timer. Angenommene Antworten und Punkte bleiben erhalten.",
+  "Recovery storage cannot be opened. Check free space and storage permissions.": "Wiederherstellungsspeicher lässt sich nicht öffnen. Prüfe freien Speicher und Speicherberechtigungen.",
+  "Recovery storage is blocked. Close other Quizmo tabs and retry.": "Wiederherstellungsspeicher ist blockiert. Schließe andere Quizmo-Tabs und versuche es erneut.",
+  "Recovery storage is not locked.":
+      "Der Wiederherstellungsspeicher ist nicht gesperrt.",
+  "Recovery transaction failed. Check free space and allow site storage.": "Die Spielstandsicherung ist fehlgeschlagen. Prüfe freien Speicher und erlaube Website-Speicher.",
+  "Recovery view could not be opened. Reload Quizmo and retry.": "Die Wiederherstellungsansicht konnte nicht geöffnet werden. Lade Quizmo neu und versuche es erneut.",
+  "Recreate example quizzes": "Beispielquizzes neu erstellen",
+  "Recreate example quizzes?": "Beispielquizzes neu erstellen?",
+  "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Erstellt die Standardquizzes neu. Unbearbeitete Beispiele werden ersetzt; bearbeitete Beispiele und eigene Quizzes bleiben erhalten.",
+  "Refresh LAN games": "LAN-Spiele aktualisieren",
   "Reihenfolge": "Reihenfolge",
   "Reihenfolge senden": "Reihenfolge senden",
+  "Reject": "Ablehnen",
+  "Rejoin verification ID: {0}": "Prüf-ID für den Wiederbeitritt: {0}",
+  "Remove (new admission allowed)": "Entfernen (neuer Beitritt möglich)",
   "Remove Daily Double": "Daily Double entfernen",
+  "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.": "Entfernen macht den Resume-Token ungültig; ein neuer Beitritt ist möglich. Sperren schließt die bekannte Identität für diese Sitzung aus. Ohne Konten lassen sich andere Browser oder Geräte nicht zuverlässig wiedererkennen.",
+  "Remove join code": "Beitrittscode entfernen",
   "Remove option": "Antwortmöglichkeit entfernen",
   "Remove question": "Frage entfernen",
+  "Remove test participant": "Testteilnehmer entfernen",
   "Remove {0}": "{0} entfernen",
+  "Removed from roster": "Aus Teilnehmerliste entfernt (keine Endwertung)",
+  "Replay round": "Runde wiederholen",
+  "Report export failed. Check storage permissions and retry.": "Der Bericht konnte nicht exportiert werden. Prüfe Speicherberechtigungen und versuche es erneut.",
+  "Report exported.": "Bericht exportiert.",
+  "Report metrics explained": "Trefferquote = vollständig richtige / bewertete Antworten (fehlende und unbewertete Antworten ausgenommen); Teilrichtigkeit wird separat ausgewiesen. Zeiten in Millisekunden ab synchronisiertem Antwortstart; Buzzerzeiten messen die Reaktion, nicht die mündliche Antwort. Teamkennzahlen aggregieren tatsächliche Antworten der Mitglieder, nicht die nicht antwortenden Teammitglieder.",
+  "Report storage explained": "Hostseitiger Bericht, zusammen mit der automatischen Spielstandsicherung gespeichert. Zurücksetzen leert den Bericht bei der nächsten Sicherung; zum Entfernen vom Gerät den gespeicherten Spielstand in der Wiederherstellung löschen. Heruntergeladene CSV-Dateien separat löschen. Exporte enthalten Namen und Antworten, aber keine Raumgeheimnisse oder Resume-Tokens.",
   "Reset scores": "Punkte zurücksetzen",
+  "Restart preview": "Vorschau neu starten",
+  "Restart the full timer": "Timer mit voller Zeit neu starten",
+  "Resume simulation": "Simulation fortsetzen",
+  "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.": "Fortsetzen ist auf diesem Gerät und Browserprofil möglich. Der private Bericht enthält Antworten, Lösungen und Medien, aber keine Zugangsdaten; Spielerzugänge lassen sich daraus nicht wiederherstellen. Nicht öffentlich teilen.",
   "Retry": "Erneut versuchen",
   "Reveal the round before closing it.":
       "Decke die Lösung auf, bevor du die Runde beendest.",
+  "Richtig": "Richtig",
   "Richtig beantwortet. Der Spielleiter beendet die Frage.":
       "Richtig beantwortet. Der Spielleiter beendet die Frage.",
   "Richtig!": "Richtig!",
@@ -1276,31 +1889,49 @@ const germanMessages = <String, String>{
   "Rule": "Regel",
   "Runde beenden": "Runde beenden",
   "Runde beendet.": "Runde beendet.",
+  "Rücknahme": "Rücknahme",
+  "Rücknahme bestätigen": "Rücknahme bestätigen",
   "SOLUTION": "LÖSUNG",
   "STEAL: everyone but {0}": "ABSTAUBEN: Alle außer {0}",
   "Save": "Speichern",
   "Save question": "Frage speichern",
   "Save quiz": "Quiz speichern",
   "Save team": "Team speichern",
+  "Saved game recovery": "Spielstand wiederherstellen",
+  "Saved timer: {0} s remaining": "Gesicherter Timer: {0} s Restzeit",
   "Scan to join with your phone": "Scannen und mit dem Handy beitreten",
   "Schätzfrage": "Schätzfrage",
   "Schätzung senden": "Schätzung senden",
+  "Score progression": "Punkteverlauf",
+  "Scoreboard": "Punktestand",
   "Scoreboard · {0}": "Punktestand · {0}",
   "Scoring rule": "Bewertungsregel",
+  "Seed": "Seed",
   "Seite verlassen": "Seite verlassen",
+  "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Wähle einen Host und gib zum Beitreten deinen Namen ein. Wenn keiner erscheint, prüfe, ob beide Geräte im selben LAN sind. Gast-WLAN oder blockiertes Multicast können die Suche verhindern. QR-Codes, Links und manuelle Adressen funktionieren weiterhin.",
   "Send a join request before submitting.":
       "Tritt zuerst bei, bevor du eine Antwort sendest.",
+  "Sending. Waiting for host confirmation...":
+      "Wird übermittelt. Bestätigung des Hosts steht noch aus ...",
   "Sent…": "Gesendet…",
   "Server log": "Serverprotokoll",
+  "Session access": "Sitzungsschutz",
+  "Session access settings could not be saved. Retry recovery storage.": "Der Sitzungsschutz konnte nicht gespeichert werden. Bitte die Wiederherstellungsspeicherung erneut versuchen.",
+  "Set join code": "Beitrittscode setzen",
   "Settings": "Einstellungen",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Teile den Einladungs- oder TV-Link. Lass diesen Tab geöffnet und das Gerät während des Spiels wach.",
   "Short answer": "Freitext",
+  "Simulation: {0} ms": "Simulation: {0} ms",
   "Sitzung konnte nicht geladen werden: {0}":
       "Sitzung konnte nicht geladen werden: {0}",
   "Skala für Zielwert 0 muss positiv sein.":
       "Skala für Zielwert 0 muss positiv sein.",
   "Solo": "Einzelspieler",
   "Solo scoring": "Einzelwertung",
+  "Spectator access changed. Enter the current code to reconnect.": "Der Zuschauerzugang wurde geändert. Zum Verbinden den aktuellen Code eingeben.",
+  "Spectator access is disabled by the host.":
+      "Der Host hat den Zuschauerzugang gesperrt.",
+  "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.": "Zuschauer benötigen den Beitrittscode, aber keine Einzelfreigabe. Die Lobby-Sperre betrifft nur Spieler. Das Sperren von Zuschauern oder Ändern des Codes trennt bestehende TV-Verbindungen.",
   "Speed bonus": "Zeitbonus",
   "Speichern": "Speichern",
   "Spiel beitreten": "Spiel beitreten",
@@ -1311,6 +1942,7 @@ const germanMessages = <String, String>{
   "Spieler-Reihenfolge festlegen": "Spieler-Reihenfolge festlegen",
   "Sprache (z. B. dart, python, javascript)":
       "Sprache (z. B. dart, python, javascript)",
+  "Stake: {0} chips": "Einsatz: {0} Chips",
   "Standard": "Standard",
   "Standings": "Rangliste",
   "Start": "Starten",
@@ -1320,22 +1952,26 @@ const germanMessages = <String, String>{
       "Startchips müssen zwischen 1 und 1000000 liegen.",
   "Startchips pro Team (1–1000000)": "Startchips pro Team (1–1000000)",
   "Starts the embedded HTTP and web socket server on this device. Players join over your local network.": "Startet den integrierten Server auf diesem Gerät. Spieler treten über dein lokales Netzwerk bei.",
+  "Steal": "Steal-Runde",
   "Steal round · other teams than {0}": "Abstaubrunde · alle Teams außer {0}",
   "Steal round: only the other teams answer.":
       "Abstaubrunde: Nur die anderen Teams dürfen antworten.",
   "Steal! Your team may answer now.":
       "Abstauben! Dein Team darf jetzt antworten.",
+  "Step +1 s": "Schritt +1 s",
   "Stop server": "Server stoppen",
   "Submission targets a stale round.":
       "Die Antwort gehört zu einer früheren Runde.",
   "Submission timestamp is outside the current round. Resync your clock.": "Der Antwortzeitpunkt liegt außerhalb der aktuellen Runde. Synchronisiere die Uhr erneut.",
   "System language": "Systemsprache",
+  "TV": "TV",
   "TV screen": "TV-Ansicht",
   "TV screen needs the bundled web player (see above).":
       "Die TV-Ansicht benötigt den eingebetteten Web-Client (siehe oben).",
   "TV screen: open the link above in the browser of a smart TV or streaming stick, or cast a Chrome tab showing it. It never shows solutions before the reveal.": "TV-Ansicht: Öffne den Link oben im Browser eines Smart-TVs oder Streaming-Sticks oder übertrage einen Chrome-Tab. Lösungen werden erst bei der Auflösung angezeigt.",
   "TV: Wiedergabe angefordert": "TV: Wiedergabe angefordert",
   "TV: pausiert": "TV: pausiert",
+  "Target accuracy: {0}%": "Ziel-Trefferquote: {0}%",
   "Team": "Team",
   "Team \"{0}\" needs a name.": "Team „{0}“ benötigt einen Namen.",
   "Team (individual buzzers)": "Team (einzelne Buzzer)",
@@ -1359,6 +1995,7 @@ const germanMessages = <String, String>{
   "Teams": "Teams",
   "Teams (optional)": "Teams (optional)",
   "Teilweise richtig": "Teilweise richtig",
+  "Test participants": "Testteilnehmer",
   "That question is not on the board.":
       "Diese Frage ist nicht auf dem Spielfeld.",
   "That question was already played.": "Diese Frage wurde bereits gespielt.",
@@ -1368,6 +2005,14 @@ const germanMessages = <String, String>{
       "Das Jeopardy-Spielfeld benötigt mindestens eine Zeile.",
   "The Jeopardy board references unknown question \"{0}\".":
       "Das Jeopardy-Spielfeld verweist auf die unbekannte Frage „{0}“.",
+  "The host accepted your submission.":
+      "Der Host hat deine Eingabe angenommen.",
+  "The host declined your join request.":
+      "Der Host hat deine Beitrittsanfrage abgelehnt.",
+  "The host has closed this room. Join a new room to continue.": "Der Host hat diesen Raum beendet. Tritt einem neuen Raum bei, um weiterzuspielen.",
+  "The join code is missing or incorrect.":
+      "Der Beitrittscode fehlt oder ist falsch.",
+  "The lobby is locked. Existing players can still reconnect.": "Die Lobby ist gesperrt. Bereits zugelassene Spieler können sich weiterhin verbinden.",
   "The local quiz library contains invalid JSON: {0}":
       "Die lokale Quizbibliothek enthält ungültiges JSON: {0}",
   "The local quiz library is invalid: {0}":
@@ -1376,6 +2021,8 @@ const germanMessages = <String, String>{
       "Die lokale Quizbibliothek ist kein JSON-Objekt.",
   "The local quiz library is unavailable on this platform.":
       "Die lokale Quizbibliothek ist auf dieser Plattform nicht verfügbar.",
+  "The original is preserved by default. Optional resizing keeps the aspect ratio and never enlarges images. PNG encoding is lossless, but resizing removes detail and metadata; the copy may be larger.": "Standardmäßig bleibt das Original erhalten. Optionales Verkleinern erhält das Seitenverhältnis und vergrößert Bilder niemals. PNG wird verlustfrei kodiert, aber Verkleinern entfernt Details und Metadaten; die Kopie kann größer sein.",
+  "The picker could not determine the file size. Choose a local file whose size is available.": "Die Dateiauswahl konnte die Dateigröße nicht ermitteln. Wähle eine lokale Datei mit verfügbarer Größenangabe.",
   "The picking team": "Das auswählende Team",
   "The picking team answers first.": "Das auswählende Team antwortet zuerst.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "Das auswählende Team antwortet zuerst. Nach einer falschen Antwort dürfen die anderen Teams antworten. Ausgeschaltet: keine automatische Abstaubrunde.",
@@ -1384,6 +2031,8 @@ const germanMessages = <String, String>{
       "Die Quizdatei enthält ungültig kodierte Medien: {0}",
   "The quiz file is invalid: {0}": "Die Quizdatei ist ungültig: {0}",
   "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.": "Die Spielerliste ist voll oder die Zeitsynchronisierung ist ungültig. Bitte den Spielleiter, ungenutzte Spieler zu entfernen.",
+  "The saved game changed. Reload recovery before deleting.": "Der gespeicherte Spielstand wurde geändert. Lade die Wiederherstellung vor dem Löschen erneut.",
+  "The saved game was removed. Reopen recovery.": "Der gespeicherte Spielstand wurde entfernt. Öffne die Wiederherstellung erneut.",
   "The selected file is larger than the 100 MiB quiz import limit.":
       "Die ausgewählte Datei überschreitet das Importlimit von 100 MiB.",
   "The selected file is not valid JSON: {0}":
@@ -1396,16 +2045,28 @@ const germanMessages = <String, String>{
       "Während einer Frage kann der Zug nicht geändert werden.",
   "The wager must be between 1 and {0}.":
       "Der Einsatz muss zwischen 1 und {0} liegen.",
+  "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "Diese PNG-Kopie ist nicht kleiner. Behalte das Original oder versuche eine kleinere Kantenlänge.",
   "This connection has already joined.":
       "Diese Verbindung ist bereits beigetreten.",
   "This device": "Dieses Gerät",
+  "This game is open in another host. Close it before recovering.": "Dieses Spiel ist bereits in einem anderen Host geöffnet. Schließe ihn vor der Wiederherstellung.",
+  "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "Dieses Bild ist beschädigt oder auf dieser Plattform nicht lesbar. Wähle PNG, JPEG oder WebP.",
+  "This participant cannot be reassigned.":
+      "Dieser Teilnehmer kann nicht neu zugeordnet werden.",
+  "This participant is banned for this session.":
+      "Diese Teilnehmeridentität ist für die Sitzung gesperrt.",
+  "This permanently deletes the saved game and participant resume credentials.": "Der Spielstand und die Zugangsdaten für den Wiederbeitritt werden endgültig gelöscht.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "Dieses Quiz benötigt eine neuere Quizmo-Version. Aktualisiere die App und importiere die Datei erneut. Deine Quizbibliothek wurde nicht verändert.",
+  "This recovery file needs a newer Quizmo. Update Quizmo and retry.": "Dieser Spielstand benötigt eine neuere Quizmo-Version. Aktualisiere Quizmo und versuche es erneut.",
   "This round has no buzzer.": "Diese Runde hat keinen Buzzer.",
   "This session has no Jeopardy board.":
       "Diese Sitzung hat kein Jeopardy-Spielfeld.",
   "Time limit in seconds": "Zeitlimit in Sekunden",
   "Time's up": "Zeit abgelaufen",
+  "Timer choices affect the current round only. Closed rounds stay closed.": "Die Timer-Auswahl gilt nur für die aktuelle Runde. Geschlossene Runden bleiben geschlossen.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tipp: Starte hier als Spielleiter und öffne die Web-App in zwei Browser-Tabs, um Spieler zu simulieren.",
+  "Too many code attempts. Wait one minute and reconnect.":
+      "Zu viele Codeversuche. Bitte eine Minute warten und erneut verbinden.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Tritt einem bestehenden Team bei oder erstelle dein eigenes.",
   "Trotzdem Buzzer freigeben": "Trotzdem Buzzer freigeben",
@@ -1413,7 +2074,10 @@ const germanMessages = <String, String>{
   "True / false": "Wahr / Falsch",
   "Type": "Format",
   "Uhr synchronisieren und beitreten …": "Uhr synchronisieren und beitreten …",
+  "Unbekannte Korrektur.": "Unbekannte Korrektur.",
   "Unbekannter Medientyp \"{0}\".": "Unbekannter Medientyp „{0}“.",
+  "Unbewertet": "Unbewertet",
+  "Unedited examples will be removed and recreated. Edited examples and your own quizzes will not be changed.": "Unbearbeitete Beispiele werden entfernt und neu erstellt. Bearbeitete Beispiele und eigene Quizzes bleiben unverändert.",
   "Ungültiger Kartenausschnitt.": "Ungültiger Kartenausschnitt.",
   "Ungültiges Medien-Asset.": "Ungültiges Medien-Asset.",
   "Unknown game mode \"{0}\".": "Unbekannter Spielmodus „{0}“.",
@@ -1426,16 +2090,21 @@ const germanMessages = <String, String>{
   "Unknown submission kind \"{0}\".": "Unbekannter Antworttyp „{0}“.",
   "Unknown team.": "Unbekanntes Team.",
   "Unnamed": "Unbenannt",
+  "Unreachable - check host or firewall":
+      "Nicht erreichbar - Host oder Firewall prüfen",
   "Unsupported local library schemaVersion {0}. Expected {1}.":
       "Nicht unterstützte Bibliotheksversion {0}. Erwartet wird {1}.",
   "Unsupported quiz schemaVersion {0}. Expected {1}.":
       "Nicht unterstützte Quizversion {0}. Erwartet wird {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.": "Nicht unterstützte Quizversion {0}. Diese App unterstützt Versionen 1 bis {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.": "Nicht unterstützte Quizversion {0}. Diese App unterstützt bis Version {1}. Aktualisiere Quizmo und importiere die Datei erneut.",
+  "Unsupported recovery schemaVersion.":
+      "Nicht unterstützte schemaVersion des Spielstands.",
   "Untitled question": "Frage ohne Titel",
   "Untitled quiz": "Unbenanntes Quiz",
   "Update Quizmo to import this quiz":
       "Quizmo aktualisieren, um dieses Quiz zu importieren",
+  "Use optimized copy": "Optimierte Kopie verwenden",
   "Use the system or browser language, or choose a language for this device.": "System- oder Browsersprache verwenden oder eine Sprache für dieses Gerät auswählen.",
   "Verbindung unterbrochen. Erneuter Versuch ...":
       "Verbindung unterbrochen. Erneuter Versuch …",
@@ -1446,12 +2115,16 @@ const germanMessages = <String, String>{
   "Video konnte nicht geladen werden.": "Video konnte nicht geladen werden.",
   "Vollständige eindeutige Zuordnung angeben.":
       "Vollständige eindeutige Zuordnung angeben.",
+  "Vorherige Lösung": "Vorherige Lösung",
   "Wager (max {0})": "Einsatz (max. {0})",
   "Wahr": "Wahr",
   "Wahr / Falsch": "Wahr / Falsch",
   "Wahr oder Falsch als Lösung wählen.": "Wahr oder Falsch als Lösung wählen.",
+  "Waiting for approval": "Warten auf Freigabe",
   "Waiting for clients. Share the LAN address above.":
       "Warte auf Spieler. Teile die LAN-Adresse oben.",
+  "Waiting for host approval. You are not in the game yet.":
+      "Warte auf die Freigabe durch den Host. Du bist noch nicht im Spiel.",
   "Waiting for the first player…": "Warte auf den ersten Spieler …",
   "Waiting for the next question…": "Warte auf die nächste Frage …",
   "Waiting for the quizmaster…": "Warte auf den Spielleiter …",
@@ -1462,6 +2135,8 @@ const germanMessages = <String, String>{
   "Weiches Abspiellimit": "Weiches Abspiellimit",
   "Weiches Zeitlimit": "Weiches Zeitlimit",
   "Weiter zur Teamauswahl": "Weiter zur Teamauswahl",
+  "Weitere Spielaktionen hängen von dieser Bewertung ab.":
+      "Weitere Spielaktionen hängen von dieser Bewertung ab.",
   "Wiederholungen dürfen nicht negativ sein.":
       "Wiederholungen dürfen nicht negativ sein.",
   "Wrong": "Falsch",
@@ -1471,6 +2146,8 @@ const germanMessages = <String, String>{
   "Wähle alle richtigen Antworten und logge sie ein.":
       "Wähle alle richtigen Antworten und logge sie ein.",
   "You have the floor — answer out loud!": "Du bist dran – antworte laut!",
+  "You were removed from this session.": "Du wurdest aus der Sitzung entfernt.",
+  "You were removed. Joining again requires a new admission.": "Du wurdest entfernt. Für einen erneuten Beitritt ist eine neue Zulassung erforderlich.",
   "YouTube-Link": "YouTube-Link",
   "YouTube-Video öffnen": "YouTube-Video öffnen",
   "Your name": "Dein Name",
@@ -1482,6 +2159,10 @@ const germanMessages = <String, String>{
       "Zeit abgelaufen. Antworten sind geschlossen.",
   "Zoom (1–18)": "Zoom (1–18)",
   "Zoom erlauben": "Zoom erlauben",
+  "Zuerst die Wiederherstellung fortsetzen.":
+      "Zuerst die Wiederherstellung fortsetzen.",
+  "Zuerst die spätere Bewertung zurücknehmen.":
+      "Zuerst die spätere Bewertung zurücknehmen.",
   "Zugreihenfolge": "Zugreihenfolge",
   "Zugreihenfolge festlegen": "Zugreihenfolge festlegen",
   "Zuordnen": "Zuordnen",
@@ -1561,5 +2242,6 @@ const germanMessages = <String, String>{
   "{0}% accuracy": "{0}% Genauigkeit",
   "{0}, place your wager!": "{0}, lege deinen Einsatz fest!",
   "{0}: {1} Chips · Einsatz: {2}": "{0}: {1} Chips · Einsatz: {2}",
+  "Änderung (+/-)": "Änderung (+/-)",
   "Übernehmen": "Übernehmen",
 };

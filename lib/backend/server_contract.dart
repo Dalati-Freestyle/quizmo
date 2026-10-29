@@ -51,9 +51,11 @@ final class ServerEndpoint extends Equatable {
     required this.port,
     required this.addresses,
     this.publicUri,
+    this.recoverySessionId,
   });
 
   final Uri? publicUri;
+  final String? recoverySessionId;
 
   /// TCP port the server is bound to.
   final int port;
@@ -86,7 +88,17 @@ final class ServerEndpoint extends Equatable {
   Uri get loopbackUri => uriFor(kLoopbackAddress);
 
   /// Returns the base URI for [address].
-  Uri uriFor(String address) => publicUri ?? Uri.parse('http://$address:$port');
+  Uri uriFor(String address) {
+    final uri = publicUri ?? Uri.parse('http://$address:$port');
+    return recoverySessionId == null
+        ? uri
+        : uri.replace(
+            queryParameters: {
+              ...uri.queryParameters,
+              'session': recoverySessionId!,
+            },
+          );
+  }
 
   /// Address of the spectator (TV) screen served by the host at [address].
   ///
@@ -98,7 +110,7 @@ final class ServerEndpoint extends Equatable {
   Uri get lanTvUri => tvUriFor(lanAddress);
 
   @override
-  List<Object?> get props => [port, addresses, publicUri];
+  List<Object?> get props => [port, addresses, publicUri, recoverySessionId];
 }
 
 /// Raised when a server operation cannot be performed on this platform.

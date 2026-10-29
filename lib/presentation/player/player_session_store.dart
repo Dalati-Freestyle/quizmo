@@ -39,7 +39,7 @@ class PlayerSessionStore {
   Future<void> save(SavedPlayerSession session) => _preferences.setString(
     _key,
     jsonEncode({
-      'host': session.host.origin,
+      'host': session.host.toString(),
       'name': session.name,
       'playerId': session.playerId,
       'token': session.token,

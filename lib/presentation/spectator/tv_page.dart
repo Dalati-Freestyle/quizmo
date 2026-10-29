@@ -227,8 +227,13 @@ class _TvViewState extends State<_TvView> {
                             SpectatorSessionCubit,
                             SpectatorSessionState
                           >(
-                            builder: (context, state) =>
-                                TvScreen(state: state, joinUri: widget.joinUri),
+                            builder: (context, state) => SessionMediaAccess(
+                              baseUri: state.mediaBaseUri,
+                              child: TvScreen(
+                                state: state,
+                                joinUri: widget.joinUri,
+                              ),
+                            ),
                           ),
                     ),
                   ),
@@ -238,6 +243,36 @@ class _TvViewState extends State<_TvView> {
                 top: 12,
                 left: 12,
                 child: SafeArea(child: SettingsButton()),
+              ),
+              BlocBuilder<SpectatorSessionCubit, SpectatorSessionState>(
+                builder: (context, state) => state.isConnected
+                    ? const SizedBox.shrink()
+                    : Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SafeArea(
+                          child: SizedBox(
+                            width: 420,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: TextField(
+                                obscureText: true,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                maxLength: 64,
+                                decoration: InputDecoration(
+                                  labelText: context.tr('Join code'),
+                                  helperText: context.tr(
+                                    'Enter the code and press Enter to reconnect.',
+                                  ),
+                                ),
+                                onSubmitted: (code) => context
+                                    .read<SpectatorSessionCubit>()
+                                    .setJoinCode(code),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
               ),
               if (Navigator.of(context).canPop())
                 // SafeArea keeps the button clear of the status bar and
@@ -348,6 +383,13 @@ class _Header extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          if (state.game?.recoveryPaused == true) ...[
+            _Pill(
+              label: context.tr('Recovery paused'),
+              color: scheme.tertiaryContainer,
+            ),
+            const SizedBox(width: 16),
+          ],
           if (mode != null) ...[
             _Pill(label: mode, color: scheme.secondaryContainer),
             const SizedBox(width: 16),
@@ -534,6 +576,27 @@ class _MainStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final question = game.round.question;
     final jeopardy = game.jeopardy;
+    if (game.showFinalReview) {
+      return _TvPanel(
+        child: _FinalReviewStage(
+          key: ValueKey(game.roundHistory.first.startedAtHostMicros),
+          game: game,
+          state: state,
+        ),
+      );
+    }
+    if (game.resultsHidden &&
+        game.completedQuestionIds.contains(question?.id)) {
+      return _TvPanel(
+        child: Center(
+          child: Text(
+            context.tr('Frage abgeschlossen. Die Auflösung folgt am Quizende.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 44),
+          ),
+        ),
+      );
+    }
     return _TvPanel(
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
@@ -569,6 +632,100 @@ class _MainStage extends StatelessWidget {
 }
 
 // --------------------------------------------------------------- jeopardy ---
+
+class _FinalReviewStage extends StatefulWidget {
+  const _FinalReviewStage({required this.game, required this.state, super.key});
+
+  final GameState game;
+  final SpectatorSessionState state;
+
+  @override
+  State<_FinalReviewStage> createState() => _FinalReviewStageState();
+}
+
+class _FinalReviewStageState extends State<_FinalReviewStage> {
+  int _index = 0;
+  bool _paused = false;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!_paused && widget.game.roundHistory.length > 1) _move(1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _move(int delta) {
+    setState(() {
+      _index = (_index + delta) % widget.game.roundHistory.length;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rounds = widget.game.roundHistory;
+    final round = rounds[_index % rounds.length];
+    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: true);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.tr('Quiz-Auflösung · {0} / {1}', [
+                  _index + 1,
+                  rounds.length,
+                ]),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: context.tr('Vorherige Lösung'),
+              icon: const Icon(Icons.navigate_before, size: 32),
+              onPressed: rounds.length > 1 ? () => _move(-1) : null,
+            ),
+            IconButton(
+              tooltip: context.tr(
+                _paused
+                    ? 'Automatischen Wechsel fortsetzen'
+                    : 'Automatischen Wechsel pausieren',
+              ),
+              icon: Icon(_paused ? Icons.play_arrow : Icons.pause, size: 32),
+              onPressed: rounds.length > 1
+                  ? () => setState(() => _paused = !_paused)
+                  : null,
+            ),
+            IconButton(
+              tooltip: context.tr('Nächste Lösung'),
+              icon: const Icon(Icons.navigate_next, size: 32),
+              onPressed: rounds.length > 1 ? () => _move(1) : null,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: _QuestionStage(
+            key: ValueKey('review-round-$_index'),
+            game: reviewGame,
+            question: round.question!,
+            state: widget.state.copyWith(game: reviewGame),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// The board between two questions: whose turn it is and what is left.
 class _JeopardyBoardStage extends StatelessWidget {
@@ -1088,7 +1245,7 @@ class _CountdownBarState extends State<_CountdownBar> {
     final color = isUrgent ? scheme.error : scheme.primary;
 
     if (remaining == Duration.zero &&
-        widget.state.game?.round.question?.softTimeLimit == true) {
+        widget.state.game?.round.hasSoftTimer == true) {
       return Text(
         context.tr("Zeit abgelaufen · Der Spielleiter beendet die Runde."),
         style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),
@@ -1598,6 +1755,17 @@ class _StandingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    if (game.resultsHidden) {
+      return _TvPanel(
+        child: Center(
+          child: Text(
+            context.tr('Punktestand bis zum Quizende verborgen.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 32),
+          ),
+        ),
+      );
+    }
     final standings = buildTvStandings(game);
 
     return _TvPanel(

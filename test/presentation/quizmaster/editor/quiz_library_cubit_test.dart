@@ -103,6 +103,9 @@ class _MemoryStore implements QuizLibraryStore {
 
 class _FailingRepository implements QuizRepository {
   @override
+  Future<void> recreateExamples(DateTime timestamp) async =>
+      fail('Must not overwrite an unreadable library');
+  @override
   Future<List<Quiz>> loadAll() async =>
       throw const QuizRepositoryException('Lesefehler');
   @override

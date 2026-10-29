@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../core/models/models.dart';
 import '../../core/net/quiz_client.dart';
+import '../../core/protocol/messages.dart';
 
 /// Creates the [QuizClient] used by a [SpectatorSessionCubit].
 typedef QuizClientFactory = QuizClient Function(Uri baseUri);
@@ -24,6 +25,8 @@ final class SpectatorSessionState extends Equatable {
     this.error,
     this.snapshotReceivedAt,
     this.reconnectAttempt = 0,
+    this.extrapolateTime = true,
+    this.mediaBaseUri,
   });
 
   /// Connection lifecycle.
@@ -44,6 +47,8 @@ final class SpectatorSessionState extends Equatable {
 
   /// How many reconnects were attempted since the last healthy connection.
   final int reconnectAttempt;
+  final bool extrapolateTime;
+  final Uri? mediaBaseUri;
 
   /// Whether the socket is open and the host accepted the watch request.
   bool get isConnected => status == QuizClientStatus.connected;
@@ -59,7 +64,7 @@ final class SpectatorSessionState extends Equatable {
     final receivedAt = snapshotReceivedAt;
     final round = game?.round;
     final question = round?.question;
-    final startedAt = round?.startedAtHostMicros;
+    final startedAt = round?.timerStartedAtHostMicros;
     if (game == null ||
         receivedAt == null ||
         round == null ||
@@ -70,7 +75,9 @@ final class SpectatorSessionState extends Equatable {
     }
     final elapsed =
         Duration(microseconds: game.hostTimeMicros - startedAt) +
-        now.difference(receivedAt);
+        (game.recoveryPaused || !extrapolateTime
+            ? Duration.zero
+            : now.difference(receivedAt));
     final remaining = question.timeLimit - elapsed;
     return remaining.isNegative ? Duration.zero : remaining;
   }
@@ -84,13 +91,17 @@ final class SpectatorSessionState extends Equatable {
     DateTime? snapshotReceivedAt,
     int? reconnectAttempt,
     bool clearError = false,
+    bool? extrapolateTime,
+    Uri? mediaBaseUri,
   }) => SpectatorSessionState(
+    extrapolateTime: extrapolateTime ?? this.extrapolateTime,
     status: status ?? this.status,
     game: game ?? this.game,
     serverName: serverName ?? this.serverName,
     error: clearError ? null : error ?? this.error,
     snapshotReceivedAt: snapshotReceivedAt ?? this.snapshotReceivedAt,
     reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
+    mediaBaseUri: mediaBaseUri ?? this.mediaBaseUri,
   );
 
   @override
@@ -101,6 +112,8 @@ final class SpectatorSessionState extends Equatable {
     error,
     snapshotReceivedAt,
     reconnectAttempt,
+    extrapolateTime,
+    mediaBaseUri,
   ];
 }
 
@@ -136,6 +149,14 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
   QuizClient? _client;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
+  StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
+  String? _joinCode;
+
+  Future<void> setJoinCode(String code) {
+    _joinCode = code;
+    return reconnect();
+  }
+
   Timer? _retryTimer;
   var _attempt = 0;
 
@@ -177,9 +198,14 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     _statusSubscription = client.statuses.listen(
       (status) => _onStatus(client, status),
     );
+    _errorSubscription = client.errors.listen((error) {
+      if (isClosed || _client != client) return;
+      if (error.code == 'invalidCode') _joinCode = null;
+      emit(state.copyWith(error: error.message));
+    });
 
     try {
-      await client.watch();
+      await client.watch(joinCode: _joinCode);
     } on Object catch (error) {
       if (isClosed || _client != client) return;
       emit(state.copyWith(status: QuizClientStatus.failed, error: '$error'));
@@ -193,9 +219,11 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     switch (status) {
       case QuizClientStatus.connected:
         _attempt = 0;
-      case QuizClientStatus.disconnected || QuizClientStatus.failed:
+      case QuizClientStatus.disconnected ||
+          QuizClientStatus.failed ||
+          QuizClientStatus.closed:
         _scheduleReconnect();
-      case QuizClientStatus.connecting:
+      case QuizClientStatus.connecting || QuizClientStatus.reconnecting:
         break;
     }
   }
@@ -207,6 +235,7 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
         game: game,
         snapshotReceivedAt: _now(),
         serverName: _client?.serverName,
+        mediaBaseUri: _client?.mediaBaseUri,
       ),
     );
   }
@@ -227,6 +256,7 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
   Future<void> _teardown() async {
     await _gameSubscription?.cancel();
     await _statusSubscription?.cancel();
+    await _errorSubscription?.cancel();
     _gameSubscription = null;
     _statusSubscription = null;
     final client = _client;

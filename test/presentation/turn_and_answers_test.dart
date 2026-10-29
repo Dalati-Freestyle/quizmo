@@ -9,6 +9,9 @@ import 'package:quizmo/presentation/player/player_session_cubit.dart';
 import 'package:quizmo/presentation/player/questions/multiple_choice_question_view.dart';
 import 'package:quizmo/presentation/quizmaster/host_dashboard_page.dart';
 
+import '../helpers/memory_recovery_store.dart';
+import '../helpers/mock_lan_discovery.dart';
+
 const question = MultipleChoiceQuestion(
   id: 'q',
   prompt: 'Pick A and C',
@@ -30,6 +33,7 @@ const board = JeopardyBoard(
 );
 
 void main() {
+  setUp(mockLanDiscoveryUnavailable);
   testWidgets(
     'multiple choice toggles options, submits once and then locks every button',
     (tester) async {
@@ -148,7 +152,15 @@ void main() {
       ],
       format: const JeopardyFormat(board),
     );
-    await tester.pumpWidget(MaterialApp(home: HostDashboardPage(quiz: quiz)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HostDashboardPage(
+          quiz: quiz,
+          recoveryStore: MemoryRecoveryStore(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
     final engine = tester.element(find.byType(Scaffold)).read<QuizEngineBloc>();
     engine.add(const PlayerJoinedEvent(Player(id: 'p', name: 'Player')));
     await tester.pumpAndSettle();
@@ -156,6 +168,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(engine.state.game.jeopardy!.pendingPickQuestionId, isNull);
     expect(find.text('Fragenauswahl bestätigen'), findsNothing);
+    await tester.ensureVisible(find.text('Quiz jetzt starten'));
     await tester.tap(find.text('Quiz jetzt starten'));
     await tester.pumpAndSettle();
     engine.add(const SelectJeopardyCellEvent('q', playerId: 'p'));

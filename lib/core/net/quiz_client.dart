@@ -34,8 +34,19 @@ enum QuizClientStatus {
   /// The socket is open and the join request was accepted.
   connected,
 
+  reconnecting,
+
+  closed,
+
   /// The connection failed; see `QuizClient.lastError`.
   failed,
+}
+
+final class JoinRejectedException extends StateError {
+  JoinRejectedException(this.code, String message) : super(message);
+  final String code;
+  @override
+  String toString() => message;
 }
 
 /// Talks to an embedded quiz host.
@@ -66,6 +77,8 @@ class QuizClient {
 
   final StreamController<GameState> _games =
       StreamController<GameState>.broadcast();
+  final _snapshots = StreamController<GameSnapshotMessage>.broadcast();
+  Stream<GameSnapshotMessage> get snapshots => _snapshots.stream;
   final StreamController<QuizClientStatus> _statuses =
       StreamController<QuizClientStatus>.broadcast();
   final StreamController<ProtocolErrorMessage> _errors =
@@ -74,6 +87,9 @@ class QuizClient {
       StreamController<LobbySnapshotMessage>.broadcast();
   bool _inLobby = false;
   bool _awaitingLobby = false;
+  bool _awaitingApproval = false;
+  final _admissions = StreamController<bool>.broadcast();
+  Stream<bool> get admissions => _admissions.stream;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -81,6 +97,15 @@ class QuizClient {
   Completer<void>? _joinCompleter;
   String? _playerId;
   String? _resumeToken;
+  String? _accessToken;
+  Uri get mediaBaseUri => _accessToken == null
+      ? baseUri
+      : baseUri.replace(
+          queryParameters: {
+            ...baseUri.queryParameters,
+            'access': _accessToken!,
+          },
+        );
   int _lastFrameAt = 0;
   String? _serverName;
   QuizClientStatus _status = QuizClientStatus.disconnected;
@@ -129,6 +154,7 @@ class QuizClient {
     String? newTeamName,
     String? resumePlayerId,
     String? resumeToken,
+    String? joinCode,
     int handshakeProbes = 5,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
@@ -138,6 +164,7 @@ class QuizClient {
     final generation = _connectionGeneration;
     _emitStatus(QuizClientStatus.connecting);
     _lastError = null;
+    clock.reset();
 
     try {
       if (isInternetSession(baseUri)) {
@@ -166,19 +193,29 @@ class QuizClient {
           newTeamName: newTeamName,
           resumePlayerId: resumePlayerId,
           resumeToken: resumeToken,
+          joinCode: joinCode,
           clockOffsetMicros: clock.clockOffsetMicros,
           roundTripMicros: clock.roundTripMicros,
         ),
       );
 
-      await joined.future.timeout(joinTimeout);
+      await joined.future.timeout(
+        joinTimeout,
+        onTimeout: () {
+          if (_awaitingApproval) return joined.future;
+          throw TimeoutException('The host did not answer the join request.');
+        },
+      );
       _checkAttempt(generation);
       _resyncTimer = Timer.periodic(resyncInterval, (_) => _probeOverSocket());
     } on Object catch (error) {
+      if (generation != _connectionGeneration || _disposed) rethrow;
       _lastError = error;
-      _joinCompleter = null;
+      if (!_inLobby) await disconnect();
       _emitStatus(
-        _inLobby && _channel != null
+        error is JoinRejectedException && error.code == 'hostClosed'
+            ? QuizClientStatus.closed
+            : _inLobby && _channel != null
             ? QuizClientStatus.connected
             : QuizClientStatus.failed,
       );
@@ -201,9 +238,13 @@ class QuizClient {
       _send(const LobbyRequest());
       await accepted.future.timeout(timeout);
     } on Object catch (error) {
-      _joinCompleter = null;
       _lastError = error;
-      _emitStatus(QuizClientStatus.failed);
+      await disconnect();
+      _emitStatus(
+        error is JoinRejectedException && error.code == 'hostClosed'
+            ? QuizClientStatus.closed
+            : QuizClientStatus.failed,
+      );
       rethrow;
     }
   }
@@ -219,6 +260,7 @@ class QuizClient {
   /// player: the host only streams redacted snapshots to this client, and
   /// [pressBuzzer] / [submitChoice] stay no-ops because [playerId] is `null`.
   Future<void> watch({
+    String? joinCode,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
     await disconnect();
@@ -226,28 +268,22 @@ class QuizClient {
     _lastError = null;
 
     try {
-      final channel = WebSocketChannel.connect(_socketUri);
-      _channel = channel;
-      await channel.ready;
+      await _openSocket();
 
       final accepted = Completer<void>();
       _joinCompleter = accepted;
 
-      _socketSubscription = channel.stream.listen(
-        _onFrame,
-        onDone: _onSocketClosed,
-        onError: (Object error) {
-          _failJoin(error);
-          _lastError = error;
-          _emitStatus(QuizClientStatus.failed);
-        },
-      );
-
-      _send(const WatchRequest());
+      _send(WatchRequest(joinCode: joinCode));
       await accepted.future.timeout(joinTimeout);
+      _resyncTimer = Timer.periodic(resyncInterval, (_) => _probeOverSocket());
     } on Object catch (error) {
       _lastError = error;
-      _emitStatus(QuizClientStatus.failed);
+      await disconnect();
+      _emitStatus(
+        error is JoinRejectedException && error.code == 'hostClosed'
+            ? QuizClientStatus.closed
+            : QuizClientStatus.failed,
+      );
       rethrow;
     }
   }
@@ -326,8 +362,11 @@ class QuizClient {
     _socketSubscription = null;
     _channel = null;
     _playerId = null;
+    _accessToken = null;
     _inLobby = false;
     _awaitingLobby = false;
+    _awaitingApproval = false;
+    if (!_admissions.isClosed) _admissions.add(false);
     if (_status != QuizClientStatus.disconnected) {
       _emitStatus(QuizClientStatus.disconnected);
     }
@@ -339,9 +378,11 @@ class QuizClient {
     await disconnect();
     if (_ownsHttpClient) _http.close();
     await _games.close();
+    await _snapshots.close();
     await _statuses.close();
     await _errors.close();
     await _lobbies.close();
+    await _admissions.close();
   }
 
   // --------------------------------------------------------------- internals ---
@@ -351,14 +392,39 @@ class QuizClient {
   Future<void> _openSocket() async {
     if (_disposed) throw StateError('This client has been disposed.');
     final generation = _connectionGeneration;
+    if (isInternetSession(baseUri)) {
+      final response = await _http
+          .get(
+            sessionUri(baseUri)
+                .replace(path: '${sessionUri(baseUri).path}/status'),
+          )
+          .timeout(const Duration(seconds: 5));
+      _checkAttempt(generation);
+      if (response.statusCode == 410) {
+        final payload = jsonDecode(response.body);
+        if (payload is Map<String, dynamic> &&
+            payload['service'] == 'quizmo-room' &&
+            payload['open'] == false) {
+          throw JoinRejectedException(
+            'hostClosed',
+            'The host has closed this room. Join a new room to continue.',
+          );
+        }
+      }
+    }
     final channel = WebSocketChannel.connect(_socketUri);
     _channel = channel;
     await channel.ready.timeout(const Duration(seconds: 5));
     _checkAttempt(generation);
     _socketSubscription = channel.stream.listen(
-      _onFrame,
-      onDone: _onSocketClosed,
+      (frame) {
+        if (_channel == channel) _onFrame(frame);
+      },
+      onDone: () {
+        if (_channel == channel) _onSocketClosed();
+      },
       onError: (Object error) {
+        if (_channel != channel) return;
         _failJoin(error);
         _lastError = error;
         _emitStatus(QuizClientStatus.failed);
@@ -373,6 +439,7 @@ class QuizClient {
   }
 
   Future<void> _handshake({required int probes}) async {
+    final generation = _connectionGeneration;
     final endpoint = baseUri.replace(path: '/api/sync-time');
     for (var probe = 0; probe < probes; probe++) {
       final sentAt = _now();
@@ -383,6 +450,7 @@ class QuizClient {
             body: jsonEncode({'clientSentAtMicros': sentAt}),
           )
           .timeout(const Duration(seconds: 5));
+      _checkAttempt(generation);
       final receivedAt = _now();
       if (response.statusCode != 200) {
         throw StateError('Clock sync failed with HTTP ${response.statusCode}.');
@@ -399,15 +467,29 @@ class QuizClient {
   }
 
   void _probeOverSocket() {
-    if (_now() - _lastFrameAt > const Duration(seconds: 30).inMicroseconds) {
-      _channel?.sink.close();
-      _onSocketClosed();
-      return;
-    }
-    _send(SyncPing(clientSentAtMicros: _now()));
+    unawaited(checkConnection());
   }
 
-  void _send(ClientMessage message) => _channel?.sink.add(message.encode());
+  Future<void> checkConnection() async {
+    if (_status != QuizClientStatus.connected) return;
+    final channel = _channel;
+    if (_now() - _lastFrameAt <= const Duration(seconds: 30).inMicroseconds) {
+      try {
+        _send(SyncPing(clientSentAtMicros: _now()));
+        return;
+      } on StateError catch (error) {
+        _lastError = error;
+      }
+    }
+    _onSocketClosed();
+    await channel?.sink.close();
+  }
+
+  void _send(ClientMessage message) {
+    final channel = _channel;
+    if (channel == null) throw StateError('No connection to the host.');
+    channel.sink.add(message.encode());
+  }
 
   void _onFrame(dynamic frame) {
     if (frame is! String) return;
@@ -422,17 +504,28 @@ class QuizClient {
     switch (message) {
       case WelcomeMessage(:final serverName):
         _serverName = serverName;
-      case JoinAcceptedMessage(:final playerId, :final resumeToken):
+      case JoinAcceptedMessage(
+        :final playerId,
+        :final resumeToken,
+        :final accessToken,
+      ):
+        _accessToken = accessToken;
+        _awaitingApproval = false;
+        _admissions.add(false);
         _inLobby = false;
         _playerId = playerId;
         _resumeToken = resumeToken;
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);
-      case WatchAcceptedMessage():
+      case WatchAcceptedMessage(:final accessToken):
+        _accessToken = accessToken;
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);
+      case AdmissionPendingMessage():
+        _awaitingApproval = true;
+        _admissions.add(true);
       case LobbySnapshotMessage():
         if (!_lobbies.isClosed) _lobbies.add(message);
         if (_awaitingLobby) {
@@ -460,19 +553,30 @@ class QuizClient {
         );
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
+        if (!_snapshots.isClosed) _snapshots.add(message);
       case ProtocolErrorMessage():
+        _awaitingApproval = false;
+        _admissions.add(false);
         if (!_errors.isClosed) _errors.add(message);
-        _failJoin(StateError(message.message));
+        _failJoin(JoinRejectedException(message.code, message.message));
+        if (message.code == 'hostClosed') {
+          _resyncTimer?.cancel();
+          _emitStatus(QuizClientStatus.closed);
+        }
     }
   }
 
   void _onSocketClosed() {
+    final roomClosed =
+        _channel?.closeCode == 3001 || _status == QuizClientStatus.closed;
     _resyncTimer?.cancel();
     _resyncTimer = null;
     _channel = null;
     _failJoin(StateError('The host closed the connection.'));
     if (_status != QuizClientStatus.disconnected) {
-      _emitStatus(QuizClientStatus.disconnected);
+      _emitStatus(
+        roomClosed ? QuizClientStatus.closed : QuizClientStatus.disconnected,
+      );
     }
   }
 

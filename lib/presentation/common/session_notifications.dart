@@ -42,6 +42,8 @@ class _SessionNotificationsState extends State<SessionNotifications> {
     final messages = <String>[];
     if (previous != null) {
       if (widget.playerId != null &&
+          !game.resultsHidden &&
+          !game.showFinalReview &&
           game.round.status == RoundStatus.revealed &&
           (previous.round.status != RoundStatus.revealed ||
               previous.round.question?.id != game.round.question?.id)) {
@@ -65,7 +67,11 @@ class _SessionNotificationsState extends State<SessionNotifications> {
       }
     }
     final me = game.players[widget.playerId];
-    final showPlacement = game.isFinished && me != null && !_placementShown;
+    final showPlacement =
+        game.isFinished &&
+        !game.showFinalReview &&
+        me != null &&
+        !_placementShown;
     if (showPlacement) _placementShown = true;
     if (messages.isEmpty && !showPlacement) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -111,7 +117,31 @@ class _SessionNotificationsState extends State<SessionNotifications> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => widget.game?.recoveryPaused != true
+      ? widget.child
+      : Column(
+          children: [
+            Material(
+              color: Theme.of(context).colorScheme.tertiaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  context.tr(
+                    'Game paused for recovery. Reconnect participants before continuing. Media stays paused.',
+                  ),
+                ),
+              ),
+            ),
+            if (widget.playerId != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: SelectableText(
+                  context.tr('Rejoin verification ID: {0}', [widget.playerId]),
+                ),
+              ),
+            Expanded(child: widget.child),
+          ],
+        );
 }
 
 String roundFeedback(GameState game, String playerId, {BuildContext? context}) {
@@ -134,7 +164,7 @@ String roundFeedback(GameState game, String playerId, {BuildContext? context}) {
   final accuracy = question is BuzzerQuestion
       ? (verdicts.any((v) => v.value == 1) ? 1.0 : 0.0)
       : answers.fold<double>(0, (best, answer) {
-          final value = question.accuracy(answer);
+          final value = game.round.accuracyFor(answer) ?? 0;
           return value > best ? value : best;
         });
   final answered = answers.isNotEmpty || verdicts.isNotEmpty;

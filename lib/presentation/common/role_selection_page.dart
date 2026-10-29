@@ -14,6 +14,7 @@ import '../quizmaster/editor/quiz_library_page.dart' deferred as quiz_library;
 import 'adaptive_layout.dart';
 import 'quizmo_logo.dart';
 import '../settings/settings_page.dart';
+import '../quizmaster/recovery/recovery_gate.dart';
 
 /// Lets the user pick between the quizmaster and the player experience.
 ///
@@ -142,6 +143,7 @@ class RoleSelectionPage extends StatelessWidget {
         builder: (_) => host_dashboard.HostDashboardPage(quiz: quiz),
       ),
     );
+    if (context.mounted) await RecoveryGate.reload(context);
   }
 
   Future<Quiz?> _openQuizLibrary(

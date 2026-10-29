@@ -5,6 +5,65 @@ import 'package:quizmo/core/protocol/messages.dart';
 import 'package:quizmo/presentation/player/team_join_view.dart';
 
 void main() {
+  testWidgets('code is obscured and sent with the selected admission', (
+    tester,
+  ) async {
+    String? received;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TeamJoinView(
+            lobby: const LobbySnapshotMessage(
+              teams: {},
+              codeRequired: true,
+              requireApproval: true,
+            ),
+            onJoin: (_, code) => received = code,
+            onCreate: (_, _) {},
+            onBack: () {},
+          ),
+        ),
+      ),
+    );
+    final code = find.widgetWithText(TextField, 'Join code');
+    expect(tester.widget<TextField>(code).obscureText, isTrue);
+    await tester.enterText(code, 'secret-code');
+    await tester.tap(find.text('Spiel beitreten'));
+    expect(received, 'secret-code');
+    expect(find.text('New participants need host approval.'), findsOneWidget);
+  });
+
+  testWidgets('locked lobby explains reconnect and disables new admissions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TeamJoinView(
+            lobby: const LobbySnapshotMessage(teams: {}, locked: true),
+            onJoin: (_, _) => fail('Locked join'),
+            onCreate: (_, _) => fail('Locked team creation'),
+            onBack: () {},
+          ),
+        ),
+      ),
+    );
+    expect(
+      find.text('The lobby is locked. Existing players can still reconnect.'),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
+    await tester.enterText(find.byType(TextField), 'Owls');
+    await tester.pump();
+    expect(
+      tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed,
+      isNull,
+    );
+  });
+
   testWidgets('joins a host-provided team and displays its live rename', (
     tester,
   ) async {
@@ -16,8 +75,8 @@ void main() {
             lobby: LobbySnapshotMessage(
               teams: {'custom': Team(id: 'custom', name: teamName)},
             ),
-            onJoin: (id) => joined = id,
-            onCreate: (_) {},
+            onJoin: (id, _) => joined = id,
+            onCreate: (_, _) {},
             onBack: () {},
           ),
         ),
@@ -42,8 +101,8 @@ void main() {
         home: Scaffold(
           body: TeamJoinView(
             lobby: const LobbySnapshotMessage(teams: {}, requiresTeam: true),
-            onJoin: (_) {},
-            onCreate: (name) => created = name,
+            onJoin: (_, _) {},
+            onCreate: (name, _) => created = name,
             onBack: () {},
           ),
         ),

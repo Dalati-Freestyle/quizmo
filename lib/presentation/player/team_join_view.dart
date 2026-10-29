@@ -16,8 +16,8 @@ class TeamJoinView extends StatefulWidget {
   });
 
   final LobbySnapshotMessage lobby;
-  final ValueChanged<String?> onJoin;
-  final ValueChanged<String> onCreate;
+  final void Function(String? teamId, String code) onJoin;
+  final void Function(String name, String code) onCreate;
   final VoidCallback onBack;
   final bool busy;
   final String? error;
@@ -28,11 +28,13 @@ class TeamJoinView extends StatefulWidget {
 
 class _TeamJoinViewState extends State<TeamJoinView> {
   final _name = TextEditingController();
+  final _code = TextEditingController();
   String? _teamId;
 
   @override
   void dispose() {
     _name.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -60,6 +62,25 @@ class _TeamJoinViewState extends State<TeamJoinView> {
                 ),
               ),
               const SizedBox(height: 24),
+              if (lobby.locked)
+                Text(
+                  context.tr(
+                    'The lobby is locked. Existing players can still reconnect.',
+                  ),
+                ),
+              if (lobby.requireApproval)
+                Text(context.tr('New participants need host approval.')),
+              if (lobby.codeRequired)
+                TextField(
+                  controller: _code,
+                  obscureText: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  maxLength: 64,
+                  decoration: InputDecoration(
+                    labelText: context.tr('Join code'),
+                  ),
+                ),
               if (lobby.teams.isEmpty)
                 Text(context.tr("Es gibt noch keine Teams.")),
               DropdownButtonFormField<String>(
@@ -91,9 +112,11 @@ class _TeamJoinViewState extends State<TeamJoinView> {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed:
-                    widget.busy || (lobby.requiresTeam && selected == null)
+                    widget.busy ||
+                        lobby.locked ||
+                        (lobby.requiresTeam && selected == null)
                     ? null
-                    : () => widget.onJoin(selected),
+                    : () => widget.onJoin(selected, _code.text),
                 child: Text(context.tr("Spiel beitreten")),
               ),
               const SizedBox(height: 24),
@@ -106,13 +129,15 @@ class _TeamJoinViewState extends State<TeamJoinView> {
                 ),
                 onChanged: (_) => setState(() {}),
                 onSubmitted: (_) {
-                  if (!widget.busy && name.isNotEmpty) widget.onCreate(name);
+                  if (!widget.busy && !lobby.locked && name.isNotEmpty) {
+                    widget.onCreate(name, _code.text);
+                  }
                 },
               ),
               OutlinedButton.icon(
-                onPressed: widget.busy || name.isEmpty
+                onPressed: widget.busy || lobby.locked || name.isEmpty
                     ? null
-                    : () => widget.onCreate(name),
+                    : () => widget.onCreate(name, _code.text),
                 icon: const Icon(Icons.group_add_outlined),
                 label: Text(context.tr("Team erstellen und beitreten")),
               ),

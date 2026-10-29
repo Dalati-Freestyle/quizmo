@@ -3,19 +3,39 @@ import 'package:shelf/shelf.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 
+bool mayReadSession(Request request, QuizEngineBloc engine) {
+  final authorization = request.headers['authorization'];
+  final token = authorization != null && authorization.startsWith('Bearer ')
+      ? authorization.substring(7)
+      : request.url.queryParameters['access'];
+  return engine.access.mayRead(token);
+}
+
 /// Serves only attachments currently visible to guests. Uploads happen locally
 /// through the host editor, never through an unauthenticated LAN endpoint.
 Response serveMedia(Request request, String id, QuizEngineBloc engine) {
+  if (!mayReadSession(request, engine)) {
+    return Response.forbidden('Admission required');
+  }
   if (request.method != 'GET' && request.method != 'HEAD') return Response(405);
   if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(id)) {
     return Response.notFound('Unknown asset');
   }
-  final round = engine.state.game.round;
+  final game = engine.publishedGame;
+  final round = game.round;
   final question = round.question;
-  if (question == null) return Response.notFound('Unknown asset');
   final media = [
-    ...question.media,
-    if (round.status == RoundStatus.revealed) ...question.solutionMedia,
+    if (question != null) ...[
+      ...question.media,
+      if (round.status == RoundStatus.revealed && !game.resultsHidden)
+        ...question.solutionMedia,
+    ],
+    if (game.showFinalReview)
+      for (final completed in game.roundHistory)
+        if (completed.question case final archived?) ...[
+          ...archived.media,
+          ...archived.solutionMedia,
+        ],
   ];
   final asset = media
       .map((m) => m.asset)

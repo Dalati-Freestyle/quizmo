@@ -17,7 +17,7 @@ enum RoundStatus {
   /// The question is visible and player input is accepted.
   acceptingAnswers,
 
-  /// A buzzer was taken; the quizmaster now judges the spoken answer.
+  /// Input is closed while the host judges answers or prepares the reveal.
   locked,
 
   /// The solution is public and the points are booked.
@@ -48,10 +48,21 @@ final class RoundState extends Equatable {
     this.buzzerAnswerCorrect = false,
     this.buzzerOpenForAll = false,
     this.buzzerVerdicts = const {},
+    this.answerVerdicts = const {},
+    this.recoverySoftTimer = false,
+    this.timerRestartedAtHostMicros,
+    this.acceptedElapsedMicros = const {},
   });
 
   /// Restores a round from [json].
   factory RoundState.fromJson(JsonMap json) => RoundState(
+    recoverySoftTimer: json.readBool('recoverySoftTimer'),
+    timerRestartedAtHostMicros: json.readIntOrNull(
+      'timerRestartedAtHostMicros',
+    ),
+    acceptedElapsedMicros: json['acceptedElapsedMicros'] == null
+        ? const {}
+        : json.readIntMap('acceptedElapsedMicros'),
     question: switch (json.readObjectOrNull('question')) {
       final JsonMap value => Question.fromJson(value),
       null => null,
@@ -68,6 +79,9 @@ final class RoundState extends Equatable {
     buzzerVerdicts: json['buzzerVerdicts'] == null
         ? const {}
         : json.readIntMap('buzzerVerdicts'),
+    answerVerdicts: json['answerVerdicts'] == null
+        ? const {}
+        : json.readIntMap('answerVerdicts'),
   );
 
   /// The neutral "nothing on stage" round.
@@ -106,6 +120,30 @@ final class RoundState extends Equatable {
   final bool buzzerOpenForAll;
   final Map<String, int> buzzerVerdicts;
 
+  /// Host decisions for written answers: one for correct, zero for incorrect.
+  final Map<String, int> answerVerdicts;
+  final bool recoverySoftTimer;
+  final int? timerRestartedAtHostMicros;
+  // Later timer restarts must not change the scoring time of accepted input.
+  final Map<String, int> acceptedElapsedMicros;
+  int? get timerStartedAtHostMicros =>
+      timerRestartedAtHostMicros ?? startedAtHostMicros;
+  bool get hasSoftTimer => recoverySoftTimer || question?.softTimeLimit == true;
+
+  /// Number of submitted answers still awaiting a host decision.
+  int get pendingGradeCount => question?.requiresManualGrading == true
+      ? answers.keys.where((id) => !answerVerdicts.containsKey(id)).length
+      : 0;
+
+  /// Returns the effective accuracy, or `null` while manual grading is pending.
+  double? accuracyFor(AnswerSubmission answer) {
+    final current = question;
+    if (current == null) return null;
+    return current.requiresManualGrading
+        ? answerVerdicts[answer.playerId]?.toDouble()
+        : current.accuracy(answer);
+  }
+
   /// The fastest press, or `null` while nobody buzzed.
   BuzzerPress? get fastestPress =>
       buzzerQueue.isEmpty ? null : buzzerQueue.first;
@@ -127,8 +165,13 @@ final class RoundState extends Equatable {
       answers.containsKey(playerId) || rankOf(playerId) >= 0;
 
   /// Time between the round start and [hostMicros].
-  Duration elapsedAt(int hostMicros) {
-    final startedAt = startedAtHostMicros;
+  Duration elapsedAt(int hostMicros) =>
+      _elapsedSince(startedAtHostMicros, hostMicros);
+
+  Duration timerElapsedAt(int hostMicros) =>
+      _elapsedSince(timerStartedAtHostMicros, hostMicros);
+
+  Duration _elapsedSince(int? startedAt, int hostMicros) {
     if (startedAt == null) return Duration.zero;
     final elapsed = hostMicros - startedAt;
     return Duration(microseconds: elapsed < 0 ? 0 : elapsed);
@@ -156,6 +199,10 @@ final class RoundState extends Equatable {
     bool? buzzerAnswerCorrect,
     bool? buzzerOpenForAll,
     Map<String, int>? buzzerVerdicts,
+    Map<String, int>? answerVerdicts,
+    bool? recoverySoftTimer,
+    Object? timerRestartedAtHostMicros = _unset,
+    Map<String, int>? acceptedElapsedMicros,
   }) => RoundState(
     question: identical(question, _unset)
         ? this.question
@@ -174,6 +221,12 @@ final class RoundState extends Equatable {
     buzzerAnswerCorrect: buzzerAnswerCorrect ?? this.buzzerAnswerCorrect,
     buzzerOpenForAll: buzzerOpenForAll ?? this.buzzerOpenForAll,
     buzzerVerdicts: buzzerVerdicts ?? this.buzzerVerdicts,
+    answerVerdicts: answerVerdicts ?? this.answerVerdicts,
+    recoverySoftTimer: recoverySoftTimer ?? this.recoverySoftTimer,
+    timerRestartedAtHostMicros: identical(timerRestartedAtHostMicros, _unset)
+        ? this.timerRestartedAtHostMicros
+        : timerRestartedAtHostMicros as int?,
+    acceptedElapsedMicros: acceptedElapsedMicros ?? this.acceptedElapsedMicros,
   );
 
   /// Serializes the round.
@@ -191,6 +244,10 @@ final class RoundState extends Equatable {
     'buzzerAnswerCorrect': buzzerAnswerCorrect,
     'buzzerOpenForAll': buzzerOpenForAll,
     'buzzerVerdicts': buzzerVerdicts,
+    'answerVerdicts': answerVerdicts,
+    'recoverySoftTimer': recoverySoftTimer,
+    'timerRestartedAtHostMicros': timerRestartedAtHostMicros,
+    'acceptedElapsedMicros': acceptedElapsedMicros,
   };
 
   @override
@@ -206,5 +263,9 @@ final class RoundState extends Equatable {
     buzzerAnswerCorrect,
     buzzerOpenForAll,
     buzzerVerdicts,
+    answerVerdicts,
+    recoverySoftTimer,
+    timerRestartedAtHostMicros,
+    acceptedElapsedMicros,
   ];
 }
