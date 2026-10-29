@@ -146,17 +146,35 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
             child: SafeArea(
               child: state.isConnected
                   ? _GameBoard(state: state)
+                  : state.waitingForApproval
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            context.tr(
+                              'Waiting for host approval. You are not in the game yet.',
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                context.read<PlayerSessionCubit>().disconnect(),
+                            child: Text(context.tr('Cancel')),
+                          ),
+                        ],
+                      ),
+                    )
                   : state.isChoosingTeam
                   ? TeamJoinView(
                       lobby: state.lobby!,
                       busy: state.status == QuizClientStatus.connecting,
                       error: state.error,
-                      onJoin: (id) => context
+                      onJoin: (id, code) => context
                           .read<PlayerSessionCubit>()
-                          .joinTeam(teamId: id),
-                      onCreate: (name) => context
+                          .joinTeam(teamId: id, joinCode: code),
+                      onCreate: (name, code) => context
                           .read<PlayerSessionCubit>()
-                          .joinTeam(newTeamName: name),
+                          .joinTeam(newTeamName: name, joinCode: code),
                       onBack: () =>
                           context.read<PlayerSessionCubit>().disconnect(),
                     )

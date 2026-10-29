@@ -4,6 +4,44 @@ Quizmo can also be hosted under an HTTPS domain. Hosts create and edit quizzes
 in their browser; players and read-only TVs join an internet room through an
 invitation link. Native apps still support the existing standalone LAN server.
 
+## Session access and moderation
+
+The host's **Session access** panel controls both LAN and internet games. A
+6–64-character join code and host approval are independently optional. New
+players wait without receiving game snapshots or being added to a team until
+approved. Closing the lobby rejects pending requests and blocks new admissions;
+already admitted players can still resume with their existing identity and
+secret token, without entering the code again. Reopening permits new requests.
+Disabling approval does not silently approve requests already waiting.
+
+**Remove** revokes the old resume token and removes the roster entry; joining
+again requires a new admission. **Ban for this session** additionally rejects
+the known identity throughout this session, including after server restarts or
+saved-game recovery. Neither action identifies a person using another browser,
+cleared browser storage or a different device: without accounts this cannot be
+guaranteed. Use codes and host approval to control those new identities.
+
+Spectators have a separate allow/deny switch. They use the same join code, but
+never require individual approval and are independent of the player lobby lock.
+Disabling spectators or changing/removing the code disconnects existing TVs;
+they keep the last snapshot and retry, and can enter the current code on the TV.
+Spectators never enter the roster or gain permission to submit answers.
+
+Code guessing is limited to five failed attempts per socket and ten per minute
+across the entire host hub, so opening another LAN or relay socket does not
+reset the session-wide budget. Missing codes do not consume guesses. The shared
+budget deliberately trades availability during guessing for brute-force
+protection; after it is exhausted, wait one minute and reconnect.
+
+Keep invitation links, codes and resume tokens confidential. They are never
+written to the diagnostic feed. Protected REST snapshots and media also require
+an admitted connection's read capability; its authority expires on disconnect,
+removal or spectator revocation. Code hashes, access policy and banned
+identities are saved in recovery schema 3 (schemas 1 and 2 remain readable).
+Pending approvals and short-lived read capabilities are not restored: unadmitted
+guests must request admission again. This changes session recovery, not the
+portable quiz schema.
+
 ## Example quizzes
 
 Use **Settings > Advanced settings > Recreate example quizzes** to restore the

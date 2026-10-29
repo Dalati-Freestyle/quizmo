@@ -22,6 +22,18 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/models.dart';
 
+class SessionMediaAccess extends InheritedWidget {
+  const SessionMediaAccess({
+    required this.baseUri,
+    required super.child,
+    super.key,
+  });
+  final Uri? baseUri;
+  @override
+  bool updateShouldNotify(SessionMediaAccess oldWidget) =>
+      baseUri != oldWidget.baseUri;
+}
+
 class QuestionMediaView extends StatelessWidget {
   const QuestionMediaView({
     required this.media,
@@ -39,9 +51,22 @@ class QuestionMediaView extends StatelessWidget {
   final List<MediaAttachment> media;
   final Uri? baseUri;
 
-  Uri source(MediaAsset asset) => asset.data != null
-      ? Uri.dataFromBytes(asset.bytes!, mimeType: asset.mimeType)
-      : (baseUri ?? Uri.base).resolve(asset.route);
+  Uri source(MediaAsset asset, [BuildContext? context]) {
+    if (asset.data != null) {
+      return Uri.dataFromBytes(asset.bytes!, mimeType: asset.mimeType);
+    }
+    final base =
+        baseUri ??
+        context
+            ?.dependOnInheritedWidgetOfExactType<SessionMediaAccess>()
+            ?.baseUri ??
+        Uri.base;
+    final uri = base.resolve(asset.route);
+    final token = base.queryParameters['access'];
+    return token == null
+        ? uri
+        : uri.replace(queryParameters: {'access': token});
+  }
 
   @override
   Widget build(BuildContext context) => Column(
@@ -58,7 +83,7 @@ class QuestionMediaView extends StatelessWidget {
                 ImageAttachment() => _image(context, attachment),
                 AudioAttachment() => _AudioView(
                   attachment: attachment,
-                  source: source(attachment.asset),
+                  source: source(attachment.asset, context),
                   playing: playing,
                   playbackRevision: playbackRevision,
                   commandRevision: commandRevision,
@@ -75,7 +100,7 @@ class QuestionMediaView extends StatelessWidget {
                         )
                       : _VideoView(
                           maxHeight: maxVideoHeight,
-                          source: source(attachment.asset!),
+                          source: source(attachment.asset!, context),
                           playing: playing,
                           playbackRevision: playbackRevision,
                           commandRevision: commandRevision,
@@ -112,7 +137,7 @@ class QuestionMediaView extends StatelessWidget {
                   fit: BoxFit.contain,
                 )
               : SvgPicture.network(
-                  source(image.asset).toString(),
+                  source(image.asset, context).toString(),
                   fit: BoxFit.contain,
                 )
         : image.asset.data != null
@@ -123,7 +148,7 @@ class QuestionMediaView extends StatelessWidget {
                 Text(context.tr("Bild konnte nicht geladen werden.")),
           )
         : Image.network(
-            source(image.asset).toString(),
+            source(image.asset, context).toString(),
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) =>
                 Text(context.tr("Bild konnte nicht geladen werden.")),

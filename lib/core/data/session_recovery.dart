@@ -42,6 +42,7 @@ final class SessionRecovery {
   final _errors = StreamController<RecoveryException>.broadcast();
   Stream<RecoveryException> get errors => _errors.stream;
   StreamSubscription<QuizEngineState>? _subscription;
+  StreamSubscription<Object?>? _accessSubscription;
   Timer? _timer;
   Future<void> _tail = Future.value();
   bool _closed = false;
@@ -81,6 +82,9 @@ final class SessionRecovery {
       rethrow;
     }
     engine.persistRecovery = checkpoint;
+    _accessSubscription = engine.access.stream.listen((_) {
+      unawaited(_saveAutomatically());
+    });
     _subscription = engine.stream.listen((state) {
       if (state.game.players.keys.every(engine.resumeTokenHashes.containsKey)) {
         unawaited(_saveAutomatically());
@@ -122,6 +126,7 @@ final class SessionRecovery {
         for (final id in game.players.keys) id: ?engine.resumeTokenHashes[id],
       },
       previousJoinUri: previousJoinUri,
+      accessState: engine.access.state,
     );
     if (!_writing) {
       _writing = true;
@@ -168,6 +173,7 @@ final class SessionRecovery {
     _closed = true;
     _timer?.cancel();
     await _subscription?.cancel();
+    await _accessSubscription?.cancel();
     if (_ownsStore) engine.persistRecovery = null;
     try {
       await _tail;

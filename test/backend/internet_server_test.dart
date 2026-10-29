@@ -168,6 +168,63 @@ void main() {
     await overflow.stream.drain<dynamic>().catchError((Object _) {});
   });
 
+  test(
+    'relay guests obey code, approval, lobby lock, resume and spectator policy',
+    () async {
+      final room = await host();
+      final engine = engines.single;
+      engine.access.configure(code: 'secret-code', requireApproval: true);
+      final player = client(room.endpoint!.publicUri!);
+      await expectLater(
+        player.connect(name: 'Ada', joinCode: 'wrong', handshakeProbes: 1),
+        throwsA(isA<JoinRejectedException>()),
+      );
+      final pending = player.admissions.firstWhere((value) => value);
+      final joining = player.connect(
+        name: 'Ada',
+        joinCode: 'secret-code',
+        handshakeProbes: 1,
+      );
+      await pending;
+      expect(engine.state.game.players, isEmpty);
+      engine.access.decide(
+        engine.access.state.requests.keys.single,
+        approve: true,
+      );
+      await joining;
+      final id = player.playerId!;
+      final token = player.resumeToken!;
+      engine.access.configure(locked: true);
+      final returning = client(room.endpoint!.publicUri!);
+      await returning.connect(
+        name: 'Ada',
+        resumePlayerId: id,
+        resumeToken: token,
+        handshakeProbes: 1,
+      );
+      expect(returning.playerId, id);
+      final tv = client(room.endpoint!.publicUri!);
+      await tv.watch(joinCode: 'secret-code');
+      engine.access.configure(allowSpectators: false);
+      final disabled = client(room.endpoint!.publicUri!);
+      await expectLater(
+        disabled.watch(joinCode: 'secret-code'),
+        throwsStateError,
+      );
+      engine.add(KickPlayerEvent(id, ban: true));
+      await engine.stream.firstWhere((s) => !s.game.players.containsKey(id));
+      await expectLater(
+        returning.connect(
+          name: 'Ada',
+          resumePlayerId: id,
+          resumeToken: token,
+          handshakeProbes: 1,
+        ),
+        throwsStateError,
+      );
+    },
+  );
+
   test('guest control envelopes cannot impersonate the host', () async {
     final room = await host();
     final guest = IOWebSocketChannel.connect(

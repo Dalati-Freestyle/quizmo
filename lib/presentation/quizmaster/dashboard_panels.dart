@@ -367,6 +367,7 @@ class PlayersPanel extends StatelessWidget {
     required this.game,
     required this.onAssignTeam,
     this.onKick,
+    this.onBan,
     this.onMerge,
     this.onSetOrder,
     super.key,
@@ -378,6 +379,7 @@ class PlayersPanel extends StatelessWidget {
   /// Moves a player into a team, or clears the assignment with `null`.
   final void Function(String playerId, String? teamId) onAssignTeam;
   final ValueChanged<String>? onKick;
+  final ValueChanged<String>? onBan;
   final void Function(String source, String target)? onMerge;
   final ValueChanged<List<String>>? onSetOrder;
 
@@ -469,6 +471,8 @@ class PlayersPanel extends StatelessWidget {
                           onSelected: (action) {
                             if (action == 'kick') {
                               onKick?.call(player.id);
+                            } else if (action == 'ban') {
+                              onBan?.call(player.id);
                             } else {
                               onMerge?.call(player.id, action);
                             }
@@ -477,7 +481,14 @@ class PlayersPanel extends StatelessWidget {
                             if (onKick != null)
                               PopupMenuItem(
                                 value: 'kick',
-                                child: Text(context.tr("Spieler kicken")),
+                                child: Text(
+                                  context.tr("Remove (new admission allowed)"),
+                                ),
+                              ),
+                            if (onBan != null)
+                              PopupMenuItem(
+                                value: 'ban',
+                                child: Text(context.tr("Ban for this session")),
                               ),
                             if (!player.isConnected && onMerge != null)
                               for (final target in game.connectedPlayers)

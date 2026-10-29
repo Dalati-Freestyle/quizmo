@@ -28,6 +28,7 @@ final class PlayerSessionState extends Equatable {
     this.lastSubmittedOptionId,
     this.hasBuzzed = false,
     this.lobby,
+    this.waitingForApproval = false,
   });
 
   /// Connection lifecycle.
@@ -57,6 +58,7 @@ final class PlayerSessionState extends Equatable {
   /// Whether this client already buzzed in the running round.
   final bool hasBuzzed;
   final LobbySnapshotMessage? lobby;
+  final bool waitingForApproval;
   bool get isChoosingTeam =>
       lobby != null &&
       playerId == null &&
@@ -116,6 +118,7 @@ final class PlayerSessionState extends Equatable {
     bool clearError = false,
     bool clearSubmission = false,
     LobbySnapshotMessage? lobby,
+    bool? waitingForApproval,
   }) => PlayerSessionState(
     status: status ?? this.status,
     game: game ?? this.game,
@@ -129,6 +132,7 @@ final class PlayerSessionState extends Equatable {
         : lastSubmittedOptionId ?? this.lastSubmittedOptionId,
     hasBuzzed: clearSubmission ? false : hasBuzzed ?? this.hasBuzzed,
     lobby: lobby ?? this.lobby,
+    waitingForApproval: waitingForApproval ?? this.waitingForApproval,
   );
 
   @override
@@ -143,6 +147,7 @@ final class PlayerSessionState extends Equatable {
     lastSubmittedOptionId,
     hasBuzzed,
     lobby,
+    waitingForApproval,
   ];
 }
 
@@ -215,7 +220,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       return;
     }
     _saved = SavedPlayerSession(
-      host: mediaBaseUri!,
+      host: _baseUri!,
       name: _joiningName,
       playerId: client!.playerId!,
       token: client.resumeToken!,
@@ -267,7 +272,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       );
       if (!isClosed) emit(state.copyWith(clearError: true));
     } on Object {
-      if (!isClosed) {
+      if (!isClosed && !_intentionalDisconnect) {
         emit(
           state.copyWith(
             error: mediaBaseUri != null && isInternetSession(mediaBaseUri!)
@@ -287,11 +292,13 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   QuizClient? _client;
-  Uri? mediaBaseUri;
+  Uri? _baseUri;
+  Uri? get mediaBaseUri => _client?.mediaBaseUri ?? _baseUri;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   StreamSubscription<LobbySnapshotMessage>? _lobbySubscription;
+  StreamSubscription<bool>? _admissionSubscription;
   String _joiningName = '';
   String? _lastQuestionId;
   int? _lastRoundStart;
@@ -301,6 +308,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     required Uri baseUri,
     required String name,
     String? teamId,
+    String? joinCode,
     bool lobbyOnly = false,
   }) async {
     await _teardown();
@@ -321,12 +329,15 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     }
     emit(PlayerSessionState(status: QuizClientStatus.connecting));
 
-    mediaBaseUri = baseUri;
+    _baseUri = baseUri;
     final client = _createClient(baseUri);
     _client = client;
     _joiningName = name;
     _lobbySubscription = client.lobbies.listen((lobby) {
       if (!isClosed) emit(state.copyWith(lobby: lobby));
+    });
+    _admissionSubscription = client.admissions.listen((waiting) {
+      if (!isClosed) emit(state.copyWith(waitingForApproval: waiting));
     });
 
     _gameSubscription = client.games.listen(_onSnapshot);
@@ -357,7 +368,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         _retryTimer?.cancel();
         _retryTimer = null;
       }
-      if (error.code == 'kicked' || error.code == 'invalidResume') {
+      if (error.code == 'kicked' ||
+          error.code == 'invalidResume' ||
+          error.code == 'banned') {
         _saved = null;
         _intentionalDisconnect = true;
         _retryTimer?.cancel();
@@ -376,7 +389,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       } else if (lobbyOnly) {
         await client.browseLobby();
       } else {
-        await client.connect(name: name, teamId: teamId);
+        await client.connect(name: name, teamId: teamId, joinCode: joinCode);
       }
       if (!isClosed && client.playerId != null) {
         emit(
@@ -390,11 +403,13 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         await _remember();
       }
     } on Object catch (error) {
-      if (isClosed) return;
+      if (isClosed || _intentionalDisconnect) return;
       emit(
         state.copyWith(
           status: QuizClientStatus.failed,
-          error: isInternetSession(baseUri)
+          error: error is JoinRejectedException
+              ? error.message
+              : isInternetSession(baseUri)
               ? 'Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.'
               : '$error',
         ),
@@ -416,7 +431,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     if (!isClosed) emit(PlayerSessionState(error: message));
   }
 
-  Future<void> joinTeam({String? teamId, String? newTeamName}) async {
+  Future<void> joinTeam({
+    String? teamId,
+    String? newTeamName,
+    String? joinCode,
+  }) async {
     final client = _client;
     if (client == null ||
         !state.isChoosingTeam ||
@@ -429,9 +448,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         name: _joiningName,
         teamId: teamId,
         newTeamName: newTeamName,
+        joinCode: joinCode,
       );
     } on Object catch (error) {
-      if (!isClosed) emit(state.copyWith(error: '$error'));
+      if (!isClosed && !_intentionalDisconnect && _client == client) {
+        emit(state.copyWith(error: '$error'));
+      }
     }
   }
 
@@ -649,10 +671,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     await _statusSubscription?.cancel();
     await _errorSubscription?.cancel();
     await _lobbySubscription?.cancel();
+    await _admissionSubscription?.cancel();
     _gameSubscription = null;
     _statusSubscription = null;
     _errorSubscription = null;
     _lobbySubscription = null;
+    _admissionSubscription = null;
     _lastQuestionId = null;
     await _client?.dispose();
     _client = null;

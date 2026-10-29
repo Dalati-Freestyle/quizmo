@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../models/models.dart';
+import '../engine/session_access.dart';
 
 final class RecoveryException implements Exception {
   const RecoveryException(this.message);
@@ -29,9 +30,11 @@ final class SessionCheckpoint {
     required this.savedAtMicros,
     required this.resumeTokenHashes,
     this.previousJoinUri,
+    this.accessState = const SessionAccessState(),
   });
 
-  static const schemaVersion = 2;
+  static const schemaVersion = 3;
+  final SessionAccessState accessState;
   final String sessionId;
   final Quiz quiz;
   final GameState game;
@@ -69,6 +72,7 @@ final class SessionCheckpoint {
       'savedAtMicros': savedAtMicros,
       'resumeTokenHashes': resumeTokenHashes,
       'previousJoinUri': previousJoinUri?.toString(),
+      'access': accessState.toJson(),
     });
     return jsonEncode({
       'schemaVersion': schemaVersion,
@@ -100,6 +104,7 @@ final class SessionCheckpoint {
       return switch (version.toInt()) {
         1 => _decodeV1(decoded, quizDocument),
         2 => _decodeSnapshot(decoded, quizDocument),
+        3 => _decodeSnapshot(decoded, quizDocument),
         _ => throw const RecoveryException(
           'Unsupported recovery schemaVersion.',
         ),
@@ -209,13 +214,16 @@ final class SessionCheckpoint {
       game: game,
       savedAtMicros: decoded.readInt('savedAtMicros'),
       resumeTokenHashes: hashes,
+      accessState: envelope['schemaVersion'] == 3
+          ? SessionAccessState.fromJson(decoded.readObject('access'))
+          : const SessionAccessState(),
       previousJoinUri: switch (decoded.readStringOrNull('previousJoinUri')) {
         null => null,
         final value => Uri.parse(value),
       },
     );
     if (!decoded.containsKey('previousJoinUri') ||
-        decoded.length != 6 ||
+        decoded.length != (envelope['schemaVersion'] == 3 ? 7 : 6) ||
         decoded['savedAtMicros'] != checkpoint.savedAtMicros) {
       throw const RecoveryException('Incomplete recovery metadata.');
     }
@@ -277,6 +285,10 @@ final class SessionCheckpoint {
     require(
       game.players.keys.every(resumeTokenHashes.containsKey),
       'missing participant credentials.',
+    );
+    require(
+      !accessState.bannedPlayerIds.any(game.players.containsKey),
+      'banned participant in roster.',
     );
     for (final round in [game.round, ...game.roundHistory]) {
       final archived = !identical(round, game.round);

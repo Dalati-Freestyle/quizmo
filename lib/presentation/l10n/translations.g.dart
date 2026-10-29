@@ -35,6 +35,8 @@ const englishMessages = <String, String>{
   "Add test participant": "Add test participant",
   "Admin-Notizen": "Host notes",
   "Admin-Notizen (nur Spielleiter)": "Host notes (quizmaster only)",
+  "Admitted players can still reconnect with their resume token.":
+      "Admitted players can still reconnect with their resume token.",
   "Advanced settings": "Advanced settings",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
@@ -43,6 +45,7 @@ const englishMessages = <String, String>{
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "All players / participating teams have answered.",
   "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.",
+  "Allow spectators": "Allow spectators",
   "Am Quizende": "At the end of the quiz",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "An option ID in question \"{0}\" must not be empty.":
@@ -60,6 +63,8 @@ const englishMessages = <String, String>{
   "Antworten einloggen": "Lock in answers",
   "Antworten schließen & bewerten": "Close answers & grade",
   "Antwortphase": "Answer phase",
+  "Approve": "Approve",
+  "Approve new participants": "Approve new participants",
   "Audio hochladen": "Upload audio",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
       "Audio cannot be played on this device.",
@@ -84,6 +89,8 @@ const englishMessages = <String, String>{
   "BUZZ": "BUZZ",
   "BUZZER: everyone may answer": "BUZZER: everyone may answer",
   "Back to the board": "Back to the board",
+  "Ban for this session": "Ban for this session",
+  "Banned identities: {0}": "Banned identities: {0}",
   "Base points": "Base points",
   "Be the first to hit your buzzer.": "Be the first to hit your buzzer.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
@@ -293,6 +300,10 @@ const englishMessages = <String, String>{
   "Enter an option label.": "Enter an option label.",
   "Enter the address shown on the quizmaster dashboard.":
       "Enter the address shown on the quizmaster dashboard.",
+  "Enter the code and press Enter to reconnect.":
+      "Enter the code and press Enter to reconnect.",
+  "Enter the join code supplied by the host.":
+      "Enter the join code supplied by the host.",
   "Erlaubte Zeichenänderungen": "Allowed character edits",
   "Es gibt noch keine Teams.": "There are no teams yet.",
   "Estimation": "Estimation",
@@ -396,6 +407,8 @@ const englishMessages = <String, String>{
   "Join a session": "Join a session",
   "Join a team before renaming it.": "Join a team before renaming it.",
   "Join as player": "Join as player",
+  "Join code": "Join code",
+  "Join code enabled.": "Join code enabled.",
   "Join this session as a local player": "Join this session as a local player",
   "Join: {0}": "Join: {0}",
   "Joined players": "Joined players",
@@ -403,6 +416,8 @@ const englishMessages = <String, String>{
       "Joining could not be saved. Ask the host to retry recovery storage.",
   "Just watch (TV view)": "Just watch (TV view)",
   "Kartenausschnitt": "Map section",
+  "Keep invitation links, join codes and resume tokens confidential.":
+      "Keep invitation links, join codes and resume tokens confidential.",
   "Keine Antwort": "No answer",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "No captions or file names on player and TV screens. YouTube may show its own titles; upload MP4 for videos without titles.",
   "Keine Chips mehr. Dein Team setzt aus.":
@@ -434,6 +449,7 @@ const englishMessages = <String, String>{
   "Local-first, multi-device quiz platform":
       "Local-first, multi-device quiz platform",
   "Lock buzzer now": "Lock buzzer now",
+  "Lock new joins": "Lock new joins",
   "Lock out a player after a wrong answer":
       "Lock out a player after a wrong answer",
   "Locked out this round": "Locked out this round",
@@ -489,13 +505,18 @@ const englishMessages = <String, String>{
   "Names must contain 1 to 60 characters. Choose an existing team or create one.": "Names must contain 1 to 60 characters. Choose an existing team or create one.",
   "Neu starten": "Restart",
   "Neuer Teamname": "New team name",
+  "New join code (6 to 64 characters)": "New join code (6 to 64 characters)",
+  "New participants need host approval.":
+      "New participants need host approval.",
   "Next question": "Next question",
   "Next question coming up…": "Next question coming up…",
   "Nicht unterstütztes Dateiformat.": "Unsupported file format.",
   "No Daily Double is waiting for a wager.":
       "No Daily Double is waiting for a wager.",
   "No description.": "No description.",
+  "No join code required.": "No join code required.",
   "No pending questions left.": "No pending questions left.",
+  "No pending requests.": "No pending requests.",
   "No players yet": "No players yet",
   "No question on stage.": "No question on stage.",
   "No question on stage. Pick a cell on the board.":
@@ -650,8 +671,12 @@ const englishMessages = <String, String>{
   "Refresh LAN games": "Refresh LAN games",
   "Reihenfolge": "Ordering",
   "Reihenfolge senden": "Send order",
+  "Reject": "Reject",
   "Rejoin verification ID: {0}": "Rejoin verification ID: {0}",
+  "Remove (new admission allowed)": "Remove (new admission allowed)",
   "Remove Daily Double": "Remove Daily Double",
+  "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.": "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.",
+  "Remove join code": "Remove join code",
   "Remove option": "Remove option",
   "Remove question": "Remove question",
   "Remove test participant": "Remove test participant",
@@ -704,6 +729,10 @@ const englishMessages = <String, String>{
       "Send a join request before submitting.",
   "Sent…": "Sent…",
   "Server log": "Server log",
+  "Session access": "Session access",
+  "Session access settings could not be saved. Retry recovery storage.":
+      "Session access settings could not be saved. Retry recovery storage.",
+  "Set join code": "Set join code",
   "Settings": "Settings",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Share the invitation or TV link. Keep this tab open and this device awake while hosting.",
   "Short answer": "Short answer",
@@ -713,6 +742,11 @@ const englishMessages = <String, String>{
       "The scale for a target of 0 must be positive.",
   "Solo": "Solo",
   "Solo scoring": "Solo scoring",
+  "Spectator access changed. Enter the current code to reconnect.":
+      "Spectator access changed. Enter the current code to reconnect.",
+  "Spectator access is disabled by the host.":
+      "Spectator access is disabled by the host.",
+  "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.": "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.",
   "Speed bonus": "Speed bonus",
   "Speichern": "Save",
   "Spiel beitreten": "Join game",
@@ -783,6 +817,12 @@ const englishMessages = <String, String>{
       "The Jeopardy board needs at least one row.",
   "The Jeopardy board references unknown question \"{0}\".":
       "The Jeopardy board references unknown question \"{0}\".",
+  "The host declined your join request.":
+      "The host declined your join request.",
+  "The join code is missing or incorrect.":
+      "The join code is missing or incorrect.",
+  "The lobby is locked. Existing players can still reconnect.":
+      "The lobby is locked. Existing players can still reconnect.",
   "The local quiz library contains invalid JSON: {0}":
       "The local quiz library contains invalid JSON: {0}",
   "The local quiz library is invalid: {0}":
@@ -821,6 +861,8 @@ const englishMessages = <String, String>{
       "This game is open in another host. Close it before recovering.",
   "This participant cannot be reassigned.":
       "This participant cannot be reassigned.",
+  "This participant is banned for this session.":
+      "This participant is banned for this session.",
   "This permanently deletes the saved game and participant resume credentials.": "This permanently deletes the saved game and participant resume credentials.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.",
   "This recovery file needs a newer Quizmo. Update Quizmo and retry.":
@@ -832,6 +874,8 @@ const englishMessages = <String, String>{
   "Timer choices affect the current round only. Closed rounds stay closed.":
       "Timer choices affect the current round only. Closed rounds stay closed.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.",
+  "Too many code attempts. Wait one minute and reconnect.":
+      "Too many code attempts. Wait one minute and reconnect.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Join an existing team or create your own.",
   "Trotzdem Buzzer freigeben": "Reopen buzzer anyway",
@@ -882,8 +926,11 @@ const englishMessages = <String, String>{
   "Wahr / Falsch": "True / False",
   "Wahr oder Falsch als Lösung wählen.":
       "Choose true or false as the solution.",
+  "Waiting for approval": "Waiting for approval",
   "Waiting for clients. Share the LAN address above.":
       "Waiting for clients. Share the LAN address above.",
+  "Waiting for host approval. You are not in the game yet.":
+      "Waiting for host approval. You are not in the game yet.",
   "Waiting for the first player…": "Waiting for the first player…",
   "Waiting for the next question…": "Waiting for the next question…",
   "Waiting for the quizmaster…": "Waiting for the quizmaster…",
@@ -905,6 +952,9 @@ const englishMessages = <String, String>{
       "Select all correct answers and lock them in.",
   "You have the floor — answer out loud!":
       "You have the floor — answer out loud!",
+  "You were removed from this session.": "You were removed from this session.",
+  "You were removed. Joining again requires a new admission.":
+      "You were removed. Joining again requires a new admission.",
   "YouTube-Link": "YouTube link",
   "YouTube-Video öffnen": "Open YouTube video",
   "Your name": "Your name",
@@ -1038,6 +1088,8 @@ const germanMessages = <String, String>{
   "Add test participant": "Testteilnehmer hinzufügen",
   "Admin-Notizen": "Admin-Notizen",
   "Admin-Notizen (nur Spielleiter)": "Admin-Notizen (nur Spielleiter)",
+  "Admitted players can still reconnect with their resume token.":
+      "Bereits zugelassene Spieler können mit ihrem Resume-Token zurückkehren.",
   "Advanced settings": "Erweiterte Einstellungen",
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
   "Akzeptierte Antworten – eine pro Zeile":
@@ -1047,6 +1099,7 @@ const germanMessages = <String, String>{
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "Alle Spieler / teilnehmenden Teams haben geantwortet.",
   "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Erlaube den Zugriff auf das lokale Netzwerk in den Systemeinstellungen und aktualisiere die Suche. Alternativ kannst du einen QR-Code, Link oder eine Host-Adresse verwenden.",
+  "Allow spectators": "Zuschauer zulassen",
   "Am Quizende": "Am Quizende",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "An option ID in question \"{0}\" must not be empty.":
@@ -1064,6 +1117,8 @@ const germanMessages = <String, String>{
   "Antworten einloggen": "Antworten einloggen",
   "Antworten schließen & bewerten": "Antworten schließen & bewerten",
   "Antwortphase": "Antwortphase",
+  "Approve": "Freigeben",
+  "Approve new participants": "Neue Teilnehmer einzeln freigeben",
   "Audio hochladen": "Audio hochladen",
   "Audio kann auf diesem Gerät nicht abgespielt werden.":
       "Audio kann auf diesem Gerät nicht abgespielt werden.",
@@ -1087,6 +1142,8 @@ const germanMessages = <String, String>{
   "BUZZ": "BUZZERN",
   "BUZZER: everyone may answer": "BUZZER: Alle dürfen antworten",
   "Back to the board": "Zurück zum Spielfeld",
+  "Ban for this session": "Für diese Sitzung sperren",
+  "Banned identities: {0}": "Gesperrte Identitäten: {0}",
   "Base points": "Grundpunkte",
   "Be the first to hit your buzzer.": "Drücke deinen Buzzer als Erster.",
   "Bei einer falschen Antwort verliert dein Team den Einsatz.":
@@ -1304,6 +1361,10 @@ const germanMessages = <String, String>{
       "Gib eine Beschriftung für die Antwortmöglichkeit ein.",
   "Enter the address shown on the quizmaster dashboard.":
       "Gib die Adresse aus der Spielleiter-Ansicht ein.",
+  "Enter the code and press Enter to reconnect.":
+      "Code eingeben und mit Enter erneut verbinden.",
+  "Enter the join code supplied by the host.":
+      "Bitte den Beitrittscode des Hosts eingeben.",
   "Erlaubte Zeichenänderungen": "Erlaubte Zeichenänderungen",
   "Es gibt noch keine Teams.": "Es gibt noch keine Teams.",
   "Estimation": "Schätzfrage",
@@ -1411,6 +1472,8 @@ const germanMessages = <String, String>{
   "Join a team before renaming it.":
       "Tritt einem Team bei, bevor du es umbenennst.",
   "Join as player": "Als Spieler beitreten",
+  "Join code": "Beitrittscode",
+  "Join code enabled.": "Beitrittscode aktiviert.",
   "Join this session as a local player":
       "Diesem Spiel als lokaler Spieler beitreten",
   "Join: {0}": "Beitreten: {0}",
@@ -1418,6 +1481,7 @@ const germanMessages = <String, String>{
   "Joining could not be saved. Ask the host to retry recovery storage.": "Der Beitritt konnte nicht gesichert werden. Bitte den Host, die Spielstandsicherung erneut zu versuchen.",
   "Just watch (TV view)": "Nur zuschauen (TV-Ansicht)",
   "Kartenausschnitt": "Kartenausschnitt",
+  "Keep invitation links, join codes and resume tokens confidential.": "Einladungslinks, Beitrittscodes und Resume-Tokens vertraulich behandeln.",
   "Keine Antwort": "Keine Antwort",
   "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.": "Keine Beschriftung oder Dateinamen auf Spieler- und TV-Ansichten. YouTube kann eigene Titel einblenden; für Videos ohne Titel MP4 hochladen.",
   "Keine Chips mehr. Dein Team setzt aus.":
@@ -1447,6 +1511,7 @@ const germanMessages = <String, String>{
   "Local-first, multi-device quiz platform":
       "Quizplattform für mehrere Geräte – auch ohne Internet",
   "Lock buzzer now": "Buzzer jetzt sperren",
+  "Lock new joins": "Neue Beitritte sperren",
   "Lock out a player after a wrong answer":
       "Spieler nach einer falschen Antwort sperren",
   "Locked out this round": "Für diese Runde gesperrt",
@@ -1503,13 +1568,19 @@ const germanMessages = <String, String>{
   "Names must contain 1 to 60 characters. Choose an existing team or create one.": "Namen müssen 1 bis 60 Zeichen lang sein. Wähle ein bestehendes Team oder erstelle eines.",
   "Neu starten": "Neu starten",
   "Neuer Teamname": "Neuer Teamname",
+  "New join code (6 to 64 characters)":
+      "Neuer Beitrittscode (6 bis 64 Zeichen)",
+  "New participants need host approval.":
+      "Neue Teilnehmer müssen vom Host freigegeben werden.",
   "Next question": "Nächste Frage",
   "Next question coming up…": "Die nächste Frage kommt …",
   "Nicht unterstütztes Dateiformat.": "Nicht unterstütztes Dateiformat.",
   "No Daily Double is waiting for a wager.":
       "Kein Daily Double wartet auf einen Einsatz.",
   "No description.": "Keine Beschreibung.",
+  "No join code required.": "Kein Beitrittscode erforderlich.",
   "No pending questions left.": "Keine offenen Fragen mehr.",
+  "No pending requests.": "Keine offenen Beitrittsanfragen.",
   "No players yet": "Noch keine Spieler",
   "No question on stage.": "Keine aktive Frage.",
   "No question on stage. Pick a cell on the board.":
@@ -1662,8 +1733,12 @@ const germanMessages = <String, String>{
   "Refresh LAN games": "LAN-Spiele aktualisieren",
   "Reihenfolge": "Reihenfolge",
   "Reihenfolge senden": "Reihenfolge senden",
+  "Reject": "Ablehnen",
   "Rejoin verification ID: {0}": "Prüf-ID für den Wiederbeitritt: {0}",
+  "Remove (new admission allowed)": "Entfernen (neuer Beitritt möglich)",
   "Remove Daily Double": "Daily Double entfernen",
+  "Remove invalidates the resume token; a new admission is possible. Ban excludes the known identity for this session. Without accounts, another browser or device cannot be reliably recognized.": "Entfernen macht den Resume-Token ungültig; ein neuer Beitritt ist möglich. Sperren schließt die bekannte Identität für diese Sitzung aus. Ohne Konten lassen sich andere Browser oder Geräte nicht zuverlässig wiedererkennen.",
+  "Remove join code": "Beitrittscode entfernen",
   "Remove option": "Antwortmöglichkeit entfernen",
   "Remove question": "Frage entfernen",
   "Remove test participant": "Testteilnehmer entfernen",
@@ -1716,6 +1791,9 @@ const germanMessages = <String, String>{
       "Tritt zuerst bei, bevor du eine Antwort sendest.",
   "Sent…": "Gesendet…",
   "Server log": "Serverprotokoll",
+  "Session access": "Sitzungsschutz",
+  "Session access settings could not be saved. Retry recovery storage.": "Der Sitzungsschutz konnte nicht gespeichert werden. Bitte die Wiederherstellungsspeicherung erneut versuchen.",
+  "Set join code": "Beitrittscode setzen",
   "Settings": "Einstellungen",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Teile den Einladungs- oder TV-Link. Lass diesen Tab geöffnet und das Gerät während des Spiels wach.",
   "Short answer": "Freitext",
@@ -1726,6 +1804,10 @@ const germanMessages = <String, String>{
       "Skala für Zielwert 0 muss positiv sein.",
   "Solo": "Einzelspieler",
   "Solo scoring": "Einzelwertung",
+  "Spectator access changed. Enter the current code to reconnect.": "Der Zuschauerzugang wurde geändert. Zum Verbinden den aktuellen Code eingeben.",
+  "Spectator access is disabled by the host.":
+      "Der Host hat den Zuschauerzugang gesperrt.",
+  "Spectators need the join code, but no approval. The lobby lock only affects players. Disabling spectators or changing the code disconnects existing TVs.": "Zuschauer benötigen den Beitrittscode, aber keine Einzelfreigabe. Die Lobby-Sperre betrifft nur Spieler. Das Sperren von Zuschauern oder Ändern des Codes trennt bestehende TV-Verbindungen.",
   "Speed bonus": "Zeitbonus",
   "Speichern": "Speichern",
   "Spiel beitreten": "Spiel beitreten",
@@ -1797,6 +1879,11 @@ const germanMessages = <String, String>{
       "Das Jeopardy-Spielfeld benötigt mindestens eine Zeile.",
   "The Jeopardy board references unknown question \"{0}\".":
       "Das Jeopardy-Spielfeld verweist auf die unbekannte Frage „{0}“.",
+  "The host declined your join request.":
+      "Der Host hat deine Beitrittsanfrage abgelehnt.",
+  "The join code is missing or incorrect.":
+      "Der Beitrittscode fehlt oder ist falsch.",
+  "The lobby is locked. Existing players can still reconnect.": "Die Lobby ist gesperrt. Bereits zugelassene Spieler können sich weiterhin verbinden.",
   "The local quiz library contains invalid JSON: {0}":
       "Die lokale Quizbibliothek enthält ungültiges JSON: {0}",
   "The local quiz library is invalid: {0}":
@@ -1833,6 +1920,8 @@ const germanMessages = <String, String>{
   "This game is open in another host. Close it before recovering.": "Dieses Spiel ist bereits in einem anderen Host geöffnet. Schließe ihn vor der Wiederherstellung.",
   "This participant cannot be reassigned.":
       "Dieser Teilnehmer kann nicht neu zugeordnet werden.",
+  "This participant is banned for this session.":
+      "Diese Teilnehmeridentität ist für die Sitzung gesperrt.",
   "This permanently deletes the saved game and participant resume credentials.": "Der Spielstand und die Zugangsdaten für den Wiederbeitritt werden endgültig gelöscht.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "Dieses Quiz benötigt eine neuere Quizmo-Version. Aktualisiere die App und importiere die Datei erneut. Deine Quizbibliothek wurde nicht verändert.",
   "This recovery file needs a newer Quizmo. Update Quizmo and retry.": "Dieser Spielstand benötigt eine neuere Quizmo-Version. Aktualisiere Quizmo und versuche es erneut.",
@@ -1843,6 +1932,8 @@ const germanMessages = <String, String>{
   "Time's up": "Zeit abgelaufen",
   "Timer choices affect the current round only. Closed rounds stay closed.": "Die Timer-Auswahl gilt nur für die aktuelle Runde. Geschlossene Runden bleiben geschlossen.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tipp: Starte hier als Spielleiter und öffne die Web-App in zwei Browser-Tabs, um Spieler zu simulieren.",
+  "Too many code attempts. Wait one minute and reconnect.":
+      "Zu viele Codeversuche. Bitte eine Minute warten und erneut verbinden.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Tritt einem bestehenden Team bei oder erstelle dein eigenes.",
   "Trotzdem Buzzer freigeben": "Trotzdem Buzzer freigeben",
@@ -1895,8 +1986,11 @@ const germanMessages = <String, String>{
   "Wahr": "Wahr",
   "Wahr / Falsch": "Wahr / Falsch",
   "Wahr oder Falsch als Lösung wählen.": "Wahr oder Falsch als Lösung wählen.",
+  "Waiting for approval": "Warten auf Freigabe",
   "Waiting for clients. Share the LAN address above.":
       "Warte auf Spieler. Teile die LAN-Adresse oben.",
+  "Waiting for host approval. You are not in the game yet.":
+      "Warte auf die Freigabe durch den Host. Du bist noch nicht im Spiel.",
   "Waiting for the first player…": "Warte auf den ersten Spieler …",
   "Waiting for the next question…": "Warte auf die nächste Frage …",
   "Waiting for the quizmaster…": "Warte auf den Spielleiter …",
@@ -1918,6 +2012,8 @@ const germanMessages = <String, String>{
   "Wähle alle richtigen Antworten und logge sie ein.":
       "Wähle alle richtigen Antworten und logge sie ein.",
   "You have the floor — answer out loud!": "Du bist dran – antworte laut!",
+  "You were removed from this session.": "Du wurdest aus der Sitzung entfernt.",
+  "You were removed. Joining again requires a new admission.": "Du wurdest entfernt. Für einen erneuten Beitritt ist eine neue Zulassung erforderlich.",
   "YouTube-Link": "YouTube-Link",
   "YouTube-Video öffnen": "YouTube-Video öffnen",
   "Your name": "Dein Name",

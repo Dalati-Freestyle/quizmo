@@ -13,6 +13,7 @@ import 'package:shelf/shelf.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
+import '../../core/engine/session_access.dart';
 import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../../core/protocol/messages.dart';
@@ -43,6 +44,9 @@ final class _Connection {
   /// Whether this socket only watches (TV screen); it never owns a player.
   bool isSpectator = false;
   bool isLobby = false;
+  JoinRequest? pendingJoin;
+  int failedCodes = 0;
+  String? spectatorCodeHash;
 
   void send(ServerMessage message) {
     try {
@@ -64,7 +68,9 @@ class SocketHub {
   }) : _engine = engine,
        _now = now,
        _onLog = onLog {
+    _knownPlayerIds = _engine.state.game.players.keys.toSet();
     _engineSubscription = _engine.stream.listen(_broadcastState);
+    _accessSubscription = _engine.access.stream.listen(_accessChanged);
   }
 
   /// Friendly name announced to every client.
@@ -76,6 +82,9 @@ class SocketHub {
   final Map<String, _Connection> _connections = <String, _Connection>{};
 
   StreamSubscription<QuizEngineState>? _engineSubscription;
+  StreamSubscription<SessionAccessState>? _accessSubscription;
+  int _codeWindowStart = 0;
+  int _failedCodes = 0;
   var _nextConnectionId = 0;
   Map<String, String> get _resumeTokens => _engine.resumeTokenHashes;
   final Map<String, String> _activeTokens = {};
@@ -100,13 +109,16 @@ class SocketHub {
 
   /// Closes every socket and stops listening to the engine.
   Future<void> close() async {
+    await _accessSubscription?.cancel();
     await _engineSubscription?.cancel();
     _engineSubscription = null;
     final connections = _connections.values.toList(growable: false);
     _connections.clear();
     for (final connection in connections) {
+      _engine.access.revokeReadCredential(connection.id);
       connection.handshakeTimeout?.cancel();
       connection.identityRetry?.cancel();
+      _engine.access.forget(connection.id);
       await connection.subscription?.cancel();
       await connection.closeSocket();
     }
@@ -149,7 +161,10 @@ class SocketHub {
       (Object? frame) => _onFrame(connection, frame),
       onDone: () => _onDisconnected(connection),
       onError: (Object error) {
-        _log(ServerLogLevel.warning, 'Socket ${connection.id}: $error');
+        _log(
+          ServerLogLevel.warning,
+          'Socket ${connection.id}: transport error.',
+        );
         _onDisconnected(connection);
       },
       cancelOnError: true,
@@ -157,14 +172,32 @@ class SocketHub {
     connection.handshakeTimeout = Timer(const Duration(seconds: 15), () {
       if (connection.playerId == null &&
           !connection.isSpectator &&
-          !connection.isLobby) {
+          !connection.isLobby &&
+          connection.pendingJoin == null) {
         _onDisconnected(connection);
         connection.closeSocket();
       }
     });
   }
 
-  Future<void> _onFrame(_Connection connection, Object? frame) async {
+  Future<void> _onFrame(
+    _Connection connection,
+    Object? frame, {
+    bool approved = false,
+  }) async {
+    if (!_connections.containsKey(connection.id)) return;
+    final identity = connection.playerId;
+    if (identity != null &&
+        (!_resumeTokens.containsKey(identity) ||
+            _engine.access.state.bannedPlayerIds.contains(identity))) {
+      _reject(
+        connection,
+        'kicked',
+        'You were removed from this session.',
+        close: true,
+      );
+      return;
+    }
     if (frame is! String ||
         frame.length > 65536 ||
         utf8.encode(frame).length > 65536) {
@@ -215,7 +248,30 @@ class SocketHub {
           );
           return;
         }
+        if (connection.pendingJoin != null) {
+          connection.send(const AdmissionPendingMessage());
+          return;
+        }
         final game = _engine.state.game;
+        final policy = _engine.access.state;
+        if (resumePlayerId == null && resumeToken != null) {
+          _reject(
+            connection,
+            'invalidResume',
+            'Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.',
+          );
+          return;
+        }
+        if (resumePlayerId != null &&
+            policy.bannedPlayerIds.contains(resumePlayerId)) {
+          _reject(
+            connection,
+            'banned',
+            'This participant is banned for this session.',
+            close: true,
+          );
+          return;
+        }
         if (newTeamName != null &&
             game.recoveryPaused &&
             _engine.recoveryPlayerIds.isNotEmpty) {
@@ -267,6 +323,17 @@ class SocketHub {
           );
           return;
         }
+        if (returning == null) {
+          if (policy.locked) {
+            _reject(
+              connection,
+              'lobbyLocked',
+              'The lobby is locked. Existing players can still reconnect.',
+            );
+            return;
+          }
+          if (!_checkCode(connection, message.joinCode)) return;
+        }
         if (returning == null &&
             ((teamId != null && !game.teams.containsKey(teamId)) ||
                 (game.poker != null &&
@@ -294,6 +361,14 @@ class SocketHub {
           );
           return;
         }
+        if (returning == null && policy.requireApproval && !approved) {
+          connection.pendingJoin = message;
+          connection.isLobby = false;
+          connection.handshakeTimeout?.cancel();
+          _engine.access.request(connection.id, name.trim());
+          connection.send(const AdmissionPendingMessage());
+          return;
+        }
         final playerId = resumePlayerId ?? newId('player');
         // Retire a stale socket before assigning its identity to the new one.
         for (final old in _connections.values.toList()) {
@@ -305,6 +380,7 @@ class SocketHub {
             ),
           );
           old.playerId = null;
+          _engine.access.revokeReadCredential(old.id);
           old.handshakeTimeout?.cancel();
           _connections.remove(old.id);
           old.subscription?.cancel();
@@ -364,15 +440,20 @@ class SocketHub {
             playerId: playerId,
             hostTimeMicros: _now(),
             resumeToken: token,
+            accessToken: _engine.access.issueReadCredential(connection.id),
           ),
         );
         connection.send(
           GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
         );
-        _log(ServerLogLevel.info, '$name joined as $playerId.');
+        _log(ServerLogLevel.info, 'Participant $playerId joined.');
 
       case LobbyRequest():
         if (connection.playerId != null || connection.isSpectator) return;
+        if (connection.pendingJoin != null) {
+          connection.send(const AdmissionPendingMessage());
+          return;
+        }
         connection.isLobby = true;
         connection.send(_lobbySnapshot());
 
@@ -398,12 +479,31 @@ class SocketHub {
         }
         _engine.add(RenameTeamEvent(playerId: player!.id, name: name));
 
-      case WatchRequest():
-        if (connection.playerId != null || connection.isLobby) return;
+      case WatchRequest(:final joinCode):
+        if (connection.playerId != null ||
+            connection.isLobby ||
+            connection.pendingJoin != null) {
+          return;
+        }
+        if (!_engine.access.state.allowSpectators) {
+          _reject(
+            connection,
+            'spectatorsDisabled',
+            'Spectator access is disabled by the host.',
+            close: true,
+          );
+          return;
+        }
+        if (!_checkCode(connection, joinCode)) return;
         // Spectators are deliberately anonymous: no roster entry, no clock
         // sync and no way to submit, so a TV can never influence a round.
         connection.isSpectator = true;
-        connection.send(const WatchAcceptedMessage());
+        connection.spectatorCodeHash = _engine.access.state.codeHash;
+        connection.send(
+          WatchAcceptedMessage(
+            accessToken: _engine.access.issueReadCredential(connection.id),
+          ),
+        );
         connection.send(
           GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
         );
@@ -501,9 +601,11 @@ class SocketHub {
 
   void _onDisconnected(_Connection connection) {
     if (_connections.remove(connection.id) == null) return;
+    _engine.access.revokeReadCredential(connection.id);
     connection.handshakeTimeout?.cancel();
     connection.identityRetry?.cancel();
     connection.subscription?.cancel();
+    _engine.access.forget(connection.id);
     final playerId = connection.playerId;
     if (playerId != null &&
         !_connections.values.any((c) => c.playerId == playerId)) {
@@ -529,6 +631,24 @@ class SocketHub {
     for (final id in removed) {
       _resumeTokens.remove(id);
       _activeTokens.remove(id);
+    }
+    // Revoke transport authority before persistence or another inbound frame.
+    for (final connection in _connections.values.toList()) {
+      if (connection.playerId != null &&
+          removed.contains(connection.playerId)) {
+        final banned = _engine.access.state.bannedPlayerIds.contains(
+          connection.playerId,
+        );
+        connection.playerId = null;
+        _reject(
+          connection,
+          banned ? 'banned' : 'kicked',
+          banned
+              ? 'This participant is banned for this session.'
+              : 'You were removed. Joining again requires a new admission.',
+          close: true,
+        );
+      }
     }
     if (_connections.isEmpty) return;
     unawaited(_broadcastCommitted(++_broadcastRevision));
@@ -594,6 +714,7 @@ class SocketHub {
           playerId: id,
           hostTimeMicros: _now(),
           resumeToken: token,
+          accessToken: _engine.access.issueReadCredential(connection.id),
         ),
       );
       connection.send(
@@ -620,7 +741,110 @@ class SocketHub {
   LobbySnapshotMessage _lobbySnapshot() => LobbySnapshotMessage(
     teams: _engine.publishedGame.teams,
     requiresTeam: _engine.publishedGame.poker != null,
+    codeRequired: _engine.access.state.codeHash != null,
+    locked: _engine.access.state.locked,
+    requireApproval: _engine.access.state.requireApproval,
   );
+
+  bool _checkCode(_Connection connection, String? code) {
+    final hash = _engine.access.state.codeHash;
+    if (hash == null) return true;
+    if (_now() - _codeWindowStart >=
+        const Duration(minutes: 1).inMicroseconds) {
+      _codeWindowStart = _now();
+      _failedCodes = 0;
+    }
+    // The session-wide budget survives new sockets, including relay sockets.
+    if (_failedCodes >= 10 || connection.failedCodes >= 5) {
+      _reject(
+        connection,
+        'codeRateLimited',
+        'Too many code attempts. Wait one minute and reconnect.',
+      );
+      return false;
+    }
+    if (code == null || code.isEmpty) {
+      _reject(
+        connection,
+        'codeRequired',
+        'Enter the join code supplied by the host.',
+      );
+      return false;
+    }
+    if (code.length > 64 || SessionAccess.digestCredential(code) != hash) {
+      _failedCodes++;
+      connection.failedCodes++;
+      _reject(
+        connection,
+        'invalidCode',
+        'The join code is missing or incorrect.',
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _reject(
+    _Connection connection,
+    String code,
+    String message, {
+    bool close = false,
+  }) {
+    connection.send(ProtocolErrorMessage(code: code, message: message));
+    if (close) {
+      _onDisconnected(connection);
+      unawaited(connection.closeSocket());
+    }
+  }
+
+  void _accessChanged(SessionAccessState policy) {
+    for (final connection in _connections.values.toList()) {
+      if (connection.isSpectator &&
+          (!policy.allowSpectators ||
+              connection.spectatorCodeHash != policy.codeHash)) {
+        _reject(
+          connection,
+          'spectatorAccessChanged',
+          'Spectator access changed. Enter the current code to reconnect.',
+          close: true,
+        );
+        continue;
+      }
+      final pending = connection.pendingJoin;
+      if (pending != null) {
+        final decision = policy.requests[connection.id]?.decision;
+        if (policy.locked || decision == AdmissionDecision.rejected) {
+          connection.pendingJoin = null;
+          _reject(
+            connection,
+            policy.locked ? 'lobbyLocked' : 'admissionRejected',
+            policy.locked
+                ? 'The lobby is locked. Existing players can still reconnect.'
+                : 'The host declined your join request.',
+            close: true,
+          );
+        } else if (decision == AdmissionDecision.approved) {
+          connection.pendingJoin = null;
+          _engine.access.forget(connection.id);
+          unawaited(_onFrame(connection, pending.encode(), approved: true));
+        }
+      } else if (connection.isLobby) {
+        connection.send(_lobbySnapshot());
+      }
+    }
+    unawaited(_saveAccess());
+  }
+
+  Future<void> _saveAccess() async {
+    try {
+      await _engine.persistRecovery?.call();
+    } on Object {
+      _log(
+        ServerLogLevel.error,
+        'Session access settings could not be saved. Retry recovery storage.',
+      );
+    }
+  }
 
   void _log(ServerLogLevel level, String message) => _onLog?.call(
     ServerLogEntry(level: level, message: message, atMicros: _now()),

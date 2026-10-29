@@ -403,10 +403,11 @@ final class ControlTvMediaEvent extends QuizEngineEvent {
 }
 
 final class KickPlayerEvent extends QuizEngineEvent {
-  const KickPlayerEvent(this.playerId);
+  const KickPlayerEvent(this.playerId, {this.ban = false});
   final String playerId;
+  final bool ban;
   @override
-  List<Object?> get props => [playerId];
+  List<Object?> get props => [playerId, ban];
 }
 
 final class MergePlayersEvent extends QuizEngineEvent {

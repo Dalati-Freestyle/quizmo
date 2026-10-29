@@ -70,16 +70,22 @@ void main() {
       ],
     );
     addTearDown(engine.close);
-    Response get(MediaAsset a, {String method = 'GET', String? range}) =>
-        serveMedia(
-          Request(
-            method,
-            Uri.parse('http://localhost/api/media/${a.id}'),
-            headers: {'range': ?range},
-          ),
-          a.id,
-          engine,
-        );
+    Response get(
+      MediaAsset a, {
+      String method = 'GET',
+      String? range,
+      String? access,
+    }) => serveMedia(
+      Request(
+        method,
+        Uri.parse(
+          'http://localhost/api/media/${a.id}',
+        ).replace(queryParameters: access == null ? null : {'access': access}),
+        headers: {'range': ?range},
+      ),
+      a.id,
+      engine,
+    );
     expect(get(image).statusCode, 404);
     engine.add(const StartRoundEvent('q'));
     await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -114,6 +120,15 @@ void main() {
           .data,
       isNull,
     );
+    engine.access.configure(code: 'secret-code');
+    final credential = engine.access.issueReadCredential('admitted');
+    expect(get(image).statusCode, 403);
+    expect(get(image, access: 'invalid').statusCode, 403);
+    expect(get(image, access: credential).statusCode, 200);
+    expect(get(image, access: credential, range: 'bytes=0-3').statusCode, 206);
+    expect(get(image, access: credential, method: 'HEAD').statusCode, 200);
+    engine.access.revokeReadCredential('admitted');
+    expect(get(image, access: credential).statusCode, 403);
   });
 
   test('deferred solutions stay inaccessible until the final review, including past media', () async {

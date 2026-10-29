@@ -227,8 +227,13 @@ class _TvViewState extends State<_TvView> {
                             SpectatorSessionCubit,
                             SpectatorSessionState
                           >(
-                            builder: (context, state) =>
-                                TvScreen(state: state, joinUri: widget.joinUri),
+                            builder: (context, state) => SessionMediaAccess(
+                              baseUri: state.mediaBaseUri,
+                              child: TvScreen(
+                                state: state,
+                                joinUri: widget.joinUri,
+                              ),
+                            ),
                           ),
                     ),
                   ),
@@ -238,6 +243,36 @@ class _TvViewState extends State<_TvView> {
                 top: 12,
                 left: 12,
                 child: SafeArea(child: SettingsButton()),
+              ),
+              BlocBuilder<SpectatorSessionCubit, SpectatorSessionState>(
+                builder: (context, state) => state.isConnected
+                    ? const SizedBox.shrink()
+                    : Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SafeArea(
+                          child: SizedBox(
+                            width: 420,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: TextField(
+                                obscureText: true,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                maxLength: 64,
+                                decoration: InputDecoration(
+                                  labelText: context.tr('Join code'),
+                                  helperText: context.tr(
+                                    'Enter the code and press Enter to reconnect.',
+                                  ),
+                                ),
+                                onSubmitted: (code) => context
+                                    .read<SpectatorSessionCubit>()
+                                    .setJoinCode(code),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
               ),
               if (Navigator.of(context).canPop())
                 // SafeArea keeps the button clear of the status bar and

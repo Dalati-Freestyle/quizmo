@@ -28,6 +28,8 @@ import 'correction_history_panel.dart';
 import 'host_server_cubit.dart';
 import 'recovery/recovery_store.dart';
 import 'recovery/rebind_recovery_panel.dart';
+import '../../core/engine/session_access.dart';
+import 'session_access_panel.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
@@ -53,6 +55,7 @@ class HostDashboardPage extends StatelessWidget {
             restoredGame: checkpoint?.pausedGame(),
             recoverySessionId: checkpoint?.sessionId ?? newRecoveryId(),
             resumeTokenHashes: checkpoint?.resumeTokenHashes ?? const {},
+            accessState: checkpoint?.accessState ?? const SessionAccessState(),
             questionBank: quiz.questions,
             autoContinueBuzzer: false,
             teams: quiz.teamsById,
@@ -399,6 +402,7 @@ class _HostDashboardView extends StatelessWidget {
                 game: game,
                 child: AdaptivePanelGrid(
                   panels: [
+                    SessionAccessPanel(access: engine.access),
                     PanelCard(
                       title: context.tr('Saved game recovery'),
                       icon: Icons.save_outlined,
@@ -660,6 +664,7 @@ class _HostDashboardView extends StatelessWidget {
                           ? (ids) => engine.add(SetPlayerOrderEvent(ids))
                           : null,
                       onKick: (id) => engine.add(KickPlayerEvent(id)),
+                      onBan: (id) => engine.add(KickPlayerEvent(id, ban: true)),
                       onMerge: (source, target) => engine.add(
                         MergePlayersEvent(
                           sourcePlayerId: source,

@@ -64,6 +64,9 @@ Router buildApiRouter({
 
   /// Snapshot of the redacted session state, useful for polling fallbacks.
   router.get('/api/state', (Request request) {
+    if (!mayReadSession(request, engine)) {
+      return Response.forbidden('Admission required');
+    }
     return _json(engine.publishedGame.redactedForPlayers().toJson());
   });
 

@@ -130,14 +130,11 @@ class EmbeddedServer implements EmbeddedQuizServer {
       recoverySessionId: _engine.recoverySessionId,
     );
     _endpoint = endpoint;
-    _log(
-      ServerLogLevel.info,
-      'Listening on ${endpoint.lanUri} (and ${endpoint.loopbackUri}).',
-    );
+    _log(ServerLogLevel.info, 'Listening on port ${endpoint.port}.');
     if (_servesWebClient) {
       _log(
         ServerLogLevel.info,
-        'Players can open ${endpoint.lanUri} directly in a browser.',
+        'Players can open the address shown on the host dashboard in a browser.',
       );
     }
     return endpoint;

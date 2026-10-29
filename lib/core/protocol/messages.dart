@@ -30,7 +30,9 @@ sealed class ClientMessage extends Equatable {
         SyncPing._type => SyncPing.fromJson(json),
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
-        WatchRequest._type => const WatchRequest(),
+        WatchRequest._type => WatchRequest(
+          joinCode: json.readStringOrNull('joinCode'),
+        ),
         'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
         'dailyDoubleWager' => DailyDoubleWagerMessage(
           questionId: json.readString('questionId'),
@@ -60,6 +62,7 @@ final class JoinRequest extends ClientMessage {
     this.newTeamName,
     this.resumePlayerId,
     this.resumeToken,
+    this.joinCode,
     this.clockOffsetMicros = 0,
     this.roundTripMicros = 0,
   });
@@ -71,6 +74,7 @@ final class JoinRequest extends ClientMessage {
     newTeamName: json.readStringOrNull('newTeamName'),
     resumePlayerId: json.readStringOrNull('resumePlayerId'),
     resumeToken: json.readStringOrNull('resumeToken'),
+    joinCode: json.readStringOrNull('joinCode'),
     clockOffsetMicros: json.readInt('clockOffsetMicros'),
     roundTripMicros: json.readInt('roundTripMicros'),
   );
@@ -88,6 +92,7 @@ final class JoinRequest extends ClientMessage {
   /// Previously assigned player id, used to survive a reconnect.
   final String? resumePlayerId;
   final String? resumeToken;
+  final String? joinCode;
 
   /// Offset measured during the HTTP handshake.
   final int clockOffsetMicros;
@@ -103,6 +108,7 @@ final class JoinRequest extends ClientMessage {
     'newTeamName': newTeamName,
     'resumePlayerId': resumePlayerId,
     'resumeToken': resumeToken,
+    'joinCode': joinCode,
     'clockOffsetMicros': clockOffsetMicros,
     'roundTripMicros': roundTripMicros,
   };
@@ -114,6 +120,7 @@ final class JoinRequest extends ClientMessage {
     newTeamName,
     resumePlayerId,
     resumeToken,
+    joinCode,
     clockOffsetMicros,
     roundTripMicros,
   ];
@@ -204,15 +211,19 @@ final class SubmissionMessage extends ClientMessage {
 /// handshake, cannot submit answers and only receives the redacted snapshots.
 final class WatchRequest extends ClientMessage {
   /// Creates a watch request.
-  const WatchRequest();
+  const WatchRequest({this.joinCode});
+  final String? joinCode;
 
   static const String _type = 'watch';
 
   @override
-  JsonMap toJson() => const {'type': _type};
+  JsonMap toJson() => {
+    'type': _type,
+    if (joinCode != null) 'joinCode': joinCode,
+  };
 
   @override
-  List<Object?> get props => const [];
+  List<Object?> get props => [joinCode];
 }
 
 /// Announces a graceful disconnect.
@@ -247,9 +258,15 @@ sealed class ServerMessage extends Equatable {
         'lobbySnapshot' => LobbySnapshotMessage(
           teams: json.readMap('teams', Team.fromJson),
           requiresTeam: json.readBool('requiresTeam'),
+          codeRequired: json['codeRequired'] == true,
+          locked: json['locked'] == true,
+          requireApproval: json['requireApproval'] == true,
         ),
+        'admissionPending' => const AdmissionPendingMessage(),
         JoinAcceptedMessage._type => JoinAcceptedMessage.fromJson(json),
-        WatchAcceptedMessage._type => const WatchAcceptedMessage(),
+        WatchAcceptedMessage._type => WatchAcceptedMessage(
+          accessToken: json.readStringOrNull('accessToken'),
+        ),
         SyncPong._type => SyncPong.fromJson(json),
         GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
         ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
@@ -309,6 +326,7 @@ final class JoinAcceptedMessage extends ServerMessage {
     required this.playerId,
     required this.hostTimeMicros,
     this.resumeToken,
+    this.accessToken,
   });
 
   /// Restores the frame from [json].
@@ -316,6 +334,7 @@ final class JoinAcceptedMessage extends ServerMessage {
     playerId: json.readString('playerId'),
     hostTimeMicros: json.readInt('hostTimeMicros'),
     resumeToken: json.readStringOrNull('resumeToken'),
+    accessToken: json.readStringOrNull('accessToken'),
   );
 
   static const String _type = 'joinAccepted';
@@ -323,6 +342,7 @@ final class JoinAcceptedMessage extends ServerMessage {
   /// Identifier every later submission is attributed to.
   final String playerId;
   final String? resumeToken;
+  final String? accessToken;
 
   /// Host clock at the time of the confirmation.
   final int hostTimeMicros;
@@ -332,25 +352,35 @@ final class JoinAcceptedMessage extends ServerMessage {
     'type': _type,
     'playerId': playerId,
     'resumeToken': resumeToken,
+    'accessToken': accessToken,
     'hostTimeMicros': hostTimeMicros,
   };
 
   @override
-  List<Object?> get props => [playerId, hostTimeMicros, resumeToken];
+  List<Object?> get props => [
+    playerId,
+    hostTimeMicros,
+    resumeToken,
+    accessToken,
+  ];
 }
 
 /// Confirms a [WatchRequest]; the first snapshot follows immediately.
 final class WatchAcceptedMessage extends ServerMessage {
   /// Creates a watch confirmation.
-  const WatchAcceptedMessage();
+  const WatchAcceptedMessage({this.accessToken});
+  final String? accessToken;
 
   static const String _type = 'watchAccepted';
 
   @override
-  JsonMap toJson() => const {'type': _type};
+  JsonMap toJson() => {
+    'type': _type,
+    if (accessToken != null) 'accessToken': accessToken,
+  };
 
   @override
-  List<Object?> get props => const [];
+  List<Object?> get props => [accessToken];
 }
 
 /// Answers a [SyncPing] and closes one clock probe.
@@ -451,17 +481,43 @@ final class RenameTeamMessage extends ClientMessage {
 }
 
 final class LobbySnapshotMessage extends ServerMessage {
-  const LobbySnapshotMessage({required this.teams, this.requiresTeam = false});
+  const LobbySnapshotMessage({
+    required this.teams,
+    this.requiresTeam = false,
+    this.codeRequired = false,
+    this.locked = false,
+    this.requireApproval = false,
+  });
   final Map<String, Team> teams;
   final bool requiresTeam;
+  final bool codeRequired;
+  final bool locked;
+  final bool requireApproval;
   @override
   JsonMap toJson() => {
     'type': 'lobbySnapshot',
     'teams': teams.map((id, team) => MapEntry(id, team.toJson())),
     'requiresTeam': requiresTeam,
+    'codeRequired': codeRequired,
+    'locked': locked,
+    'requireApproval': requireApproval,
   };
   @override
-  List<Object?> get props => [teams, requiresTeam];
+  List<Object?> get props => [
+    teams,
+    requiresTeam,
+    codeRequired,
+    locked,
+    requireApproval,
+  ];
+}
+
+final class AdmissionPendingMessage extends ServerMessage {
+  const AdmissionPendingMessage();
+  @override
+  JsonMap toJson() => const {'type': 'admissionPending'};
+  @override
+  List<Object?> get props => const [];
 }
 
 final class PokerWagerMessage extends ClientMessage {

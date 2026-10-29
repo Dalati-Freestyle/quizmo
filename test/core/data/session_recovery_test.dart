@@ -11,6 +11,7 @@ import 'package:quizmo/core/data/session_recovery.dart';
 import 'package:quizmo/core/data/session_recovery_store_io.dart';
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/engine/scoring_rules.dart';
+import 'package:quizmo/core/engine/session_access.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
 
@@ -84,6 +85,7 @@ QuizEngineBloc engineFor(
   restoredGame: saved?.pausedGame(),
   recoverySessionId: saved?.sessionId ?? sessionId,
   resumeTokenHashes: saved?.resumeTokenHashes ?? const {},
+  accessState: saved?.accessState ?? const SessionAccessState(),
   autoContinueBuzzer: false,
   now: now ?? () => epoch,
 );
@@ -131,6 +133,73 @@ TrueFalseAnswer answer(
 );
 
 void main() {
+  test('session access is saved without a running server and restored without pending requests or raw codes', () async {
+    final quiz = quizFor(const StandardFormat());
+    final engine = engineFor(quiz);
+    addTearDown(engine.close);
+    final store = MemoryRecoveryStore();
+    final recovery = SessionRecovery(engine: engine, quiz: quiz, store: store);
+    await recovery.start();
+    addTearDown(recovery.close);
+    engine.access.configure(
+      code: 'private-code',
+      locked: true,
+      requireApproval: true,
+      allowSpectators: false,
+    );
+    engine.access.ban('banned-player');
+    engine.access.request('connection', 'Waiting');
+    final readToken = engine.access.issueReadCredential('admitted');
+    await pumpEventQueue();
+    final record = store.record!;
+    expect(record.checkpoint, isNot(contains('private-code')));
+    expect(record.checkpoint, isNot(contains(readToken)));
+    final saved = record.decode();
+    expect(saved.accessState.locked, isTrue);
+    expect(saved.accessState.requireApproval, isTrue);
+    expect(saved.accessState.allowSpectators, isFalse);
+    expect(saved.accessState.bannedPlayerIds, {'banned-player'});
+    expect(saved.accessState.requests, isEmpty);
+    final restored = engineFor(quiz, saved: saved);
+    addTearDown(restored.close);
+    expect(
+      restored.access.state.codeHash,
+      SessionAccess.digestCredential('private-code'),
+    );
+    expect(restored.access.mayRead(readToken), isFalse);
+  });
+
+  test(
+    'schema 2 recovery migrates to unrestricted access and saves schema 3',
+    () async {
+      final quiz = quizFor(const StandardFormat());
+      final engine = engineFor(quiz);
+      addTearDown(engine.close);
+      final snapshot = SessionCheckpoint(
+        sessionId: sessionId,
+        quiz: quiz,
+        game: engine.state.game,
+        savedAtMicros: epoch,
+        resumeTokenHashes: {},
+      );
+      final envelope = jsonDecode(snapshot.encode()) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(envelope['payload'] as String) as Map<String, dynamic>;
+      payload.remove('access');
+      envelope['schemaVersion'] = 2;
+      envelope['payload'] = jsonEncode(payload);
+      envelope['sha256'] = sha256
+          .convert(utf8.encode(envelope['payload'] as String))
+          .toString();
+      final saved = SessionCheckpoint.decode(
+        jsonEncode(envelope),
+        quizDocument: jsonEncode(quiz.toJson()),
+      );
+      expect(saved.accessState.toJson(), const SessionAccessState().toJson());
+      expect(jsonDecode(saved.encode())['schemaVersion'], 3);
+    },
+  );
+
   test('fixed schema 1 fixture retains accepted answers and question/solution media', () async {
     final fixture = jsonDecode(
       await File(
@@ -153,7 +222,7 @@ void main() {
     );
     expect(saved.game.round.answers['p'], isA<TrueFalseAnswer>());
     expect(saved.game.corrections, isEmpty);
-    expect(jsonDecode(saved.encode())['schemaVersion'], 2);
+    expect(jsonDecode(saved.encode())['schemaVersion'], 3);
     expect(
       saved.quiz.questions.single.media.single.asset!.bytes,
       saved.quiz.questions.single.solutionMedia.single.asset!.bytes,

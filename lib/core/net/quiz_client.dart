@@ -38,6 +38,13 @@ enum QuizClientStatus {
   failed,
 }
 
+final class JoinRejectedException extends StateError {
+  JoinRejectedException(this.code, String message) : super(message);
+  final String code;
+  @override
+  String toString() => message;
+}
+
 /// Talks to an embedded quiz host.
 class QuizClient {
   /// Creates a client for the host reachable at [baseUri].
@@ -74,6 +81,9 @@ class QuizClient {
       StreamController<LobbySnapshotMessage>.broadcast();
   bool _inLobby = false;
   bool _awaitingLobby = false;
+  bool _awaitingApproval = false;
+  final _admissions = StreamController<bool>.broadcast();
+  Stream<bool> get admissions => _admissions.stream;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -81,6 +91,15 @@ class QuizClient {
   Completer<void>? _joinCompleter;
   String? _playerId;
   String? _resumeToken;
+  String? _accessToken;
+  Uri get mediaBaseUri => _accessToken == null
+      ? baseUri
+      : baseUri.replace(
+          queryParameters: {
+            ...baseUri.queryParameters,
+            'access': _accessToken!,
+          },
+        );
   int _lastFrameAt = 0;
   String? _serverName;
   QuizClientStatus _status = QuizClientStatus.disconnected;
@@ -129,6 +148,7 @@ class QuizClient {
     String? newTeamName,
     String? resumePlayerId,
     String? resumeToken,
+    String? joinCode,
     int handshakeProbes = 5,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
@@ -166,12 +186,19 @@ class QuizClient {
           newTeamName: newTeamName,
           resumePlayerId: resumePlayerId,
           resumeToken: resumeToken,
+          joinCode: joinCode,
           clockOffsetMicros: clock.clockOffsetMicros,
           roundTripMicros: clock.roundTripMicros,
         ),
       );
 
-      await joined.future.timeout(joinTimeout);
+      await joined.future.timeout(
+        joinTimeout,
+        onTimeout: () {
+          if (_awaitingApproval) return joined.future;
+          throw TimeoutException('The host did not answer the join request.');
+        },
+      );
       _checkAttempt(generation);
       _resyncTimer = Timer.periodic(resyncInterval, (_) => _probeOverSocket());
     } on Object catch (error) {
@@ -219,6 +246,7 @@ class QuizClient {
   /// player: the host only streams redacted snapshots to this client, and
   /// [pressBuzzer] / [submitChoice] stay no-ops because [playerId] is `null`.
   Future<void> watch({
+    String? joinCode,
     Duration joinTimeout = const Duration(seconds: 10),
   }) async {
     await disconnect();
@@ -243,7 +271,7 @@ class QuizClient {
         },
       );
 
-      _send(const WatchRequest());
+      _send(WatchRequest(joinCode: joinCode));
       await accepted.future.timeout(joinTimeout);
     } on Object catch (error) {
       _lastError = error;
@@ -326,8 +354,11 @@ class QuizClient {
     _socketSubscription = null;
     _channel = null;
     _playerId = null;
+    _accessToken = null;
     _inLobby = false;
     _awaitingLobby = false;
+    _awaitingApproval = false;
+    if (!_admissions.isClosed) _admissions.add(false);
     if (_status != QuizClientStatus.disconnected) {
       _emitStatus(QuizClientStatus.disconnected);
     }
@@ -342,6 +373,7 @@ class QuizClient {
     await _statuses.close();
     await _errors.close();
     await _lobbies.close();
+    await _admissions.close();
   }
 
   // --------------------------------------------------------------- internals ---
@@ -422,17 +454,28 @@ class QuizClient {
     switch (message) {
       case WelcomeMessage(:final serverName):
         _serverName = serverName;
-      case JoinAcceptedMessage(:final playerId, :final resumeToken):
+      case JoinAcceptedMessage(
+        :final playerId,
+        :final resumeToken,
+        :final accessToken,
+      ):
+        _accessToken = accessToken;
+        _awaitingApproval = false;
+        _admissions.add(false);
         _inLobby = false;
         _playerId = playerId;
         _resumeToken = resumeToken;
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);
-      case WatchAcceptedMessage():
+      case WatchAcceptedMessage(:final accessToken):
+        _accessToken = accessToken;
         _joinCompleter?.complete();
         _joinCompleter = null;
         _emitStatus(QuizClientStatus.connected);
+      case AdmissionPendingMessage():
+        _awaitingApproval = true;
+        _admissions.add(true);
       case LobbySnapshotMessage():
         if (!_lobbies.isClosed) _lobbies.add(message);
         if (_awaitingLobby) {
@@ -461,8 +504,10 @@ class QuizClient {
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
       case ProtocolErrorMessage():
+        _awaitingApproval = false;
+        _admissions.add(false);
         if (!_errors.isClosed) _errors.add(message);
-        _failJoin(StateError(message.message));
+        _failJoin(JoinRejectedException(message.code, message.message));
     }
   }
 

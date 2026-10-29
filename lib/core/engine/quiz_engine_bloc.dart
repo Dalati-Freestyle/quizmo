@@ -14,6 +14,7 @@ import '../sync/clock.dart';
 import 'quiz_engine_event.dart';
 import 'quiz_engine_state.dart';
 import 'scoring_rules.dart';
+import 'session_access.dart';
 
 export 'quiz_engine_event.dart';
 export 'quiz_engine_state.dart';
@@ -55,7 +56,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     GameState? restoredGame,
     this.recoverySessionId,
     Map<String, String> resumeTokenHashes = const {},
+    SessionAccessState accessState = const SessionAccessState(),
   }) : _now = now,
+       access = SessionAccess(accessState),
        _createTimer = createTimer,
        resumeTokenHashes = Map.of(resumeTokenHashes),
        recoveryPlayerIds = Set.of(
@@ -285,6 +288,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   Timer? _roundTimer;
   final String? recoverySessionId;
   final Map<String, String> resumeTokenHashes;
+  final SessionAccess access;
   final Set<String> recoveryPlayerIds;
   final Map<String, String> identityTransfers = {};
   Future<void> Function()? persistRecovery;
@@ -383,11 +387,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   Future<void> close() {
     _graceTimer?.cancel();
     _roundTimer?.cancel();
+    unawaited(access.close());
     return super.close();
   }
 
   void _onKickPlayer(KickPlayerEvent event, Emitter<QuizEngineState> emit) {
     if (!state.game.players.containsKey(event.playerId)) return;
+    resumeTokenHashes.remove(event.playerId);
+    if (event.ban) access.ban(event.playerId);
     emit(_publish(_removePlayer(state.game, event.playerId)));
     if (state.game.round.status.acceptsInput &&
         state.game.round.buzzerQueue.isNotEmpty) {
