@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/simulation/bot_decisions.dart';
@@ -75,8 +76,9 @@ void main() {
     () async {
       final source = Quiz.fromJson(
         jsonDecode(
-          File('test\\fixtures\\quiz_v1_with_media.quizmo.json')
-              .readAsStringSync(),
+          File(
+            p.join('test', 'fixtures', 'quiz_v1_with_media.quizmo.json'),
+          ).readAsStringSync(),
         ) as Map<String, dynamic>,
       );
       final session = PreviewSession(source);
