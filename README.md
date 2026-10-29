@@ -771,6 +771,30 @@ push or **Actions → Release → Run workflow** also works. Existing releases a
 skipped and are never overwritten; use a new version for changed downloads.
 Adjust the workflow's branch filter if your default branch has another name.
 
+Every push to `develop` (including a merged pull request, even without a
+`pubspec.yaml` change) runs **Beta release** via `.github/workflows/beta.yml`.
+It reuses the production pipeline, checks, signing secrets and downloads.
+Beta releases are GitHub prereleases named/tagged `vMAJOR.MINOR.PATCH-beta`;
+download filenames and versioned container tags also end the version in `-beta`.
+Native app/installer versions remain numeric with the `pubspec.yaml` build
+number. Manual runs of **Release** on `develop` also use the beta channel.
+
+Production and beta runs share one concurrency group. Once a replacement beta's
+checks and builds succeed, the workflow deletes all previous Quizmo `-beta`
+releases (including drafts), their downloads and tags before creating the new
+one, so at most one beta release exists, including for repeated builds of the
+same version. A failed build leaves the previous beta intact; a publication
+failure after cleanup may leave no published beta until a rerun succeeds.
+Production publication removes only the beta with the same `MAJOR.MINOR.PATCH`,
+regardless of build number. If that production version is already published,
+beta publication is skipped and its matching beta is cleaned up instead.
+Other production releases and unrelated prereleases are never deleted.
+
+Beta containers use `VERSION-beta` and the rolling `beta` tag; they never move
+production's `latest` tag or GitHub's latest-release selection. Old GHCR image
+versions and workflow-run artifacts retain their existing retention behavior;
+the single-beta policy applies to GitHub Releases and their tags/downloads.
+
 Each release contains:
 
 * `quizmo-VERSION-windows-x64-setup.exe`: Windows installer including all app
@@ -793,7 +817,8 @@ SmartScreen may warn. Its bundled Microsoft runtime signature is verified in CI.
 #### One-time GitHub setup
 
 Enable GitHub Actions and allow workflows to create releases and packages
-(`contents: write` and `packages: write` are scoped to the publishing job).
+(`contents: write` is scoped to publication/cleanup and `packages: write` to
+publication).
 GHCR uses the built-in `GITHUB_TOKEN`; no extra registry password is needed.
 The package is named `REPOSITORY-server`, with `VERSION` and `latest` tags.
 New GHCR packages may be private: make the package public in its settings if
