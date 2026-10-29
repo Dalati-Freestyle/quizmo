@@ -15,6 +15,7 @@ import 'jeopardy_board_editor.dart';
 import 'question_editor.dart';
 import 'quiz_editor_cubit.dart';
 import 'selection_dropdown.dart';
+import '../preview/quiz_preview_page.dart';
 
 enum _QuizFormatKind { standard, jeopardy, poker }
 
@@ -91,6 +92,35 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
           title: Text(context.tr("Edit {0}", [state.draft.name])),
           actions: [
             const SettingsButton(),
+            TextButton.icon(
+              onPressed: state.isSaving
+                  ? null
+                  : () {
+                      final draft = cubit.state.draft;
+                      final errors = draft.validationErrors();
+                      if (errors.isNotEmpty || draft.questions.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              errors.isEmpty
+                                  ? context.tr(
+                                      'Add a question before previewing.',
+                                    )
+                                  : errors.map(context.tr).join('\n'),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => QuizPreviewPage(quiz: draft),
+                        ),
+                      );
+                    },
+              icon: const Icon(Icons.play_circle_outline),
+              label: Text(context.tr('Preview quiz')),
+            ),
             TextButton.icon(
               onPressed: state.isSaving ? null : _saveQuiz,
               icon: const Icon(Icons.save_outlined),

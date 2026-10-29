@@ -127,8 +127,8 @@ sealed class MediaAttachment extends Equatable {
   final bool hideDetails;
   MediaAttachment withHiddenDetails(bool value) =>
       MediaAttachment.fromJson({...toJson(), 'hideDetails': value});
-  JsonMap forWire() => {
-    ...toJson(includeData: false),
+  JsonMap forWire({bool includeData = false}) => {
+    ...toJson(includeData: includeData),
     if (hideDetails) 'caption': '',
   };
   final String caption;

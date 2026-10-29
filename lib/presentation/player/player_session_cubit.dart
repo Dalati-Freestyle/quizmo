@@ -7,6 +7,8 @@ import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
 import '../../core/models/models.dart';
+import '../../core/engine/quiz_engine_event.dart';
+import '../../core/sync/clock.dart';
 import '../../core/net/quiz_client.dart';
 import '../../core/net/session_uri.dart';
 import '../../core/protocol/messages.dart';
@@ -152,8 +154,33 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     QuizClient Function(Uri)? createClient,
   }) : _store = store ?? PlayerSessionStore(),
        _createClient = createClient ?? ((host) => QuizClient(baseUri: host)),
+       _localSend = null,
+       _localNow = null,
        super(const PlayerSessionState());
 
+  PlayerSessionCubit.local({
+    required String playerId,
+    required GameState initialGame,
+    required Stream<GameState> snapshots,
+    required void Function(QuizEngineEvent) send,
+    required NowMicros now,
+  }) : _store = PlayerSessionStore(),
+       _createClient = ((host) => QuizClient(baseUri: host)),
+       _localSend = send,
+       _localNow = now,
+       super(
+         PlayerSessionState(
+           status: QuizClientStatus.connected,
+           playerId: playerId,
+           game: initialGame,
+         ),
+       ) {
+    _onSnapshot(initialGame);
+    _gameSubscription = snapshots.listen(_onSnapshot);
+  }
+
+  final void Function(QuizEngineEvent)? _localSend;
+  final NowMicros? _localNow;
   final PlayerSessionStore _store;
   final QuizClient Function(Uri) _createClient;
   SavedPlayerSession? _saved;
@@ -410,7 +437,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
 
   void renameTeam(String name) {
     emit(state.copyWith(clearError: true));
-    _client?.renameTeam(name);
+    if (_localSend case final send?) {
+      send(RenameTeamEvent(playerId: state.playerId!, name: name));
+    } else {
+      _client?.renameTeam(name);
+    }
   }
 
   /// Sends a buzzer press for the question on stage.
@@ -428,7 +459,20 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !state.mayAnswerPoker) {
       return;
     }
-    _client?.pressBuzzer(question.id);
+    if (_localSend case final send?) {
+      send(
+        BuzzerPressEvent(
+          BuzzerPress(
+            playerId: state.playerId!,
+            questionId: question.id,
+            clientTimestampMicros: _localNow!(),
+            clockOffsetMicros: 0,
+          ),
+        ),
+      );
+    } else {
+      _client?.pressBuzzer(question.id);
+    }
     emit(state.copyWith(hasBuzzed: true));
   }
 
@@ -443,7 +487,21 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         state.lastSubmittedOptionId != null) {
       return;
     }
-    _client?.submitChoice(questionId: question.id, optionId: optionId);
+    if (_localSend case final send?) {
+      send(
+        SubmitAnswerEvent(
+          MultipleChoiceAnswer(
+            playerId: state.playerId!,
+            questionId: question.id,
+            clientTimestampMicros: _localNow!(),
+            clockOffsetMicros: 0,
+            optionId: optionId,
+          ),
+        ),
+      );
+    } else {
+      _client?.submitChoice(questionId: question.id, optionId: optionId);
+    }
     emit(state.copyWith(lastSubmittedOptionId: optionId));
   }
 
@@ -457,7 +515,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !state.roundStatus.acceptsInput) {
       return;
     }
-    _client?.submitAnswer(build);
+    if (_localSend case final send?) {
+      send(SubmitAnswerEvent(build(state.playerId!, _localNow!(), 0)));
+    } else {
+      _client?.submitAnswer(build);
+    }
     emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
   }
 
@@ -484,13 +546,27 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         state.game?.jeopardy?.pendingPickQuestionId != null) {
       return;
     }
-    _client?.selectJeopardyCell(questionId);
+    if (_localSend case final send?) {
+      send(SelectJeopardyCellEvent(questionId, playerId: state.playerId));
+    } else {
+      _client?.selectJeopardyCell(questionId);
+    }
   }
 
-  void placeDailyDoubleWager(String questionId, int wager) =>
-      state.game?.recoveryPaused == true
-      ? null
-      : _client?.placeDailyDoubleWager(questionId, wager);
+  void placeDailyDoubleWager(String questionId, int wager) {
+    if (state.game?.recoveryPaused == true) return;
+    if (_localSend case final send?) {
+      send(
+        PlaceDailyDoubleWagerEvent(
+          wager,
+          playerId: state.playerId,
+          questionId: questionId,
+        ),
+      );
+    } else {
+      _client?.placeDailyDoubleWager(questionId, wager);
+    }
+  }
 
   void placePokerWager(int wager) {
     final question = state.question;
@@ -499,14 +575,24 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !(state.game?.poker?.betting ?? false)) {
       return;
     }
-    _client?.placePokerWager(questionId: question.id, wager: wager);
+    if (_localSend case final send?) {
+      send(
+        PlacePokerWagerEvent(
+          playerId: state.playerId!,
+          questionId: question.id,
+          wager: wager,
+        ),
+      );
+    } else {
+      _client?.placePokerWager(questionId: question.id, wager: wager);
+    }
   }
 
   /// Leaves the session.
   Future<void> disconnect() async {
     _intentionalDisconnect = true;
     _saved = null;
-    await _store.clear();
+    if (_localSend == null) await _store.clear();
     await _teardown();
     if (isClosed) return;
     emit(const PlayerSessionState());

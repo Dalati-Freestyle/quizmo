@@ -12,6 +12,48 @@ defaults and restores deleted ones. Saving an example in the editor makes it a
 normal quiz: it and all custom quizzes are preserved, even across repeated resets.
 Default status is local library metadata, not part of exported quiz files.
 
+## Editor preview
+
+Choose **Preview quiz / Quiz-Vorschau** in the quiz editor to play the current
+unsaved draft without saving it. The preview clones the draft into a separate
+in-memory engine. It starts no server or internet room, writes no recovery
+record or report, and never modifies the library or a real game's scores.
+Invalid drafts show validation errors before the preview opens.
+
+Switch between **Host**, **Player** and **TV**. The host uses the real round
+controls; the player uses the real answer forms, buzzer and format controls.
+Choose a test participant to answer manually. Player and TV snapshots use the
+same redaction as real guests, including deferred results and solution media;
+visible uploaded media remains available locally without a media server.
+
+Add manual participants or bots, optionally in existing teams or their own test
+teams. Each bot has a target success probability (0–100%) and an inclusive
+minimum/maximum delay in milliseconds. Delays are drawn separately for actions,
+including answers, buzzer presses and simulated host grading. The success rate
+is a probability per answer, not an exact score for a short quiz. Correct bots
+submit a full solution; incorrect bots choose a valid wrong choice, a nonmatching
+text, a rotated ordering/matching, the opposite boolean or a zero-credit estimate.
+Buzzer answers are judged with the configured probability. Manually graded bot
+text is assessed automatically by the simulation; manual participants remain
+under host control.
+
+Jeopardy bots randomly choose an unplayed cell only on their turn, wait for host
+confirmation, and randomly wager from 1 to the engine's Daily Double limit.
+Poker bots reserve an affordable positive stake (zero if bankrupt), wait for
+the host to close betting, then answer under the real one-answer-per-team and
+practice-only rules. The host controls progression, buzzer reopening, round
+completion and manual verdicts, just as in a real game.
+
+The displayed **Seed** and the same sequence of inputs reproduce bot decisions
+and virtual timestamps. Pause the simulation to enter inputs at exact times,
+then use **Step +1 s**; pausing freezes engine timeouts as well as bot time.
+**Automatic bots** suspends only bots, not the round clock. A new seed takes
+effect with **Restart preview**, which resets scores, chips and all timers while
+retaining test participants. **Replay round** restores the beginning of the
+current question, including its initial roster, scores, board state and betting
+phase; it restarts the seeded generator for that round. Leaving or restarting
+disposes all simulation and engine timers. Bots are not available in real rooms.
+
 ## Manual short-answer grading
 
 In the question editor, set a short-answer question's **Bewertung** to

@@ -51,10 +51,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
     NowMicros now = systemNowMicros,
+    Timer Function(Duration, void Function()) createTimer = Timer.new,
     GameState? restoredGame,
     this.recoverySessionId,
     Map<String, String> resumeTokenHashes = const {},
   }) : _now = now,
+       _createTimer = createTimer,
        resumeTokenHashes = Map.of(resumeTokenHashes),
        recoveryPlayerIds = Set.of(
          restoredGame?.players.keys ?? const <String>[],
@@ -277,6 +279,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   final List<Question> _initialBank;
   final JeopardyBoard? _initialBoard;
   Timer? _graceTimer;
+  final Timer Function(Duration, void Function()) _createTimer;
   Timer? _roundTimer;
   final String? recoverySessionId;
   final Map<String, String> resumeTokenHashes;
@@ -1595,7 +1598,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           round.timerStartedAtHostMicros! +
           question.timeLimit.inMicroseconds -
           _now();
-      _roundTimer = Timer(
+      _roundTimer = _createTimer(
         Duration(microseconds: remaining < 0 ? 0 : remaining),
         () {
           if (!isClosed) add(ExpireRoundEvent(question.id, start));
@@ -1847,7 +1850,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   void _startGraceWindow() {
     _graceTimer?.cancel();
-    _graceTimer = Timer(buzzerGraceWindow, () {
+    _graceTimer = _createTimer(buzzerGraceWindow, () {
       if (!isClosed) add(const LockBuzzerEvent());
     });
   }

@@ -432,6 +432,16 @@ class _GameBoard extends StatelessWidget {
   }
 }
 
+class LocalPlayerBoard extends StatelessWidget {
+  const LocalPlayerBoard({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<PlayerSessionCubit, PlayerSessionState>(
+        builder: (context, state) => _GameBoard(state: state),
+      );
+}
+
 class _QuestionStage extends StatelessWidget {
   const _QuestionStage({required this.state});
 

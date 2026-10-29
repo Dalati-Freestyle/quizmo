@@ -24,6 +24,7 @@ final class SpectatorSessionState extends Equatable {
     this.error,
     this.snapshotReceivedAt,
     this.reconnectAttempt = 0,
+    this.extrapolateTime = true,
   });
 
   /// Connection lifecycle.
@@ -44,6 +45,7 @@ final class SpectatorSessionState extends Equatable {
 
   /// How many reconnects were attempted since the last healthy connection.
   final int reconnectAttempt;
+  final bool extrapolateTime;
 
   /// Whether the socket is open and the host accepted the watch request.
   bool get isConnected => status == QuizClientStatus.connected;
@@ -70,7 +72,9 @@ final class SpectatorSessionState extends Equatable {
     }
     final elapsed =
         Duration(microseconds: game.hostTimeMicros - startedAt) +
-        (game.recoveryPaused ? Duration.zero : now.difference(receivedAt));
+        (game.recoveryPaused || !extrapolateTime
+            ? Duration.zero
+            : now.difference(receivedAt));
     final remaining = question.timeLimit - elapsed;
     return remaining.isNegative ? Duration.zero : remaining;
   }
@@ -84,7 +88,9 @@ final class SpectatorSessionState extends Equatable {
     DateTime? snapshotReceivedAt,
     int? reconnectAttempt,
     bool clearError = false,
+    bool? extrapolateTime,
   }) => SpectatorSessionState(
+    extrapolateTime: extrapolateTime ?? this.extrapolateTime,
     status: status ?? this.status,
     game: game ?? this.game,
     serverName: serverName ?? this.serverName,
@@ -101,6 +107,7 @@ final class SpectatorSessionState extends Equatable {
     error,
     snapshotReceivedAt,
     reconnectAttempt,
+    extrapolateTime,
   ];
 }
 

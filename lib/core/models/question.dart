@@ -92,13 +92,17 @@ sealed class Question extends Equatable {
   /// Serializes the question **including** its solution.
   JsonMap toJson();
 
-  Question forWire({required bool reveal}) {
+  Question forWire({required bool reveal, bool includeMediaData = false}) {
     final visible = reveal ? this : redacted();
     return Question.fromJson({
       ...visible.toJson(),
       'adminNotes': '',
-      'media': visible.media.map((m) => m.forWire()).toList(),
-      'solutionMedia': visible.solutionMedia.map((m) => m.forWire()).toList(),
+      'media': visible.media
+          .map((m) => m.forWire(includeData: includeMediaData))
+          .toList(),
+      'solutionMedia': visible.solutionMedia
+          .map((m) => m.forWire(includeData: includeMediaData))
+          .toList(),
     });
   }
 

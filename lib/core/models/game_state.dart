@@ -308,7 +308,7 @@ final class GameState extends Equatable {
   /// Always strips the upcoming bank and host notes. In deferred mode, also
   /// withholds solutions, verdicts, standings and archived rounds until the
   /// quiz is finished; otherwise each round reveals its solution immediately.
-  GameState redactedForPlayers() {
+  GameState redactedForPlayers({bool includeMediaData = false}) {
     final question = round.question;
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
     return copyWith(
@@ -322,7 +322,10 @@ final class GameState extends Equatable {
           ? [
               for (final completed in roundHistory)
                 completed.copyWith(
-                  question: completed.question?.forWire(reveal: true),
+                  question: completed.question?.forWire(
+                    reveal: true,
+                    includeMediaData: includeMediaData,
+                  ),
                 ),
             ]
           : const [],
@@ -330,7 +333,10 @@ final class GameState extends Equatable {
         status: resultsHidden && round.status == RoundStatus.revealed
             ? RoundStatus.locked
             : round.status,
-        question: question?.forWire(reveal: keepSolution),
+        question: question?.forWire(
+          reveal: keepSolution,
+          includeMediaData: includeMediaData,
+        ),
         answers: poker != null && !keepSolution ? const {} : round.answers,
         acceptedElapsedMicros: poker != null && !keepSolution
             ? const {}
