@@ -42,6 +42,7 @@ const englishMessages = <String, String>{
       "An overview of all questions and solutions.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "All players / participating teams have answered.",
+  "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.",
   "Am Quizende": "At the end of the quiz",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "An option ID in question \"{0}\" must not be empty.":
@@ -69,6 +70,7 @@ const englishMessages = <String, String>{
       "Eliminated · You can keep answering, but cannot earn points or chips.",
   "Auswahl löschen": "Clear selection",
   "Automatic / solo": "Automatic / solo",
+  "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.",
   "Automatic bot": "Automatic bot",
   "Automatic bots": "Automatic bots",
   "Automatic recovery save: {0}": "Automatic recovery save: {0}",
@@ -385,6 +387,9 @@ const englishMessages = <String, String>{
       "No chips left. Your team sits out.",
   "Keine Punkte": "No points",
   "Korrekte Zahl": "Correct number",
+  "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.",
+  "LAN games": "LAN games",
+  "LAN host published as \"{0}\".": "LAN host published as \"{0}\".",
   "LIVE": "LIVE",
   "LOCKED": "LOCKED",
   "Language": "Language",
@@ -471,6 +476,7 @@ const englishMessages = <String, String>{
   "No question on stage. Pick one from the bank.":
       "No question on stage. Pick one from the bank.",
   "No quizzes available": "No quizzes available",
+  "No reachable LAN hosts found yet.": "No reachable LAN hosts found yet.",
   "No scores yet.": "No scores yet.",
   "No teams configured.": "No teams configured.",
   "No teams yet": "No teams yet",
@@ -577,6 +583,7 @@ const englishMessages = <String, String>{
   "Quizzes in diesem Browser": "Quizzes in this browser",
   "Quizzes vor dem Verlassen exportieren?": "Export quizzes before leaving?",
   "RECONNECTING": "RECONNECTING",
+  "Reachable": "Reachable",
   "Recovered game resumed. Media stays paused.":
       "Recovered game resumed. Media stays paused.",
   "Recovery checksum failed. The saved game was not changed.":
@@ -609,6 +616,7 @@ const englishMessages = <String, String>{
   "Recreate example quizzes": "Recreate example quizzes",
   "Recreate example quizzes?": "Recreate example quizzes?",
   "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.",
+  "Refresh LAN games": "Refresh LAN games",
   "Reihenfolge": "Ordering",
   "Reihenfolge senden": "Send order",
   "Rejoin verification ID: {0}": "Rejoin verification ID: {0}",
@@ -658,6 +666,7 @@ const englishMessages = <String, String>{
   "Scoring rule": "Scoring rule",
   "Seed": "Seed",
   "Seite verlassen": "Leave page",
+  "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.",
   "Send a join request before submitting.":
       "Send a join request before submitting.",
   "Sent…": "Sent…",
@@ -811,6 +820,8 @@ const englishMessages = <String, String>{
   "Unknown submission kind \"{0}\".": "Unknown submission kind \"{0}\".",
   "Unknown team.": "Unknown team.",
   "Unnamed": "Unnamed",
+  "Unreachable - check host or firewall":
+      "Unreachable - check host or firewall",
   "Unsupported local library schemaVersion {0}. Expected {1}.":
       "Unsupported local library schemaVersion {0}. Expected {1}.",
   "Unsupported quiz schemaVersion {0}. Expected {1}.":
@@ -993,6 +1004,7 @@ const germanMessages = <String, String>{
       "Alle Fragen und Lösungen im Überblick.",
   "Alle Spieler / teilnehmenden Teams haben geantwortet.":
       "Alle Spieler / teilnehmenden Teams haben geantwortet.",
+  "Allow local network access in system settings, then refresh. You can also use a QR code, link or host address.": "Erlaube den Zugriff auf das lokale Netzwerk in den Systemeinstellungen und aktualisiere die Suche. Alternativ kannst du einen QR-Code, Link oder eine Host-Adresse verwenden.",
   "Am Quizende": "Am Quizende",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "An option ID in question \"{0}\" must not be empty.":
@@ -1020,6 +1032,7 @@ const germanMessages = <String, String>{
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
   "Auswahl löschen": "Auswahl löschen",
   "Automatic / solo": "Automatisch / Solo",
+  "Automatic LAN discovery is unavailable on this platform. Use a QR code, link or host address.": "Die automatische LAN-Suche ist auf dieser Plattform nicht verfügbar. Verwende einen QR-Code, Link oder eine Host-Adresse.",
   "Automatic bot": "Automatischer Bot",
   "Automatic bots": "Automatische Bots",
   "Automatic recovery save: {0}": "Automatisch gesicherter Spielstand: {0}",
@@ -1346,6 +1359,9 @@ const germanMessages = <String, String>{
       "Keine Chips mehr. Dein Team setzt aus.",
   "Keine Punkte": "Keine Punkte",
   "Korrekte Zahl": "Korrekte Zahl",
+  "LAN discovery failed. Check Wi-Fi, local network permissions and firewall settings, then refresh. Manual joining is still available.": "Die LAN-Suche ist fehlgeschlagen. Prüfe WLAN, lokale Netzwerkberechtigungen und Firewall und aktualisiere die Suche. Der manuelle Beitritt bleibt verfügbar.",
+  "LAN games": "LAN-Spiele",
+  "LAN host published as \"{0}\".": "LAN-Host als „{0}“ veröffentlicht.",
   "LIVE": "LIVE",
   "LOCKED": "GESPERRT",
   "Language": "Sprache",
@@ -1431,6 +1447,8 @@ const germanMessages = <String, String>{
   "No question on stage. Pick one from the bank.":
       "Keine aktive Frage. Wähle eine aus der Fragensammlung.",
   "No quizzes available": "Noch keine Quizzes vorhanden",
+  "No reachable LAN hosts found yet.":
+      "Noch keine erreichbaren LAN-Hosts gefunden.",
   "No scores yet.": "Noch keine Punkte.",
   "No teams configured.": "Noch keine Teams angelegt.",
   "No teams yet": "Noch keine Teams",
@@ -1538,6 +1556,7 @@ const germanMessages = <String, String>{
   "Quizzes vor dem Verlassen exportieren?":
       "Quizzes vor dem Verlassen exportieren?",
   "RECONNECTING": "VERBINDE ERNEUT",
+  "Reachable": "Erreichbar",
   "Recovered game resumed. Media stays paused.":
       "Wiederhergestelltes Spiel fortgesetzt. Medien bleiben pausiert.",
   "Recovery checksum failed. The saved game was not changed.": "Die Prüfsumme des Spielstands stimmt nicht. Der gespeicherte Stand wurde nicht verändert.",
@@ -1566,6 +1585,7 @@ const germanMessages = <String, String>{
   "Recreate example quizzes": "Beispielquizzes neu erstellen",
   "Recreate example quizzes?": "Beispielquizzes neu erstellen?",
   "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Erstellt die Standardquizzes neu. Unbearbeitete Beispiele werden ersetzt; bearbeitete Beispiele und eigene Quizzes bleiben erhalten.",
+  "Refresh LAN games": "LAN-Spiele aktualisieren",
   "Reihenfolge": "Reihenfolge",
   "Reihenfolge senden": "Reihenfolge senden",
   "Rejoin verification ID: {0}": "Prüf-ID für den Wiederbeitritt: {0}",
@@ -1615,6 +1635,7 @@ const germanMessages = <String, String>{
   "Scoring rule": "Bewertungsregel",
   "Seed": "Seed",
   "Seite verlassen": "Seite verlassen",
+  "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Wähle einen Host und gib zum Beitreten deinen Namen ein. Wenn keiner erscheint, prüfe, ob beide Geräte im selben LAN sind. Gast-WLAN oder blockiertes Multicast können die Suche verhindern. QR-Codes, Links und manuelle Adressen funktionieren weiterhin.",
   "Send a join request before submitting.":
       "Tritt zuerst bei, bevor du eine Antwort sendest.",
   "Sent…": "Gesendet…",
@@ -1767,6 +1788,8 @@ const germanMessages = <String, String>{
   "Unknown submission kind \"{0}\".": "Unbekannter Antworttyp „{0}“.",
   "Unknown team.": "Unbekanntes Team.",
   "Unnamed": "Unbenannt",
+  "Unreachable - check host or firewall":
+      "Nicht erreichbar - Host oder Firewall prüfen",
   "Unsupported local library schemaVersion {0}. Expected {1}.":
       "Nicht unterstützte Bibliotheksversion {0}. Erwartet wird {1}.",
   "Unsupported quiz schemaVersion {0}. Expected {1}.":

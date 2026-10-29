@@ -17,6 +17,7 @@ import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
 import 'package:quizmo/presentation/spectator/tv_page.dart';
 
 import '../helpers/memory_recovery_store.dart';
+import '../helpers/mock_lan_discovery.dart';
 
 class MemoryLanguageStore implements LanguagePreferenceStore {
   String? value;
@@ -224,6 +225,7 @@ void main() {
   testWidgets(
     'uses browser/system language, switches live and preserves player form',
     (tester) async {
+      mockLanDiscoveryUnavailable();
       await tester.binding.setSurfaceSize(const Size(1200, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       tester.platformDispatcher.localesTestValue = [const Locale('de', 'DE')];

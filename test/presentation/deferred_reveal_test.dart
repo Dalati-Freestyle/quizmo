@@ -11,6 +11,8 @@ import 'package:quizmo/presentation/quizmaster/editor/selection_dropdown.dart';
 import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
 import 'package:quizmo/presentation/spectator/tv_page.dart';
 
+import '../helpers/mock_lan_discovery.dart';
+
 const first = RoundState(
   status: RoundStatus.revealed,
   startedAtHostMicros: 1,
@@ -65,6 +67,7 @@ final finished = host
     .redactedForPlayers();
 
 void main() {
+  setUp(mockLanDiscoveryUnavailable);
   for (final mode in SolutionRevealMode.values) {
     testWidgets('editor persists reveal mode ${mode.name}', (tester) async {
       tester.view.physicalSize = const Size(1200, 1000);

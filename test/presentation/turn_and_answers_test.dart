@@ -10,6 +10,7 @@ import 'package:quizmo/presentation/player/questions/multiple_choice_question_vi
 import 'package:quizmo/presentation/quizmaster/host_dashboard_page.dart';
 
 import '../helpers/memory_recovery_store.dart';
+import '../helpers/mock_lan_discovery.dart';
 
 const question = MultipleChoiceQuestion(
   id: 'q',
@@ -32,6 +33,7 @@ const board = JeopardyBoard(
 );
 
 void main() {
+  setUp(mockLanDiscoveryUnavailable);
   testWidgets(
     'multiple choice toggles options, submits once and then locks every button',
     (tester) async {

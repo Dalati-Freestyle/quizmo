@@ -74,6 +74,7 @@ class HostDashboardPage extends StatelessWidget {
         BlocProvider<HostServerCubit>(
           create: (context) => HostServerCubit(
             engine: context.read<QuizEngineBloc>(),
+            serverName: quiz.name,
             // Lets guests load the player client straight from this device, so
             // the LAN address is all they need.
             webClient: bundledWebClient(),
@@ -152,6 +153,15 @@ class _RecoveryOwnerState extends State<_RecoveryOwner>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(
+        context.read<HostServerCubit>().setDiscoverySuspended(
+          state != AppLifecycleState.resumed,
+        ),
+      );
+    }
     if (_ready && state != AppLifecycleState.resumed) {
       unawaited(_checkpoint());
     }

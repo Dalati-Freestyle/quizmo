@@ -918,6 +918,79 @@ a client cannot buzz on somebody else's behalf.
 The quizmaster/editor route is defer-loaded from the role screen. Browser
 players therefore do not load host administration code on their initial path.
 
+### LAN games via mDNS / DNS-SD
+
+Native Android, iOS, macOS and Windows clients list LAN games on the join
+screen. Starting a native host advertises `_quizmo._tcp` using the quiz name
+and the actual bound `ServerEndpoint.port`. DNS-SD handles name collisions;
+the list additionally displays the address and port, so identically named
+hosts remain distinguishable. Select a **Reachable** entry, enter a player
+name and continue to team selection. Reachability is checked against
+`/api/health`; an unreachable entry cannot be selected.
+
+The advertisement contains only a service name, type, hostname and port:
+no TXT payload, invitation secrets, recovery/resume tokens, answers or quiz
+content. Discovery is a convenience, not authentication. QR codes, links and
+manual URLs remain available. Browser clients never invoke NSD and show the
+manual-join fallback; Linux/headless Dart/Docker hosts do not advertise through
+this Flutter plugin.
+
+**Refresh LAN games** restarts discovery and clears cached entries. Lost-service
+events remove entries immediately; a fresh browse every 20 seconds rechecks
+reachability. Hosts that have been unreachable for a full refresh interval
+are hidden even if the OS still returns cached DNS-SD records (allow another
+2 seconds per address for probes). Native interface changes are checked every
+3 seconds and restart discovery/registration. Backgrounding the app releases
+discovery and advertisements; resuming recreates them if still needed. Leaving
+the join screen or stopping/closing the host releases the respective resources.
+Mobile operating systems may also suspend the server itself in the background.
+
+Android declares `CHANGE_WIFI_MULTICAST_STATE`; Apple targets declare the
+Bonjour service and local-network usage description, and macOS enables client
+and server sandbox networking. Allow local-network access when prompted.
+If no hosts appear, check Wi-Fi, permissions, VPN/firewall rules and client
+isolation. mDNS needs UDP 5353 multicast; joining also needs the host TCP port
+(normally 8080). Guest WLANs often block peer traffic. An empty list cannot
+distinguish blocked multicast from a network with no active hosts; the UI
+explains both and retains manual joining. Windows requires Windows 10 1903+
+and an appropriate private-network firewall rule.
+
+#### Multi-device LAN acceptance procedure
+
+This is a manual hardware procedure, **not an automated or already completed
+multi-device test**. Record OS/app versions, host/client devices, network and
+results when running it.
+
+1. Put two native hosts and two native clients on the same non-isolated LAN.
+   Start hosts with the same quiz name (and different ports if on one machine).
+   Verify both distinct address/port entries appear, show **Reachable**, and
+   each selected host admits the intended player through team selection.
+2. Stop one host; verify its entry disappears. Kill it without a graceful stop
+   and verify stale entries clear after the next 20-second refresh. Block its
+   TCP port and verify its entry becomes unselectable after a new probe.
+3. Refresh repeatedly, leave/reopen the join screen and stop/start each host.
+   Background/resume both roles. Verify no duplicate entries or accumulated
+   native discovery/registration operations and no host advertisement while
+   the host is stopped/backgrounded.
+4. Move host/client between Wi-Fi networks, disconnect/reconnect Wi-Fi and
+   toggle a VPN. Verify old entries clear and discovery/advertising recovers
+   in the new LAN (3-second interface poll plus OS DNS-SD resolution). Repeat
+   with multiple adapters and verify the reachable address is selected.
+5. Deny/re-enable Apple local-network permission; block UDP 5353 while allowing
+   the host TCP port; try isolated guest Wi-Fi. Verify understandable
+   permission/network hints and successful manual/link/QR joining whenever
+   unicast traffic is permitted.
+6. Join via browser and test an unsupported platform: no native NSD calls,
+   manual join and existing links/QR still work. Inspect DNS-SD records with
+   `dns-sd -B _quizmo._tcp` and `dns-sd -L "<instance>" _quizmo._tcp local.`
+   (or a LAN service browser): only public discovery
+   metadata, no TXT secrets or solutions. Verify renaming/collision suffixes
+   remain readable with long and non-ASCII quiz names.
+
+Local regression coverage: `flutter test test/presentation/lan_discovery_test.dart test/presentation/nsd_lan_discovery_test.dart test/backend/lan_discovery_join_test.dart`
+exercises lifecycle races, stale results, reachability, duplicates, fallback
+platforms, host publication and a real HTTP/WebSocket join.
+
 ### Known gaps (deliberate for an MVP)
 
 * **`freezed` / `json_serializable`** are declared in `pubspec.yaml` but not yet
@@ -925,7 +998,5 @@ players therefore do not load host administration code on their initial path.
   ergonomics, exhaustive pattern matching, zero generated files to keep in sync
   while the domain is still moving. Migrating later is mechanical — the public
   API of every model already matches what `freezed` would emit.
-* **`nsd` (mDNS auto discovery)** is declared but unused; players type or scan
-  the LAN URL. The `ServerEndpoint` model is the natural place to plug it in.
 * No authentication: anybody on the LAN can join, which is the point for a
   living-room quiz but not for the public internet.

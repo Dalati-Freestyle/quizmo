@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../discovery/lan_host_list.dart';
 import '../settings/settings_page.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -275,6 +276,13 @@ class _JoinFormState extends State<_JoinForm> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                LanHostList(
+                  busy: isBusy,
+                  onSelected: (uri) {
+                    _hostController.text = uri.toString();
+                    _hostKey.currentState?.validate();
+                  },
+                ),
                 TextFormField(
                   key: _hostKey,
                   controller: _hostController,

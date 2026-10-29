@@ -7,6 +7,7 @@
     <!-- Reading the Wi-Fi state lets the host tell the user when Wi-Fi is off
          and the announced LAN address would be unreachable. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
 
     <application
         android:label="quizmo"
