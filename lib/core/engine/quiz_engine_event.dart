@@ -18,6 +18,30 @@ sealed class QuizEngineEvent extends Equatable {
   List<Object?> get props => const [];
 }
 
+enum RecoveryTimerPolicy { savedTime, restart, soft }
+
+final class PauseForRecoveryEvent extends QuizEngineEvent {
+  const PauseForRecoveryEvent();
+}
+
+final class ResumeRecoveredGameEvent extends QuizEngineEvent {
+  const ResumeRecoveredGameEvent(this.timerPolicy);
+  final RecoveryTimerPolicy timerPolicy;
+  @override
+  List<Object?> get props => [timerPolicy];
+}
+
+final class RebindRecoveredPlayerEvent extends QuizEngineEvent {
+  const RebindRecoveredPlayerEvent({
+    required this.playerId,
+    required this.temporaryPlayerId,
+  });
+  final String playerId;
+  final String temporaryPlayerId;
+  @override
+  List<Object?> get props => [playerId, temporaryPlayerId];
+}
+
 /// A client completed the join handshake.
 ///
 /// Re-joining with a known id is idempotent and simply flips the player back to

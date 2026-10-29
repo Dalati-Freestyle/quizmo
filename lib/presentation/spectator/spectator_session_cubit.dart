@@ -59,7 +59,7 @@ final class SpectatorSessionState extends Equatable {
     final receivedAt = snapshotReceivedAt;
     final round = game?.round;
     final question = round?.question;
-    final startedAt = round?.startedAtHostMicros;
+    final startedAt = round?.timerStartedAtHostMicros;
     if (game == null ||
         receivedAt == null ||
         round == null ||
@@ -70,7 +70,7 @@ final class SpectatorSessionState extends Equatable {
     }
     final elapsed =
         Duration(microseconds: game.hostTimeMicros - startedAt) +
-        now.difference(receivedAt);
+        (game.recoveryPaused ? Duration.zero : now.difference(receivedAt));
     final remaining = question.timeLimit - elapsed;
     return remaining.isNegative ? Duration.zero : remaining;
   }

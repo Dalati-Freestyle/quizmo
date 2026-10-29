@@ -51,27 +51,89 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
     NowMicros now = systemNowMicros,
+    GameState? restoredGame,
+    this.recoverySessionId,
+    Map<String, String> resumeTokenHashes = const {},
   }) : _now = now,
+       resumeTokenHashes = Map.of(resumeTokenHashes),
+       recoveryPlayerIds = Set.of(
+         restoredGame?.players.keys ?? const <String>[],
+       ),
        _initialBank = questionBank,
        _initialBoard = jeopardyBoard,
        super(
          QuizEngineState(
-           game: GameState(
-             questionBank: questionBank,
-             totalQuestionCount: questionBank.length,
-             teams: teams,
-             mode: pokerStartingChips == null ? mode : const TeamMode(),
-             jeopardy: jeopardyBoard == null
-                 ? null
-                 : JeopardyState.start(jeopardyBoard, teams.keys),
-             poker: pokerStartingChips == null
-                 ? null
-                 : PokerState.start(pokerStartingChips, teams.keys),
-             hostTimeMicros: now(),
-             revealMode: revealMode,
-           ),
+           game:
+               restoredGame ??
+               GameState(
+                 questionBank: questionBank,
+                 totalQuestionCount: questionBank.length,
+                 teams: teams,
+                 mode: pokerStartingChips == null ? mode : const TeamMode(),
+                 jeopardy: jeopardyBoard == null
+                     ? null
+                     : JeopardyState.start(jeopardyBoard, teams.keys),
+                 poker: pokerStartingChips == null
+                     ? null
+                     : PokerState.start(pokerStartingChips, teams.keys),
+                 hostTimeMicros: now(),
+                 revealMode: revealMode,
+               ),
          ),
        ) {
+    if (restoredGame != null && !restoredGame.recoveryPaused) {
+      throw ArgumentError('Restored games must be paused.');
+    }
+    on<ResumeRecoveredGameEvent>(_onResumeRecoveredGame);
+    on<PauseForRecoveryEvent>((event, emit) {
+      if (state.game.recoveryPaused) return;
+      _graceTimer?.cancel();
+      recoveryPlayerIds.addAll(state.game.players.keys);
+      emit(
+        _publish(
+          state.game.copyWith(
+            recoveryPaused: true,
+            hostTimeMicros: _now(),
+            tvMediaPaused: true,
+          ),
+          notice: 'Recovery paused. Confirm how to resume first.',
+        ),
+      );
+    });
+    on<RebindRecoveredPlayerEvent>((event, emit) {
+      final game = state.game;
+      final original = game.players[event.playerId];
+      final temporary = game.players[event.temporaryPlayerId];
+      final hash = this.resumeTokenHashes[event.temporaryPlayerId];
+      if (!game.recoveryPaused ||
+          original == null ||
+          temporary == null ||
+          original.isConnected ||
+          !temporary.isConnected ||
+          hash == null ||
+          !recoveryPlayerIds.contains(original.id) ||
+          recoveryPlayerIds.contains(temporary.id)) {
+        emit(state.copyWith(notice: 'This participant cannot be reassigned.'));
+        return;
+      }
+      this.resumeTokenHashes[original.id] = hash;
+      identityTransfers[temporary.id] = original.id;
+      final cleaned = _removePlayer(game, temporary.id);
+      emit(
+        _publish(
+          cleaned.copyWith(
+            players: {
+              ...cleaned.players,
+              original.id: original.copyWith(
+                isConnected: true,
+                clockOffsetMicros: temporary.clockOffsetMicros,
+                roundTripMicros: temporary.roundTripMicros,
+              ),
+            },
+          ),
+        ),
+      );
+    });
     if (revealMode != SolutionRevealMode.afterEachQuestion &&
         (jeopardyBoard != null || pokerStartingChips != null)) {
       throw ArgumentError(
@@ -188,7 +250,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       final round = game.round;
       if (round.question?.id != event.questionId ||
           round.startedAtHostMicros != event.startedAt ||
-          round.question!.softTimeLimit ||
+          round.hasSoftTimer ||
           !round.status.acceptsInput ||
           (game.poker?.betting ?? false)) {
         return;
@@ -216,9 +278,101 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   final JeopardyBoard? _initialBoard;
   Timer? _graceTimer;
   Timer? _roundTimer;
+  final String? recoverySessionId;
+  final Map<String, String> resumeTokenHashes;
+  final Set<String> recoveryPlayerIds;
+  final Map<String, String> identityTransfers = {};
+  Future<void> Function()? persistRecovery;
+  GameState? committedRecoveryGame;
+  GameState get publishedGame {
+    final game = committedRecoveryGame ?? state.game;
+    return state.game.recoveryPaused
+        ? game.copyWith(recoveryPaused: true, tvMediaPaused: true)
+        : game;
+  }
+
+  @override
+  void on<E extends QuizEngineEvent>(
+    EventHandler<E, QuizEngineState> handler, {
+    EventTransformer<E>? transformer,
+  }) {
+    super.on<E>((event, emit) async {
+      if (state.game.recoveryPaused &&
+          event is! ResumeRecoveredGameEvent &&
+          event is! RebindRecoveredPlayerEvent &&
+          event is! PlayerJoinedEvent &&
+          event is! PlayerLeftEvent &&
+          event is! TimeSyncEvent) {
+        emit(
+          state.copyWith(
+            notice: 'Recovery paused. Confirm how to resume first.',
+          ),
+        );
+        return;
+      }
+      await handler(event, emit);
+    }, transformer: transformer);
+  }
+
+  void _onResumeRecoveredGame(
+    ResumeRecoveredGameEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    if (!game.recoveryPaused) return;
+    final round = game.round;
+    final start = round.startedAtHostMicros;
+    final delta = _now() - game.hostTimeMicros;
+    AnswerSubmission shift(AnswerSubmission answer) =>
+        AnswerSubmission.fromJson({
+          ...answer.toJson(),
+          'clientTimestampMicros': answer.clientTimestampMicros + delta,
+          'hostTimestampMicros': answer.hostTimestampMicros + delta,
+        });
+    emit(
+      _publish(
+        game.copyWith(
+          recoveryPaused: false,
+          tvMediaPaused: true,
+          round: round.copyWith(
+            startedAtHostMicros: start == null ? null : start + delta,
+            timerRestartedAtHostMicros:
+                event.timerPolicy == RecoveryTimerPolicy.restart
+                ? _now()
+                : round.timerRestartedAtHostMicros == null
+                ? null
+                : round.timerRestartedAtHostMicros! + delta,
+            recoverySoftTimer:
+                event.timerPolicy == RecoveryTimerPolicy.soft ||
+                (event.timerPolicy == RecoveryTimerPolicy.savedTime &&
+                    round.recoverySoftTimer),
+            answers: round.answers.map(
+              (id, answer) => MapEntry(id, shift(answer)),
+            ),
+            buzzerQueue: round.buzzerQueue
+                .map(
+                  (press) => BuzzerPress(
+                    playerId: press.playerId,
+                    questionId: press.questionId,
+                    clientTimestampMicros: press.clientTimestampMicros + delta,
+                    clockOffsetMicros: press.clockOffsetMicros,
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+        notice: 'Recovered game resumed. Media stays paused.',
+      ),
+    );
+    if (state.game.round.status.acceptsInput &&
+        state.game.round.nextCandidate != null) {
+      add(const LockBuzzerEvent());
+    }
+  }
 
   /// The host clock, exposed so the UI can render latency relative to it.
-  int get hostNowMicros => _now();
+  int get hostNowMicros =>
+      state.game.recoveryPaused ? state.game.hostTimeMicros : _now();
 
   @override
   Future<void> close() {
@@ -249,12 +403,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     final answers = {...game.round.answers};
     final answerVerdicts = {...game.round.answerVerdicts};
+    final acceptedElapsed = {...game.round.acceptedElapsedMicros}
+      ..remove(source.id);
     final answer = answers.remove(source.id);
     final sourceVerdict = answerVerdicts.remove(source.id);
     if (answer != null && !answers.containsKey(target.id)) {
       answers[target.id] = answer.withPlayerId(target.id);
       answerVerdicts.remove(target.id);
       if (sourceVerdict != null) answerVerdicts[target.id] = sourceVerdict;
+      final elapsed = game.round.acceptedElapsedMicros[source.id];
+      if (elapsed != null) acceptedElapsed[target.id] = elapsed;
     }
     final totals = {...game.scores.byPlayer}..remove(source.id);
     totals[target.id] =
@@ -282,6 +440,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       if (previous == null ||
           migrated.hostTimestampMicros < previous.hostTimestampMicros) {
         queue[migrated.playerId] = migrated;
+        final elapsed = game.round.acceptedElapsedMicros[press.playerId];
+        if (elapsed != null) acceptedElapsed[migrated.playerId] = elapsed;
       }
     }
     final orderedQueue = queue.values.toList()
@@ -292,6 +452,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           scores: ScoreState(byPlayer: totals, history: history),
           round: cleaned.round.copyWith(
             answers: answers,
+            acceptedElapsedMicros: acceptedElapsed,
             answerVerdicts: answerVerdicts,
             buzzerQueue: orderedQueue,
             status: game.round.status,
@@ -336,6 +497,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
       round: game.round.copyWith(
         answers: answers,
+        acceptedElapsedMicros: {...game.round.acceptedElapsedMicros}
+          ..remove(id),
         answerVerdicts: {...game.round.answerVerdicts}..remove(id),
         buzzerQueue: game.round.buzzerQueue
             .where((e) => e.playerId != id)
@@ -370,6 +533,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           round: round.copyWith(
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
+            timerRestartedAtHostMicros: null,
             activePlayerId: null,
             buzzerQueue: const [],
             lockedOutPlayerIds: event.forAll
@@ -663,6 +827,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     var updated = game.copyWith(
       round: round.copyWith(
         answers: {...round.answers, answer.playerId: answer},
+        acceptedElapsedMicros: {
+          ...round.acceptedElapsedMicros,
+          answer.playerId: round
+              .timerElapsedAt(answer.hostTimestampMicros)
+              .inMicroseconds,
+        },
       ),
     );
 
@@ -681,7 +851,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
     if (allAnswered &&
         !round.question!.requiresManualGrading &&
-        !round.question!.softTimeLimit) {
+        !round.hasSoftTimer) {
       add(const RevealRoundEvent());
     }
   }
@@ -758,7 +928,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       _publish(
         game.copyWith(
           tvMediaPaused: true,
-          round: round.copyWith(buzzerQueue: queue),
+          round: round.copyWith(
+            buzzerQueue: queue,
+            acceptedElapsedMicros: {
+              ...round.acceptedElapsedMicros,
+              press.playerId: round
+                  .timerElapsedAt(press.hostTimestampMicros)
+                  .inMicroseconds,
+            },
+          ),
         ),
         notice:
             '${game.players[press.playerId]?.name ?? press.playerId} buzzed.',
@@ -846,7 +1024,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       final done = _pokerEveryoneSettled(updated);
       emit(
         _publish(
-          done && !question.hostEndsRound && !question.softTimeLimit
+          done && !question.hostEndsRound && !round.hasSoftTimer
               ? _reveal(
                   updated.copyWith(
                     allAnswersRevision: game.allAnswersRevision + 1,
@@ -868,7 +1046,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final delta = _ruleFor(game, question).evaluate(
       ScoringContext(
         isCorrect: event.wasCorrect,
-        elapsed: round.elapsedAt(atHostMicros),
+        elapsed: Duration(
+          microseconds:
+              round.acceptedElapsedMicros[activeId] ??
+              round.elapsedAt(atHostMicros).inMicroseconds,
+        ),
         timeLimit: question.timeLimit,
         rank: round.resolvedAttempts,
         attempt: round.resolvedAttempts + 1,
@@ -885,7 +1067,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (event.wasCorrect) {
       emit(
         _publish(
-          question.hostEndsRound || question.softTimeLimit
+          question.hostEndsRound || round.hasSoftTimer
               ? game.copyWith(
                   scores: scores,
                   round: round.copyWith(
@@ -932,7 +1114,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         } else {
           emit(
             _publish(
-              continueAutomatically && !question.softTimeLimit
+              continueAutomatically && !round.hasSoftTimer
                   ? _reveal(missed)
                   : missed,
               notice: '$playerName missed ($delta).',
@@ -1405,10 +1587,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final start = round.startedAtHostMicros;
     if (question != null &&
         start != null &&
-        !question.softTimeLimit &&
+        !game.recoveryPaused &&
+        !round.hasSoftTimer &&
         round.status.acceptsInput &&
         !(game.poker?.betting ?? false)) {
-      final remaining = start + question.timeLimit.inMicroseconds - _now();
+      final remaining =
+          round.timerStartedAtHostMicros! +
+          question.timeLimit.inMicroseconds -
+          _now();
       _roundTimer = Timer(
         Duration(microseconds: remaining < 0 ? 0 : remaining),
         () {
@@ -1418,7 +1604,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     return QuizEngineState(
       game: game.copyWith(
-        hostTimeMicros: _now(),
+        hostTimeMicros: game.recoveryPaused ? game.hostTimeMicros : _now(),
         tvMediaPaused:
             game.round.question?.id != state.game.round.question?.id ||
                 (game.round.status == RoundStatus.revealed &&
@@ -1481,9 +1667,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
-    if (!question.softTimeLimit &&
+    if (!round.hasSoftTimer &&
         !(state.game.poker?.betting ?? false) &&
-        round.elapsedAt(_now()) >= question.timeLimit) {
+        round.timerElapsedAt(_now()) >= question.timeLimit) {
       return 'Zeit abgelaufen. Antworten sind geschlossen.';
     }
     if (state.game.players[playerId]?.isConnected != true) {
@@ -1559,7 +1745,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         rule,
         ScoringContext(
           isCorrect: isCorrect,
-          elapsed: round.elapsedAt(answer.hostTimestampMicros),
+          elapsed: Duration(
+            microseconds:
+                round.acceptedElapsedMicros[answer.playerId] ??
+                round.elapsedAt(answer.hostTimestampMicros).inMicroseconds,
+          ),
           timeLimit: question.timeLimit,
           rank: isCorrect ? correctRank : index,
         ),
@@ -1622,7 +1812,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       _publish(
         game.copyWith(
           poker: poker.copyWith(betting: false),
-          round: game.round.copyWith(startedAtHostMicros: _now()),
+          round: game.round.copyWith(
+            startedAtHostMicros: _now(),
+            timerRestartedAtHostMicros: null,
+          ),
         ),
         notice: 'Einsätze geschlossen. Antworten sind jetzt offen.',
       ),

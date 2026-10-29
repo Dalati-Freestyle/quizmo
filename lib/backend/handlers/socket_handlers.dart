@@ -13,6 +13,7 @@ import 'package:shelf/shelf.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
+import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../../core/protocol/messages.dart';
 import '../../core/sync/clock.dart';
@@ -34,6 +35,7 @@ final class _Connection {
   int windowStart = 0;
   int frames = 0;
   Timer? handshakeTimeout;
+  Timer? identityRetry;
 
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
@@ -75,9 +77,11 @@ class SocketHub {
 
   StreamSubscription<QuizEngineState>? _engineSubscription;
   var _nextConnectionId = 0;
-  final Map<String, String> _resumeTokens = {};
+  Map<String, String> get _resumeTokens => _engine.resumeTokenHashes;
+  final Map<String, String> _activeTokens = {};
   final Set<String> _pendingPlayerIds = {};
   Set<String> _knownPlayerIds = {};
+  int _broadcastRevision = 0;
 
   /// Number of open sockets.
   int get connectionCount => _connections.length;
@@ -102,6 +106,7 @@ class SocketHub {
     _connections.clear();
     for (final connection in connections) {
       connection.handshakeTimeout?.cancel();
+      connection.identityRetry?.cancel();
       await connection.subscription?.cancel();
       await connection.closeSocket();
     }
@@ -159,7 +164,7 @@ class SocketHub {
     });
   }
 
-  void _onFrame(_Connection connection, Object? frame) {
+  Future<void> _onFrame(_Connection connection, Object? frame) async {
     if (frame is! String ||
         frame.length > 65536 ||
         utf8.encode(frame).length > 65536) {
@@ -211,6 +216,17 @@ class SocketHub {
           return;
         }
         final game = _engine.state.game;
+        if (newTeamName != null &&
+            game.recoveryPaused &&
+            _engine.recoveryPlayerIds.isNotEmpty) {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'invalidTeam',
+              message: 'During recovery, choose an existing team. The host can reassign your original identity.',
+            ),
+          );
+          return;
+        }
         if ((resumePlayerId == null &&
                 game.players.length + _pendingPlayerIds.length >= 256) ||
             roundTripMicros < 0 ||
@@ -241,7 +257,8 @@ class SocketHub {
         if (resumePlayerId != null &&
             (returning == null ||
                 resumeToken == null ||
-                _resumeTokens[resumePlayerId] != resumeToken)) {
+                _resumeTokens[resumePlayerId] !=
+                    hashResumeToken(resumeToken))) {
           connection.send(
             const ProtocolErrorMessage(
               code: 'invalidResume',
@@ -293,15 +310,21 @@ class SocketHub {
           old.subscription?.cancel();
           old.closeSocket();
         }
-        final token = _resumeTokens.putIfAbsent(
-          playerId,
-          () => base64UrlEncode(
-            List<int>.generate(32, (_) => Random.secure().nextInt(256)),
-          ),
-        );
+        final token = returning != null
+            ? resumeToken!
+            : base64UrlEncode(
+                List<int>.generate(32, (_) => Random.secure().nextInt(256)),
+              );
+        _resumeTokens[playerId] = hashResumeToken(token);
+        _activeTokens[playerId] = token;
         connection.playerId = playerId;
         connection.isLobby = false;
         if (returning == null) _pendingPlayerIds.add(playerId);
+        final joined = returning?.isConnected == true
+            ? null
+            : _engine.stream.firstWhere(
+                (s) => s.game.players[playerId]?.isConnected == true,
+              );
         _engine.add(
           PlayerJoinedEvent(
             Player(
@@ -314,6 +337,28 @@ class SocketHub {
             createdTeam: createdTeam,
           ),
         );
+        if (joined != null) {
+          await joined;
+        } else {
+          await Future<void>.delayed(Duration.zero);
+        }
+        try {
+          await _engine.persistRecovery?.call();
+        } on Object {
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'recoveryUnavailable',
+              message: 'Joining could not be saved. Ask the host to retry recovery storage.',
+            ),
+          );
+          _onDisconnected(connection);
+          await connection.closeSocket();
+          return;
+        }
+        if (!_connections.containsKey(connection.id) ||
+            connection.playerId != playerId) {
+          return;
+        }
         connection.send(
           JoinAcceptedMessage(
             playerId: playerId,
@@ -322,7 +367,7 @@ class SocketHub {
           ),
         );
         connection.send(
-          GameSnapshotMessage(_engine.state.game.redactedForPlayers()),
+          GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
         );
         _log(ServerLogLevel.info, '$name joined as $playerId.');
 
@@ -360,7 +405,7 @@ class SocketHub {
         connection.isSpectator = true;
         connection.send(const WatchAcceptedMessage());
         connection.send(
-          GameSnapshotMessage(_engine.state.game.redactedForPlayers()),
+          GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
         );
         _log(ServerLogLevel.info, 'Spectator ${connection.id} is watching.');
 
@@ -457,6 +502,7 @@ class SocketHub {
   void _onDisconnected(_Connection connection) {
     if (_connections.remove(connection.id) == null) return;
     connection.handshakeTimeout?.cancel();
+    connection.identityRetry?.cancel();
     connection.subscription?.cancel();
     final playerId = connection.playerId;
     if (playerId != null &&
@@ -470,14 +516,51 @@ class SocketHub {
     _pendingPlayerIds.removeWhere(state.game.players.containsKey);
     final removed = _knownPlayerIds.difference(state.game.players.keys.toSet());
     _knownPlayerIds = state.game.players.keys.toSet();
+    for (final connection in _connections.values.toList()) {
+      final oldId = connection.playerId;
+      final reboundId = _engine.identityTransfers[oldId];
+      final token = _activeTokens[oldId];
+      if (reboundId != null && token != null && removed.contains(oldId)) {
+        connection.playerId = reboundId;
+        _activeTokens[reboundId] = token;
+        unawaited(_completeRebind(connection, reboundId, token));
+      }
+    }
     for (final id in removed) {
       _resumeTokens.remove(id);
+      _activeTokens.remove(id);
     }
     if (_connections.isEmpty) return;
-    final message = GameSnapshotMessage(state.game.redactedForPlayers());
+    unawaited(_broadcastCommitted(++_broadcastRevision));
+  }
+
+  Future<void> _broadcastCommitted(int revision) async {
+    try {
+      await _engine.persistRecovery?.call();
+    } on Object {
+      if (revision == _broadcastRevision) {
+        for (final connection in _connections.values.toList()) {
+          if (connection.playerId != null || connection.isSpectator) {
+            connection.send(
+              GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
+            );
+          }
+          connection.send(
+            const ProtocolErrorMessage(
+              code: 'recoveryUnavailable',
+              message: 'Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.',
+            ),
+          );
+        }
+      }
+      return;
+    }
+    if (revision != _broadcastRevision || _connections.isEmpty) return;
+    final game = _engine.publishedGame;
+    final message = GameSnapshotMessage(game.redactedForPlayers());
     for (final connection in _connections.values.toList(growable: false)) {
       if (connection.playerId != null &&
-          removed.contains(connection.playerId)) {
+          !game.players.containsKey(connection.playerId)) {
         connection.send(
           const ProtocolErrorMessage(
             code: 'kicked',
@@ -497,9 +580,46 @@ class SocketHub {
     }
   }
 
+  Future<void> _completeRebind(
+    _Connection connection,
+    String id,
+    String token,
+  ) async {
+    connection.identityRetry?.cancel();
+    try {
+      await _engine.persistRecovery?.call();
+      if (!_connections.containsKey(connection.id)) return;
+      connection.send(
+        JoinAcceptedMessage(
+          playerId: id,
+          hostTimeMicros: _now(),
+          resumeToken: token,
+        ),
+      );
+      connection.send(
+        GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
+      );
+    } on Object {
+      connection.send(
+        const ProtocolErrorMessage(
+          code: 'recoveryUnavailable',
+          message: 'Identity reassignment could not be saved. Ask the host to retry before continuing.',
+        ),
+      );
+      if (_connections.containsKey(connection.id)) {
+        connection.identityRetry = Timer(const Duration(seconds: 2), () {
+          if (_connections.containsKey(connection.id) &&
+              connection.playerId == id) {
+            unawaited(_completeRebind(connection, id, token));
+          }
+        });
+      }
+    }
+  }
+
   LobbySnapshotMessage _lobbySnapshot() => LobbySnapshotMessage(
-    teams: _engine.state.game.teams,
-    requiresTeam: _engine.state.game.poker != null,
+    teams: _engine.publishedGame.teams,
+    requiresTeam: _engine.publishedGame.poker != null,
   );
 
   void _log(ServerLogLevel level, String message) => _onLog?.call(

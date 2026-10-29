@@ -9,6 +9,9 @@ Uri sessionUri(Uri launch) {
     host: launch.host,
     port: launch.hasPort ? launch.port : null,
     path: room,
+    queryParameters: launch.queryParameters['session'] == null
+        ? null
+        : {'session': launch.queryParameters['session']!},
   );
 }
 
@@ -19,3 +22,15 @@ Uri sessionSocketUri(Uri uri) => sessionUri(uri).replace(
   scheme: uri.scheme == 'https' ? 'wss' : 'ws',
   path: '${sessionUri(uri).path}/ws',
 );
+
+bool samePlayerSession(Uri saved, Uri target) {
+  final identity = saved.queryParameters['session'];
+  final targetIdentity = target.queryParameters['session'];
+  if (identity != null || targetIdentity != null) {
+    return identity != null &&
+        identity == targetIdentity &&
+        (!(isInternetSession(saved) || isInternetSession(target)) ||
+            saved.origin == target.origin);
+  }
+  return sessionUri(saved) == sessionUri(target);
+}

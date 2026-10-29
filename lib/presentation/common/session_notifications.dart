@@ -117,7 +117,31 @@ class _SessionNotificationsState extends State<SessionNotifications> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) => widget.game?.recoveryPaused != true
+      ? widget.child
+      : Column(
+          children: [
+            Material(
+              color: Theme.of(context).colorScheme.tertiaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(
+                  context.tr(
+                    'Game paused for recovery. Reconnect participants before continuing. Media stays paused.',
+                  ),
+                ),
+              ),
+            ),
+            if (widget.playerId != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: SelectableText(
+                  context.tr('Rejoin verification ID: {0}', [widget.playerId]),
+                ),
+              ),
+            Expanded(child: widget.child),
+          ],
+        );
 }
 
 String roundFeedback(GameState game, String playerId, {BuildContext? context}) {

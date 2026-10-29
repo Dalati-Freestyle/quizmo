@@ -64,7 +64,7 @@ Router buildApiRouter({
 
   /// Snapshot of the redacted session state, useful for polling fallbacks.
   router.get('/api/state', (Request request) {
-    return _json(engine.state.game.redactedForPlayers().toJson());
+    return _json(engine.publishedGame.redactedForPlayers().toJson());
   });
 
   return router;

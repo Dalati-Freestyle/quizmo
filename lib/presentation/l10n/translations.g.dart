@@ -9,6 +9,8 @@ const englishMessages = <String, String>{
       "A quiz file must include an integer \"schemaVersion\".",
   "A returning player cannot create another team.":
       "A returning player cannot create another team.",
+  "A saved game already exists or changed. Reopen recovery before hosting.":
+      "A saved game already exists or changed. Reopen recovery before hosting.",
   "A team ID must not be empty.": "A team ID must not be empty.",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "A wrong answer loses the points of the row. A Daily Double always risks the wager.",
   "ARGB colour (for example FF5E6AD2)": "ARGB colour (for example FF5E6AD2)",
@@ -63,6 +65,7 @@ const englishMessages = <String, String>{
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.":
       "Eliminated · You can keep answering, but cannot earn points or chips.",
   "Auswahl löschen": "Clear selection",
+  "Automatic recovery save: {0}": "Automatic recovery save: {0}",
   "Automatisch": "Automatic",
   "Automatischen Wechsel fortsetzen": "Resume automatic rotation",
   "Automatischen Wechsel pausieren": "Pause automatic rotation",
@@ -91,6 +94,7 @@ const englishMessages = <String, String>{
   "Board cleared — check the standings!":
       "Board cleared — check the standings!",
   "Breitengrad": "Latitude",
+  "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.": "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.",
   "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget tip from the start: at most {0} chips per question ({1} starting chips / {2} questions). This funds the final question even if every answer is wrong.",
   "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget tip: {0} starting chips for {1} questions are not enough for 1 chip per question. Plan to skip some questions.",
   "Buzzer": "Buzzer",
@@ -110,6 +114,10 @@ const englishMessages = <String, String>{
   "Buzzers are armed!": "Buzzers are ready!",
   "CONNECTING": "CONNECTING",
   "Cancel": "Cancel",
+  "Cannot open recovery storage. Allow site storage.":
+      "Cannot open recovery storage. Allow site storage.",
+  "Cannot replace the quiz of an existing saved game.":
+      "Cannot replace the quiz of an existing saved game.",
   "Cannot save quiz": "Cannot save quiz",
   "Category": "Category",
   "Category \"{0}\" has more cells than the board has rows.":
@@ -131,9 +139,15 @@ const englishMessages = <String, String>{
   "Close TV view": "Close TV view",
   "Code und gültige Sprache angeben.": "Provide code and a valid language.",
   "Code-Snippet": "Code snippet",
+  "Confirm": "Confirm",
+  "Confirm identity reassignment": "Confirm identity reassignment",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+  "Connected verification ID": "Connected verification ID",
   "Connecting to the quiz…": "Connecting to the quiz…",
   "Connection": "Connection",
+  "Continue saved game": "Continue saved game",
+  "Continue with a soft timer": "Continue with a soft timer",
+  "Continue with saved time": "Continue with saved time",
   "Copied {0}": "Copied {0}",
   "Correct option": "Correct option",
   "Correct points": "Correct-answer points",
@@ -185,6 +199,7 @@ const englishMessages = <String, String>{
   "Delete question": "Delete question",
   "Delete quiz?": "Delete quiz?",
   "Delete row and its questions": "Delete row and its questions",
+  "Delete saved game?": "Delete saved game?",
   "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.":
       "The buzzer is closed. Wait for the host to open it.",
   "Der Quizmaster muss dich einem Team zuweisen.":
@@ -202,10 +217,12 @@ const englishMessages = <String, String>{
   "Diese Antwort kann nicht bewertet werden.": "This answer cannot be graded.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
+  "Discard": "Discard",
   "Du bist dran! Wähle die nächste Frage.":
       "Your turn! Choose the next question.",
   "Du erreichst": "You finish in",
   "Duplicate {0} ID \"{1}\".": "Duplicate {0} ID \"{1}\".",
+  "During recovery, choose an existing team. The host can reassign your original identity.": "During recovery, choose an existing team. The host can reassign your original identity.",
   "Edit": "Edit",
   "Edit team": "Edit team",
   "Edit {0}": "Edit {0}",
@@ -256,6 +273,7 @@ const englishMessages = <String, String>{
       "Export Quizmo quiz (including media)",
   "Export file": "Export file",
   "Export including media": "Export including media",
+  "Export private session report": "Export private session report",
   "Export quiz with media": "Export quiz with media",
   "Exported \"{0}\" including media.": "Exported \"{0}\" including media.",
   "Exporting quiz files is unavailable on this platform.":
@@ -288,6 +306,7 @@ const englishMessages = <String, String>{
       "Question selection awaits the quizmaster's confirmation.",
   "Freitext": "Short answer",
   "Game mode": "Game mode",
+  "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Game paused for recovery. Reconnect participants before continuing. Media stays paused.",
   "Game reset.": "Game reset.",
   "General knowledge": "General knowledge",
   "Get ready to play!": "Get ready to play!",
@@ -304,6 +323,7 @@ const englishMessages = <String, String>{
   "Hosting is unavailable on this platform.":
       "Hosting is unavailable on this platform.",
   "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.": "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.",
+  "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Identity reassignment could not be saved. Ask the host to retry before continuing.",
   "If the LAN address times out, try:": "If the LAN address times out, try:",
   "Import": "Import",
   "Import Quizmo quiz (including media)":
@@ -311,10 +331,26 @@ const englishMessages = <String, String>{
   "Imported \"{0}\".": "Imported \"{0}\".",
   "Importing quiz files is unavailable on this platform.":
       "Importing quiz files is unavailable on this platform.",
+  "Incomplete or unknown recovery fields.":
+      "Incomplete or unknown recovery fields.",
+  "Incomplete recovery fields.": "Incomplete recovery fields.",
+  "Incomplete recovery file: {0}": "Incomplete recovery file: {0}",
+  "Incomplete recovery list.": "Incomplete recovery list.",
+  "Incomplete recovery metadata.": "Incomplete recovery metadata.",
   "Internet hosting": "Internet hosting",
+  "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.": "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.",
+  "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.": "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.",
   "Invalid answer for this question.": "Invalid answer for this question.",
   "Invalid message.": "Invalid message.",
+  "Invalid or lossy recovery value.": "Invalid or lossy recovery value.",
   "Invalid poker configuration.": "Invalid poker configuration.",
+  "Invalid recovery question bank reference.":
+      "Invalid recovery question bank reference.",
+  "Invalid recovery question reference.":
+      "Invalid recovery question reference.",
+  "Invalid recovery quiz: {0}": "Invalid recovery quiz: {0}",
+  "Invalid recovery state: {0}": "Invalid recovery state: {0}",
+  "Invalid saved quiz.": "Invalid saved quiz.",
   "Invitation": "Invitation",
   "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.": "Each team bets per question. Correct: double stake returned. Wrong or no answer: stake lost. 0 chips = sit out. Create at least one team.",
   "Jeopardy": "Jeopardy",
@@ -326,6 +362,8 @@ const englishMessages = <String, String>{
   "Join this session as a local player": "Join this session as a local player",
   "Join: {0}": "Join: {0}",
   "Joined players": "Joined players",
+  "Joining could not be saved. Ask the host to retry recovery storage.":
+      "Joining could not be saved. Ask the host to retry recovery storage.",
   "Just watch (TV view)": "Just watch (TV view)",
   "Kartenausschnitt": "Map section",
   "Keine Antwort": "No answer",
@@ -388,6 +426,7 @@ const englishMessages = <String, String>{
   "Mindestens eine Textlösung angeben.": "Provide at least one text answer.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
       "Select at least one correct answer.",
+  "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.",
   "Missing required field \"{0}\".": "Missing required field \"{0}\".",
   "Mit {0} zusammenführen (+{1} Punkte)": "Merge with {0} (+{1} points)",
   "Mode switched to {0}.": "Mode switched to {0}.",
@@ -433,6 +472,7 @@ const englishMessages = <String, String>{
   "OPEN": "OPEN",
   "Ohne Einsatz: keine Wertung": "No wager: not scored",
   "Ohne Export verlassen": "Leave without exporting",
+  "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.",
   "Only the first answer counts.": "Only the first answer counts.",
   "Only the other teams may steal this question.":
       "Only the other teams may steal this question.",
@@ -444,6 +484,7 @@ const englishMessages = <String, String>{
       "Option \"{0}\" in question \"{1}\" needs a label.",
   "Option {0}": "Option {0}",
   "Ordering": "Ordering",
+  "Original participant": "Original participant",
   "Other teams may steal": "Other teams may steal",
   "POKERCHIPS · ANTWORTEN": "POKER CHIPS · ANSWERS",
   "POKERCHIPS · EINSÄTZE": "POKER CHIPS · BETTING",
@@ -467,6 +508,8 @@ const englishMessages = <String, String>{
   "Port": "Port",
   "Positive Sekunden angeben.": "Enter positive seconds.",
   "Preview the TV screen": "Preview the TV screen",
+  "Previous invitation (may be invalid): {0}":
+      "Previous invitation (may be invalid): {0}",
   "Prompt": "Prompt",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Points = maximum points × max(0, 1 − relative deviation).",
@@ -511,16 +554,50 @@ const englishMessages = <String, String>{
   "Quizzes in diesem Browser": "Quizzes in this browser",
   "Quizzes vor dem Verlassen exportieren?": "Export quizzes before leaving?",
   "RECONNECTING": "RECONNECTING",
+  "Recovered game resumed. Media stays paused.":
+      "Recovered game resumed. Media stays paused.",
+  "Recovery checksum failed. The saved game was not changed.":
+      "Recovery checksum failed. The saved game was not changed.",
+  "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.": "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.",
+  "Recovery file contains invalid JSON.":
+      "Recovery file contains invalid JSON.",
+  "Recovery file must be a JSON object.":
+      "Recovery file must be a JSON object.",
+  "Recovery is already open.": "Recovery is already open.",
+  "Recovery is closed.": "Recovery is closed.",
+  "Recovery paused": "Recovery paused",
+  "Recovery paused. Confirm how to resume first.":
+      "Recovery paused. Confirm how to resume first.",
+  "Recovery payload must be a JSON object.":
+      "Recovery payload must be a JSON object.",
+  "Recovery quiz or media is missing or damaged.":
+      "Recovery quiz or media is missing or damaged.",
+  "Recovery schemaVersion must be an integer.":
+      "Recovery schemaVersion must be an integer.",
+  "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.": "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.",
+  "Recovery storage cannot be opened. Check free space and storage permissions.": "Recovery storage cannot be opened. Check free space and storage permissions.",
+  "Recovery storage is blocked. Close other Quizmo tabs and retry.":
+      "Recovery storage is blocked. Close other Quizmo tabs and retry.",
+  "Recovery storage is not locked.": "Recovery storage is not locked.",
+  "Recovery transaction failed. Check free space and allow site storage.":
+      "Recovery transaction failed. Check free space and allow site storage.",
+  "Recovery view could not be opened. Reload Quizmo and retry.":
+      "Recovery view could not be opened. Reload Quizmo and retry.",
   "Recreate example quizzes": "Recreate example quizzes",
   "Recreate example quizzes?": "Recreate example quizzes?",
   "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.",
   "Reihenfolge": "Ordering",
   "Reihenfolge senden": "Send order",
+  "Rejoin verification ID: {0}": "Rejoin verification ID: {0}",
   "Remove Daily Double": "Remove Daily Double",
   "Remove option": "Remove option",
   "Remove question": "Remove question",
   "Remove {0}": "Remove {0}",
+  "Report export failed. Check storage permissions and retry.":
+      "Report export failed. Check storage permissions and retry.",
   "Reset scores": "Reset scores",
+  "Restart the full timer": "Restart the full timer",
+  "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.": "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.",
   "Retry": "Retry",
   "Reveal the round before closing it.": "Reveal the round before closing it.",
   "Richtig": "Correct",
@@ -544,6 +621,8 @@ const englishMessages = <String, String>{
   "Save question": "Save question",
   "Save quiz": "Save quiz",
   "Save team": "Save team",
+  "Saved game recovery": "Saved game recovery",
+  "Saved timer: {0} s remaining": "Saved timer: {0} s remaining",
   "Scan to join with your phone": "Scan to join with your phone",
   "Schätzfrage": "Estimation",
   "Schätzung senden": "Send estimate",
@@ -644,6 +723,10 @@ const englishMessages = <String, String>{
       "The quiz file contains invalid encoded media: {0}",
   "The quiz file is invalid: {0}": "The quiz file is invalid: {0}",
   "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.": "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.",
+  "The saved game changed. Reload recovery before deleting.":
+      "The saved game changed. Reload recovery before deleting.",
+  "The saved game was removed. Reopen recovery.":
+      "The saved game was removed. Reopen recovery.",
   "The selected file is larger than the 100 MiB quiz import limit.":
       "The selected file is larger than the 100 MiB quiz import limit.",
   "The selected file is not valid JSON: {0}":
@@ -658,11 +741,20 @@ const englishMessages = <String, String>{
       "The wager must be between 1 and {0}.",
   "This connection has already joined.": "This connection has already joined.",
   "This device": "This device",
+  "This game is open in another host. Close it before recovering.":
+      "This game is open in another host. Close it before recovering.",
+  "This participant cannot be reassigned.":
+      "This participant cannot be reassigned.",
+  "This permanently deletes the saved game and participant resume credentials.": "This permanently deletes the saved game and participant resume credentials.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.",
+  "This recovery file needs a newer Quizmo. Update Quizmo and retry.":
+      "This recovery file needs a newer Quizmo. Update Quizmo and retry.",
   "This round has no buzzer.": "This round has no buzzer.",
   "This session has no Jeopardy board.": "This session has no Jeopardy board.",
   "Time limit in seconds": "Time limit in seconds",
   "Time's up": "Time's up",
+  "Timer choices affect the current round only. Closed rounds stay closed.":
+      "Timer choices affect the current round only. Closed rounds stay closed.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Join an existing team or create your own.",
@@ -691,6 +783,7 @@ const englishMessages = <String, String>{
       "Unsupported quiz schemaVersion {0}. Expected {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.": "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.": "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.",
+  "Unsupported recovery schemaVersion.": "Unsupported recovery schemaVersion.",
   "Untitled question": "Untitled question",
   "Untitled quiz": "Untitled quiz",
   "Update Quizmo to import this quiz": "Update Quizmo to import this quiz",
@@ -832,6 +925,7 @@ const germanMessages = <String, String>{
       "Eine Quizdatei benötigt eine ganzzahlige „schemaVersion“.",
   "A returning player cannot create another team.":
       "Ein zurückkehrender Spieler kann kein weiteres Team erstellen.",
+  "A saved game already exists or changed. Reopen recovery before hosting.": "Ein gespeichertes Spiel existiert bereits oder wurde geändert. Öffne die Wiederherstellung erneut, bevor du hostest.",
   "A team ID must not be empty.": "Eine Team-ID darf nicht leer sein.",
   "A wrong answer loses the points of the row. A Daily Double always risks the wager.": "Bei einer falschen Antwort gehen die Punkte der Zeile verloren. Bei einem Daily Double steht immer der Einsatz auf dem Spiel.",
   "ARGB colour (for example FF5E6AD2)": "ARGB-Farbe (zum Beispiel FF5E6AD2)",
@@ -887,6 +981,7 @@ const germanMessages = <String, String>{
   "Auflösung": "Auflösung",
   "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.": "Ausgeschieden · Du kannst weiter mitraten, erhältst aber keine Punkte oder Chips.",
   "Auswahl löschen": "Auswahl löschen",
+  "Automatic recovery save: {0}": "Automatisch gesicherter Spielstand: {0}",
   "Automatisch": "Automatisch",
   "Automatischen Wechsel fortsetzen": "Automatischen Wechsel fortsetzen",
   "Automatischen Wechsel pausieren": "Automatischen Wechsel pausieren",
@@ -915,6 +1010,7 @@ const germanMessages = <String, String>{
   "Board cleared — check the standings!":
       "Spielfeld abgeschlossen – schau in die Rangliste!",
   "Breitengrad": "Breitengrad",
+  "Browser recovery needs HTTPS, IndexedDB and Web Locks. Allow site storage and retry.": "Browser-Wiederherstellung benötigt HTTPS, IndexedDB und Web Locks. Erlaube Website-Speicher und versuche es erneut.",
   "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.": "Budget-Tipp ab Quizstart: höchstens {0} Chips pro Frage ({1} Startchips / {2} Fragen). So reichen die Chips bis zur letzten Frage, auch wenn jede Antwort falsch ist.",
   "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.": "Budget-Tipp: {0} Startchips für {1} Fragen reichen nicht für 1 Chip pro Frage. Plant Fragen zum Aussetzen ein.",
   "Buzzer": "Buzzer",
@@ -933,6 +1029,9 @@ const germanMessages = <String, String>{
   "Buzzers are armed!": "Buzzer sind bereit!",
   "CONNECTING": "VERBINDE",
   "Cancel": "Abbrechen",
+  "Cannot open recovery storage. Allow site storage.": "Wiederherstellungsspeicher lässt sich nicht öffnen. Erlaube Website-Speicher.",
+  "Cannot replace the quiz of an existing saved game.":
+      "Das Quiz eines vorhandenen Spielstands darf nicht ersetzt werden.",
   "Cannot save quiz": "Quiz kann nicht gespeichert werden",
   "Category": "Kategorie",
   "Category \"{0}\" has more cells than the board has rows.":
@@ -954,9 +1053,15 @@ const germanMessages = <String, String>{
   "Close TV view": "TV-Ansicht schließen",
   "Code und gültige Sprache angeben.": "Code und gültige Sprache angeben.",
   "Code-Snippet": "Code-Snippet",
+  "Confirm": "Bestätigen",
+  "Confirm identity reassignment": "Identität neu zuordnen",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Verbinde dich mit einem Spielleiter in deinem Netzwerk, wähle ein Team und nutze einen Buzzer mit Latenzausgleich.",
+  "Connected verification ID": "Prüf-ID des verbundenen Teilnehmers",
   "Connecting to the quiz…": "Verbinde mit dem Quiz …",
   "Connection": "Verbindung",
+  "Continue saved game": "Gespeichertes Spiel fortsetzen",
+  "Continue with a soft timer": "Mit Soft-Timer fortsetzen",
+  "Continue with saved time": "Mit gesicherter Restzeit fortsetzen",
   "Copied {0}": "{0} kopiert",
   "Correct option": "Richtige Antwortmöglichkeit",
   "Correct points": "Punkte für richtige Antworten",
@@ -1010,6 +1115,7 @@ const germanMessages = <String, String>{
   "Delete question": "Frage löschen",
   "Delete quiz?": "Quiz löschen?",
   "Delete row and its questions": "Zeile und ihre Fragen löschen",
+  "Delete saved game?": "Gespeicherten Spielstand löschen?",
   "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.": "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
   "Der Quizmaster muss dich einem Team zuweisen.":
       "Der Spielleiter muss dich einem Team zuweisen.",
@@ -1028,10 +1134,12 @@ const germanMessages = <String, String>{
       "Diese Antwort kann nicht bewertet werden.",
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
+  "Discard": "Verwerfen",
   "Du bist dran! Wähle die nächste Frage.":
       "Du bist dran! Wähle die nächste Frage.",
   "Du erreichst": "Du erreichst",
   "Duplicate {0} ID \"{1}\".": "Doppelte {0}-ID „{1}“.",
+  "During recovery, choose an existing team. The host can reassign your original identity.": "Wähle während der Wiederherstellung ein vorhandenes Team. Der Host kann deine ursprüngliche Identität wieder zuordnen.",
   "Edit": "Bearbeiten",
   "Edit team": "Team bearbeiten",
   "Edit {0}": "{0} bearbeiten",
@@ -1087,6 +1195,7 @@ const germanMessages = <String, String>{
       "Quizmo-Quiz exportieren (einschließlich Medien)",
   "Export file": "Datei exportieren",
   "Export including media": "Mit Medien exportieren",
+  "Export private session report": "Privaten Spielbericht exportieren",
   "Export quiz with media": "Quiz mit Medien exportieren",
   "Exported \"{0}\" including media.": "„{0}“ mit Medien exportiert.",
   "Exporting quiz files is unavailable on this platform.":
@@ -1119,6 +1228,7 @@ const germanMessages = <String, String>{
       "Fragenauswahl wartet auf Bestätigung durch den Spielleiter.",
   "Freitext": "Freitext",
   "Game mode": "Spielmodus",
+  "Game paused for recovery. Reconnect participants before continuing. Media stays paused.": "Spiel zur Wiederherstellung pausiert. Teilnehmer vor dem Fortsetzen erneut verbinden. Medien bleiben pausiert.",
   "Game reset.": "Spiel zurückgesetzt.",
   "General knowledge": "Allgemeinwissen",
   "Get ready to play!": "Mach dich bereit!",
@@ -1136,6 +1246,7 @@ const germanMessages = <String, String>{
   "Hosting is unavailable on this platform.":
       "Auf dieser Plattform können keine Quizzes veranstaltet werden.",
   "Hosting needs a dart:io platform. Run this build on Android, iOS, macOS, Windows or Linux.": "Zum Veranstalten ist eine unterstützte Plattform erforderlich. Nutze Android, iOS, macOS, Windows oder Linux.",
+  "Identity reassignment could not be saved. Ask the host to retry before continuing.": "Die neue Zuordnung konnte nicht gesichert werden. Bitte den Host vor dem Fortsetzen um einen erneuten Versuch.",
   "If the LAN address times out, try:":
       "Wenn die LAN-Adresse nicht erreichbar ist, versuche Folgendes:",
   "Import": "Importieren",
@@ -1144,10 +1255,28 @@ const germanMessages = <String, String>{
   "Imported \"{0}\".": "„{0}“ importiert.",
   "Importing quiz files is unavailable on this platform.":
       "Auf dieser Plattform können keine Quizdateien importiert werden.",
+  "Incomplete or unknown recovery fields.":
+      "Unvollständige oder unbekannte Spielstandfelder.",
+  "Incomplete recovery fields.": "Unvollständige Spielstandfelder.",
+  "Incomplete recovery file: {0}":
+      "Unvollständige Wiederherstellungsdatei: {0}",
+  "Incomplete recovery list.": "Unvollständige Liste im Spielstand.",
+  "Incomplete recovery metadata.": "Unvollständige Metadaten des Spielstands.",
   "Internet hosting": "Online-Spiel",
+  "Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.": "Im Internet entsteht ein neuer Raum. Alte Internetlinks sind ungültig; verteile die neuen Einladungs- und TV-Links. Auch LAN-Adressen können sich ändern.",
+  "Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.": "Internetraum nicht erreichbar. Falls der Host das Spiel wiederhergestellt hat, öffne den neuen Einladungslink. Der Wiederbeitritt zu diesem Raum wird weiterhin versucht.",
   "Invalid answer for this question.": "Ungültige Antwort für diese Frage.",
   "Invalid message.": "Ungültige Nachricht.",
+  "Invalid or lossy recovery value.":
+      "Ungültiger oder nicht verlustfrei lesbarer Wert im Spielstand.",
   "Invalid poker configuration.": "Ungültige Poker-Konfiguration.",
+  "Invalid recovery question bank reference.":
+      "Ungültiger Fragenbankverweis im Spielstand.",
+  "Invalid recovery question reference.":
+      "Ungültiger Fragenverweis im Spielstand.",
+  "Invalid recovery quiz: {0}": "Ungültiges Quiz im Spielstand: {0}",
+  "Invalid recovery state: {0}": "Ungültiger Spielstand: {0}",
+  "Invalid saved quiz.": "Ungültiges gespeichertes Quiz.",
   "Invitation": "Einladung",
   "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.": "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.",
   "Jeopardy": "Jeopardy",
@@ -1161,6 +1290,7 @@ const germanMessages = <String, String>{
       "Diesem Spiel als lokaler Spieler beitreten",
   "Join: {0}": "Beitreten: {0}",
   "Joined players": "Beigetretene Spieler",
+  "Joining could not be saved. Ask the host to retry recovery storage.": "Der Beitritt konnte nicht gesichert werden. Bitte den Host, die Spielstandsicherung erneut zu versuchen.",
   "Just watch (TV view)": "Nur zuschauen (TV-Ansicht)",
   "Kartenausschnitt": "Kartenausschnitt",
   "Keine Antwort": "Keine Antwort",
@@ -1220,6 +1350,7 @@ const germanMessages = <String, String>{
   "Mindestens eine Textlösung angeben.": "Mindestens eine Textlösung angeben.",
   "Mindestens eine richtige Antwort wÃ¤hlen.":
       "Mindestens eine richtige Antwort wählen.",
+  "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Private Zugangsdaten fehlen? Als neuer Teilnehmer beitreten, die Prüf-ID auf dessen Bildschirm vergleichen und dann die ursprüngliche Identität ausdrücklich zuordnen.",
   "Missing required field \"{0}\".": "Pflichtfeld „{0}“ fehlt.",
   "Mit {0} zusammenführen (+{1} Punkte)":
       "Mit {0} zusammenführen (+{1} Punkte)",
@@ -1267,6 +1398,7 @@ const germanMessages = <String, String>{
   "OPEN": "OFFEN",
   "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
   "Ohne Export verlassen": "Ohne Export verlassen",
+  "Only confirm after comparing verification ID {0} with the participant. Their old credential will be revoked; identity, team, answers and points remain unchanged.": "Erst bestätigen, nachdem du die Prüf-ID {0} mit dem Teilnehmer verglichen hast. Der alte Zugang wird widerrufen; Identität, Team, Antworten und Punkte bleiben unverändert.",
   "Only the first answer counts.": "Nur die erste Antwort zählt.",
   "Only the other teams may steal this question.":
       "Nur die anderen Teams dürfen diese Frage abstauben.",
@@ -1278,6 +1410,7 @@ const germanMessages = <String, String>{
       "Option „{0}“ in Frage „{1}“ benötigt eine Beschriftung.",
   "Option {0}": "Antwortmöglichkeit {0}",
   "Ordering": "Reihenfolge",
+  "Original participant": "Ursprünglicher Teilnehmer",
   "Other teams may steal": "Andere Teams dürfen abstauben",
   "POKERCHIPS · ANTWORTEN": "POKERCHIPS · ANTWORTEN",
   "POKERCHIPS · EINSÄTZE": "POKERCHIPS · EINSÄTZE",
@@ -1301,6 +1434,8 @@ const germanMessages = <String, String>{
   "Port": "Port",
   "Positive Sekunden angeben.": "Positive Sekunden angeben.",
   "Preview the TV screen": "TV-Vorschau öffnen",
+  "Previous invitation (may be invalid): {0}":
+      "Vorherige Einladung (gegebenenfalls ungültig): {0}",
   "Prompt": "Fragetext",
   "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).":
       "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
@@ -1346,16 +1481,45 @@ const germanMessages = <String, String>{
   "Quizzes vor dem Verlassen exportieren?":
       "Quizzes vor dem Verlassen exportieren?",
   "RECONNECTING": "VERBINDE ERNEUT",
+  "Recovered game resumed. Media stays paused.":
+      "Wiederhergestelltes Spiel fortgesetzt. Medien bleiben pausiert.",
+  "Recovery checksum failed. The saved game was not changed.": "Die Prüfsumme des Spielstands stimmt nicht. Der gespeicherte Stand wurde nicht verändert.",
+  "Recovery could not be saved. Check free space and storage permissions; the last successful save is retained. Retry before continuing.": "Spielstand konnte nicht gesichert werden. Prüfe freien Speicher und Speicherberechtigungen; der letzte erfolgreiche Stand bleibt erhalten. Vor dem Weiterspielen erneut versuchen.",
+  "Recovery file contains invalid JSON.":
+      "Die Wiederherstellungsdatei enthält ungültiges JSON.",
+  "Recovery file must be a JSON object.":
+      "Die Wiederherstellungsdatei muss ein JSON-Objekt enthalten.",
+  "Recovery is already open.": "Die Wiederherstellung ist bereits geöffnet.",
+  "Recovery is closed.": "Die Wiederherstellung ist geschlossen.",
+  "Recovery paused": "Wiederherstellung pausiert",
+  "Recovery paused. Confirm how to resume first.": "Wiederherstellung pausiert. Bestätige zuerst, wie das Spiel fortgesetzt werden soll.",
+  "Recovery payload must be a JSON object.":
+      "Die Spielstanddaten müssen ein JSON-Objekt enthalten.",
+  "Recovery quiz or media is missing or damaged.":
+      "Quiz oder Medien des Spielstands fehlen oder sind beschädigt.",
+  "Recovery schemaVersion must be an integer.":
+      "Die schemaVersion des Spielstands muss ganzzahlig sein.",
+  "Recovery starts paused. Choose saved time, a fresh timer or a soft timer on the host dashboard. Accepted answers and points are retained.": "Die Wiederherstellung startet pausiert. Wähle im Host-Dashboard gesicherte Restzeit, einen neuen Timer oder einen Soft-Timer. Angenommene Antworten und Punkte bleiben erhalten.",
+  "Recovery storage cannot be opened. Check free space and storage permissions.": "Wiederherstellungsspeicher lässt sich nicht öffnen. Prüfe freien Speicher und Speicherberechtigungen.",
+  "Recovery storage is blocked. Close other Quizmo tabs and retry.": "Wiederherstellungsspeicher ist blockiert. Schließe andere Quizmo-Tabs und versuche es erneut.",
+  "Recovery storage is not locked.":
+      "Der Wiederherstellungsspeicher ist nicht gesperrt.",
+  "Recovery transaction failed. Check free space and allow site storage.": "Die Spielstandsicherung ist fehlgeschlagen. Prüfe freien Speicher und erlaube Website-Speicher.",
+  "Recovery view could not be opened. Reload Quizmo and retry.": "Die Wiederherstellungsansicht konnte nicht geöffnet werden. Lade Quizmo neu und versuche es erneut.",
   "Recreate example quizzes": "Beispielquizzes neu erstellen",
   "Recreate example quizzes?": "Beispielquizzes neu erstellen?",
   "Recreate the default quizzes. Unedited examples are replaced; edited examples and your own quizzes are kept.": "Erstellt die Standardquizzes neu. Unbearbeitete Beispiele werden ersetzt; bearbeitete Beispiele und eigene Quizzes bleiben erhalten.",
   "Reihenfolge": "Reihenfolge",
   "Reihenfolge senden": "Reihenfolge senden",
+  "Rejoin verification ID: {0}": "Prüf-ID für den Wiederbeitritt: {0}",
   "Remove Daily Double": "Daily Double entfernen",
   "Remove option": "Antwortmöglichkeit entfernen",
   "Remove question": "Frage entfernen",
   "Remove {0}": "{0} entfernen",
+  "Report export failed. Check storage permissions and retry.": "Der Bericht konnte nicht exportiert werden. Prüfe Speicherberechtigungen und versuche es erneut.",
   "Reset scores": "Punkte zurücksetzen",
+  "Restart the full timer": "Timer mit voller Zeit neu starten",
+  "Resume uses this device and browser profile. The private report contains answers, solutions and media, but no resume credentials and cannot restore player access. Do not share it publicly.": "Fortsetzen ist auf diesem Gerät und Browserprofil möglich. Der private Bericht enthält Antworten, Lösungen und Medien, aber keine Zugangsdaten; Spielerzugänge lassen sich daraus nicht wiederherstellen. Nicht öffentlich teilen.",
   "Retry": "Erneut versuchen",
   "Reveal the round before closing it.":
       "Decke die Lösung auf, bevor du die Runde beendest.",
@@ -1380,6 +1544,8 @@ const germanMessages = <String, String>{
   "Save question": "Frage speichern",
   "Save quiz": "Quiz speichern",
   "Save team": "Team speichern",
+  "Saved game recovery": "Spielstand wiederherstellen",
+  "Saved timer: {0} s remaining": "Gesicherter Timer: {0} s Restzeit",
   "Scan to join with your phone": "Scannen und mit dem Handy beitreten",
   "Schätzfrage": "Schätzfrage",
   "Schätzung senden": "Schätzung senden",
@@ -1482,6 +1648,8 @@ const germanMessages = <String, String>{
       "Die Quizdatei enthält ungültig kodierte Medien: {0}",
   "The quiz file is invalid: {0}": "Die Quizdatei ist ungültig: {0}",
   "The roster is full or the clock handshake is invalid. Ask the host to remove unused players.": "Die Spielerliste ist voll oder die Zeitsynchronisierung ist ungültig. Bitte den Spielleiter, ungenutzte Spieler zu entfernen.",
+  "The saved game changed. Reload recovery before deleting.": "Der gespeicherte Spielstand wurde geändert. Lade die Wiederherstellung vor dem Löschen erneut.",
+  "The saved game was removed. Reopen recovery.": "Der gespeicherte Spielstand wurde entfernt. Öffne die Wiederherstellung erneut.",
   "The selected file is larger than the 100 MiB quiz import limit.":
       "Die ausgewählte Datei überschreitet das Importlimit von 100 MiB.",
   "The selected file is not valid JSON: {0}":
@@ -1497,12 +1665,18 @@ const germanMessages = <String, String>{
   "This connection has already joined.":
       "Diese Verbindung ist bereits beigetreten.",
   "This device": "Dieses Gerät",
+  "This game is open in another host. Close it before recovering.": "Dieses Spiel ist bereits in einem anderen Host geöffnet. Schließe ihn vor der Wiederherstellung.",
+  "This participant cannot be reassigned.":
+      "Dieser Teilnehmer kann nicht neu zugeordnet werden.",
+  "This permanently deletes the saved game and participant resume credentials.": "Der Spielstand und die Zugangsdaten für den Wiederbeitritt werden endgültig gelöscht.",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "Dieses Quiz benötigt eine neuere Quizmo-Version. Aktualisiere die App und importiere die Datei erneut. Deine Quizbibliothek wurde nicht verändert.",
+  "This recovery file needs a newer Quizmo. Update Quizmo and retry.": "Dieser Spielstand benötigt eine neuere Quizmo-Version. Aktualisiere Quizmo und versuche es erneut.",
   "This round has no buzzer.": "Diese Runde hat keinen Buzzer.",
   "This session has no Jeopardy board.":
       "Diese Sitzung hat kein Jeopardy-Spielfeld.",
   "Time limit in seconds": "Zeitlimit in Sekunden",
   "Time's up": "Zeit abgelaufen",
+  "Timer choices affect the current round only. Closed rounds stay closed.": "Die Timer-Auswahl gilt nur für die aktuelle Runde. Geschlossene Runden bleiben geschlossen.",
   "Tip: start the host here, then open the Flutter web build in two browser tabs to simulate players.": "Tipp: Starte hier als Spielleiter und öffne die Web-App in zwei Browser-Tabs, um Spieler zu simulieren.",
   "Tritt einem bestehenden Team bei oder erstelle dein eigenes.":
       "Tritt einem bestehenden Team bei oder erstelle dein eigenes.",
@@ -1531,6 +1705,8 @@ const germanMessages = <String, String>{
       "Nicht unterstützte Quizversion {0}. Erwartet wird {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports schema versions 1 through {1}.": "Nicht unterstützte Quizversion {0}. Diese App unterstützt Versionen 1 bis {1}.",
   "Unsupported quiz schemaVersion {0}. This app supports up to {1}. Update Quizmo, then import this file again.": "Nicht unterstützte Quizversion {0}. Diese App unterstützt bis Version {1}. Aktualisiere Quizmo und importiere die Datei erneut.",
+  "Unsupported recovery schemaVersion.":
+      "Nicht unterstützte schemaVersion des Spielstands.",
   "Untitled question": "Frage ohne Titel",
   "Untitled quiz": "Unbenanntes Quiz",
   "Update Quizmo to import this quiz":

@@ -9,6 +9,8 @@ import 'package:quizmo/presentation/player/player_session_cubit.dart';
 import 'package:quizmo/presentation/player/questions/multiple_choice_question_view.dart';
 import 'package:quizmo/presentation/quizmaster/host_dashboard_page.dart';
 
+import '../helpers/memory_recovery_store.dart';
+
 const question = MultipleChoiceQuestion(
   id: 'q',
   prompt: 'Pick A and C',
@@ -148,7 +150,15 @@ void main() {
       ],
       format: const JeopardyFormat(board),
     );
-    await tester.pumpWidget(MaterialApp(home: HostDashboardPage(quiz: quiz)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HostDashboardPage(
+          quiz: quiz,
+          recoveryStore: MemoryRecoveryStore(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
     final engine = tester.element(find.byType(Scaffold)).read<QuizEngineBloc>();
     engine.add(const PlayerJoinedEvent(Player(id: 'p', name: 'Player')));
     await tester.pumpAndSettle();

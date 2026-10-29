@@ -10,7 +10,7 @@ Response serveMedia(Request request, String id, QuizEngineBloc engine) {
   if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(id)) {
     return Response.notFound('Unknown asset');
   }
-  final game = engine.state.game;
+  final game = engine.publishedGame;
   final round = game.round;
   final question = round.question;
   final media = [

@@ -47,6 +47,119 @@ Jeopardy and Pokerchips keep their existing per-question reveal behavior.
 Quiz schema 7 stores the reveal mode. All older schema versions remain readable,
 retain per-question reveal and keep their question content, grading and media.
 
+## Interrupted games and recovery
+
+Quizmo saves a separate, versioned recovery record on engine transitions and
+every second during answering/betting. On the next start it explicitly offers
+**Continue saved game**, **Export private session report**, or **Discard**.
+It never starts an old game silently. Leave the host dashboard to return to
+that choice, including after a completed game. The quiz library is independent
+and is not overwritten by recovery.
+
+Recovery retains the quiz and uploaded question/solution media, players and
+teams, accepted answers and manual verdicts, score history, completed questions,
+deferred-reveal history, Jeopardy turns/steals/Daily Doubles and Pokerchips
+balances/reservations/settlements. It loads **paused**, with everyone initially
+offline and media paused. Start hosting, reconnect/reassign participants, then
+explicitly choose **saved remaining time**, **a full timer restart**, or **a
+soft timer** (no automatic timeout; the host ends the round). Downtime never
+consumes the saved timer. A full restart retains earlier answers and their
+original speed/rank scoring; it does not permit another answer. A pending
+buzzer queue keeps its clock-adjusted ordering and is locked on continuation.
+Closed/revealed rounds do not reopen. Timer overrides apply to the current
+round only; new questions keep their configured timing rules.
+
+Native recovery uses `recovery/session.json` and `recovery/quiz.json` under
+`getApplicationSupportDirectory()` (the platform's per-user app-support
+directory, not the quiz library). The immutable quiz/media document is written
+once, flushed, and referenced by SHA-256. Small snapshots are flushed to
+`session.pending` and atomically renamed over `session.json`. Interrupted
+temporary files are never treated as successful snapshots. A file lock excludes
+another host process; an in-process lock also excludes a second dashboard.
+Browser recovery uses the origin/profile-local IndexedDB database
+`quizmo-host-recovery-v1`, object store `checkpoints` (`current` and `quiz`).
+Transactions commit the quiz and checkpoint together with strict durability;
+Web Locks permit only one active host per origin. HTTPS (localhost excepted),
+IndexedDB and Web Locks are required. No SharedPreferences/localStorage fallback
+pretends to provide transactional host storage.
+
+One latest committed session is retained, including finished games, until
+explicit **Discard** with confirmation. This removes its recovery document,
+quiz/media and server-side resume hashes, not the quiz library. Native lock
+files contain no session data and may remain. Browser site-data deletion,
+private-mode cleanup, OS storage removal, uninstall or disk failure can remove
+recovery; this is not a cloud backup or a guarantee against hardware/power loss.
+At interruption, the newest durable checkpoint is authoritative; a transition
+whose write had not committed may need to be repeated.
+Player/TV broadcasts, REST snapshots and solution-media access use the committed
+state; clients are not told that an answer/result is accepted before its save.
+Uncommitted host-side transitions can still be lost on abrupt termination.
+Save failures display
+an error, pause the engine and preserve the previous commit. Retry saving before
+continuation. Corrupt/incomplete records are not overwritten or silently rolled
+back; they require retry or explicit discard. Low-level permission/I/O failures
+also prevent hosting until resolved.
+
+The recovery envelope starts at **schema 1**, independently of quiz schema 7
+and the app version. It checks both the checkpoint and the referenced quiz,
+requires complete/lossless fields and validates cross-references. Future recovery
+schemas must retain a dedicated importer for each previous schema, migrate both
+the game state and quiz references into the current model, and add fixed
+compatibility fixtures. Unsupported newer schemas request a Quizmo update.
+The existing quiz importers remain responsible for historical quiz definitions;
+recovery writers write only the current recovery schema. Existing score history
+and manual verdicts are preserved; #7's future correction/undo ledger must be
+added with a recovery-schema migration, not reconstructed by replaying scores.
+The private session report is a data foundation for #6, not its final reporting UI.
+
+Resume tokens remain private in each player's browser profile/app storage; only
+their SHA-256 verifiers are persisted by the host. A stable, **public** session
+identifier in invitation links lets the same client find its saved identity
+after a LAN address change or a new internet room. Internet reuse requires the
+same origin. The player session now retains the complete room URL, not just its
+origin. Old clients without a saved session identifier must be explicitly
+reassigned after a room change. A different LAN browser origin, lost site data
+or a replacement device also needs reassignment: while recovery is paused,
+join as a new participant, compare its **verification ID** on the participant's
+screen with the host's roster and confirm reassignment. This keeps the original
+player ID, team, answers and score, and revokes the old credential. Never approve
+by display name alone. Choose an existing team during recovery; creating an
+extra team for an identity replacement would change format progress and is
+therefore rejected until continuation. Ordinary reconnect within a live room still replaces
+the stale socket using the original credential.
+
+Recovery storage is **not encrypted by Quizmo**; protect the OS user/profile,
+use device/disk encryption and do not copy private app-support/site data to
+public shares. Browser scripts on the same origin can access its storage.
+Tokens/hashes are never included in player/TV snapshots or logs. **Export private
+session report** intentionally omits credentials, session IDs and room links,
+but includes confidential answers, solutions, identities and media: it is not
+a public/share-safe export, a portable recovery credential or an importable quiz.
+Store it privately. Discard does not remotely erase a participant's own cached
+credential; that credential becomes unusable at the deleted host.
+
+### Internet room replacement
+
+The relay remains ephemeral: host refresh/closure, expiry or relay restart
+invalidates the old room and its player/TV links. Local recovery does **not**
+recreate that room or recover its host socket. A restored browser host deliberately
+creates a **new random room**, displays new invitation/TV links, and warns that
+the previous links are invalid. Distribute the complete new links (including
+the public session identifier); players reopen them in the same profile or use
+verified host reassignment. TVs open the new `/tv` link; they remain read-only
+and keep reconnecting to a live room, but cannot discover a replacement room.
+Loss of the relay while the host tab is still alive also pauses the engine;
+restart hosting, redistribute links, and confirm the timer rule. There is no
+cross-device quiz sync (#11), relay-side durable engine or multi-server failover.
+
+Recovery tests run with `flutter test`. The renderer-independent browser check
+is `test/browser/recovery_store_check.dart`: compile it with `dart compile js`
+to a temporary `recovery_store_check.js`, place
+`test/browser/recovery_store_check.html` beside it, and serve that directory on
+localhost/HTTPS. Its page must display `PASS` for IndexedDB commit/abort,
+media retention, explicit deletion and exclusive Web Locks. This check does not
+need Flutter renderer assets or an application web build.
+
 ## Internet hosting under your domain
 
 Point your domain's DNS A/AAAA records at the server (only publish AAAA if IPv6
@@ -124,7 +237,8 @@ skip it entirely. Saved quizzes remain locally stored after a normal close.
 Keep the host tab open and the device awake. The browser owns the existing
 game engine; the relay transfers player traffic and redacted snapshots. Closing,
 reloading or losing the host connection ends the internet room. Restart hosting
-and share the new link; quizzes remain saved, live match state does not persist.
+and share the new link; use the explicit paused recovery flow above to retain
+the most recently committed live match state.
 Player refresh/reconnect and unattended TV reconnect retain their existing
 behavior while the host room is alive. Rooms expire after 12 hours or 60 seconds
 without a host heartbeat. Server restarts/deployments terminate active rooms.

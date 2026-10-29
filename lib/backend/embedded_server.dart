@@ -127,6 +127,7 @@ class EmbeddedServer implements EmbeddedQuizServer {
     final endpoint = ServerEndpoint(
       port: _httpServer!.port,
       addresses: await _localAddresses(),
+      recoverySessionId: _engine.recoverySessionId,
     );
     _endpoint = endpoint;
     _log(

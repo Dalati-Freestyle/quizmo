@@ -4,6 +4,8 @@
 /// the [HostServerCubit] that publishes it over the network.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -12,6 +14,8 @@ import '../settings/settings_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
+import '../../core/data/session_checkpoint.dart';
+import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
 import '../common/bundled_web_client.dart';
@@ -21,14 +25,23 @@ import '../player/player_page.dart';
 import '../spectator/tv_page.dart';
 import 'dashboard_panels.dart';
 import 'host_server_cubit.dart';
+import 'recovery/recovery_store.dart';
+import 'recovery/rebind_recovery_panel.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
   /// Creates the dashboard for [quiz].
-  const HostDashboardPage({required this.quiz, super.key});
+  const HostDashboardPage({
+    required this.quiz,
+    this.checkpoint,
+    this.recoveryStore,
+    super.key,
+  });
 
   /// Quiz definition fixed for this hosted session.
   final Quiz quiz;
+  final SessionCheckpoint? checkpoint;
+  final SessionRecoveryStore? recoveryStore;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +49,9 @@ class HostDashboardPage extends StatelessWidget {
       providers: [
         BlocProvider<QuizEngineBloc>(
           create: (_) => QuizEngineBloc(
+            restoredGame: checkpoint?.pausedGame(),
+            recoverySessionId: checkpoint?.sessionId ?? newRecoveryId(),
+            resumeTokenHashes: checkpoint?.resumeTokenHashes ?? const {},
             questionBank: quiz.questions,
             autoContinueBuzzer: false,
             teams: quiz.teamsById,
@@ -64,15 +80,179 @@ class HostDashboardPage extends StatelessWidget {
           ),
         ),
       ],
-      child: _HostDashboardView(quizName: quiz.name),
+      child: _RecoveryOwner(
+        quiz: quiz,
+        checkpoint: checkpoint,
+        store: recoveryStore,
+      ),
+    );
+  }
+}
+
+class _RecoveryOwner extends StatefulWidget {
+  const _RecoveryOwner({required this.quiz, this.checkpoint, this.store});
+  final Quiz quiz;
+  final SessionCheckpoint? checkpoint;
+  final SessionRecoveryStore? store;
+  @override
+  State<_RecoveryOwner> createState() => _RecoveryOwnerState();
+}
+
+class _RecoveryOwnerState extends State<_RecoveryOwner>
+    with WidgetsBindingObserver {
+  SessionRecovery? _recovery;
+  StreamSubscription<RecoveryException>? _errors;
+  Timer? _ticker;
+  String? _startupError;
+  bool _ready = false;
+  bool _leaving = false;
+  bool _canLeave = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _start();
+  }
+
+  Future<void> _start() async {
+    try {
+      final store = widget.store ?? await createRecoveryStore();
+      if (!mounted) return;
+      final recovery = SessionRecovery(
+        engine: context.read<QuizEngineBloc>(),
+        quiz: widget.quiz,
+        store: store,
+        restored: widget.checkpoint,
+        previousJoinUri: widget.checkpoint?.previousJoinUri,
+      );
+      _recovery = recovery;
+      _errors = recovery.errors.listen((_) {
+        if (mounted) setState(() {});
+      });
+      await recovery.start();
+      if (!mounted) {
+        await recovery.close();
+        return;
+      }
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+      setState(() {
+        _ready = true;
+      });
+    } on Object catch (error) {
+      if (mounted) {
+        setState(() {
+          _startupError = '$error';
+        });
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_ready && state != AppLifecycleState.resumed) {
+      unawaited(_checkpoint());
+    }
+  }
+
+  Future<void> _checkpoint() async {
+    try {
+      await _recovery?.checkpoint();
+    } on RecoveryException {
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _ticker?.cancel();
+    unawaited(_errors?.cancel());
+    unawaited(_recovery?.close());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_ready) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.tr('Saved game recovery'))),
+        body: Center(
+          child: _startupError == null
+              ? const CircularProgressIndicator()
+              : Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(context.tr(_startupError!)),
+                      OutlinedButton(
+                        onPressed: () async {
+                          await _errors?.cancel();
+                          await _recovery?.close();
+                          if (!mounted) return;
+                          setState(() {
+                            _startupError = null;
+                          });
+                          await _start();
+                        },
+                        child: Text(context.tr('Retry')),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      );
+    }
+    return PopScope(
+      canPop: _canLeave,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || _leaving) return;
+        _leaving = true;
+        try {
+          await context.read<HostServerCubit>().stop();
+          await _recovery!.checkpoint();
+          await _recovery!.close();
+          if (!mounted) return;
+          setState(() {
+            _canLeave = true;
+          });
+          await WidgetsBinding.instance.endOfFrame;
+          if (context.mounted) Navigator.of(context).pop();
+        } on RecoveryException {
+          _leaving = false;
+          if (mounted) setState(() {});
+        }
+      },
+      child: BlocListener<HostServerCubit, HostServerState>(
+        listenWhen: (previous, current) =>
+            current.endpoint != null && previous.endpoint != current.endpoint,
+        listener: (context, state) {
+          _recovery!.previousJoinUri = state.endpoint!.lanUri;
+          unawaited(_checkpoint());
+        },
+        child: _HostDashboardView(
+          quizName: widget.quiz.name,
+          recovery: _recovery!,
+          previousJoinUri: widget.checkpoint?.previousJoinUri,
+        ),
+      ),
     );
   }
 }
 
 class _HostDashboardView extends StatelessWidget {
-  const _HostDashboardView({required this.quizName});
+  const _HostDashboardView({
+    required this.quizName,
+    required this.recovery,
+    this.previousJoinUri,
+  });
 
   final String quizName;
+  final SessionRecovery recovery;
+  final Uri? previousJoinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +263,7 @@ class _HostDashboardView extends StatelessWidget {
           current.game.jeopardy?.pendingPickQuestionId != null &&
           (previous.game.jeopardy?.pendingPickQuestionId !=
                   current.game.jeopardy?.pendingPickQuestionId ||
+              (previous.game.recoveryPaused && !current.game.recoveryPaused) ||
               previous.game.jeopardy?.pendingPickPlayerId !=
                   current.game.jeopardy?.pendingPickPlayerId),
       listener: (context, state) async {
@@ -132,6 +313,9 @@ class _HostDashboardView extends StatelessWidget {
         return BlocBuilder<HostServerCubit, HostServerState>(
           builder: (context, serverState) {
             final game = engineState.game;
+            final savedRemainingMicros =
+                (game.round.question?.timeLimit.inMicroseconds ?? 0) -
+                game.round.timerElapsedAt(game.hostTimeMicros).inMicroseconds;
 
             // The preview connects through loopback (always reachable on this
             // device) but tells players the LAN address they can really use.
@@ -204,6 +388,90 @@ class _HostDashboardView extends StatelessWidget {
                 game: game,
                 child: AdaptivePanelGrid(
                   panels: [
+                    PanelCard(
+                      title: context.tr('Saved game recovery'),
+                      icon: Icons.save_outlined,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            recovery.lastError == null
+                                ? context.tr('Automatic recovery save: {0}', [
+                                    recovery.lastSavedAtMicros == null
+                                        ? '-'
+                                        : DateTime.fromMicrosecondsSinceEpoch(
+                                            recovery.lastSavedAtMicros!,
+                                          ).toLocal().toString(),
+                                  ])
+                                : context.tr(recovery.lastError!.message),
+                          ),
+                          if (recovery.lastError != null)
+                            OutlinedButton(
+                              onPressed: () async {
+                                try {
+                                  await recovery.checkpoint();
+                                } on RecoveryException {
+                                  // The persistent status above shows this failure.
+                                }
+                              },
+                              child: Text(context.tr('Retry')),
+                            ),
+                          if (previousJoinUri != null)
+                            Text(
+                              context.tr(
+                                'Previous invitation (may be invalid): {0}',
+                                [previousJoinUri],
+                              ),
+                            ),
+                          if (game.recoveryPaused) ...[
+                            if (game.round.question != null &&
+                                game.round.status.acceptsInput &&
+                                !(game.poker?.betting ?? false))
+                              Text(
+                                context.tr('Saved timer: {0} s remaining', [
+                                  savedRemainingMicros <= 0
+                                      ? 0
+                                      : (savedRemainingMicros / 1000000).ceil(),
+                                ]),
+                              ),
+                            Text(
+                              context.tr(
+                                'Timer choices affect the current round only. Closed rounds stay closed.',
+                              ),
+                            ),
+                            Text(
+                              context.tr(
+                                'Game paused for recovery. Reconnect participants before continuing. Media stays paused.',
+                              ),
+                            ),
+                            Text(
+                              context.tr(
+                                'Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.',
+                              ),
+                            ),
+                            RebindRecoveryPanel(engine: engine, game: game),
+                            for (final policy in RecoveryTimerPolicy.values)
+                              OutlinedButton(
+                                onPressed: recovery.lastError != null
+                                    ? null
+                                    : () => engine.add(
+                                        ResumeRecoveredGameEvent(policy),
+                                      ),
+                                child: Text(
+                                  context.tr(switch (policy) {
+                                    RecoveryTimerPolicy.savedTime =>
+                                      'Continue with saved time',
+                                    RecoveryTimerPolicy.restart =>
+                                      'Restart the full timer',
+                                    RecoveryTimerPolicy.soft =>
+                                      'Continue with a soft timer',
+                                  }),
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                    ),
                     if (!game.isStarted)
                       PanelCard(
                         title: context.tr("Quiz starten"),

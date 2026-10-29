@@ -106,10 +106,12 @@ final class GameState extends Equatable {
     this.isStarted = false,
     this.revealMode = SolutionRevealMode.afterEachQuestion,
     this.roundHistory = const [],
+    this.recoveryPaused = false,
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    recoveryPaused: json.readBool('recoveryPaused'),
     allAnswersRevision: json['allAnswersRevision'] == null
         ? 0
         : json.readInt('allAnswersRevision'),
@@ -183,7 +185,8 @@ final class GameState extends Equatable {
   ];
   bool mayPickQuestion(String? playerId) {
     final player = players[playerId];
-    return isStarted &&
+    return !recoveryPaused &&
+        isStarted &&
         player != null &&
         player.isConnected &&
         jeopardy?.currentTeamId != null &&
@@ -191,8 +194,9 @@ final class GameState extends Equatable {
   }
 
   bool mayAnswerQuestion(String? playerId) =>
-      round.buzzerOpenForAll ||
-      (jeopardy?.mayAnswer(participantId(players[playerId])) ?? true);
+      !recoveryPaused &&
+      (round.buzzerOpenForAll ||
+          (jeopardy?.mayAnswer(participantId(players[playerId])) ?? true));
 
   /// Configured teams, keyed by id.
   final Map<String, Team> teams;
@@ -233,6 +237,7 @@ final class GameState extends Equatable {
 
   /// Completed rounds retained for the final solution overview.
   final List<RoundState> roundHistory;
+  final bool recoveryPaused;
 
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
@@ -327,6 +332,9 @@ final class GameState extends Equatable {
             : round.status,
         question: question?.forWire(reveal: keepSolution),
         answers: poker != null && !keepSolution ? const {} : round.answers,
+        acceptedElapsedMicros: poker != null && !keepSolution
+            ? const {}
+            : round.acceptedElapsedMicros,
         answerVerdicts: keepSolution ? round.answerVerdicts : const {},
         buzzerVerdicts: resultsHidden ? const {} : round.buzzerVerdicts,
         buzzerAnswerCorrect: resultsHidden ? false : round.buzzerAnswerCorrect,
@@ -356,6 +364,7 @@ final class GameState extends Equatable {
     bool? isStarted,
     SolutionRevealMode? revealMode,
     List<RoundState>? roundHistory,
+    bool? recoveryPaused,
   }) => GameState(
     mode: mode ?? this.mode,
     players: players ?? this.players,
@@ -379,6 +388,7 @@ final class GameState extends Equatable {
     isStarted: isStarted ?? this.isStarted,
     revealMode: revealMode ?? this.revealMode,
     roundHistory: roundHistory ?? this.roundHistory,
+    recoveryPaused: recoveryPaused ?? this.recoveryPaused,
     hostTimeMicros: identical(hostTimeMicros, _unset)
         ? this.hostTimeMicros
         : hostTimeMicros as int,
@@ -408,6 +418,7 @@ final class GameState extends Equatable {
     'isStarted': isStarted,
     'revealMode': revealMode.name,
     'roundHistory': roundHistory.map((round) => round.toJson()).toList(),
+    'recoveryPaused': recoveryPaused,
   };
 
   @override
@@ -432,5 +443,6 @@ final class GameState extends Equatable {
     isStarted,
     revealMode,
     roundHistory,
+    recoveryPaused,
   ];
 }

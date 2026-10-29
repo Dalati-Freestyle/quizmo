@@ -103,6 +103,7 @@ final class RelayHost implements EmbeddedQuizServer {
             ready.completeError(StateError('Internet relay unavailable.'));
           }
           _endpoint = null;
+          if (!_engine.isClosed) _engine.add(const PauseForRecoveryEvent());
           _heartbeat?.cancel();
           for (final guest in _guests.values) {
             guest.close();
@@ -129,6 +130,7 @@ final class RelayHost implements EmbeddedQuizServer {
         port: origin.port,
         addresses: [origin.host],
         publicUri: sessionUri(origin).replace(path: '/rooms/$room'),
+        recoverySessionId: _engine.recoverySessionId,
       );
       _heartbeat = Timer.periodic(
         const Duration(seconds: 15),

@@ -348,6 +348,13 @@ class _Header extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          if (state.game?.recoveryPaused == true) ...[
+            _Pill(
+              label: context.tr('Recovery paused'),
+              color: scheme.tertiaryContainer,
+            ),
+            const SizedBox(width: 16),
+          ],
           if (mode != null) ...[
             _Pill(label: mode, color: scheme.secondaryContainer),
             const SizedBox(width: 16),
@@ -1203,7 +1210,7 @@ class _CountdownBarState extends State<_CountdownBar> {
     final color = isUrgent ? scheme.error : scheme.primary;
 
     if (remaining == Duration.zero &&
-        widget.state.game?.round.question?.softTimeLimit == true) {
+        widget.state.game?.round.hasSoftTimer == true) {
       return Text(
         context.tr("Zeit abgelaufen · Der Spielleiter beendet die Runde."),
         style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),

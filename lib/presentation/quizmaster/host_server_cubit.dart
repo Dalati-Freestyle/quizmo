@@ -139,6 +139,7 @@ class HostServerCubit extends Cubit<HostServerState> {
       _server = server;
       _logSubscription = server.logs.listen(_appendLog);
       final endpoint = await server.start(port: targetPort);
+      await _engine.persistRecovery?.call();
       emit(
         state.copyWith(
           status: HostServerStatus.running,

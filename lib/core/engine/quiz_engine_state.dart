@@ -30,7 +30,8 @@ final class QuizEngineState extends Equatable {
 
   /// Whether the host may open a new round right now.
   bool get canStartRound =>
-      roundStatus == RoundStatus.idle || roundStatus == RoundStatus.revealed;
+      !game.recoveryPaused &&
+      (roundStatus == RoundStatus.idle || roundStatus == RoundStatus.revealed);
 
   /// Returns a copy with the given fields replaced.
   QuizEngineState copyWith({GameState? game, Object? notice = _unset}) =>

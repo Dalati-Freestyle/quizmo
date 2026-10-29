@@ -8,6 +8,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../core/models/models.dart';
 import '../../core/net/quiz_client.dart';
+import '../../core/net/session_uri.dart';
 import '../../core/protocol/messages.dart';
 import 'player_session_store.dart';
 
@@ -165,11 +166,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       final saved = await _store.read();
       if (isClosed ||
           saved == null ||
-          (host != null && host.origin != saved.host.origin)) {
+          (host != null && !samePlayerSession(saved.host, host))) {
         return;
       }
       _saved = saved;
-      await connect(baseUri: saved.host, name: saved.name);
+      await connect(baseUri: host ?? saved.host, name: saved.name);
     } on Object catch (error) {
       if (!isClosed) {
         emit(
@@ -242,7 +243,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       if (!isClosed) {
         emit(
           state.copyWith(
-            error: 'Verbindung unterbrochen. Erneuter Versuch ...',
+            error: mediaBaseUri != null && isInternetSession(mediaBaseUri!)
+                ? 'Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.'
+                : 'Verbindung unterbrochen. Erneuter Versuch ...',
           ),
         );
       }
@@ -284,7 +287,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       }
     }
     if (isClosed) return;
-    if (_saved?.host.origin != baseUri.origin || _saved?.name != name) {
+    if (_saved == null ||
+        !samePlayerSession(_saved!.host, baseUri) ||
+        _saved?.name != name) {
       _saved = null;
     }
     emit(PlayerSessionState(status: QuizClientStatus.connecting));
@@ -359,7 +364,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       }
     } on Object catch (error) {
       if (isClosed) return;
-      emit(state.copyWith(status: QuizClientStatus.failed, error: '$error'));
+      emit(
+        state.copyWith(
+          status: QuizClientStatus.failed,
+          error: isInternetSession(baseUri)
+              ? 'Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.'
+              : '$error',
+        ),
+      );
     } finally {
       _connecting = false;
       if (!state.isConnected) _scheduleReconnect();
@@ -476,11 +488,17 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void placeDailyDoubleWager(String questionId, int wager) =>
-      _client?.placeDailyDoubleWager(questionId, wager);
+      state.game?.recoveryPaused == true
+      ? null
+      : _client?.placeDailyDoubleWager(questionId, wager);
 
   void placePokerWager(int wager) {
     final question = state.question;
-    if (question == null || !(state.game?.poker?.betting ?? false)) return;
+    if (state.game?.recoveryPaused == true ||
+        question == null ||
+        !(state.game?.poker?.betting ?? false)) {
+      return;
+    }
     _client?.placePokerWager(questionId: question.id, wager: wager);
   }
 

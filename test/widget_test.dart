@@ -6,9 +6,12 @@ import 'package:quizmo/presentation/app.dart';
 import 'package:quizmo/presentation/common/role_selection_page.dart';
 import 'package:quizmo/presentation/player/player_page.dart';
 
+import 'helpers/memory_recovery_store.dart';
+
 void main() {
   testWidgets('starts on the role selection screen', (tester) async {
-    await tester.pumpWidget(const QuizmoApp());
+    await tester.pumpWidget(QuizmoApp(recoveryStore: MemoryRecoveryStore()));
+    await tester.pumpAndSettle();
 
     expect(find.byType(RoleSelectionPage), findsOneWidget);
     expect(find.text('Quizmo'), findsOneWidget);
@@ -17,7 +20,8 @@ void main() {
   });
 
   testWidgets('opens the player join form', (tester) async {
-    await tester.pumpWidget(const QuizmoApp());
+    await tester.pumpWidget(QuizmoApp(recoveryStore: MemoryRecoveryStore()));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Open player view'));
     await tester.pumpAndSettle();
@@ -28,7 +32,8 @@ void main() {
   });
 
   testWidgets('rejects an incomplete join form', (tester) async {
-    await tester.pumpWidget(const QuizmoApp());
+    await tester.pumpWidget(QuizmoApp(recoveryStore: MemoryRecoveryStore()));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Open player view'));
     await tester.pumpAndSettle();
 
