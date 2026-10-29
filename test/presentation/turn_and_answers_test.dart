@@ -168,6 +168,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(engine.state.game.jeopardy!.pendingPickQuestionId, isNull);
     expect(find.text('Fragenauswahl bestätigen'), findsNothing);
+    await tester.ensureVisible(find.text('Quiz jetzt starten'));
     await tester.tap(find.text('Quiz jetzt starten'));
     await tester.pumpAndSettle();
     engine.add(const SelectJeopardyCellEvent('q', playerId: 'p'));

@@ -14,6 +14,8 @@ import '../../core/net/session_uri.dart';
 import '../../core/protocol/messages.dart';
 import 'player_session_store.dart';
 
+enum SubmissionStatus { idle, sending, accepted, uncertain, rejected }
+
 /// UI state of the player screens.
 final class PlayerSessionState extends Equatable {
   /// Creates a player session state.
@@ -29,6 +31,7 @@ final class PlayerSessionState extends Equatable {
     this.hasBuzzed = false,
     this.lobby,
     this.waitingForApproval = false,
+    this.submissionStatus = SubmissionStatus.idle,
   });
 
   /// Connection lifecycle.
@@ -59,6 +62,7 @@ final class PlayerSessionState extends Equatable {
   final bool hasBuzzed;
   final LobbySnapshotMessage? lobby;
   final bool waitingForApproval;
+  final SubmissionStatus submissionStatus;
   bool get isChoosingTeam =>
       lobby != null &&
       playerId == null &&
@@ -119,6 +123,7 @@ final class PlayerSessionState extends Equatable {
     bool clearSubmission = false,
     LobbySnapshotMessage? lobby,
     bool? waitingForApproval,
+    SubmissionStatus? submissionStatus,
   }) => PlayerSessionState(
     status: status ?? this.status,
     game: game ?? this.game,
@@ -133,6 +138,9 @@ final class PlayerSessionState extends Equatable {
     hasBuzzed: clearSubmission ? false : hasBuzzed ?? this.hasBuzzed,
     lobby: lobby ?? this.lobby,
     waitingForApproval: waitingForApproval ?? this.waitingForApproval,
+    submissionStatus:
+        submissionStatus ??
+        (clearSubmission ? SubmissionStatus.idle : this.submissionStatus),
   );
 
   @override
@@ -148,6 +156,7 @@ final class PlayerSessionState extends Equatable {
     hasBuzzed,
     lobby,
     waitingForApproval,
+    submissionStatus,
   ];
 }
 
@@ -192,6 +201,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   Timer? _retryTimer;
   bool _intentionalDisconnect = false;
   bool _connecting = false;
+  Timer? _submissionTimer;
+  bool _restoringSnapshot = true;
 
   Future<void> restore({Uri? host}) async {
     try {
@@ -251,6 +262,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       _retryTimer = null;
       unawaited(_reconnect());
     });
+    emit(state.copyWith(status: QuizClientStatus.reconnecting));
   }
 
   Future<void> _reconnect() async {
@@ -271,12 +283,16 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         resumeToken: saved.token,
       );
       if (!isClosed) emit(state.copyWith(clearError: true));
-    } on Object {
+    } on Object catch (error) {
+      if (error is JoinRejectedException && error.code == 'hostClosed') {
+        _stopForClosedRoom(error.message);
+        return;
+      }
       if (!isClosed && !_intentionalDisconnect) {
         emit(
           state.copyWith(
             error: mediaBaseUri != null && isInternetSession(mediaBaseUri!)
-                ? 'Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.'
+                ? 'Connection interrupted. Reconnecting to the room...'
                 : 'Verbindung unterbrochen. Erneuter Versuch ...',
           ),
         );
@@ -288,13 +304,20 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void resume() {
-    if (!state.isConnected) _scheduleReconnect();
+    if (state.isConnected) {
+      unawaited(_client?.checkConnection());
+    } else {
+      _retryTimer?.cancel();
+      _retryTimer = null;
+      unawaited(_reconnect());
+    }
   }
 
   QuizClient? _client;
   Uri? _baseUri;
   Uri? get mediaBaseUri => _client?.mediaBaseUri ?? _baseUri;
   StreamSubscription<GameState>? _gameSubscription;
+  StreamSubscription<GameSnapshotMessage>? _snapshotSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   StreamSubscription<LobbySnapshotMessage>? _lobbySubscription;
@@ -340,16 +363,37 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       if (!isClosed) emit(state.copyWith(waitingForApproval: waiting));
     });
 
-    _gameSubscription = client.games.listen(_onSnapshot);
+    _snapshotSubscription = client.snapshots.listen((snapshot) {
+      _onSnapshot(snapshot.game, accepted: snapshot.ownSubmissionAccepted);
+    });
     _statusSubscription = client.statuses.listen((status) {
       if (isClosed) return;
+      if (status == QuizClientStatus.closed) {
+        _stopForClosedRoom(
+          'The host has closed this room. Join a new room to continue.',
+        );
+        return;
+      }
+      if (status != QuizClientStatus.connected) _restoringSnapshot = true;
       emit(
         state.copyWith(
-          status: status,
+          status:
+              _intentionalDisconnect && state.status == QuizClientStatus.closed
+              ? QuizClientStatus.closed
+              : !_intentionalDisconnect &&
+                    _saved != null &&
+                    status != QuizClientStatus.connected
+              ? QuizClientStatus.reconnecting
+              : status,
           playerId: client.playerId,
           serverName: client.serverName,
           clockOffsetMicros: client.clock.clockOffsetMicros,
           roundTripMicros: client.clock.roundTripMicros,
+          submissionStatus:
+              status != QuizClientStatus.connected &&
+                  state.submissionStatus == SubmissionStatus.sending
+              ? SubmissionStatus.uncertain
+              : null,
         ),
       );
       if (status == QuizClientStatus.connected && client.playerId != null) {
@@ -363,10 +407,18 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _errorSubscription = client.errors.listen((error) {
       if (isClosed) return;
       emit(state.copyWith(error: error.message));
+      if (error.code == 'invalidTimestamp' || error.code == 'notJoined') {
+        _submissionTimer?.cancel();
+        emit(state.copyWith(submissionStatus: SubmissionStatus.rejected));
+      }
+      if (error.code == 'hostClosed') {
+        _stopForClosedRoom(error.message);
+      }
       if (error.code == 'sessionReplaced') {
         _intentionalDisconnect = true;
         _retryTimer?.cancel();
         _retryTimer = null;
+        emit(state.copyWith(status: QuizClientStatus.closed));
       }
       if (error.code == 'kicked' ||
           error.code == 'invalidResume' ||
@@ -403,6 +455,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         await _remember();
       }
     } on Object catch (error) {
+      if (error is JoinRejectedException && error.code == 'hostClosed') {
+        _stopForClosedRoom(error.message);
+        return;
+      }
       if (isClosed || _intentionalDisconnect) return;
       emit(
         state.copyWith(
@@ -410,7 +466,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
           error: error is JoinRejectedException
               ? error.message
               : isInternetSession(baseUri)
-              ? 'Internet room unavailable. If the host recovered, open the new invitation link. Reconnection to this room will keep retrying.'
+              ? 'Connection interrupted. Reconnecting to the room...'
               : '$error',
         ),
       );
@@ -418,6 +474,44 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       _connecting = false;
       if (!state.isConnected) _scheduleReconnect();
     }
+  }
+
+  void _stopForClosedRoom(String message) {
+    if (isClosed) return;
+    _intentionalDisconnect = true;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _submissionTimer?.cancel();
+    emit(
+      state.copyWith(
+        status: QuizClientStatus.closed,
+        error: message,
+        submissionStatus: state.submissionStatus == SubmissionStatus.sending
+            ? SubmissionStatus.uncertain
+            : null,
+      ),
+    );
+  }
+
+  void _beginSubmission({String? optionId, bool buzzer = false}) {
+    emit(
+      state.copyWith(
+        lastSubmittedOptionId: buzzer ? null : optionId ?? 'submitted',
+        hasBuzzed: buzzer ? true : null,
+        submissionStatus: SubmissionStatus.sending,
+        clearError: true,
+      ),
+    );
+    _submissionTimer?.cancel();
+    _submissionTimer = Timer(const Duration(seconds: 5), () {
+      if (isClosed || state.submissionStatus != SubmissionStatus.sending) {
+        return;
+      }
+      emit(state.copyWith(submissionStatus: SubmissionStatus.uncertain));
+      // Rejoin fetches the committed snapshot even when only the confirmation
+      // was lost. Never replay a timestamped answer into a later round.
+      unawaited(_client?.disconnect());
+    });
   }
 
   Future<void> _forgetRejectedSession(QuizClient client, String message) async {
@@ -428,7 +522,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     }
     if (isClosed || _client != client) return;
     await client.disconnect();
-    if (!isClosed) emit(PlayerSessionState(error: message));
+    if (!isClosed) {
+      emit(PlayerSessionState(status: QuizClientStatus.closed, error: message));
+    }
   }
 
   Future<void> joinTeam({
@@ -458,6 +554,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void renameTeam(String name) {
+    if (!state.isConnected) return;
     emit(state.copyWith(clearError: true));
     if (_localSend case final send?) {
       send(RenameTeamEvent(playerId: state.playerId!, name: name));
@@ -481,6 +578,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !state.mayAnswerPoker) {
       return;
     }
+    _beginSubmission(buzzer: true);
     if (_localSend case final send?) {
       send(
         BuzzerPressEvent(
@@ -493,9 +591,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         ),
       );
     } else {
-      _client?.pressBuzzer(question.id);
+      _deliverSubmission(() => _client!.pressBuzzer(question.id));
     }
-    emit(state.copyWith(hasBuzzed: true));
   }
 
   /// Sends the choice [optionId] for the question on stage.
@@ -509,6 +606,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         state.lastSubmittedOptionId != null) {
       return;
     }
+    _beginSubmission(optionId: optionId);
     if (_localSend case final send?) {
       send(
         SubmitAnswerEvent(
@@ -522,9 +620,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         ),
       );
     } else {
-      _client?.submitChoice(questionId: question.id, optionId: optionId);
+      _deliverSubmission(
+        () =>
+            _client!.submitChoice(questionId: question.id, optionId: optionId),
+      );
     }
-    emit(state.copyWith(lastSubmittedOptionId: optionId));
   }
 
   void submit(
@@ -537,12 +637,26 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !state.roundStatus.acceptsInput) {
       return;
     }
+    _beginSubmission();
     if (_localSend case final send?) {
       send(SubmitAnswerEvent(build(state.playerId!, _localNow!(), 0)));
     } else {
-      _client?.submitAnswer(build);
+      _deliverSubmission(() => _client!.submitAnswer(build));
     }
-    emit(state.copyWith(lastSubmittedOptionId: 'submitted'));
+  }
+
+  void _deliverSubmission(void Function() send) {
+    try {
+      send();
+    } on StateError {
+      emit(
+        state.copyWith(
+          submissionStatus: SubmissionStatus.uncertain,
+          error: 'Confirmation missing. Your answer may not have arrived.',
+        ),
+      );
+      unawaited(_client?.disconnect());
+    }
   }
 
   void chooseMultiple(List<String> optionIds) {
@@ -564,7 +678,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void selectJeopardyCell(String questionId) {
-    if (!(state.game?.mayPickQuestion(state.playerId) ?? false) ||
+    if (!state.isConnected ||
+        !(state.game?.mayPickQuestion(state.playerId) ?? false) ||
         state.game?.jeopardy?.pendingPickQuestionId != null) {
       return;
     }
@@ -576,7 +691,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void placeDailyDoubleWager(String questionId, int wager) {
-    if (state.game?.recoveryPaused == true) return;
+    if (!state.isConnected || state.game?.recoveryPaused == true) return;
     if (_localSend case final send?) {
       send(
         PlaceDailyDoubleWagerEvent(
@@ -592,7 +707,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
 
   void placePokerWager(int wager) {
     final question = state.question;
-    if (state.game?.recoveryPaused == true ||
+    if (!state.isConnected ||
+        state.game?.recoveryPaused == true ||
         question == null ||
         !(state.game?.poker?.betting ?? false)) {
       return;
@@ -622,11 +738,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
 
   @override
   Future<void> close() async {
+    _intentionalDisconnect = true;
     await _teardown();
     return super.close();
   }
 
-  void _onSnapshot(GameState game) {
+  void _onSnapshot(GameState game, {bool? accepted}) {
     if (isClosed) return;
     final questionId = game.round.question?.id;
     final isNewRound =
@@ -645,6 +762,20 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         game.round.buzzerQueue.any((press) => press.playerId == id);
     final hasBuzzed = stillQueued;
     final answer = game.round.answers[id];
+    final confirmed = accepted ?? (id != null && game.round.hasSubmitted(id));
+    final receiptKnown =
+        accepted != null ||
+        _localSend != null ||
+        game.poker == null ||
+        game.round.status == RoundStatus.revealed;
+    final restored = _restoringSnapshot;
+    _restoringSnapshot = false;
+    final pending =
+        !isNewRound &&
+        (state.submissionStatus == SubmissionStatus.sending ||
+            state.submissionStatus == SubmissionStatus.uncertain);
+    final keepPending = pending && !confirmed && (!restored || !receiptKnown);
+    if (!keepPending) _submissionTimer?.cancel();
 
     final baseline = isNewRound ? state.copyWith(clearSubmission: true) : state;
     emit(
@@ -653,26 +784,39 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         playerId: id,
         clockOffsetMicros: client?.clock.clockOffsetMicros,
         roundTripMicros: client?.clock.roundTripMicros,
-        clearSubmission: false,
+        clearSubmission: !confirmed && !keepPending,
         lastSubmittedOptionId: answer is MultipleChoiceAnswer
             ? (answer.optionIds == null ? answer.optionId : 'submitted')
-            : answer != null
+            : confirmed
             ? 'submitted'
             : null,
-        hasBuzzed: hasBuzzed,
+        hasBuzzed: hasBuzzed || (keepPending && state.hasBuzzed),
+        submissionStatus: confirmed
+            ? SubmissionStatus.accepted
+            : keepPending
+            ? state.submissionStatus
+            : pending
+            ? SubmissionStatus.rejected
+            : !isNewRound && state.submissionStatus == SubmissionStatus.rejected
+            ? SubmissionStatus.rejected
+            : SubmissionStatus.idle,
       ),
     );
   }
 
   Future<void> _teardown() async {
+    _submissionTimer?.cancel();
+    _restoringSnapshot = true;
     _retryTimer?.cancel();
     _retryTimer = null;
     await _gameSubscription?.cancel();
+    await _snapshotSubscription?.cancel();
     await _statusSubscription?.cancel();
     await _errorSubscription?.cancel();
     await _lobbySubscription?.cancel();
     await _admissionSubscription?.cancel();
     _gameSubscription = null;
+    _snapshotSubscription = null;
     _statusSubscription = null;
     _errorSubscription = null;
     _lobbySubscription = null;

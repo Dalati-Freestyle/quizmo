@@ -640,7 +640,10 @@ class _HostDashboardView extends StatelessWidget {
                       ),
                     ServerControlPanel(
                       state: serverState,
-                      connectedPlayers: game.connectedPlayers.length,
+                      connectedPlayers:
+                          serverState.status == HostServerStatus.running
+                          ? game.connectedPlayers.length
+                          : 0,
                       onOpenTvPreview: openTvPreview,
                       onStart: () => context.read<HostServerCubit>().start(),
                       onStop: () => context.read<HostServerCubit>().stop(),
@@ -657,6 +660,8 @@ class _HostDashboardView extends StatelessWidget {
                     CorrectionHistoryPanel(game: game, engine: engine),
                     PlayersPanel(
                       game: game,
+                      connectionsAvailable:
+                          serverState.status == HostServerStatus.running,
                       onSetOrder:
                           engineState.canStartRound &&
                               game.jeopardy?.pendingPickQuestionId == null &&

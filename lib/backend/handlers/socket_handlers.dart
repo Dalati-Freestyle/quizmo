@@ -37,6 +37,7 @@ final class _Connection {
   int frames = 0;
   Timer? handshakeTimeout;
   Timer? identityRetry;
+  int lastFrameAt = 0;
 
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
@@ -71,6 +72,16 @@ class SocketHub {
     _knownPlayerIds = _engine.state.game.players.keys.toSet();
     _engineSubscription = _engine.stream.listen(_broadcastState);
     _accessSubscription = _engine.access.stream.listen(_accessChanged);
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      for (final connection in _connections.values.toList()) {
+        if ((connection.playerId != null || connection.isSpectator) &&
+            _now() - connection.lastFrameAt >
+                const Duration(seconds: 35).inMicroseconds) {
+          _onDisconnected(connection);
+          unawaited(connection.closeSocket());
+        }
+      }
+    });
   }
 
   /// Friendly name announced to every client.
@@ -91,6 +102,7 @@ class SocketHub {
   final Set<String> _pendingPlayerIds = {};
   Set<String> _knownPlayerIds = {};
   int _broadcastRevision = 0;
+  Timer? _heartbeatTimer;
 
   /// Number of open sockets.
   int get connectionCount => _connections.length;
@@ -109,12 +121,20 @@ class SocketHub {
 
   /// Closes every socket and stops listening to the engine.
   Future<void> close() async {
+    _heartbeatTimer?.cancel();
     await _accessSubscription?.cancel();
     await _engineSubscription?.cancel();
     _engineSubscription = null;
     final connections = _connections.values.toList(growable: false);
     _connections.clear();
     for (final connection in connections) {
+      connection.send(
+        const ProtocolErrorMessage(
+          code: 'hostClosed',
+          message:
+              'The host has closed this room. Join a new room to continue.',
+        ),
+      );
       _engine.access.revokeReadCredential(connection.id);
       connection.handshakeTimeout?.cancel();
       connection.identityRetry?.cancel();
@@ -146,6 +166,7 @@ class SocketHub {
       sendFrame: send,
       closeSocket: close,
     );
+    connection.lastFrameAt = _now();
     _connections[connection.id] = connection;
     _log(ServerLogLevel.info, 'Socket ${connection.id} connected.');
 
@@ -206,6 +227,7 @@ class SocketHub {
       return;
     }
     final now = _now();
+    connection.lastFrameAt = now;
     if (now - connection.windowStart >= 1000000) {
       connection.windowStart = now;
       connection.frames = 0;
@@ -443,9 +465,7 @@ class SocketHub {
             accessToken: _engine.access.issueReadCredential(connection.id),
           ),
         );
-        connection.send(
-          GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
-        );
+        connection.send(_snapshotFor(connection));
         _log(ServerLogLevel.info, 'Participant $playerId joined.');
 
       case LobbyRequest():
@@ -504,9 +524,7 @@ class SocketHub {
             accessToken: _engine.access.issueReadCredential(connection.id),
           ),
         );
-        connection.send(
-          GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
-        );
+        connection.send(_snapshotFor(connection));
         _log(ServerLogLevel.info, 'Spectator ${connection.id} is watching.');
 
       case SyncPing(:final clientSentAtMicros):
@@ -661,9 +679,7 @@ class SocketHub {
       if (revision == _broadcastRevision) {
         for (final connection in _connections.values.toList()) {
           if (connection.playerId != null || connection.isSpectator) {
-            connection.send(
-              GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
-            );
+            connection.send(_snapshotFor(connection));
           }
           connection.send(
             const ProtocolErrorMessage(
@@ -677,7 +693,7 @@ class SocketHub {
     }
     if (revision != _broadcastRevision || _connections.isEmpty) return;
     final game = _engine.publishedGame;
-    final message = GameSnapshotMessage(game.redactedForPlayers());
+    final redacted = game.redactedForPlayers();
     for (final connection in _connections.values.toList(growable: false)) {
       if (connection.playerId != null &&
           !game.players.containsKey(connection.playerId)) {
@@ -695,7 +711,7 @@ class SocketHub {
       if (connection.isLobby) {
         connection.send(_lobbySnapshot());
       } else if (connection.playerId != null || connection.isSpectator) {
-        connection.send(message);
+        connection.send(_snapshotFor(connection, redacted: redacted));
       }
     }
   }
@@ -717,9 +733,7 @@ class SocketHub {
           accessToken: _engine.access.issueReadCredential(connection.id),
         ),
       );
-      connection.send(
-        GameSnapshotMessage(_engine.publishedGame.redactedForPlayers()),
-      );
+      connection.send(_snapshotFor(connection));
     } on Object {
       connection.send(
         const ProtocolErrorMessage(
@@ -736,6 +750,18 @@ class SocketHub {
         });
       }
     }
+  }
+
+  GameSnapshotMessage _snapshotFor(
+    _Connection connection, {
+    GameState? redacted,
+  }) {
+    final game = _engine.publishedGame;
+    final id = connection.playerId;
+    return GameSnapshotMessage(
+      redacted ?? game.redactedForPlayers(),
+      ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
+    );
   }
 
   LobbySnapshotMessage _lobbySnapshot() => LobbySnapshotMessage(

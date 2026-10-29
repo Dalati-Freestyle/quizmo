@@ -219,9 +219,11 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     switch (status) {
       case QuizClientStatus.connected:
         _attempt = 0;
-      case QuizClientStatus.disconnected || QuizClientStatus.failed:
+      case QuizClientStatus.disconnected ||
+          QuizClientStatus.failed ||
+          QuizClientStatus.closed:
         _scheduleReconnect();
-      case QuizClientStatus.connecting:
+      case QuizClientStatus.connecting || QuizClientStatus.reconnecting:
         break;
     }
   }

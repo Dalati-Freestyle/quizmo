@@ -42,6 +42,41 @@ Pending approvals and short-lived read capabilities are not restored: unadmitted
 guests must request admission again. This changes session recovery, not the
 portable quiz schema.
 
+## Connection and submission status
+
+Players see text and icons for connecting, connected, reconnecting and a closed
+room; status changes are announced as accessibility live regions. During a
+network interruption the last board remains visible, but input is disabled.
+The host roster explicitly labels connected/disconnected players. Silent sockets
+are detected through periodic clock probes and a host-side inactivity timeout.
+Returning from a long device lock checks socket freshness immediately and
+rejoining starts with fresh clock samples.
+
+Sending is not acceptance. An answer or buzzer press stays pending until the
+host's committed snapshot confirms that player's submission for the current
+round. This private confirmation contains no answer content, including in Poker.
+After five seconds without confirmation the player shows an uncertain outcome
+and rejoins to reconcile it. Reconnect and browser refresh restore the saved
+identity and authoritative state while that session still exists. Unconfirmed
+answers are **not queued or replayed**: if the host has no submission, the player
+may retry manually while the round is open. The existing first-answer and
+round/timestamp rules prevent duplicate scoring and reject late input.
+
+An explicit host stop or a relay's closed-room response is terminal for players:
+join a new room rather than waiting for reconnect. Timeouts and unreachable
+hosts alone never prove that a room ended. TVs retain their existing indefinite
+retry policy. This does not guarantee recovery of the host itself.
+
+Automated fault-injection tests cover lost submissions, lost confirmations,
+duplicate delivery, late input, clock changes after suspension, saved-identity
+restoration and private Poker confirmations. Complement these with device
+checks on Android/iOS and mobile browsers before release: switch Wi-Fi during
+submission, lock/unlock for over 30 seconds, background/foreground the browser,
+refresh after submitting, and explicitly stop the host. Check that no pending
+input claims success, the roster detects the interruption, identity/scores
+remain stable, and the same round's confirmed answer stays locked. Physical
+device/network checks are not replaced by the automated suspension simulation.
+
 ## Example quizzes
 
 Use **Settings > Advanced settings > Recreate example quizzes** to restore the

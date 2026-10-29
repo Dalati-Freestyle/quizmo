@@ -162,10 +162,17 @@ const englishMessages = <String, String>{
   "Code-Snippet": "Code snippet",
   "Confirm": "Confirm",
   "Confirm identity reassignment": "Confirm identity reassignment",
+  "Confirmation missing. Your answer may not have arrived.":
+      "Confirmation missing. Your answer may not have arrived.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+  "Connected to the host": "Connected to the host",
   "Connected verification ID": "Connected verification ID",
+  "Connecting to the host...": "Connecting to the host...",
   "Connecting to the quiz…": "Connecting to the quiz…",
   "Connection": "Connection",
+  "Connection ended": "Connection ended",
+  "Connection interrupted. Reconnecting to the room...":
+      "Connection interrupted. Reconnecting to the room...",
   "Continue saved game": "Continue saved game",
   "Continue with a soft timer": "Continue with a soft timer",
   "Continue with saved time": "Continue with saved time",
@@ -253,6 +260,8 @@ const englishMessages = <String, String>{
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "This player session is no longer available. Please join again.",
   "Discard": "Discard",
+  "Disconnected. Waiting for the player to reconnect.":
+      "Disconnected. Waiting for the player to reconnect.",
   "Du bist dran! Wähle die nächste Frage.":
       "Your turn! Choose the next question.",
   "Du erreichst": "You finish in",
@@ -438,6 +447,8 @@ const englishMessages = <String, String>{
   "Language settings could not be loaded. Select your language again.":
       "Language settings could not be loaded. Select your language again.",
   "Language settings could not be saved. Check browser storage or device permissions and try again.": "Language settings could not be saved. Check browser storage or device permissions and try again.",
+  "Last confirmed: the host accepted your submission.":
+      "Last confirmed: the host accepted your submission.",
   "Latency": "Latency",
   "Latency adjusted ranking": "Latency-adjusted ranking",
   "Latency {0} · clock offset {1}": "Latency {0} · clock offset {1}",
@@ -526,6 +537,8 @@ const englishMessages = <String, String>{
   "No quizzes available": "No quizzes available",
   "No reachable LAN hosts found yet.": "No reachable LAN hosts found yet.",
   "No scores yet.": "No scores yet.",
+  "No submission accepted. Answer again if the round is still open.":
+      "No submission accepted. Answer again if the round is still open.",
   "No teams configured.": "No teams configured.",
   "No teams yet": "No teams yet",
   "No teams: this quiz will start in solo mode.":
@@ -534,6 +547,7 @@ const englishMessages = <String, String>{
       "Nobody scored. The other teams may steal.",
   "Noch keine manuellen Korrekturen.": "No manual corrections yet.",
   "Noch {0} Antworten zu bewerten": "{0} answers still need grading",
+  "Not connected": "Not connected",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
@@ -727,6 +741,8 @@ const englishMessages = <String, String>{
   "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.",
   "Send a join request before submitting.":
       "Send a join request before submitting.",
+  "Sending. Waiting for host confirmation...":
+      "Sending. Waiting for host confirmation...",
   "Sent…": "Sent…",
   "Server log": "Server log",
   "Session access": "Session access",
@@ -817,8 +833,11 @@ const englishMessages = <String, String>{
       "The Jeopardy board needs at least one row.",
   "The Jeopardy board references unknown question \"{0}\".":
       "The Jeopardy board references unknown question \"{0}\".",
+  "The host accepted your submission.": "The host accepted your submission.",
   "The host declined your join request.":
       "The host declined your join request.",
+  "The host has closed this room. Join a new room to continue.":
+      "The host has closed this room. Join a new room to continue.",
   "The join code is missing or incorrect.":
       "The join code is missing or incorrect.",
   "The lobby is locked. Existing players can still reconnect.":
@@ -1214,10 +1233,17 @@ const germanMessages = <String, String>{
   "Code-Snippet": "Code-Snippet",
   "Confirm": "Bestätigen",
   "Confirm identity reassignment": "Identität neu zuordnen",
+  "Confirmation missing. Your answer may not have arrived.":
+      "Bestätigung fehlt. Deine Antwort ist möglicherweise nicht angekommen.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Verbinde dich mit einem Spielleiter in deinem Netzwerk, wähle ein Team und nutze einen Buzzer mit Latenzausgleich.",
+  "Connected to the host": "Mit dem Host verbunden",
   "Connected verification ID": "Prüf-ID des verbundenen Teilnehmers",
+  "Connecting to the host...": "Verbindung zum Host wird hergestellt ...",
   "Connecting to the quiz…": "Verbinde mit dem Quiz …",
   "Connection": "Verbindung",
+  "Connection ended": "Endgültig getrennt",
+  "Connection interrupted. Reconnecting to the room...":
+      "Verbindung unterbrochen. Verbindung zum Raum wird wiederhergestellt ...",
   "Continue saved game": "Gespeichertes Spiel fortsetzen",
   "Continue with a soft timer": "Mit Soft-Timer fortsetzen",
   "Continue with saved time": "Mit gesicherter Restzeit fortsetzen",
@@ -1308,6 +1334,8 @@ const germanMessages = <String, String>{
   "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.":
       "Diese Spieler-Sitzung ist nicht mehr verfügbar. Bitte neu beitreten.",
   "Discard": "Verwerfen",
+  "Disconnected. Waiting for the player to reconnect.":
+      "Getrennt. Warte auf erneute Verbindung des Spielers.",
   "Du bist dran! Wähle die nächste Frage.":
       "Du bist dran! Wähle die nächste Frage.",
   "Du erreichst": "Du erreichst",
@@ -1501,6 +1529,8 @@ const germanMessages = <String, String>{
   "Language": "Sprache",
   "Language settings could not be loaded. Select your language again.": "Spracheinstellungen konnten nicht geladen werden. Wähle deine Sprache erneut.",
   "Language settings could not be saved. Check browser storage or device permissions and try again.": "Spracheinstellungen konnten nicht gespeichert werden. Prüfe den Browserspeicher oder die Geräteberechtigungen und versuche es erneut.",
+  "Last confirmed: the host accepted your submission.":
+      "Zuletzt bestätigt: Der Host hat deine Eingabe angenommen.",
   "Latency": "Latenz",
   "Latency adjusted ranking": "Rangfolge mit Latenzausgleich",
   "Latency {0} · clock offset {1}": "Latenz {0} · Zeitversatz {1}",
@@ -1591,6 +1621,7 @@ const germanMessages = <String, String>{
   "No reachable LAN hosts found yet.":
       "Noch keine erreichbaren LAN-Hosts gefunden.",
   "No scores yet.": "Noch keine Punkte.",
+  "No submission accepted. Answer again if the round is still open.": "Keine Eingabe angenommen. Antworte erneut, falls die Runde noch offen ist.",
   "No teams configured.": "Noch keine Teams angelegt.",
   "No teams yet": "Noch keine Teams",
   "No teams: this quiz will start in solo mode.":
@@ -1599,6 +1630,7 @@ const germanMessages = <String, String>{
       "Niemand hat gepunktet. Die anderen Teams dürfen abstauben.",
   "Noch keine manuellen Korrekturen.": "Noch keine manuellen Korrekturen.",
   "Noch {0} Antworten zu bewerten": "Noch {0} Antworten zu bewerten",
+  "Not connected": "Nicht verbunden",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
@@ -1789,6 +1821,8 @@ const germanMessages = <String, String>{
   "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Wähle einen Host und gib zum Beitreten deinen Namen ein. Wenn keiner erscheint, prüfe, ob beide Geräte im selben LAN sind. Gast-WLAN oder blockiertes Multicast können die Suche verhindern. QR-Codes, Links und manuelle Adressen funktionieren weiterhin.",
   "Send a join request before submitting.":
       "Tritt zuerst bei, bevor du eine Antwort sendest.",
+  "Sending. Waiting for host confirmation...":
+      "Wird übermittelt. Bestätigung des Hosts steht noch aus ...",
   "Sent…": "Gesendet…",
   "Server log": "Serverprotokoll",
   "Session access": "Sitzungsschutz",
@@ -1879,8 +1913,11 @@ const germanMessages = <String, String>{
       "Das Jeopardy-Spielfeld benötigt mindestens eine Zeile.",
   "The Jeopardy board references unknown question \"{0}\".":
       "Das Jeopardy-Spielfeld verweist auf die unbekannte Frage „{0}“.",
+  "The host accepted your submission.":
+      "Der Host hat deine Eingabe angenommen.",
   "The host declined your join request.":
       "Der Host hat deine Beitrittsanfrage abgelehnt.",
+  "The host has closed this room. Join a new room to continue.": "Der Host hat diesen Raum beendet. Tritt einem neuen Raum bei, um weiterzuspielen.",
   "The join code is missing or incorrect.":
       "Der Beitrittscode fehlt oder ist falsch.",
   "The lobby is locked. Existing players can still reconnect.": "Die Lobby ist gesperrt. Bereits zugelassene Spieler können sich weiterhin verbinden.",

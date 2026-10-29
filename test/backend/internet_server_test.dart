@@ -268,11 +268,26 @@ void main() {
       final tv = client(uri);
       await tv.watch();
       final disconnected = tv.statuses.firstWhere(
-        (status) => status == QuizClientStatus.disconnected,
+        (status) => status == QuizClientStatus.closed,
       );
       await room.stop();
       await disconnected.timeout(const Duration(seconds: 5));
+      await Stream.periodic(const Duration(milliseconds: 10))
+          .firstWhere((_) => server.roomCount == 0)
+          .timeout(const Duration(seconds: 5));
       expect(server.roomCount, 0);
+      final returning = client(uri);
+      await expectLater(
+        returning.connect(name: 'Returning', handshakeProbes: 1),
+        throwsA(
+          isA<JoinRejectedException>().having(
+            (error) => error.code,
+            'code',
+            'hostClosed',
+          ),
+        ),
+      );
+      expect(returning.status, QuizClientStatus.closed);
       expect(
         (await http.get(uri.replace(path: '${uri.path}/ws'))).statusCode,
         404,

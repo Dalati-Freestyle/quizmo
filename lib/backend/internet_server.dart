@@ -137,6 +137,13 @@ final class InternetServer {
           } finally {
             _pendingHosts--;
           }
+        } else if (request.url.pathSegments case ['rooms', final id, 'status']
+            when request.method == 'GET') {
+          response = Response(
+            _rooms.containsKey(id) ? 200 : 410,
+            body: '{"service":"quizmo-room","open":${_rooms.containsKey(id)}}',
+            headers: {'content-type': 'application/json'},
+          );
         } else if (request.url.pathSegments case ['rooms', final id, 'ws']
             when request.method == 'GET') {
           final room = _rooms[id];

@@ -419,22 +419,32 @@ final class SyncPong extends ServerMessage {
 /// Broadcasts the redacted session state after every engine transition.
 final class GameSnapshotMessage extends ServerMessage {
   /// Wraps [game] for transport.
-  const GameSnapshotMessage(this.game);
+  const GameSnapshotMessage(this.game, {this.ownSubmissionAccepted});
 
   /// Restores the frame from [json].
-  factory GameSnapshotMessage.fromJson(JsonMap json) =>
-      GameSnapshotMessage(GameState.fromJson(json.readObject('game')));
+  factory GameSnapshotMessage.fromJson(JsonMap json) => GameSnapshotMessage(
+    GameState.fromJson(json.readObject('game')),
+    ownSubmissionAccepted: json['ownSubmissionAccepted'] == null
+        ? null
+        : json.readBool('ownSubmissionAccepted'),
+  );
 
   static const String _type = 'snapshot';
 
   /// The player facing session snapshot.
   final GameState game;
+  final bool? ownSubmissionAccepted;
 
   @override
-  JsonMap toJson() => {'type': _type, 'game': game.toJson()};
+  JsonMap toJson() => {
+    'type': _type,
+    'game': game.toJson(),
+    if (ownSubmissionAccepted != null)
+      'ownSubmissionAccepted': ownSubmissionAccepted,
+  };
 
   @override
-  List<Object?> get props => [game];
+  List<Object?> get props => [game, ownSubmissionAccepted];
 }
 
 /// Reports a rejected frame without tearing the connection down.

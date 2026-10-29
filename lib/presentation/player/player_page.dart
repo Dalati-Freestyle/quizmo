@@ -20,6 +20,8 @@ import '../common/quizmo_logo.dart';
 import '../common/jeopardy_board_view.dart';
 import '../common/scoreboard_view.dart';
 import '../common/session_notifications.dart';
+import '../common/connection_status_view.dart';
+import 'submission_status_view.dart';
 import '../spectator/tv_page.dart';
 import 'player_session_cubit.dart';
 import 'team_join_view.dart';
@@ -131,7 +133,10 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-              if (state.isConnected || state.isChoosingTeam)
+              if (state.playerId != null ||
+                  state.isChoosingTeam ||
+                  state.status == QuizClientStatus.connecting ||
+                  state.status == QuizClientStatus.reconnecting)
                 IconButton(
                   tooltip: context.tr("Leave"),
                   icon: const Icon(Icons.logout),
@@ -144,44 +149,61 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
             game: state.game,
             playerId: state.playerId,
             child: SafeArea(
-              child: state.isConnected
-                  ? _GameBoard(state: state)
-                  : state.waitingForApproval
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            context.tr(
-                              'Waiting for host approval. You are not in the game yet.',
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () =>
-                                context.read<PlayerSessionCubit>().disconnect(),
-                            child: Text(context.tr('Cancel')),
-                          ),
-                        ],
-                      ),
-                    )
-                  : state.isChoosingTeam
-                  ? TeamJoinView(
-                      lobby: state.lobby!,
-                      busy: state.status == QuizClientStatus.connecting,
-                      error: state.error,
-                      onJoin: (id, code) => context
-                          .read<PlayerSessionCubit>()
-                          .joinTeam(teamId: id, joinCode: code),
-                      onCreate: (name, code) => context
-                          .read<PlayerSessionCubit>()
-                          .joinTeam(newTeamName: name, joinCode: code),
-                      onBack: () =>
-                          context.read<PlayerSessionCubit>().disconnect(),
-                    )
-                  : _JoinForm(
-                      state: state,
-                      initialHostUri: widget.initialHostUri,
+              child: Column(
+                children: [
+                  ConnectionStatusView(status: state.status),
+                  SubmissionStatusView(state: state),
+                  if (!state.isConnected && state.error != null)
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(context.tr(state.error!)),
                     ),
+                  Expanded(
+                    child: state.playerId != null && state.game != null
+                        ? AbsorbPointer(
+                            absorbing: !state.isConnected,
+                            child: _GameBoard(state: state),
+                          )
+                        : state.waitingForApproval
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  context.tr(
+                                    'Waiting for host approval. You are not in the game yet.',
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => context
+                                      .read<PlayerSessionCubit>()
+                                      .disconnect(),
+                                  child: Text(context.tr('Cancel')),
+                                ),
+                              ],
+                            ),
+                          )
+                        : state.isChoosingTeam
+                        ? TeamJoinView(
+                            lobby: state.lobby!,
+                            busy: state.status == QuizClientStatus.connecting,
+                            error: state.error,
+                            onJoin: (id, code) => context
+                                .read<PlayerSessionCubit>()
+                                .joinTeam(teamId: id, joinCode: code),
+                            onCreate: (name, code) => context
+                                .read<PlayerSessionCubit>()
+                                .joinTeam(newTeamName: name, joinCode: code),
+                            onBack: () =>
+                                context.read<PlayerSessionCubit>().disconnect(),
+                          )
+                        : _JoinForm(
+                            state: state,
+                            initialHostUri: widget.initialHostUri,
+                          ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -266,7 +288,9 @@ class _JoinFormState extends State<_JoinForm> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isBusy = widget.state.status == QuizClientStatus.connecting;
+    final isBusy =
+        widget.state.status == QuizClientStatus.connecting ||
+        widget.state.status == QuizClientStatus.reconnecting;
 
     return Center(
       child: SingleChildScrollView(
@@ -387,13 +411,18 @@ class _GameBoard extends StatelessWidget {
     final game = state.game;
     final isWide = formFactorOf(context).isWide;
 
-    final stage = Padding(
-      padding: const EdgeInsets.all(20),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: SingleChildScrollView(child: _QuestionStage(state: state)),
+    final stage = LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: constraints.maxHeight < 160 ? 0 : 20,
+        ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(child: _QuestionStage(state: state)),
+          ),
         ),
       ),
     );
@@ -464,7 +493,12 @@ class LocalPlayerBoard extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       BlocBuilder<PlayerSessionCubit, PlayerSessionState>(
-        builder: (context, state) => _GameBoard(state: state),
+        builder: (context, state) => Column(
+          children: [
+            SubmissionStatusView(state: state),
+            Expanded(child: _GameBoard(state: state)),
+          ],
+        ),
       );
 }
 
@@ -540,6 +574,7 @@ class _QuestionStage extends StatelessWidget {
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
     final enabled =
+        state.isConnected &&
         state.roundStatus.acceptsInput &&
         state.lastSubmittedOptionId == null &&
         state.mayAnswerQuestion;
@@ -548,7 +583,8 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
-        enabled: state.mayAnswerQuestion,
+        enabled: state.isConnected && state.mayAnswerQuestion,
+        submissionAccepted: state.submissionStatus == SubmissionStatus.accepted,
         selectedOptionIds: switch (state.game?.round.answers[state.playerId]) {
           MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds,
           _ => const [],
@@ -640,7 +676,7 @@ class _QuestionStage extends StatelessWidget {
         ),
       ),
       BuzzerQuestion() => BuzzerQuestionView(
-        enabled: state.mayAnswerQuestion,
+        enabled: state.isConnected && state.mayAnswerQuestion,
         question: question,
         round: state.game?.round ?? RoundState.idle,
         playerId: state.playerId,
@@ -672,15 +708,6 @@ class _QuestionStage extends StatelessWidget {
             question.prompt,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          if (state.lastSubmittedOptionId != null)
-            Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Text(
-                context.tr(
-                  "Antwort eingeloggt. Sie kann nicht mehr geändert werden.",
-                ),
-              ),
-            ),
           if (question.requiresManualGrading &&
               state.roundStatus != RoundStatus.revealed)
             Text(context.tr('Der Spielleiter bewertet die Antworten.')),

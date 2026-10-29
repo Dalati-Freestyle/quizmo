@@ -370,6 +370,7 @@ class PlayersPanel extends StatelessWidget {
     this.onBan,
     this.onMerge,
     this.onSetOrder,
+    this.connectionsAvailable = true,
     super.key,
   });
 
@@ -382,6 +383,7 @@ class PlayersPanel extends StatelessWidget {
   final ValueChanged<String>? onBan;
   final void Function(String source, String target)? onMerge;
   final ValueChanged<List<String>>? onSetOrder;
+  final bool connectionsAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +407,9 @@ class PlayersPanel extends StatelessWidget {
               },
             )
           : null,
-      title: context.tr("Players ({0} online)", [game.connectedPlayers.length]),
+      title: context.tr("Players ({0} online)", [
+        connectionsAvailable ? game.connectedPlayers.length : 0,
+      ]),
       icon: Icons.groups_outlined,
       child: players.isEmpty
           ? EmptyHint(
@@ -424,7 +428,7 @@ class PlayersPanel extends StatelessWidget {
                           height: 8,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: player.isConnected
+                            color: connectionsAvailable && player.isConnected
                                 ? Colors.green
                                 : theme.colorScheme.outline,
                           ),
@@ -441,6 +445,23 @@ class PlayersPanel extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              Text(
+                                context.tr(
+                                  !connectionsAvailable
+                                      ? 'Not connected'
+                                      : player.isConnected
+                                      ? 'Connected to the host'
+                                      : 'Disconnected. Waiting for the player to reconnect.',
+                                ),
+                                style: theme.textTheme.labelSmall,
+                              ),
+                              if (game.round.hasSubmitted(player.id))
+                                Text(
+                                  context.tr(
+                                    'The host accepted your submission.',
+                                  ),
+                                  style: theme.textTheme.labelSmall,
+                                ),
                               Text(
                                 player.isClockSynced
                                     ? context.tr("rtt {0} · offset {1}", [
