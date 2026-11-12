@@ -24,7 +24,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Open player view'));
-    await tester.pumpAndSettle();
+    await _pumpPlayerPage(tester);
 
     expect(find.byType(PlayerPage), findsOneWidget);
     expect(find.text('Host address'), findsOneWidget);
@@ -35,11 +35,26 @@ void main() {
     await tester.pumpWidget(QuizmoApp(recoveryStore: MemoryRecoveryStore()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open player view'));
-    await tester.pumpAndSettle();
+    await _pumpPlayerPage(tester);
 
+    // The LAN list above can push the button below the 800×600 test view.
+    await tester.ensureVisible(find.text('Continue to team selection'));
+    await tester.pump();
     await tester.tap(find.text('Continue to team selection'));
-    await tester.pumpAndSettle();
+    await _pumpPlayerPage(tester);
 
     expect(find.text('Pick a name'), findsOneWidget);
   });
+}
+
+/// Lets the route transition finish without waiting for the page to settle.
+///
+/// The player page starts LAN discovery. Where mDNS is supported (Windows,
+/// macOS) the search indicator animates for as long as it browses, so
+/// `pumpAndSettle` would time out, while on Linux CI discovery is unsupported
+/// and the page settles. Fixed frames keep the test platform independent.
+Future<void> _pumpPlayerPage(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
