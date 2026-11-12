@@ -53,9 +53,7 @@ void main() {
   );
 
   Future<void> join(String id, String name, {String? teamId}) async {
-    engine.add(
-      PlayerJoinedEvent(Player(id: id, name: name, teamId: teamId)),
-    );
+    engine.add(PlayerJoinedEvent(Player(id: id, name: name, teamId: teamId)));
     await pumpEventQueue();
   }
 
@@ -199,8 +197,7 @@ void main() {
     }) => BuzzerPress(
       playerId: playerId,
       questionId: 'q-buzz',
-      clientTimestampMicros:
-          kEpoch + offsetFromStartMicros + clockOffsetMicros,
+      clientTimestampMicros: kEpoch + offsetFromStartMicros + clockOffsetMicros,
       clockOffsetMicros: clockOffsetMicros,
     );
 
@@ -243,10 +240,7 @@ void main() {
 
       expect(engine.state.game.round.status, RoundStatus.locked);
       expect(engine.state.game.round.activePlayerId, 'p1');
-      expect(
-        engine.state.game.round.gapToFastest(linus).inMilliseconds,
-        80,
-      );
+      expect(engine.state.game.round.gapToFastest(linus).inMilliseconds, 80);
     });
 
     test('locks automatically once the grace window elapsed', () async {
@@ -364,10 +358,7 @@ void main() {
       await pumpEventQueue();
 
       expect(engine.state.game.round.lockedOutPlayerIds, contains('p2'));
-      expect(
-        engine.state.game.round.lockedOutPlayerIds,
-        isNot(contains('p3')),
-      );
+      expect(engine.state.game.round.lockedOutPlayerIds, isNot(contains('p3')));
     });
 
     test('aggregates points per team', () async {
@@ -438,4 +429,3 @@ void main() {
     });
   });
 }
-
