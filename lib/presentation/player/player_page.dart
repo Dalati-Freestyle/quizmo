@@ -706,6 +706,21 @@ class _QuestionStage extends StatelessWidget {
               ),
             ),
           ),
+        // A locked round disables every input; without this line the player
+        // only sees dead controls (for example after the timer ran out while
+        // reconnecting).
+        if (state.roundStatus == RoundStatus.locked &&
+            question is! BuzzerQuestion &&
+            state.lastSubmittedOptionId == null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              context.tr('Antworten sind geschlossen.'),
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ),
         input,
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&

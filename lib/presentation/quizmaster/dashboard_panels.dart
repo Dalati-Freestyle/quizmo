@@ -1372,7 +1372,9 @@ class _RoundActionsState extends State<_RoundActions> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              answeredCorrectly
+              question is! BuzzerQuestion
+                  ? context.tr("Zeit abgelaufen. Antworten sind geschlossen.")
+                  : answeredCorrectly
                   ? context.tr(
                       "Richtig beantwortet. Der Spielleiter beendet die Frage.",
                     )
@@ -1438,7 +1440,8 @@ class _RoundActionsState extends State<_RoundActions> {
               ),
             ],
             RoundStatus.locked => [
-              if (round.activePlayerId == null &&
+              if (question is BuzzerQuestion &&
+                  round.activePlayerId == null &&
                   onReopenBuzzer != null &&
                   !answeredCorrectly)
                 FilledButton.icon(
@@ -1450,7 +1453,8 @@ class _RoundActionsState extends State<_RoundActions> {
                         : context.tr("Buzzer freigeben: Abstauben"),
                   ),
                 ),
-              if (round.activePlayerId == null &&
+              if (question is BuzzerQuestion &&
+                  round.activePlayerId == null &&
                   onReopenBuzzerForAll != null &&
                   !answeredCorrectly)
                 OutlinedButton.icon(

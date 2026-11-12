@@ -176,7 +176,10 @@ final class InternetServer {
         return response.change(
           headers: {
             'x-content-type-options': 'nosniff',
-            'referrer-policy': 'no-referrer',
+            // Origin only, never the path: room links stay secret, while
+            // OpenStreetMap tiles and the YouTube embed (both reject requests
+            // without a Referer) keep working.
+            'referrer-policy': 'strict-origin-when-cross-origin',
             'x-frame-options': 'DENY',
             'permissions-policy': 'camera=(), microphone=(), geolocation=()',
             'cross-origin-resource-policy': 'same-origin',

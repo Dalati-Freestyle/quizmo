@@ -68,8 +68,13 @@ class TvPage extends StatelessWidget {
     this.joinUri,
     this.brightness,
     this.launchUri,
+    this.clientFactory,
     super.key,
   });
+
+  /// Replaces the network client; widget tests inject a fake host here.
+  @visibleForTesting
+  final QuizClientFactory? clientFactory;
 
   /// Original browser URL, captured before Flutter updates its routes.
   final Uri? launchUri;
@@ -88,7 +93,10 @@ class TvPage extends StatelessWidget {
     final host = hostUri ?? _defaultHostUri(launchUri ?? Uri.base);
     return BlocProvider<SpectatorSessionCubit>(
       create: (_) {
-        final cubit = SpectatorSessionCubit(baseUri: host);
+        final factory = clientFactory;
+        final cubit = factory == null
+            ? SpectatorSessionCubit(baseUri: host)
+            : SpectatorSessionCubit(baseUri: host, clientFactory: factory);
         unawaited(cubit.start());
         return cubit;
       },
@@ -194,6 +202,11 @@ class _TvViewState extends State<_TvView> {
           autofocus: true,
           onKeyEvent: _onKey,
           child: Stack(
+            // The Scaffold body is laid out with loose constraints, so a
+            // Stack sizes itself to its non-positioned children. Once the
+            // join code field below collapses to `SizedBox.shrink` (connected)
+            // that would be 0×0 and nothing of the TV screen would be painted.
+            fit: StackFit.expand,
             children: [
               Positioned.fill(
                 child: DecoratedBox(
