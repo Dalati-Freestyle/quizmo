@@ -161,6 +161,13 @@ the release pipeline does this automatically.
 * Android release keys are permanent and private. Never regenerate them per session/build or commit keys/passwords. `tool/create_android_signing.ps1` is a one-time setup outside the repository; `tool/use_android_signing.ps1` selects the same key for explicitly requested local builds. Never replace an existing key without an explicit migration request. Windows remains unsigned unless requested otherwise.
 * Report the new version and verification results; distinguish local checks from CI results. Never claim an artifact or release exists before the pipeline succeeds. Do not commit, push, tag, or publish on the user's behalf unless requested.
 
+### Private servers (Basic Auth + access links)
+* The relay never authenticates itself; a reverse proxy does (`deploy/Caddyfile.basic-auth`). With
+  `QUIZMO_ACCESS_KEY` set, `InternetServer` passes the key to the host socket only, and `RelayHost` appends
+  `?quizmo_key=` (`kAccessKeyParameter`) to the invitation and TV links. The proxy trades it for a cookie.
+* `sessionUri` keeps `quizmo_key` (like `session`) so TV QR codes and player reconnects carry it. Never send the
+  key to players over the protocol and never log it.
+
 ### Pokerchips format
 * `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.
 * Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.

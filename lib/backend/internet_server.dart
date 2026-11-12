@@ -32,6 +32,7 @@ final class InternetServer {
     this.maxRooms = 128,
     this.maxGuests = 128,
     this.roomLifetime = const Duration(hours: 12),
+    this.accessKey,
   });
 
   final Uri publicOrigin;
@@ -39,6 +40,14 @@ final class InternetServer {
   final int maxRooms;
   final int maxGuests;
   final Duration roomLifetime;
+
+  /// Access key of the reverse proxy in front of this relay (optional).
+  ///
+  /// The relay itself does not authenticate; it only tells the host socket
+  /// the key so the host can append `?quizmo_key=` to invitation and TV links.
+  /// The proxy turns that parameter into a cookie instead of asking for the
+  /// Basic Auth password.
+  final String? accessKey;
   final _rooms = <String, _Room>{};
   HttpServer? _server;
   Timer? _reaper;
@@ -93,6 +102,12 @@ final class InternetServer {
             !['localhost', '127.0.0.1'].contains(publicOrigin.host))) {
       throw ArgumentError(
         'PUBLIC_ORIGIN must be an HTTPS origin (HTTP only on localhost).',
+      );
+    }
+    if (accessKey case final key?
+        when !RegExp(r'^[A-Za-z0-9_-]{32,128}$').hasMatch(key)) {
+      throw ArgumentError(
+        'QUIZMO_ACCESS_KEY must have 32 to 128 characters (A-Z, a-z, 0-9, _ and -).',
       );
     }
     if (await webClient.prepare() == 0 ||
@@ -220,7 +235,11 @@ final class InternetServer {
     final id = _id();
     final room = _Room(host);
     _rooms[id] = room;
-    _send(host, {'type': 'room', 'room': id});
+    _send(host, {
+      'type': 'room',
+      'room': id,
+      if (accessKey != null) 'accessKey': accessKey,
+    });
     int frames = 0;
     var window = DateTime.now();
     room.subscriptions.add(
