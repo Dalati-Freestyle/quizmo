@@ -1024,6 +1024,9 @@ const englishMessages = <String, String>{
   "Verbindung unterbrochen. Erneuter Versuch ...": "Connection lost. Retrying…",
   "Verbindung wird hergestellt …": "Connecting…",
   "Vergrößern": "Enlarge",
+  "Version unknown": "Version unknown",
+  "Version {0}": "Version {0}",
+  "Version {0} (build {1})": "Version {0} (build {1})",
   "Video kann auf diesem Gerät nicht abgespielt werden.":
       "Video cannot be played on this device.",
   "Video konnte nicht geladen werden.": "Video could not be loaded.",
@@ -2205,6 +2208,9 @@ const germanMessages = <String, String>{
       "Verbindung unterbrochen. Erneuter Versuch …",
   "Verbindung wird hergestellt …": "Verbindung wird hergestellt …",
   "Vergrößern": "Vergrößern",
+  "Version unknown": "Version unbekannt",
+  "Version {0}": "Version {0}",
+  "Version {0} (build {1})": "Version {0} (Build {1})",
   "Video kann auf diesem Gerät nicht abgespielt werden.":
       "Video kann auf diesem Gerät nicht abgespielt werden.",
   "Video konnte nicht geladen werden.": "Video konnte nicht geladen werden.",

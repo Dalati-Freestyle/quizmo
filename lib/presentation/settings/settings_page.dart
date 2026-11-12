@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../l10n/app_localizations.dart';
+import 'app_version_label.dart';
 import 'locale_cubit.dart';
 import 'example_quiz_settings.dart' deferred as advanced;
 
@@ -31,9 +32,12 @@ class SettingsButton extends StatelessWidget {
 }
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({this.onExamplesChanged, super.key});
+  const SettingsPage({this.onExamplesChanged, this.loadVersion, super.key});
 
   final Future<void> Function()? onExamplesChanged;
+
+  /// Overrides how the version is read (tests); defaults to the platform.
+  final AppVersionLoader? loadVersion;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -114,6 +118,10 @@ class _SettingsPageState extends State<SettingsPage> {
               );
             },
           ),
+          const Divider(height: 48),
+          widget.loadVersion == null
+              ? const AppVersionLabel()
+              : AppVersionLabel(load: widget.loadVersion!),
         ],
       ),
     ),
