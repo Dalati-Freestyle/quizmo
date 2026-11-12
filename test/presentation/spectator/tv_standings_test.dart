@@ -66,4 +66,3 @@ void main() {
     expect(buildTvStandings(game).entries.single.isOnline, isFalse);
   });
 }
-

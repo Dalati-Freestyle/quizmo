@@ -76,9 +76,8 @@ void main() {
     () async {
       final source = Quiz.fromJson(
         jsonDecode(
-          File(
-            p.join('test', 'fixtures', 'quiz_v1_with_media.quizmo.json'),
-          ).readAsStringSync(),
+          File(p.join('test', 'fixtures', 'quiz_v1_with_media.quizmo.json'))
+              .readAsStringSync(),
         ) as Map<String, dynamic>,
       );
       final session = PreviewSession(source);
