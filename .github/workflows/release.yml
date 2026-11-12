@@ -136,6 +136,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/quizmo-release.jks
           REQUIRE_RELEASE_SIGNING: 'true'
+          # Beta APKs install as a separate app (com.quizapp.quizmo.beta).
+          QUIZMO_RELEASE_CHANNEL: ${{ needs.version.outputs.beta == 'true' && 'beta' || 'production' }}
           APP_VERSION: ${{ needs.version.outputs.name }}
           APP_BUILD: ${{ needs.version.outputs.build }}
           RELEASE_VERSION: ${{ needs.version.outputs.release }}

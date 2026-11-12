@@ -918,6 +918,7 @@ const englishMessages = <String, String>{
       "The host declined your join request.",
   "The host has closed this room. Join a new room to continue.":
       "The host has closed this room. Join a new room to continue.",
+  "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.",
   "The join code is missing or incorrect.":
       "The join code is missing or incorrect.",
   "The lobby is locked. Existing players can still reconnect.":
@@ -2104,6 +2105,7 @@ const germanMessages = <String, String>{
   "The host declined your join request.":
       "Der Host hat deine Beitrittsanfrage abgelehnt.",
   "The host has closed this room. Join a new room to continue.": "Der Host hat diesen Raum beendet. Tritt einem neuen Raum bei, um weiterzuspielen.",
+  "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "Der gehostete Web-Client ist veraltet ({0}). TV-Ansichten und Browser-Spieler sehen neuere Funktionen nicht. `dart run tool/bundle_web_client.dart` ausführen und den Host neu bauen.",
   "The join code is missing or incorrect.":
       "Der Beitrittscode fehlt oder ist falsch.",
   "The lobby is locked. Existing players can still reconnect.": "Die Lobby ist gesperrt. Bereits zugelassene Spieler können sich weiterhin verbinden.",

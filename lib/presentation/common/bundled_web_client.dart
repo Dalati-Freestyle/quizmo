@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../backend/web_client_bundle.dart';
 import '../../backend/zip_web_client_bundle.dart';
@@ -38,4 +39,14 @@ WebClientBundle bundledWebClient({
     },
     description: 'app asset $assetKey',
   );
+}
+
+/// Returns this app's `version+build`, the format of the web bundle's
+/// `version.json` (see `readWebClientVersion`), or `null` when unknown.
+Future<String?> hostAppVersion() async {
+  final info = await PackageInfo.fromPlatform();
+  if (info.version.isEmpty) return null;
+  return info.buildNumber.isEmpty
+      ? info.version
+      : '${info.version}+${info.buildNumber}';
 }

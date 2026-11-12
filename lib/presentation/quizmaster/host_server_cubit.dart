@@ -15,6 +15,9 @@ import '../../core/net/lan_discovery.dart';
 import '../discovery/lan_discovery_backend.dart';
 import '../discovery/lan_host_list.dart' show lanDiscoveryProblemMessage;
 
+/// Returns this host's `version+build`, or `null` when unknown.
+typedef HostVersionLoader = Future<String?> Function();
+
 /// Lifecycle of the embedded server.
 enum HostServerStatus {
   /// Not listening.
@@ -40,6 +43,7 @@ final class HostServerState extends Equatable {
     this.error,
     this.logs = const [],
     this.servesWebClient = false,
+    this.outdatedWebClientVersion,
   });
 
   /// Current lifecycle position.
@@ -60,6 +64,11 @@ final class HostServerState extends Equatable {
   /// Whether guests can join by simply opening [endpoint] in a browser.
   final bool servesWebClient;
 
+  /// Version of the served web player when it differs from this host's own
+  /// version, i.e. the packed bundle is stale and TV screens and browser
+  /// players miss newer features. `null` when it matches or is unknown.
+  final String? outdatedWebClientVersion;
+
   /// Whether hosting is possible on this platform at all.
   bool get isSupported => embeddedServerSupported;
 
@@ -71,6 +80,8 @@ final class HostServerState extends Equatable {
     String? error,
     List<ServerLogEntry>? logs,
     bool? servesWebClient,
+    String? outdatedWebClientVersion,
+    bool clearOutdatedWebClient = false,
     bool clearEndpoint = false,
     bool clearError = false,
   }) => HostServerState(
@@ -80,6 +91,9 @@ final class HostServerState extends Equatable {
     error: clearError ? null : error ?? this.error,
     logs: logs ?? this.logs,
     servesWebClient: servesWebClient ?? this.servesWebClient,
+    outdatedWebClientVersion: clearOutdatedWebClient
+        ? null
+        : outdatedWebClientVersion ?? this.outdatedWebClientVersion,
   );
 
   @override
@@ -90,6 +104,7 @@ final class HostServerState extends Equatable {
     error,
     logs,
     servesWebClient,
+    outdatedWebClientVersion,
   ];
 }
 
@@ -105,8 +120,10 @@ class HostServerCubit extends Cubit<HostServerState> {
     WebClientBundle? webClient,
     LanDiscoveryCubit? discovery,
     GuestWifiCubit? guestWifi,
+    HostVersionLoader? appVersion,
   }) : _engine = engine,
        _webClient = webClient,
+       _appVersion = appVersion,
        _guestWifi = guestWifi,
        _discovery =
            discovery ?? LanDiscoveryCubit(backend: createLanDiscoveryBackend()),
@@ -143,6 +160,7 @@ class HostServerCubit extends Cubit<HostServerState> {
   final QuizEngineBloc _engine;
   final GuestWifiCubit? _guestWifi;
   final WebClientBundle? _webClient;
+  final HostVersionLoader? _appVersion;
   final LanDiscoveryCubit _discovery;
   StreamSubscription<LanDiscoveryState>? _discoverySubscription;
   EmbeddedQuizServer? _server;
@@ -188,8 +206,10 @@ class HostServerCubit extends Cubit<HostServerState> {
           endpoint: endpoint,
           port: endpoint.port,
           servesWebClient: server.servesWebClient,
+          clearOutdatedWebClient: true,
         ),
       );
+      if (server.servesWebClient) await _checkWebClientVersion();
       if (endpoint.publicUri == null) {
         await _discovery.publish(name: serverName, port: endpoint.port);
       }
@@ -201,6 +221,7 @@ class HostServerCubit extends Cubit<HostServerState> {
           error: '$error',
           clearEndpoint: true,
           servesWebClient: false,
+          clearOutdatedWebClient: true,
         ),
       );
     }
@@ -219,6 +240,7 @@ class HostServerCubit extends Cubit<HostServerState> {
         status: HostServerStatus.stopped,
         clearEndpoint: true,
         servesWebClient: false,
+        clearOutdatedWebClient: true,
       ),
     );
   }
@@ -235,6 +257,36 @@ class HostServerCubit extends Cubit<HostServerState> {
 
   Future<void> setDiscoverySuspended(bool suspended) =>
       _discovery.setSuspended(suspended);
+
+  /// Warns when the packed web player was built for another app version.
+  ///
+  /// The player is a separate Flutter Web build zipped into the host. A host
+  /// built without re-running `tool/bundle_web_client.dart` keeps serving the
+  /// old one, so e.g. TV screens lack features the built-in preview shows.
+  Future<void> _checkWebClientVersion() async {
+    final bundle = _webClient;
+    final loadAppVersion = _appVersion;
+    if (bundle == null || loadAppVersion == null) return;
+    final String? app;
+    try {
+      app = await loadAppVersion();
+    } on Object {
+      return;
+    }
+    final web = await readWebClientVersion(bundle);
+    if (isClosed || app == null || web == null || app == web) return;
+    emit(state.copyWith(outdatedWebClientVersion: web));
+    _appendLog(
+      ServerLogEntry(
+        level: ServerLogLevel.warning,
+        message:
+            'The bundled web player is version $web, this host is $app. '
+            'Browser players and TV screens run the old version. Run '
+            '`dart run tool/bundle_web_client.dart` and rebuild the host.',
+        atMicros: DateTime.now().microsecondsSinceEpoch,
+      ),
+    );
+  }
 
   Future<void> _teardown() async {
     await _discovery.stop();
@@ -256,6 +308,7 @@ class HostServerCubit extends Cubit<HostServerState> {
           error: entry.message,
           clearEndpoint: true,
           servesWebClient: false,
+          clearOutdatedWebClient: true,
         ),
       );
     }
