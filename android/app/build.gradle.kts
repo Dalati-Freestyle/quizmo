@@ -10,6 +10,17 @@ if (requireReleaseSigning && releaseKeystore.isNullOrBlank()) {
     error("Release CI requires ANDROID_KEYSTORE_PATH and signing credentials.")
 }
 
+// Each channel is its own Android app (package name + launcher label), so
+// production, beta and local debug builds install side by side. With one
+// shared package Android refuses a build signed by another key (debug vs.
+// release) or with a lower versionCode (switching from beta back to
+// production) and the user has to uninstall, losing quizzes and settings.
+val releaseChannel = System.getenv("QUIZMO_RELEASE_CHANNEL")?.trim().orEmpty()
+if (releaseChannel !in setOf("", "production", "beta")) {
+    error("QUIZMO_RELEASE_CHANNEL must be 'production' or 'beta', got '$releaseChannel'.")
+}
+val isBetaChannel = releaseChannel == "beta"
+
 android {
     namespace = "com.quizapp.quizmo"
     compileSdk = flutter.compileSdkVersion
@@ -33,6 +44,12 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        if (isBetaChannel) {
+            applicationIdSuffix = ".beta"
+            manifestPlaceholders["appLabel"] = "quizmo beta"
+        } else {
+            manifestPlaceholders["appLabel"] = "quizmo"
+        }
     }
 
     signingConfigs {
@@ -50,6 +67,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // `flutter run` signs with the local debug key; a separate package
+            // keeps it from blocking the installed release/beta APK.
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "quizmo debug"
+        }
         release {
             // Debug signing remains available for explicitly requested local builds only.
             signingConfig = signingConfigs.getByName(

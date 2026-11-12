@@ -11,6 +11,7 @@
 /// the conditional export in `server_launcher.dart`.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 /// A source of static files for the `/` route of the embedded host.
@@ -56,4 +57,27 @@ final class InMemoryWebClientBundle implements WebClientBundle {
 
   @override
   Future<Uint8List?> read(String path) async => files[path];
+}
+
+/// Returns `version+build` from the `version.json` that `flutter build web`
+/// writes into the bundle, or `null` when the bundle has none or it is
+/// unreadable.
+///
+/// The host compares this with its own version: the web player (and with it
+/// the TV screen) is a separate build packed into the host, and a host built
+/// without re-running `tool/bundle_web_client.dart` silently serves an old
+/// player that lacks newer features.
+Future<String?> readWebClientVersion(WebClientBundle bundle) async {
+  try {
+    final bytes = await bundle.read('version.json');
+    if (bytes == null) return null;
+    final json = jsonDecode(utf8.decode(bytes));
+    if (json is! Map<String, Object?>) return null;
+    final version = json['version'];
+    if (version is! String || version.isEmpty) return null;
+    final build = json['build_number'];
+    return build is String && build.isNotEmpty ? '$version+$build' : version;
+  } on Object {
+    return null;
+  }
 }

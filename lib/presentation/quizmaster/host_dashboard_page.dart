@@ -88,6 +88,8 @@ class HostDashboardPage extends StatelessWidget {
             // Lets guests load the player client straight from this device, so
             // the LAN address is all they need.
             webClient: bundledWebClient(),
+            // Flags a stale packed player, which TV screens would load.
+            appVersion: hostAppVersion,
           ),
         ),
       ],

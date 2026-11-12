@@ -118,7 +118,10 @@ class ServerControlPanel extends StatelessWidget {
               _AlternativeAddresses(endpoint: endpoint),
               const SizedBox(height: 8),
               if (endpoint.publicUri == null)
-                _WebClientHint(isServed: state.servesWebClient),
+                _WebClientHint(
+                  isServed: state.servesWebClient,
+                  outdatedVersion: state.outdatedWebClientVersion,
+                ),
               const SizedBox(height: 8),
               if (endpoint.publicUri == null)
                 _TvScreenHint(isServed: state.servesWebClient),
@@ -212,14 +215,21 @@ class _AlternativeAddresses extends StatelessWidget {
 /// `dart run tool/bundle_web_client.dart`; without it the host is API-only and
 /// guests need the Quizmo app.
 class _WebClientHint extends StatelessWidget {
-  const _WebClientHint({required this.isServed});
+  const _WebClientHint({required this.isServed, this.outdatedVersion});
 
   final bool isServed;
+
+  /// Version of a stale packed player, see
+  /// [HostServerState.outdatedWebClientVersion].
+  final String? outdatedVersion;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colour = isServed
+    final outdated = isServed ? outdatedVersion : null;
+    final colour = outdated != null
+        ? theme.colorScheme.error
+        : isServed
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurfaceVariant;
 
@@ -227,14 +237,23 @@ class _WebClientHint extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          isServed ? Icons.public : Icons.public_off,
+          outdated != null
+              ? Icons.warning_amber
+              : isServed
+              ? Icons.public
+              : Icons.public_off,
           size: 16,
           color: colour,
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            isServed
+            outdated != null
+                ? context.tr(
+                    "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.",
+                    [outdated],
+                  )
+                : isServed
                 ? context.tr(
                     "Web player is hosted — guests can just open the LAN address in a browser.",
                   )

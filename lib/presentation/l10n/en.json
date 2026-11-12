@@ -962,5 +962,6 @@
   "QR code to connect to the Wi-Fi {0}": "QR code to connect to the Wi-Fi {0}",
   "No password": "No password",
   "Password: {0}": "Password: {0}",
-  "Guest Wi-Fi": "Guest Wi-Fi"
+  "Guest Wi-Fi": "Guest Wi-Fi",
+  "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host."
 }
