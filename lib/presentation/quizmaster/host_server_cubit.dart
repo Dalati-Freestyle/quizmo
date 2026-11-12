@@ -9,6 +9,7 @@ import 'package:equatable/equatable.dart';
 import '../../backend/server_contract.dart';
 import '../../backend/server_launcher.dart';
 import '../../backend/web_client_bundle.dart';
+import '../../core/engine/guest_wifi_cubit.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/net/lan_discovery.dart';
 import '../discovery/lan_discovery_backend.dart';
@@ -103,8 +104,10 @@ class HostServerCubit extends Cubit<HostServerState> {
     this.serverName = 'Quizmo Host',
     WebClientBundle? webClient,
     LanDiscoveryCubit? discovery,
+    GuestWifiCubit? guestWifi,
   }) : _engine = engine,
        _webClient = webClient,
+       _guestWifi = guestWifi,
        _discovery =
            discovery ?? LanDiscoveryCubit(backend: createLanDiscoveryBackend()),
        super(const HostServerState()) {
@@ -138,6 +141,7 @@ class HostServerCubit extends Cubit<HostServerState> {
   static const int maxLogLines = 100;
 
   final QuizEngineBloc _engine;
+  final GuestWifiCubit? _guestWifi;
   final WebClientBundle? _webClient;
   final LanDiscoveryCubit _discovery;
   StreamSubscription<LanDiscoveryState>? _discoverySubscription;
@@ -172,6 +176,7 @@ class HostServerCubit extends Cubit<HostServerState> {
         engine: _engine,
         serverName: serverName,
         webClient: _webClient,
+        guestWifi: _guestWifi,
       );
       _server = server;
       _logSubscription = server.logs.listen(_appendLog);

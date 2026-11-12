@@ -150,6 +150,38 @@ void main() {
     },
   );
 
+  test('the proxy access key ends up in invitation and TV links', () async {
+    await server.close();
+    expect(
+      () => InternetServer(
+        publicOrigin: Uri.parse(allowedOrigin),
+        accessKey: 'too-short',
+        webClient: InMemoryWebClientBundle({
+          'index.html': Uint8List.fromList(utf8.encode('<html></html>')),
+        }),
+      ).start(port: 0),
+      throwsArgumentError,
+    );
+    const key = 'abcdefghijklmnopqrstuvwxyz0123456789_-AB';
+    server = InternetServer(
+      publicOrigin: Uri.parse(allowedOrigin),
+      accessKey: key,
+      webClient: InMemoryWebClientBundle({
+        'index.html': Uint8List.fromList(utf8.encode('<html>quizmo</html>')),
+      }),
+    );
+    base = Uri.parse('http://127.0.0.1:${await server.start(port: 0)}');
+    final room = await host();
+    final endpoint = room.endpoint!;
+    expect(endpoint.lanUri.queryParameters[kAccessKeyParameter], key);
+    expect(endpoint.lanTvUri.queryParameters[kAccessKeyParameter], key);
+    expect(endpoint.lanTvUri.path, '${endpoint.publicUri!.path}/tv');
+    // Guests keep using the link, including the key, to reach the room.
+    final tv = client(endpoint.lanTvUri);
+    await tv.watch();
+    expect(tv.status, QuizClientStatus.connected);
+  });
+
   test('rooms have unpredictable invitations and isolated state', () async {
     final first = await host();
     final second = await host();

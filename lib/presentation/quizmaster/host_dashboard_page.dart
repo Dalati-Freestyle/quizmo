@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -13,6 +14,7 @@ import '../settings/settings_page.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/engine/guest_wifi_cubit.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/data/session_checkpoint.dart';
 import '../../core/data/session_recovery.dart';
@@ -31,6 +33,7 @@ import 'recovery/rebind_recovery_panel.dart';
 import '../../core/engine/session_access.dart';
 import 'session_access_panel.dart';
 import 'session_report_panel.dart';
+import 'wifi/guest_wifi_panel.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
@@ -76,9 +79,11 @@ class HostDashboardPage extends StatelessWidget {
             },
           ),
         ),
+        BlocProvider<GuestWifiCubit>(create: (_) => GuestWifiCubit()),
         BlocProvider<HostServerCubit>(
           create: (context) => HostServerCubit(
             engine: context.read<QuizEngineBloc>(),
+            guestWifi: context.read<GuestWifiCubit>(),
             serverName: quiz.name,
             // Lets guests load the player client straight from this device, so
             // the LAN address is all they need.
@@ -404,6 +409,10 @@ class _HostDashboardView extends StatelessWidget {
                 child: AdaptivePanelGrid(
                   panels: [
                     SessionAccessPanel(access: engine.access),
+                    // Guest Wi-Fi only exists for the embedded LAN host; the
+                    // browser host plays through the internet relay.
+                    if (!kIsWeb)
+                      GuestWifiPanel(guestWifi: context.read<GuestWifiCubit>()),
                     PanelCard(
                       title: context.tr('Saved game recovery'),
                       icon: Icons.save_outlined,

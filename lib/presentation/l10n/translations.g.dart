@@ -3,6 +3,10 @@ const englishMessages = <String, String>{
   "+{0} more": "+{0} more",
   "A Daily Double in category \"{0}\" needs a question.":
       "A Daily Double in category \"{0}\" needs a question.",
+  "A WEP key has 5, 10, 13 or 26 characters.":
+      "A WEP key has 5, 10, 13 or 26 characters.",
+  "A WPA password has 8 to 63 characters.":
+      "A WPA password has 8 to 63 characters.",
   "A new Quizmo quiz.": "A new Quizmo quiz.",
   "A question ID must not be empty.": "A question ID must not be empty.",
   "A quiz file must include an integer \"schemaVersion\".":
@@ -37,6 +41,7 @@ const englishMessages = <String, String>{
   "Add test participant": "Add test participant",
   "Admin-Notizen": "Host notes",
   "Admin-Notizen (nur Spielleiter)": "Host notes (quizmaster only)",
+  "Administrator approval needed": "Administrator approval needed",
   "Admitted players can still reconnect with their resume token.":
       "Admitted players can still reconnect with their resume token.",
   "Advanced settings": "Advanced settings",
@@ -52,6 +57,7 @@ const englishMessages = <String, String>{
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "An option ID in question \"{0}\" must not be empty.":
       "An option ID in question \"{0}\" must not be empty.",
+  "Android does not let apps read Wi-Fi passwords. Open the Wi-Fi settings, tap your network and \"Share\", confirm with your fingerprint or PIN, take a screenshot of the QR code and import it here.": "Android does not let apps read Wi-Fi passwords. Open the Wi-Fi settings, tap your network and \"Share\", confirm with your fingerprint or PIN, take a screenshot of the QR code and import it here.",
   "Anhang entfernen": "Remove attachment",
   "Anhang hinzufügen": "Add attachment",
   "Animated images are kept unchanged. Optimization would remove animation.": "Animated images are kept unchanged. Optimization would remove animation.",
@@ -172,6 +178,7 @@ const englishMessages = <String, String>{
   "Confirmation missing. Your answer may not have arrived.":
       "Confirmation missing. Your answer may not have arrived.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.",
+  "Connect to the Wi-Fi": "Connect to the Wi-Fi",
   "Connected at end": "Connected at end",
   "Connected to the host": "Connected to the host",
   "Connected verification ID": "Connected verification ID",
@@ -181,6 +188,7 @@ const englishMessages = <String, String>{
   "Connection ended": "Connection ended",
   "Connection interrupted. Reconnecting to the room...":
       "Connection interrupted. Reconnecting to the room...",
+  "Continue": "Continue",
   "Continue saved game": "Continue saved game",
   "Continue with a soft timer": "Continue with a soft timer",
   "Continue with saved time": "Continue with saved time",
@@ -196,6 +204,8 @@ const englishMessages = <String, String>{
   "Could not load advanced settings.": "Could not load advanced settings.",
   "Could not recreate example quizzes: {0}":
       "Could not recreate example quizzes: {0}",
+  "Could not save the Wi-Fi details on this device.":
+      "Could not save the Wi-Fi details on this device.",
   "Could not save this quiz: {0}": "Could not save this quiz: {0}",
   "Could not update the quiz library: {0}":
       "Could not update the quiz library: {0}",
@@ -312,6 +322,8 @@ const englishMessages = <String, String>{
   "Empfohlene Wiederholungen (optional)": "Recommended retries (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Recommended retries reached. Suggestion: end the round. You can still continue.",
   "Endliche Zielzahl angeben.": "Provide a finite target number.",
+  "Enter a Wi-Fi name with 1 to 32 bytes.":
+      "Enter a Wi-Fi name with 1 to 32 bytes.",
   "Enter a full URL including http://": "Enter a full URL including http://",
   "Enter a positive time limit.": "Enter a positive time limit.",
   "Enter a question prompt.": "Enter a question prompt.",
@@ -328,6 +340,7 @@ const englishMessages = <String, String>{
       "Enter the code and press Enter to reconnect.",
   "Enter the join code supplied by the host.":
       "Enter the join code supplied by the host.",
+  "Enter the password manually.": "Enter the password manually.",
   "Erlaubte Zeichenänderungen": "Allowed character edits",
   "Erneut versuchen": "Retry",
   "Es gibt noch keine Teams.": "There are no teams yet.",
@@ -364,6 +377,7 @@ const englishMessages = <String, String>{
   "First-buzzer points": "First-buzzer points",
   "Fixed points": "Fixed points",
   "Fixed {0} pts": "Fixed {0} pts",
+  "Forget": "Forget",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Question complete. Solutions will be revealed at the end of the quiz.",
   "Frage abschließen": "Finish question",
@@ -383,8 +397,12 @@ const englishMessages = <String, String>{
   "Get ready to play!": "Get ready to play!",
   "Gewinn abhängig vom Einsatz": "Payout depends on the wager",
   "Grund (optional)": "Reason (optional)",
+  "Guest Wi-Fi": "Guest Wi-Fi",
+  "Guest Wi-Fi on the TV": "Guest Wi-Fi on the TV",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hard: Audio stops at the limit. Soft: The time is advisory; the host stops playback.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hard: Answers close when time runs out. Soft: The timer is advisory; only the host ends the round.",
+  "Hidden network": "Hidden network",
+  "Hide password": "Hide password",
   "Hinzufügen": "Add",
   "Host": "Host",
   "Host a quiz": "Host a quiz",
@@ -401,6 +419,7 @@ const englishMessages = <String, String>{
   "Image optimization failed.": "Image optimization failed.",
   "Image preview unavailable.": "Image preview unavailable.",
   "Import": "Import",
+  "Import QR code from picture": "Import QR code from picture",
   "Import Quizmo quiz (including media)":
       "Import Quizmo quiz (including media)",
   "Imported \"{0}\".": "Imported \"{0}\".",
@@ -548,9 +567,12 @@ const englishMessages = <String, String>{
   "Nicht unterstütztes Dateiformat.": "Unsupported file format.",
   "No Daily Double is waiting for a wager.":
       "No Daily Double is waiting for a wager.",
+  "No Wi-Fi QR code found in this picture.":
+      "No Wi-Fi QR code found in this picture.",
   "No answer recorded": "No answer recorded",
   "No description.": "No description.",
   "No join code required.": "No join code required.",
+  "No password": "No password",
   "No pending questions left.": "No pending questions left.",
   "No pending requests.": "No pending requests.",
   "No players yet": "No players yet",
@@ -576,6 +598,7 @@ const englishMessages = <String, String>{
   "Not connected": "Not connected",
   "Not eligible to answer": "Not eligible to answer",
   "Not judged": "Not judged",
+  "Not supported on this device.": "Not supported on this device.",
   "Not this time.": "Not this time.",
   "Nothing logged yet.": "Nothing logged yet.",
   "Nothing to judge right now.": "Nothing to judge right now.",
@@ -591,7 +614,9 @@ const englishMessages = <String, String>{
   "Only the first answer counts.": "Only the first answer counts.",
   "Only the other teams may steal this question.":
       "Only the other teams may steal this question.",
+  "Open (no password)": "Open (no password)",
   "Open TV screen preview": "Open TV screen preview",
+  "Open Wi-Fi settings": "Open Wi-Fi settings",
   "Open player view": "Open player view",
   "Open question": "Open question",
   "Open quizmaster dashboard": "Open quizmaster dashboard",
@@ -608,6 +633,7 @@ const englishMessages = <String, String>{
   "POKERCHIPS · ANTWORTEN": "POKER CHIPS · ANSWERS",
   "POKERCHIPS · EINSÄTZE": "POKER CHIPS · BETTING",
   "Paare – pro Zeile: links = rechts": "Pairs — one per line: left = right",
+  "Password: {0}": "Password: {0}",
   "Pause": "Pause",
   "Pause simulation": "Pause simulation",
   "Pick a name": "Pick a name",
@@ -652,6 +678,7 @@ const englishMessages = <String, String>{
   "Punktestand bis zum Quizende verborgen.":
       "Scores are hidden until the end of the quiz.",
   "Punkteänderung: {0}": "Points adjustment: {0}",
+  "QR code to connect to the Wi-Fi {0}": "QR code to connect to the Wi-Fi {0}",
   "QR code to join at {0}": "QR code to join at {0}",
   "Quellcode": "Source code",
   "Question": "Question",
@@ -770,7 +797,11 @@ const englishMessages = <String, String>{
   "Save question": "Save question",
   "Save quiz": "Save quiz",
   "Save team": "Save team",
+  "Saved Wi-Fi details could not be read.":
+      "Saved Wi-Fi details could not be read.",
+  "Saved encrypted on this device.": "Saved encrypted on this device.",
   "Saved game recovery": "Saved game recovery",
+  "Saved networks": "Saved networks",
   "Saved timer: {0} s remaining": "Saved timer: {0} s remaining",
   "Scan to join with your phone": "Scan to join with your phone",
   "Schätzfrage": "Estimation",
@@ -779,6 +810,7 @@ const englishMessages = <String, String>{
   "Scoreboard": "Scoreboard",
   "Scoreboard · {0}": "Scoreboard · {0}",
   "Scoring rule": "Scoring rule",
+  "Security": "Security",
   "Seed": "Seed",
   "Seite verlassen": "Leave page",
   "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.",
@@ -795,6 +827,9 @@ const englishMessages = <String, String>{
   "Settings": "Settings",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Share the invitation or TV link. Keep this tab open and this device awake while hosting.",
   "Short answer": "Short answer",
+  "Show Wi-Fi QR code on the TV": "Show Wi-Fi QR code on the TV",
+  "Show password": "Show password",
+  "Shows a second QR code on the TV that connects guests to this Wi-Fi. The password is stored encrypted on this device and only sent to TV screens on this network.": "Shows a second QR code on the TV that connects guests to this Wi-Fi. The password is stored encrypted on this device and only sent to TV screens on this network.",
   "Simulation: {0} ms": "Simulation: {0} ms",
   "Sitzung konnte nicht geladen werden: {0}": "Could not load the session: {0}",
   "Skala für Zielwert 0 muss positiv sein.":
@@ -922,11 +957,15 @@ const englishMessages = <String, String>{
   "The wager must be between 1 and {0}.":
       "The wager must be between 1 and {0}.",
   "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "This PNG copy is not smaller. Keep the original or try a smaller edge length.",
+  "This computer is not connected to a Wi-Fi network.":
+      "This computer is not connected to a Wi-Fi network.",
   "This connection has already joined.": "This connection has already joined.",
   "This device": "This device",
   "This game is open in another host. Close it before recovering.":
       "This game is open in another host. Close it before recovering.",
   "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.",
+  "This network uses a sign-in that cannot be shared as a QR code.":
+      "This network uses a sign-in that cannot be shared as a QR code.",
   "This participant cannot be reassigned.":
       "This participant cannot be reassigned.",
   "This participant is banned for this session.":
@@ -979,6 +1018,7 @@ const englishMessages = <String, String>{
   "Untitled question": "Untitled question",
   "Untitled quiz": "Untitled quiz",
   "Update Quizmo to import this quiz": "Update Quizmo to import this quiz",
+  "Use Windows Wi-Fi": "Use Windows Wi-Fi",
   "Use optimized copy": "Use optimized copy",
   "Use the system or browser language, or choose a language for this device.": "Use the system or browser language, or choose a language for this device.",
   "Verbindung unterbrochen. Erneuter Versuch ...": "Connection lost. Retrying…",
@@ -990,6 +1030,9 @@ const englishMessages = <String, String>{
   "Vollständige eindeutige Zuordnung angeben.":
       "Provide a complete, unique matching.",
   "Vorherige Lösung": "Previous solution",
+  "WEP": "WEP",
+  "WPA/WPA2": "WPA/WPA2",
+  "WPA3": "WPA3",
   "Wager (max {0})": "Wager (max {0})",
   "Wahr": "True",
   "Wahr / Falsch": "True / False",
@@ -1012,7 +1055,16 @@ const englishMessages = <String, String>{
   "Weiter zur Teamauswahl": "Continue to team selection",
   "Weitere Spielaktionen hängen von dieser Bewertung ab.":
       "Later game actions depend on this judgment.",
+  "Wi-Fi details removed from this device.":
+      "Wi-Fi details removed from this device.",
+  "Wi-Fi name (SSID)": "Wi-Fi name (SSID)",
+  "Wi-Fi password": "Wi-Fi password",
   "Wiederholungen dürfen nicht negativ sein.": "Retries must not be negative.",
+  "Windows did not provide the Wi-Fi details.":
+      "Windows did not provide the Wi-Fi details.",
+  "Windows did not release the password.":
+      "Windows did not release the password.",
+  "Windows only reveals the Wi-Fi password after you confirm it. Windows will ask for permission next (Windows Hello or administrator password).": "Windows only reveals the Wi-Fi password after you confirm it. Windows will ask for permission next (Windows Hello or administrator password).",
   "Wrong": "Wrong",
   "Wrong answers cost points": "Wrong answers cost points",
   "Wrong-answer penalty": "Wrong-answer penalty",
@@ -1125,6 +1177,10 @@ const germanMessages = <String, String>{
   "+{0} more": "+{0} weitere",
   "A Daily Double in category \"{0}\" needs a question.":
       "Ein Daily Double in Kategorie „{0}“ benötigt eine Frage.",
+  "A WEP key has 5, 10, 13 or 26 characters.":
+      "Ein WEP-Schlüssel hat 5, 10, 13 oder 26 Zeichen.",
+  "A WPA password has 8 to 63 characters.":
+      "Ein WPA-Passwort hat 8 bis 63 Zeichen.",
   "A new Quizmo quiz.": "Ein neues Quizmo-Quiz.",
   "A question ID must not be empty.": "Eine Frage-ID darf nicht leer sein.",
   "A quiz file must include an integer \"schemaVersion\".":
@@ -1159,6 +1215,7 @@ const germanMessages = <String, String>{
   "Add test participant": "Testteilnehmer hinzufügen",
   "Admin-Notizen": "Admin-Notizen",
   "Admin-Notizen (nur Spielleiter)": "Admin-Notizen (nur Spielleiter)",
+  "Administrator approval needed": "Freigabe durch Administrator nötig",
   "Admitted players can still reconnect with their resume token.":
       "Bereits zugelassene Spieler können mit ihrem Resume-Token zurückkehren.",
   "Advanced settings": "Erweiterte Einstellungen",
@@ -1175,6 +1232,7 @@ const germanMessages = <String, String>{
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "An option ID in question \"{0}\" must not be empty.":
       "Eine Options-ID in Frage „{0}“ darf nicht leer sein.",
+  "Android does not let apps read Wi-Fi passwords. Open the Wi-Fi settings, tap your network and \"Share\", confirm with your fingerprint or PIN, take a screenshot of the QR code and import it here.": "Android lässt Apps keine WLAN-Passwörter auslesen. Öffne die WLAN-Einstellungen, tippe auf dein Netzwerk und „Teilen“, bestätige mit Fingerabdruck oder PIN, mach einen Screenshot vom QR-Code und importiere ihn hier.",
   "Anhang entfernen": "Anhang entfernen",
   "Anhang hinzufügen": "Anhang hinzufügen",
   "Animated images are kept unchanged. Optimization would remove animation.": "Animierte Bilder bleiben unverändert. Eine Optimierung würde die Animation entfernen.",
@@ -1293,6 +1351,7 @@ const germanMessages = <String, String>{
   "Confirmation missing. Your answer may not have arrived.":
       "Bestätigung fehlt. Deine Antwort ist möglicherweise nicht angekommen.",
   "Connect to a host on your network, pick a team and get a buzzer that is corrected for your network latency.": "Verbinde dich mit einem Spielleiter in deinem Netzwerk, wähle ein Team und nutze einen Buzzer mit Latenzausgleich.",
+  "Connect to the Wi-Fi": "Mit dem WLAN verbinden",
   "Connected at end": "Am Ende verbunden",
   "Connected to the host": "Mit dem Host verbunden",
   "Connected verification ID": "Prüf-ID des verbundenen Teilnehmers",
@@ -1302,6 +1361,7 @@ const germanMessages = <String, String>{
   "Connection ended": "Endgültig getrennt",
   "Connection interrupted. Reconnecting to the room...":
       "Verbindung unterbrochen. Verbindung zum Raum wird wiederhergestellt ...",
+  "Continue": "Weiter",
   "Continue saved game": "Gespeichertes Spiel fortsetzen",
   "Continue with a soft timer": "Mit Soft-Timer fortsetzen",
   "Continue with saved time": "Mit gesicherter Restzeit fortsetzen",
@@ -1317,6 +1377,8 @@ const germanMessages = <String, String>{
       "Erweiterte Einstellungen konnten nicht geladen werden.",
   "Could not recreate example quizzes: {0}":
       "Beispielquizzes konnten nicht neu erstellt werden: {0}",
+  "Could not save the Wi-Fi details on this device.":
+      "Die WLAN-Daten konnten auf diesem Gerät nicht gespeichert werden.",
   "Could not save this quiz: {0}":
       "Dieses Quiz konnte nicht gespeichert werden: {0}",
   "Could not update the quiz library: {0}":
@@ -1438,6 +1500,8 @@ const germanMessages = <String, String>{
       "Empfohlene Wiederholungen (optional)",
   "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.": "Empfohlene Wiederholungen erreicht. Vorschlag: Runde beenden. Du kannst trotzdem fortsetzen.",
   "Endliche Zielzahl angeben.": "Endliche Zielzahl angeben.",
+  "Enter a Wi-Fi name with 1 to 32 bytes.":
+      "Gib einen WLAN-Namen mit 1 bis 32 Bytes ein.",
   "Enter a full URL including http://":
       "Gib eine vollständige URL mit http:// ein.",
   "Enter a positive time limit.": "Gib ein positives Zeitlimit ein.",
@@ -1457,6 +1521,7 @@ const germanMessages = <String, String>{
       "Code eingeben und mit Enter erneut verbinden.",
   "Enter the join code supplied by the host.":
       "Bitte den Beitrittscode des Hosts eingeben.",
+  "Enter the password manually.": "Bitte das Passwort von Hand eingeben.",
   "Erlaubte Zeichenänderungen": "Erlaubte Zeichenänderungen",
   "Erneut versuchen": "Erneut versuchen",
   "Es gibt noch keine Teams.": "Es gibt noch keine Teams.",
@@ -1493,6 +1558,7 @@ const germanMessages = <String, String>{
   "First-buzzer points": "Punkte für den ersten Buzzer",
   "Fixed points": "Feste Punkte",
   "Fixed {0} pts": "Fest {0} Punkte",
+  "Forget": "Vergessen",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Frage abgeschlossen. Die Auflösung folgt am Quizende.",
   "Frage abschließen": "Frage abschließen",
@@ -1512,8 +1578,12 @@ const germanMessages = <String, String>{
   "Get ready to play!": "Mach dich bereit!",
   "Gewinn abhängig vom Einsatz": "Gewinn abhängig vom Einsatz",
   "Grund (optional)": "Grund (optional)",
+  "Guest Wi-Fi": "Gäste-WLAN",
+  "Guest Wi-Fi on the TV": "Gäste-WLAN auf dem TV",
   "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.": "Hart: Audio stoppt am Limit. Weich: Die Zeit ist ein Richtwert; der Spielleiter stoppt die Wiedergabe.",
   "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.": "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
+  "Hidden network": "Verstecktes Netzwerk",
+  "Hide password": "Passwort verbergen",
   "Hinzufügen": "Hinzufügen",
   "Host": "Host",
   "Host a quiz": "Quiz veranstalten",
@@ -1532,6 +1602,7 @@ const germanMessages = <String, String>{
   "Image optimization failed.": "Die Bildoptimierung ist fehlgeschlagen.",
   "Image preview unavailable.": "Die Bildvorschau ist nicht verfügbar.",
   "Import": "Importieren",
+  "Import QR code from picture": "QR-Code aus Bild importieren",
   "Import Quizmo quiz (including media)":
       "Quizmo-Quiz importieren (einschließlich Medien)",
   "Imported \"{0}\".": "„{0}“ importiert.",
@@ -1680,9 +1751,12 @@ const germanMessages = <String, String>{
   "Nicht unterstütztes Dateiformat.": "Nicht unterstütztes Dateiformat.",
   "No Daily Double is waiting for a wager.":
       "Kein Daily Double wartet auf einen Einsatz.",
+  "No Wi-Fi QR code found in this picture.":
+      "In diesem Bild wurde kein WLAN-QR-Code gefunden.",
   "No answer recorded": "Keine Antwort aufgezeichnet",
   "No description.": "Keine Beschreibung.",
   "No join code required.": "Kein Beitrittscode erforderlich.",
+  "No password": "Kein Passwort",
   "No pending questions left.": "Keine offenen Fragen mehr.",
   "No pending requests.": "Keine offenen Beitrittsanfragen.",
   "No players yet": "Noch keine Spieler",
@@ -1708,6 +1782,7 @@ const germanMessages = <String, String>{
   "Not connected": "Nicht verbunden",
   "Not eligible to answer": "Nicht antwortberechtigt",
   "Not judged": "Unbewertet",
+  "Not supported on this device.": "Auf diesem Gerät nicht unterstützt.",
   "Not this time.": "Leider falsch.",
   "Nothing logged yet.": "Noch keine Einträge.",
   "Nothing to judge right now.": "Momentan gibt es nichts zu bewerten.",
@@ -1723,7 +1798,9 @@ const germanMessages = <String, String>{
   "Only the first answer counts.": "Nur die erste Antwort zählt.",
   "Only the other teams may steal this question.":
       "Nur die anderen Teams dürfen diese Frage abstauben.",
+  "Open (no password)": "Offen (kein Passwort)",
   "Open TV screen preview": "TV-Vorschau öffnen",
+  "Open Wi-Fi settings": "WLAN-Einstellungen öffnen",
   "Open player view": "Spieler-Ansicht öffnen",
   "Open question": "Frage öffnen",
   "Open quizmaster dashboard": "Spielleiter-Ansicht öffnen",
@@ -1740,6 +1817,7 @@ const germanMessages = <String, String>{
   "POKERCHIPS · ANTWORTEN": "POKERCHIPS · ANTWORTEN",
   "POKERCHIPS · EINSÄTZE": "POKERCHIPS · EINSÄTZE",
   "Paare – pro Zeile: links = rechts": "Paare – pro Zeile: links = rechts",
+  "Password: {0}": "Passwort: {0}",
   "Pause": "Pause",
   "Pause simulation": "Simulation pausieren",
   "Pick a name": "Gib einen Namen ein.",
@@ -1783,6 +1861,8 @@ const germanMessages = <String, String>{
   "Punktestand bis zum Quizende verborgen.":
       "Punktestand bis zum Quizende verborgen.",
   "Punkteänderung: {0}": "Punkteänderung: {0}",
+  "QR code to connect to the Wi-Fi {0}":
+      "QR-Code zum Verbinden mit dem WLAN {0}",
   "QR code to join at {0}": "QR-Code zum Beitreten unter {0}",
   "Quellcode": "Quellcode",
   "Question": "Frage",
@@ -1899,7 +1979,12 @@ const germanMessages = <String, String>{
   "Save question": "Frage speichern",
   "Save quiz": "Quiz speichern",
   "Save team": "Team speichern",
+  "Saved Wi-Fi details could not be read.":
+      "Gespeicherte WLAN-Daten konnten nicht gelesen werden.",
+  "Saved encrypted on this device.":
+      "Verschlüsselt auf diesem Gerät gespeichert.",
   "Saved game recovery": "Spielstand wiederherstellen",
+  "Saved networks": "Gespeicherte Netzwerke",
   "Saved timer: {0} s remaining": "Gesicherter Timer: {0} s Restzeit",
   "Scan to join with your phone": "Scannen und mit dem Handy beitreten",
   "Schätzfrage": "Schätzfrage",
@@ -1908,6 +1993,7 @@ const germanMessages = <String, String>{
   "Scoreboard": "Punktestand",
   "Scoreboard · {0}": "Punktestand · {0}",
   "Scoring rule": "Bewertungsregel",
+  "Security": "Verschlüsselung",
   "Seed": "Seed",
   "Seite verlassen": "Seite verlassen",
   "Select a host, then enter your name to join. If none appears, check that both devices use the same LAN; guest Wi-Fi or blocked multicast can prevent discovery. QR codes, links and manual addresses still work.": "Wähle einen Host und gib zum Beitreten deinen Namen ein. Wenn keiner erscheint, prüfe, ob beide Geräte im selben LAN sind. Gast-WLAN oder blockiertes Multicast können die Suche verhindern. QR-Codes, Links und manuelle Adressen funktionieren weiterhin.",
@@ -1923,6 +2009,9 @@ const germanMessages = <String, String>{
   "Settings": "Einstellungen",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Teile den Einladungs- oder TV-Link. Lass diesen Tab geöffnet und das Gerät während des Spiels wach.",
   "Short answer": "Freitext",
+  "Show Wi-Fi QR code on the TV": "WLAN-QR-Code auf dem TV zeigen",
+  "Show password": "Passwort anzeigen",
+  "Shows a second QR code on the TV that connects guests to this Wi-Fi. The password is stored encrypted on this device and only sent to TV screens on this network.": "Zeigt auf dem TV einen zweiten QR-Code, mit dem Gäste ins WLAN kommen. Das Passwort wird verschlüsselt auf diesem Gerät gespeichert und nur an TV-Ansichten in diesem Netzwerk gesendet.",
   "Simulation: {0} ms": "Simulation: {0} ms",
   "Sitzung konnte nicht geladen werden: {0}":
       "Sitzung konnte nicht geladen werden: {0}",
@@ -2048,11 +2137,14 @@ const germanMessages = <String, String>{
   "The wager must be between 1 and {0}.":
       "Der Einsatz muss zwischen 1 und {0} liegen.",
   "This PNG copy is not smaller. Keep the original or try a smaller edge length.": "Diese PNG-Kopie ist nicht kleiner. Behalte das Original oder versuche eine kleinere Kantenlänge.",
+  "This computer is not connected to a Wi-Fi network.":
+      "Dieser Computer ist mit keinem WLAN verbunden.",
   "This connection has already joined.":
       "Diese Verbindung ist bereits beigetreten.",
   "This device": "Dieses Gerät",
   "This game is open in another host. Close it before recovering.": "Dieses Spiel ist bereits in einem anderen Host geöffnet. Schließe ihn vor der Wiederherstellung.",
   "This image is damaged or cannot be decoded on this platform. Choose PNG, JPEG or WebP.": "Dieses Bild ist beschädigt oder auf dieser Plattform nicht lesbar. Wähle PNG, JPEG oder WebP.",
+  "This network uses a sign-in that cannot be shared as a QR code.": "Dieses Netzwerk nutzt eine Anmeldung, die sich nicht als QR-Code teilen lässt.",
   "This participant cannot be reassigned.":
       "Dieser Teilnehmer kann nicht neu zugeordnet werden.",
   "This participant is banned for this session.":
@@ -2106,6 +2198,7 @@ const germanMessages = <String, String>{
   "Untitled quiz": "Unbenanntes Quiz",
   "Update Quizmo to import this quiz":
       "Quizmo aktualisieren, um dieses Quiz zu importieren",
+  "Use Windows Wi-Fi": "WLAN von Windows übernehmen",
   "Use optimized copy": "Optimierte Kopie verwenden",
   "Use the system or browser language, or choose a language for this device.": "System- oder Browsersprache verwenden oder eine Sprache für dieses Gerät auswählen.",
   "Verbindung unterbrochen. Erneuter Versuch ...":
@@ -2118,6 +2211,9 @@ const germanMessages = <String, String>{
   "Vollständige eindeutige Zuordnung angeben.":
       "Vollständige eindeutige Zuordnung angeben.",
   "Vorherige Lösung": "Vorherige Lösung",
+  "WEP": "WEP",
+  "WPA/WPA2": "WPA/WPA2",
+  "WPA3": "WPA3",
   "Wager (max {0})": "Einsatz (max. {0})",
   "Wahr": "Wahr",
   "Wahr / Falsch": "Wahr / Falsch",
@@ -2139,8 +2235,17 @@ const germanMessages = <String, String>{
   "Weiter zur Teamauswahl": "Weiter zur Teamauswahl",
   "Weitere Spielaktionen hängen von dieser Bewertung ab.":
       "Weitere Spielaktionen hängen von dieser Bewertung ab.",
+  "Wi-Fi details removed from this device.":
+      "WLAN-Daten von diesem Gerät entfernt.",
+  "Wi-Fi name (SSID)": "WLAN-Name (SSID)",
+  "Wi-Fi password": "WLAN-Passwort",
   "Wiederholungen dürfen nicht negativ sein.":
       "Wiederholungen dürfen nicht negativ sein.",
+  "Windows did not provide the Wi-Fi details.":
+      "Windows hat die WLAN-Daten nicht geliefert.",
+  "Windows did not release the password.":
+      "Windows hat das Passwort nicht freigegeben.",
+  "Windows only reveals the Wi-Fi password after you confirm it. Windows will ask for permission next (Windows Hello or administrator password).": "Windows gibt das WLAN-Passwort nur nach deiner Bestätigung heraus. Als Nächstes fragt Windows nach der Freigabe (Windows Hello oder Administratorpasswort).",
   "Wrong": "Falsch",
   "Wrong answers cost points": "Falsche Antworten kosten Punkte",
   "Wrong-answer penalty": "Abzug bei falscher Antwort",

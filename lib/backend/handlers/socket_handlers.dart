@@ -12,6 +12,7 @@ import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../../core/engine/guest_wifi_cubit.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/engine/session_access.dart';
 import '../../core/data/session_recovery.dart';
@@ -66,12 +67,15 @@ class SocketHub {
     required this.serverName,
     NowMicros now = systemNowMicros,
     void Function(ServerLogEntry entry)? onLog,
+    GuestWifiCubit? guestWifi,
   }) : _engine = engine,
        _now = now,
-       _onLog = onLog {
+       _onLog = onLog,
+       _guestWifi = guestWifi {
     _knownPlayerIds = _engine.state.game.players.keys.toSet();
     _engineSubscription = _engine.stream.listen(_broadcastState);
     _accessSubscription = _engine.access.stream.listen(_accessChanged);
+    _guestWifiSubscription = guestWifi?.stream.listen(_guestWifiChanged);
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       for (final connection in _connections.values.toList()) {
         if ((connection.playerId != null || connection.isSpectator) &&
@@ -90,6 +94,10 @@ class SocketHub {
   final QuizEngineBloc _engine;
   final NowMicros _now;
   final void Function(ServerLogEntry entry)? _onLog;
+
+  /// Guest Wi-Fi shown on TV screens; only the LAN host passes one.
+  final GuestWifiCubit? _guestWifi;
+  StreamSubscription<GuestWifi?>? _guestWifiSubscription;
   final Map<String, _Connection> _connections = <String, _Connection>{};
 
   StreamSubscription<QuizEngineState>? _engineSubscription;
@@ -123,6 +131,7 @@ class SocketHub {
   Future<void> close() async {
     _heartbeatTimer?.cancel();
     await _accessSubscription?.cancel();
+    await _guestWifiSubscription?.cancel();
     await _engineSubscription?.cancel();
     _engineSubscription = null;
     final connections = _connections.values.toList(growable: false);
@@ -525,6 +534,10 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        if (_guestWifi case final guestWifi?) {
+          // Also sent when empty, so a reconnecting TV drops a stale code.
+          connection.send(GuestWifiMessage(guestWifi.state));
+        }
         _log(ServerLogLevel.info, 'Spectator ${connection.id} is watching.');
 
       case SyncPing(:final clientSentAtMicros):
@@ -859,6 +872,12 @@ class SocketHub {
       }
     }
     unawaited(_saveAccess());
+  }
+
+  void _guestWifiChanged(GuestWifi? wifi) {
+    for (final connection in _connections.values.toList()) {
+      if (connection.isSpectator) connection.send(GuestWifiMessage(wifi));
+    }
   }
 
   Future<void> _saveAccess() async {

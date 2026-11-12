@@ -9,10 +9,24 @@ Uri sessionUri(Uri launch) {
     host: launch.host,
     port: launch.hasPort ? launch.port : null,
     path: room,
-    queryParameters: launch.queryParameters['session'] == null
-        ? null
-        : {'session': launch.queryParameters['session']!},
+    queryParameters: _kept(launch.queryParameters),
   );
+}
+
+/// Query parameter carrying the access key of a password protected server.
+///
+/// The reverse proxy (see `deploy/README.md`) trades it for a session cookie,
+/// so guests who scan an invitation never have to type the Basic Auth
+/// password. It is kept on every session link so a TV can print it into its
+/// own QR code and a player can reconnect after the cookie expired.
+const String kAccessKeyParameter = 'quizmo_key';
+
+Map<String, String>? _kept(Map<String, String> query) {
+  final kept = {
+    for (final name in const ['session', kAccessKeyParameter])
+      name: ?query[name],
+  };
+  return kept.isEmpty ? null : kept;
 }
 
 bool isInternetSession(Uri uri) =>

@@ -63,6 +63,31 @@ from `Caddyfile`. Bind the backend's published port only on loopback or the
 private interface used by that proxy. Never expose an unprotected HTTP port
 directly to the internet. The backend health endpoint is `/api/health`.
 
+## Basic Auth with QR access links (optional)
+
+To keep a deployment private, use `Caddyfile.basic-auth` instead of
+`Caddyfile`. Every visitor without access gets the usual Basic Auth prompt.
+Quizmo adds `?quizmo_key=<QUIZMO_ACCESS_KEY>` to invitation and TV links (and
+therefore to their QR codes); Caddy trades that parameter for a 12 hour
+`HttpOnly` cookie, so guests never type the password and the WebSocket works
+in every mobile and desktop browser.
+
+1. Generate a key with 32 to 128 characters of `A-Z a-z 0-9 _ -`, e.g.
+   `openssl rand -base64 48 | tr '+/' '-_' | tr -d '='`, and a password hash
+   with `docker run --rm caddy:2.10.2-alpine caddy hash-password`.
+2. Set `QUIZMO_ACCESS_KEY`, `QUIZMO_BASIC_AUTH_USER` and
+   `QUIZMO_BASIC_AUTH_HASH` in `.env` (write every `$` of the hash as `$$`).
+3. Pass `QUIZMO_ACCESS_KEY`, `QUIZMO_BASIC_AUTH_USER` and
+   `QUIZMO_BASIC_AUTH_HASH` to the `caddy` service and mount
+   `./Caddyfile.basic-auth:/etc/caddy/Caddyfile:ro`. The `quizmo` service
+   already reads `QUIZMO_ACCESS_KEY`; the relay refuses to start with an
+   invalid key.
+
+Anyone holding an invitation can open the site until the cookie expires, so
+treat the key like a guest password and rotate it (new key in `.env`, restart
+both services) when a link leaked. Keep the key different from the Basic Auth
+password. Without `QUIZMO_ACCESS_KEY` links stay unchanged.
+
 For local-only development without TLS:
 
 ```sh

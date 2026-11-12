@@ -12,8 +12,10 @@ Future<void> main() async {
   if (origin == null) {
     throw ArgumentError('Set PUBLIC_ORIGIN=https://quiz.example.com');
   }
+  final accessKey = Platform.environment['QUIZMO_ACCESS_KEY'];
   final server = InternetServer(
     publicOrigin: Uri.parse(origin),
+    accessKey: accessKey == null || accessKey.isEmpty ? null : accessKey,
     webClient: DirectoryWebClientBundle(
       Directory(Platform.environment['WEB_ROOT'] ?? 'build/web'),
     ),

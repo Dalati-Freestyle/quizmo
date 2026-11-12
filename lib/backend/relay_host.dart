@@ -59,6 +59,7 @@ final class RelayHost implements EmbeddedQuizServer {
       );
     }
     final ready = Completer<String>();
+    String? accessKey;
     try {
       final socket = _connect(
         sessionUri(origin).replace(
@@ -75,6 +76,7 @@ final class RelayHost implements EmbeddedQuizServer {
             final json = jsonDecode(frame as String);
             switch (json) {
               case {'type': 'room', 'room': final String room}:
+                if (json['accessKey'] case final String key) accessKey = key;
                 if (!ready.isCompleted) ready.complete(room);
               case {'type': 'open', 'id': final String id}:
                 final guest = StreamController<String>();
@@ -140,7 +142,14 @@ final class RelayHost implements EmbeddedQuizServer {
       _endpoint = ServerEndpoint(
         port: origin.port,
         addresses: [origin.host],
-        publicUri: sessionUri(origin).replace(path: '/rooms/$room'),
+        // Invitation, TV link and their QR codes carry the proxy access key,
+        // so guests skip the Basic Auth prompt.
+        publicUri: sessionUri(origin).replace(
+          path: '/rooms/$room',
+          queryParameters: accessKey == null
+              ? null
+              : {kAccessKeyParameter: accessKey!},
+        ),
         recoverySessionId: _engine.recoverySessionId,
       );
       _heartbeat = Timer.periodic(
