@@ -86,7 +86,10 @@ void main() {
       final health = await http.get(base.resolve('/api/health'));
       expect(health.statusCode, 200);
       expect(health.headers['x-content-type-options'], 'nosniff');
-      expect(health.headers['referrer-policy'], 'no-referrer');
+      expect(
+        health.headers['referrer-policy'],
+        'strict-origin-when-cross-origin',
+      );
       final tv = await http.get(base.resolve('/rooms/invitation/tv'));
       expect(tv.body, '<html>quizmo</html>');
       expect(tv.headers['cache-control'], 'no-store');

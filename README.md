@@ -476,7 +476,9 @@ Native players may omit Origin. Origin is a browser security measure, not
 authentication: native tools can forge it. Hosting is intentionally public, with
 no account system. Treat invitations as access secrets: anyone with the link can
 join/watch. Do not publish them, include them in analytics, or log full room
-URLs. Referrer suppression reduces accidental link disclosure. TLS, CSP,
+URLs. The referrer policy (`strict-origin-when-cross-origin`) only ever sends
+the origin to third parties, never the room path; OpenStreetMap tiles and the
+YouTube embed require that origin and fail with `no-referrer`. TLS, CSP,
 anti-framing, MIME sniffing protection and restrictive device permissions are
 provided by the deployment configuration without disabling supported media.
 
