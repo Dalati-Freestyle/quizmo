@@ -10,6 +10,21 @@ import 'package:equatable/equatable.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 
+/// When standard quizzes publish solutions, verdicts and standings to guests.
+enum SolutionRevealMode {
+  afterEachQuestion,
+  atEnd;
+
+  /// Restores the mode from its serialized name.
+  static SolutionRevealMode fromName(String name) =>
+      SolutionRevealMode.values.firstWhere(
+        (mode) => mode.name == name,
+        orElse: () => throw JsonContractException(
+          'Unknown solution reveal mode "$name".',
+        ),
+      );
+}
+
 /// Base type of every quiz format.
 sealed class QuizFormat extends Equatable {
   /// Const constructor for the sealed hierarchy.
@@ -25,7 +40,11 @@ sealed class QuizFormat extends Equatable {
   ///
   /// Deserialization boundary: the only place that maps wire tags to types.
   static QuizFormat fromJson(JsonMap json) => switch (json.readString('type')) {
-    StandardFormat._type => const StandardFormat(),
+    StandardFormat._type => StandardFormat(
+      revealMode: SolutionRevealMode.fromName(
+        json.readStringOrNull('revealMode') ?? 'afterEachQuestion',
+      ),
+    ),
     'poker' => PokerFormat(startingChips: json.readInt('startingChips')),
     JeopardyFormat._type => JeopardyFormat(
       JeopardyBoard.fromJson(json.readObject('board')),
@@ -39,7 +58,12 @@ sealed class QuizFormat extends Equatable {
 /// A plain, ordered list of questions played one after the other.
 final class StandardFormat extends QuizFormat {
   /// Creates the standard format.
-  const StandardFormat();
+  const StandardFormat({
+    this.revealMode = SolutionRevealMode.afterEachQuestion,
+  });
+
+  /// Timing of public solutions and score feedback.
+  final SolutionRevealMode revealMode;
 
   static const String _type = 'standard';
 
@@ -47,10 +71,10 @@ final class StandardFormat extends QuizFormat {
   String get label => 'Standard';
 
   @override
-  JsonMap toJson() => const {'type': _type};
+  JsonMap toJson() => {'type': _type, 'revealMode': revealMode.name};
 
   @override
-  List<Object?> get props => const [];
+  List<Object?> get props => [revealMode];
 }
 
 /// A board of categories and point levels; the teams pick the cells.

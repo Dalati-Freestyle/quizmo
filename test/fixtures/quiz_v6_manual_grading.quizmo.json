@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 6,
+  "id": "legacy-v6-manual",
+  "name": "Version 6 manual grading",
+  "description": "Historical standard quiz before delayed reveal.",
+  "category": "Compatibility",
+  "createdAtMicros": 0,
+  "updatedAtMicros": 0,
+  "teams": [],
+  "format": {"type": "standard"},
+  "questions": [{
+    "type": "shortAnswer",
+    "id": "q",
+    "prompt": "Hauptstadt?",
+    "timeLimitMs": 30000,
+    "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+    "acceptedAnswers": ["Berlin"],
+    "maxEdits": 1,
+    "manualGrading": true,
+    "media": [{
+      "type": "image",
+      "caption": "legacy.png",
+      "zoom": false,
+      "asset": {
+        "id": "275f1bcbbb585c71e3b2184304eccfa0e37de92022ca3b6f4e9c10df32318d85",
+        "mimeType": "image/png",
+        "data": "iVBORw0KGgoB"
+      }
+    }],
+    "solutionMedia": [{
+      "type": "audio",
+      "caption": "solution.mp3",
+      "playbackLimitSeconds": 5,
+      "asset": {
+        "id": "0c243aeeff20838dc9e65155fb90d9411f7ec9d2d9b018e931e91c3157648a48",
+        "mimeType": "audio/mpeg",
+        "data": "SUQzAQ=="
+      }
+    }]
+  }]
+}

@@ -99,8 +99,10 @@ void main() {
 
   group('normaliseWebClientPath', () {
     test('strips empty and dot segments', () {
-      expect(normaliseWebClientPath('assets/./fonts/Icons.otf'),
-          'assets/fonts/Icons.otf');
+      expect(
+        normaliseWebClientPath('assets/./fonts/Icons.otf'),
+        'assets/fonts/Icons.otf',
+      );
     });
 
     test('resolves parent segments that stay inside the root', () {
@@ -126,8 +128,10 @@ void main() {
       expect(mimeTypeFor('index.html'), startsWith('text/html'));
       expect(mimeTypeFor('flutter.js'), startsWith('text/javascript'));
       expect(mimeTypeFor('canvaskit/canvaskit.wasm'), 'application/wasm');
-      expect(mimeTypeFor('assets/AssetManifest.bin'),
-          'application/octet-stream');
+      expect(
+        mimeTypeFor('assets/AssetManifest.bin'),
+        'application/octet-stream',
+      );
       expect(mimeTypeFor('icons/Icon-192.png'), 'image/png');
     });
 
@@ -157,9 +161,7 @@ void main() {
     });
 
     test('treats an absent archive as an empty bundle', () async {
-      final zipped = ZipWebClientBundle(
-        loadArchive: () async => Uint8List(0),
-      );
+      final zipped = ZipWebClientBundle(loadArchive: () async => Uint8List(0));
 
       expect(await zipped.prepare(), 0);
       expect(await zipped.read('index.html'), isNull);
@@ -182,4 +184,3 @@ void main() {
     });
   });
 }
-

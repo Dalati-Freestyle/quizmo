@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "fixture-session-v1-12345678",
+  "savedAtMicros": 1700000000000000,
+  "resumeTokenHashes": {
+    "p": "d07f963c2bb7a3cc74a910e51ca0075b194da412a93737881f105a55156a988f"
+  },
+  "previousJoinUri": null,
+  "quiz": {
+    "schemaVersion": 7,
+    "id": "fixture",
+    "name": "Recovery schema 1",
+    "description": "First recovery release compatibility fixture",
+    "category": "Test",
+    "createdAtMicros": 1700000000000000,
+    "updatedAtMicros": 1700000000000000,
+    "teams": [],
+    "format": {"type": "standard", "revealMode": "afterEachQuestion"},
+    "questions": [{
+      "type": "trueFalse",
+      "id": "q",
+      "prompt": "Picture?",
+      "category": null,
+      "adminNotes": "",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "correctAnswer": true,
+      "media": [{
+        "type": "image", "caption": "", "hideDetails": false, "zoom": true,
+        "asset": {
+          "id": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+          "mimeType": "image/png", "data": "iVBORw0KGgo="
+        }
+      }],
+      "solutionMedia": [{
+        "type": "image", "caption": "", "hideDetails": false, "zoom": true,
+        "asset": {
+          "id": "4c4b6a3be1314ab86138bef4314dde022e600960d8689a2c8f8631802d20dab6",
+          "mimeType": "image/png", "data": "iVBORw0KGgo="
+        }
+      }]
+    }]
+  },
+  "game": {
+    "mode": {"mode": "solo"},
+    "players": {"p": {
+      "id": "p", "name": "Ada", "teamId": null, "isConnected": true,
+      "clockOffsetMicros": 0, "roundTripMicros": 1000
+    }},
+    "playerOrder": ["p"],
+    "teams": {},
+    "scores": {"byPlayer": {"p": 0}, "history": []},
+    "round": {
+      "questionId": "q",
+      "status": "acceptingAnswers",
+      "startedAtHostMicros": 1699999998000000,
+      "buzzerQueue": [],
+      "answers": {"p": {
+        "kind": "trueFalse", "playerId": "p", "questionId": "q",
+        "clientTimestampMicros": 1699999999000000, "clockOffsetMicros": 0,
+        "hostTimestampMicros": 1699999999000000, "value": true
+      }},
+      "activePlayerId": null,
+      "lockedOutPlayerIds": [],
+      "resolvedAttempts": 0,
+      "buzzerAnswerCorrect": false,
+      "buzzerOpenForAll": false,
+      "buzzerVerdicts": {},
+      "answerVerdicts": {},
+      "recoverySoftTimer": false,
+      "timerRestartedAtHostMicros": null,
+      "acceptedElapsedMicros": {"p": 1000000}
+    },
+    "totalQuestionCount": 1,
+    "completedQuestionIds": [],
+    "jeopardy": null,
+    "poker": null,
+    "hostTimeMicros": 1700000000000000,
+    "tvMediaPaused": false,
+    "tvMediaRevision": 0,
+    "tvMediaCommandRevision": 0,
+    "allAnswersRevision": 0,
+    "isFinished": false,
+    "isStarted": true,
+    "revealMode": "afterEachQuestion",
+    "roundHistory": [],
+    "recoveryPaused": false
+  }
+}

@@ -5,6 +5,34 @@ import 'package:quizmo/core/data/browser_library_backup.dart';
 import 'package:quizmo/core/data/sample_quiz.dart';
 
 void main() {
+  test(
+    'library metadata identifies saved examples and collision-safe defaults',
+    () {
+      expect(
+        browserLibraryNeedsBackup(
+          jsonEncode({
+            'defaultQuizIds': ['quiz-sample-1'],
+            'quizzes': [
+              {'id': 'quiz-sample-1'},
+            ],
+          }),
+        ),
+        isFalse,
+      );
+      expect(
+        browserLibraryNeedsBackup(
+          jsonEncode({
+            'defaultQuizIds': [],
+            'quizzes': [
+              {'id': 'quiz-sample', 'createdAtMicros': 1, 'updatedAtMicros': 1},
+            ],
+          }),
+        ),
+        isTrue,
+      );
+    },
+  );
+
   test('all untouched format demos need no backup; editing any one does', () {
     final examples = createSampleQuizzes(DateTime.utc(2026));
     expect(

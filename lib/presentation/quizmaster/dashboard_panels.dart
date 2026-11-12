@@ -18,6 +18,7 @@ import '../../core/sync/clock.dart';
 import '../common/adaptive_layout.dart';
 import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
+import 'manual_answer_monitor.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -117,7 +118,10 @@ class ServerControlPanel extends StatelessWidget {
               _AlternativeAddresses(endpoint: endpoint),
               const SizedBox(height: 8),
               if (endpoint.publicUri == null)
-                _WebClientHint(isServed: state.servesWebClient),
+                _WebClientHint(
+                  isServed: state.servesWebClient,
+                  outdatedVersion: state.outdatedWebClientVersion,
+                ),
               const SizedBox(height: 8),
               if (endpoint.publicUri == null)
                 _TvScreenHint(isServed: state.servesWebClient),
@@ -211,14 +215,21 @@ class _AlternativeAddresses extends StatelessWidget {
 /// `dart run tool/bundle_web_client.dart`; without it the host is API-only and
 /// guests need the Quizmo app.
 class _WebClientHint extends StatelessWidget {
-  const _WebClientHint({required this.isServed});
+  const _WebClientHint({required this.isServed, this.outdatedVersion});
 
   final bool isServed;
+
+  /// Version of a stale packed player, see
+  /// [HostServerState.outdatedWebClientVersion].
+  final String? outdatedVersion;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colour = isServed
+    final outdated = isServed ? outdatedVersion : null;
+    final colour = outdated != null
+        ? theme.colorScheme.error
+        : isServed
         ? theme.colorScheme.primary
         : theme.colorScheme.onSurfaceVariant;
 
@@ -226,14 +237,23 @@ class _WebClientHint extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          isServed ? Icons.public : Icons.public_off,
+          outdated != null
+              ? Icons.warning_amber
+              : isServed
+              ? Icons.public
+              : Icons.public_off,
           size: 16,
           color: colour,
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            isServed
+            outdated != null
+                ? context.tr(
+                    "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.",
+                    [outdated],
+                  )
+                : isServed
                 ? context.tr(
                     "Web player is hosted — guests can just open the LAN address in a browser.",
                   )
@@ -366,8 +386,10 @@ class PlayersPanel extends StatelessWidget {
     required this.game,
     required this.onAssignTeam,
     this.onKick,
+    this.onBan,
     this.onMerge,
     this.onSetOrder,
+    this.connectionsAvailable = true,
     super.key,
   });
 
@@ -377,8 +399,10 @@ class PlayersPanel extends StatelessWidget {
   /// Moves a player into a team, or clears the assignment with `null`.
   final void Function(String playerId, String? teamId) onAssignTeam;
   final ValueChanged<String>? onKick;
+  final ValueChanged<String>? onBan;
   final void Function(String source, String target)? onMerge;
   final ValueChanged<List<String>>? onSetOrder;
+  final bool connectionsAvailable;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +426,9 @@ class PlayersPanel extends StatelessWidget {
               },
             )
           : null,
-      title: context.tr("Players ({0} online)", [game.connectedPlayers.length]),
+      title: context.tr("Players ({0} online)", [
+        connectionsAvailable ? game.connectedPlayers.length : 0,
+      ]),
       icon: Icons.groups_outlined,
       child: players.isEmpty
           ? EmptyHint(
@@ -421,7 +447,7 @@ class PlayersPanel extends StatelessWidget {
                           height: 8,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: player.isConnected
+                            color: connectionsAvailable && player.isConnected
                                 ? Colors.green
                                 : theme.colorScheme.outline,
                           ),
@@ -438,6 +464,23 @@ class PlayersPanel extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              Text(
+                                context.tr(
+                                  !connectionsAvailable
+                                      ? 'Not connected'
+                                      : player.isConnected
+                                      ? 'Connected to the host'
+                                      : 'Disconnected. Waiting for the player to reconnect.',
+                                ),
+                                style: theme.textTheme.labelSmall,
+                              ),
+                              if (game.round.hasSubmitted(player.id))
+                                Text(
+                                  context.tr(
+                                    'The host accepted your submission.',
+                                  ),
+                                  style: theme.textTheme.labelSmall,
+                                ),
                               Text(
                                 player.isClockSynced
                                     ? context.tr("rtt {0} · offset {1}", [
@@ -468,6 +511,8 @@ class PlayersPanel extends StatelessWidget {
                           onSelected: (action) {
                             if (action == 'kick') {
                               onKick?.call(player.id);
+                            } else if (action == 'ban') {
+                              onBan?.call(player.id);
                             } else {
                               onMerge?.call(player.id, action);
                             }
@@ -476,7 +521,14 @@ class PlayersPanel extends StatelessWidget {
                             if (onKick != null)
                               PopupMenuItem(
                                 value: 'kick',
-                                child: Text(context.tr("Spieler kicken")),
+                                child: Text(
+                                  context.tr("Remove (new admission allowed)"),
+                                ),
+                              ),
+                            if (onBan != null)
+                              PopupMenuItem(
+                                value: 'ban',
+                                child: Text(context.tr("Ban for this session")),
                               ),
                             if (!player.isConnected && onMerge != null)
                               for (final target in game.connectedPlayers)
@@ -964,6 +1016,8 @@ class LiveRoundPanel extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
+    this.onJudgeAnswer,
+    this.onJudgeBuzzer,
     super.key,
   });
 
@@ -987,6 +1041,8 @@ class LiveRoundPanel extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
+  final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
+  final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
 
   @override
   Widget build(BuildContext context) {
@@ -1074,6 +1130,12 @@ class LiveRoundPanel extends StatelessWidget {
                     question: question,
                     game: game,
                   ),
+                  ShortAnswerQuestion(manualGrading: true) =>
+                    ManualAnswerMonitor(
+                      question: question,
+                      game: game,
+                      onJudge: onJudgeAnswer,
+                    ),
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||
@@ -1103,6 +1165,7 @@ class LiveRoundPanel extends StatelessWidget {
                 _RoundActions(
                   state: state,
                   onJudge: onJudge,
+                  onJudgeBuzzer: onJudgeBuzzer,
                   onReveal: onReveal,
                   onLock: onLock,
                   onNext: onNext,
@@ -1181,7 +1244,7 @@ class _JeopardyRoundBanner extends StatelessWidget {
   }
 }
 
-class _RoundActions extends StatelessWidget {
+class _RoundActions extends StatefulWidget {
   const _RoundActions({
     required this.state,
     required this.onJudge,
@@ -1192,6 +1255,7 @@ class _RoundActions extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
+    this.onJudgeBuzzer,
   });
 
   final QuizEngineState state;
@@ -1203,11 +1267,63 @@ class _RoundActions extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
+  final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
+
+  @override
+  State<_RoundActions> createState() => _RoundActionsState();
+}
+
+class _RoundActionsState extends State<_RoundActions> {
+  final _reason = TextEditingController();
+
+  @override
+  void didUpdateWidget(_RoundActions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state.game.round.activePlayerId !=
+            widget.state.game.round.activePlayerId ||
+        oldWidget.state.game.round.startedAtHostMicros !=
+            widget.state.game.round.startedAtHostMicros) {
+      _reason.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final onReveal = widget.onReveal;
+    final onLock = widget.onLock;
+    final onNext = widget.onNext;
+    final onCloseRound = widget.onCloseRound;
+    final onReopenBuzzer = widget.onReopenBuzzer;
+    final onReopenBuzzerForAll = widget.onReopenBuzzerForAll;
+    final onEndRound = widget.onEndRound;
     final game = state.game;
     final round = game.round;
+    void judge(bool correct) {
+      final onJudgeBuzzer = widget.onJudgeBuzzer;
+      if (onJudgeBuzzer == null) {
+        widget.onJudge(correct);
+      } else {
+        onJudgeBuzzer(
+          JudgeBuzzerEvent(
+            wasCorrect: correct,
+            reason: _reason.text.trim(),
+            playerId: round.activePlayerId,
+            questionId: round.question?.id,
+            startedAtHostMicros: round.startedAtHostMicros,
+            resolvedAttempts: round.resolvedAttempts,
+          ),
+        );
+      }
+      _reason.clear();
+    }
+
     if (game.poker?.betting ?? false) {
       return Text(
         context.tr("Einsatzphase: Einsätze im Pokerchips-Panel schließen."),
@@ -1223,6 +1339,33 @@ class _RoundActions extends StatelessWidget {
         game.teams.length > 1;
 
     final question = round.question;
+    if (question?.requiresManualGrading == true &&
+        round.status != RoundStatus.revealed) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr(
+              'Punkte und Chips werden erst nach deiner Bewertung und der Auflösung vergeben.',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: round.status.acceptsInput || round.pendingGradeCount == 0
+                ? onReveal
+                : null,
+            icon: const Icon(Icons.fact_check_outlined),
+            label: Text(
+              context.tr(
+                round.status.acceptsInput
+                    ? 'Antworten schließen & bewerten'
+                    : 'Bewertung abschließen',
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     final limitReached =
         question is BuzzerQuestion &&
         question.retryLimit != null &&
@@ -1232,11 +1375,25 @@ class _RoundActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (round.status == RoundStatus.locked &&
+            round.activePlayerId != null &&
+            widget.onJudgeBuzzer != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(
+              controller: _reason,
+              decoration: InputDecoration(
+                labelText: context.tr('Grund (optional)'),
+              ),
+            ),
+          ),
         if (round.status == RoundStatus.locked && round.activePlayerId == null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
-              answeredCorrectly
+              question is! BuzzerQuestion
+                  ? context.tr("Zeit abgelaufen. Antworten sind geschlossen.")
+                  : answeredCorrectly
                   ? context.tr(
                       "Richtig beantwortet. Der Spielleiter beendet die Frage.",
                     )
@@ -1295,12 +1452,15 @@ class _RoundActions extends StatelessWidget {
                 label: Text(
                   passesToOthers
                       ? context.tr("Close & pass to other teams")
+                      : game.revealMode == SolutionRevealMode.atEnd
+                      ? context.tr('Frage abschließen')
                       : context.tr("Close & reveal"),
                 ),
               ),
             ],
             RoundStatus.locked => [
-              if (round.activePlayerId == null &&
+              if (question is BuzzerQuestion &&
+                  round.activePlayerId == null &&
                   onReopenBuzzer != null &&
                   !answeredCorrectly)
                 FilledButton.icon(
@@ -1312,7 +1472,8 @@ class _RoundActions extends StatelessWidget {
                         : context.tr("Buzzer freigeben: Abstauben"),
                   ),
                 ),
-              if (round.activePlayerId == null &&
+              if (question is BuzzerQuestion &&
+                  round.activePlayerId == null &&
                   onReopenBuzzerForAll != null &&
                   !answeredCorrectly)
                 OutlinedButton.icon(
@@ -1328,7 +1489,7 @@ class _RoundActions extends StatelessWidget {
                 ),
               if (round.activePlayerId != null)
                 FilledButton.icon(
-                  onPressed: () => onJudge(true),
+                  onPressed: () => judge(true),
                   icon: const Icon(Icons.check),
                   label: Text(
                     context.tr("{0} is right", [
@@ -1338,7 +1499,7 @@ class _RoundActions extends StatelessWidget {
                 ),
               if (round.activePlayerId != null)
                 OutlinedButton.icon(
-                  onPressed: () => onJudge(false),
+                  onPressed: () => judge(false),
                   icon: const Icon(Icons.close),
                   label: Text(context.tr("Wrong")),
                 ),

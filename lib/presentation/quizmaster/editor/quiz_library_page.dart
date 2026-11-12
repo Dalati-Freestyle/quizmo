@@ -104,7 +104,9 @@ class _QuizLibraryView extends StatelessWidget {
           appBar: AppBar(
             title: Text(context.tr("Quiz library")),
             actions: [
-              const SettingsButton(),
+              SettingsButton(
+                onExamplesChanged: context.read<QuizLibraryCubit>().load,
+              ),
               if (kIsWeb)
                 TextButton.icon(
                   onPressed: state.isBusy

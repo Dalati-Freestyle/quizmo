@@ -19,6 +19,8 @@ final class _Room {
   final created = DateTime.now();
   DateTime heartbeat = DateTime.now();
   int nextGuest = 0;
+  int nextMediaRequest = 0;
+  final mediaRequests = <String, Completer<Response>>{};
 }
 
 /// Same-origin room relay. The dedicated host socket is the room capability:
@@ -30,6 +32,7 @@ final class InternetServer {
     this.maxRooms = 128,
     this.maxGuests = 128,
     this.roomLifetime = const Duration(hours: 12),
+    this.accessKey,
   });
 
   final Uri publicOrigin;
@@ -37,6 +40,14 @@ final class InternetServer {
   final int maxRooms;
   final int maxGuests;
   final Duration roomLifetime;
+
+  /// Access key of the reverse proxy in front of this relay (optional).
+  ///
+  /// The relay itself does not authenticate; it only tells the host socket
+  /// the key so the host can append `?quizmo_key=` to invitation and TV links.
+  /// The proxy turns that parameter into a cookie instead of asking for the
+  /// Basic Auth password.
+  final String? accessKey;
   final _rooms = <String, _Room>{};
   HttpServer? _server;
   Timer? _reaper;
@@ -93,6 +104,12 @@ final class InternetServer {
         'PUBLIC_ORIGIN must be an HTTPS origin (HTTP only on localhost).',
       );
     }
+    if (accessKey case final key?
+        when !RegExp(r'^[A-Za-z0-9_-]{32,128}$').hasMatch(key)) {
+      throw ArgumentError(
+        'QUIZMO_ACCESS_KEY must have 32 to 128 characters (A-Z, a-z, 0-9, _ and -).',
+      );
+    }
     if (await webClient.prepare() == 0 ||
         await webClient.read('index.html') == null) {
       throw StateError(
@@ -137,6 +154,13 @@ final class InternetServer {
           } finally {
             _pendingHosts--;
           }
+        } else if (request.url.pathSegments case ['rooms', final id, 'status']
+            when request.method == 'GET') {
+          response = Response(
+            _rooms.containsKey(id) ? 200 : 410,
+            body: '{"service":"quizmo-room","open":${_rooms.containsKey(id)}}',
+            headers: {'content-type': 'application/json'},
+          );
         } else if (request.url.pathSegments case ['rooms', final id, 'ws']
             when request.method == 'GET') {
           final room = _rooms[id];
@@ -148,8 +172,17 @@ final class InternetServer {
           response = await webSocketHandler(
             (channel, _) => _guestConnected(id, room, channel),
           )(request);
+        } else if (request.url.pathSegments case [
+          'rooms',
+          final id,
+          'api',
+          'media',
+          final asset,
+        ]) {
+          response = await _media(request, id, asset);
         } else if (path.startsWith('api/') ||
             path.startsWith('relay/') ||
+            path.contains('/api/') ||
             path.endsWith('/ws')) {
           response = Response.notFound('Not found');
         } else {
@@ -158,7 +191,10 @@ final class InternetServer {
         return response.change(
           headers: {
             'x-content-type-options': 'nosniff',
-            'referrer-policy': 'no-referrer',
+            // Origin only, never the path: room links stay secret, while
+            // OpenStreetMap tiles and the YouTube embed (both reject requests
+            // without a Referer) keep working.
+            'referrer-policy': 'strict-origin-when-cross-origin',
             'x-frame-options': 'DENY',
             'permissions-policy': 'camera=(), microphone=(), geolocation=()',
             'cross-origin-resource-policy': 'same-origin',
@@ -199,7 +235,11 @@ final class InternetServer {
     final id = _id();
     final room = _Room(host);
     _rooms[id] = room;
-    _send(host, {'type': 'room', 'room': id});
+    _send(host, {
+      'type': 'room',
+      'room': id,
+      if (accessKey != null) 'accessKey': accessKey,
+    });
     int frames = 0;
     var window = DateTime.now();
     room.subscriptions.add(
@@ -229,6 +269,40 @@ final class InternetServer {
                 room.guests[guest]?.sink.add(data);
               case {'type': 'close', 'id': final String guest}:
                 room.guests[guest]?.sink.close(1000);
+              case {
+                'type': 'mediaResponse',
+                'request': final String request,
+                'status': final int status,
+                'headers': final Map<String, dynamic> headers,
+                'body': final String body,
+              }:
+                final pending = room.mediaRequests[request];
+                if (pending == null) break;
+                if (status < 200 ||
+                    status > 599 ||
+                    body.length > 28 * 1024 * 1024) {
+                  pending.complete(Response(502));
+                  room.mediaRequests.remove(request);
+                  break;
+                }
+                pending.complete(
+                  Response(
+                    status,
+                    body: base64Decode(body),
+                    headers: {
+                      for (final name in const [
+                        'content-type',
+                        'content-length',
+                        'content-range',
+                        'accept-ranges',
+                        'cache-control',
+                        'content-security-policy',
+                      ])
+                        if (headers[name] case final String value) name: value,
+                    },
+                  ),
+                );
+                room.mediaRequests.remove(request);
               default:
                 unawaited(_closeRoom(id));
             }
@@ -240,6 +314,42 @@ final class InternetServer {
         onError: (Object _) => unawaited(_closeRoom(id)),
       ),
     );
+  }
+
+  Future<Response> _media(Request request, String id, String asset) async {
+    if (request.method != 'GET' && request.method != 'HEAD') {
+      return Response(405);
+    }
+    final room = _rooms[id];
+    if (room == null || !RegExp(r'^[a-f0-9]{64}$').hasMatch(asset)) {
+      return Response.notFound('Unknown room or asset');
+    }
+    if (room.mediaRequests.length >= 16) {
+      return Response(429, headers: {'retry-after': '2'});
+    }
+    final key = '${room.nextMediaRequest++}';
+    final pending = Completer<Response>();
+    room.mediaRequests[key] = pending;
+    try {
+      _send(room.host, {
+        'type': 'mediaRequest',
+        'request': key,
+        'asset': asset,
+        'method': request.method,
+        'access':
+            request.headers['authorization']?.startsWith('Bearer ') == true
+            ? request.headers['authorization']!.substring(7)
+            : request.url.queryParameters['access'],
+        'range': request.headers['range'],
+      });
+      return await pending.future.timeout(
+        const Duration(seconds: 20),
+        onTimeout: () =>
+            Response(504, body: 'Media download timed out; retry.'),
+      );
+    } finally {
+      room.mediaRequests.remove(key);
+    }
   }
 
   void _guestConnected(String roomId, _Room room, WebSocketChannel channel) {
@@ -290,6 +400,10 @@ final class InternetServer {
   Future<void> _closeRoom(String id) async {
     final room = _rooms.remove(id);
     if (room == null) return;
+    for (final pending in room.mediaRequests.values) {
+      pending.complete(Response(410, body: 'Room closed'));
+    }
+    room.mediaRequests.clear();
     for (final subscription in room.subscriptions.toList()) {
       await subscription.cancel();
     }

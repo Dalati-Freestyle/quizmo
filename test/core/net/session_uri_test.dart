@@ -24,4 +24,17 @@ void main() {
     expect(sessionSocketUri(launch).toString(), 'ws://192.168.1.2:8080/ws');
     expect(isInternetSession(launch), isFalse);
   });
+  test('the proxy access key survives on every session link', () {
+    final launch = Uri.parse(
+      'https://quiz.example.com/rooms/abc/tv?quizmo_key=k3y&session=s1&theme=dark',
+    );
+    expect(sessionUri(launch).queryParameters, {
+      'session': 's1',
+      kAccessKeyParameter: 'k3y',
+    });
+    expect(
+      sessionSocketUri(launch).toString(),
+      'wss://quiz.example.com/rooms/abc/ws?session=s1&quizmo_key=k3y',
+    );
+  });
 }

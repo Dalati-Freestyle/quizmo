@@ -68,8 +68,13 @@ class TvPage extends StatelessWidget {
     this.joinUri,
     this.brightness,
     this.launchUri,
+    this.clientFactory,
     super.key,
   });
+
+  /// Replaces the network client; widget tests inject a fake host here.
+  @visibleForTesting
+  final QuizClientFactory? clientFactory;
 
   /// Original browser URL, captured before Flutter updates its routes.
   final Uri? launchUri;
@@ -88,7 +93,10 @@ class TvPage extends StatelessWidget {
     final host = hostUri ?? _defaultHostUri(launchUri ?? Uri.base);
     return BlocProvider<SpectatorSessionCubit>(
       create: (_) {
-        final cubit = SpectatorSessionCubit(baseUri: host);
+        final factory = clientFactory;
+        final cubit = factory == null
+            ? SpectatorSessionCubit(baseUri: host)
+            : SpectatorSessionCubit(baseUri: host, clientFactory: factory);
         unawaited(cubit.start());
         return cubit;
       },
@@ -194,6 +202,11 @@ class _TvViewState extends State<_TvView> {
           autofocus: true,
           onKeyEvent: _onKey,
           child: Stack(
+            // The Scaffold body is laid out with loose constraints, so a
+            // Stack sizes itself to its non-positioned children. Once the
+            // join code field below collapses to `SizedBox.shrink` (connected)
+            // that would be 0×0 and nothing of the TV screen would be painted.
+            fit: StackFit.expand,
             children: [
               Positioned.fill(
                 child: DecoratedBox(
@@ -227,8 +240,13 @@ class _TvViewState extends State<_TvView> {
                             SpectatorSessionCubit,
                             SpectatorSessionState
                           >(
-                            builder: (context, state) =>
-                                TvScreen(state: state, joinUri: widget.joinUri),
+                            builder: (context, state) => SessionMediaAccess(
+                              baseUri: state.mediaBaseUri,
+                              child: TvScreen(
+                                state: state,
+                                joinUri: widget.joinUri,
+                              ),
+                            ),
                           ),
                     ),
                   ),
@@ -238,6 +256,36 @@ class _TvViewState extends State<_TvView> {
                 top: 12,
                 left: 12,
                 child: SafeArea(child: SettingsButton()),
+              ),
+              BlocBuilder<SpectatorSessionCubit, SpectatorSessionState>(
+                builder: (context, state) => state.isConnected
+                    ? const SizedBox.shrink()
+                    : Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SafeArea(
+                          child: SizedBox(
+                            width: 420,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: TextField(
+                                obscureText: true,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                maxLength: 64,
+                                decoration: InputDecoration(
+                                  labelText: context.tr('Join code'),
+                                  helperText: context.tr(
+                                    'Enter the code and press Enter to reconnect.',
+                                  ),
+                                ),
+                                onSubmitted: (code) => context
+                                    .read<SpectatorSessionCubit>()
+                                    .setJoinCode(code),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
               ),
               if (Navigator.of(context).canPop())
                 // SafeArea keeps the button clear of the status bar and
@@ -302,7 +350,34 @@ class TvScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 40),
-                      SizedBox(width: 620, child: _StandingsPanel(game: game)),
+                      SizedBox(
+                        width: 620,
+                        child: switch (state.guestWifi) {
+                          // The Jeopardy board replaces the lobby, so the
+                          // join codes take the (still empty) standings slot.
+                          final wifi when _JoinColumn.isJeopardyOpening(game) =>
+                            _JoinColumn(
+                              wifi: wifi,
+                              joinUri: joinUri,
+                              game: game,
+                            ),
+                          final wifi? when !_LobbyStage.isPregame(game) =>
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  child: _StandingsPanel(
+                                    game: game,
+                                    maxEntries: 6,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                _WifiCorner(wifi: wifi),
+                              ],
+                            ),
+                          _ => _StandingsPanel(game: game),
+                        },
+                      ),
                     ],
                   ),
           ),
@@ -348,6 +423,13 @@ class _Header extends StatelessWidget {
             ),
           ],
           const Spacer(),
+          if (state.game?.recoveryPaused == true) ...[
+            _Pill(
+              label: context.tr('Recovery paused'),
+              color: scheme.tertiaryContainer,
+            ),
+            const SizedBox(width: 16),
+          ],
           if (mode != null) ...[
             _Pill(label: mode, color: scheme.secondaryContainer),
             const SizedBox(width: 16),
@@ -534,6 +616,27 @@ class _MainStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final question = game.round.question;
     final jeopardy = game.jeopardy;
+    if (game.showFinalReview) {
+      return _TvPanel(
+        child: _FinalReviewStage(
+          key: ValueKey(game.roundHistory.first.startedAtHostMicros),
+          game: game,
+          state: state,
+        ),
+      );
+    }
+    if (game.resultsHidden &&
+        game.completedQuestionIds.contains(question?.id)) {
+      return _TvPanel(
+        child: Center(
+          child: Text(
+            context.tr('Frage abgeschlossen. Die Auflösung folgt am Quizende.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 44),
+          ),
+        ),
+      );
+    }
     return _TvPanel(
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
@@ -561,6 +664,7 @@ class _MainStage extends StatelessWidget {
             key: const ValueKey('lobby'),
             game: game,
             joinUri: joinUri,
+            wifi: state.guestWifi,
           ),
         },
       ),
@@ -569,6 +673,100 @@ class _MainStage extends StatelessWidget {
 }
 
 // --------------------------------------------------------------- jeopardy ---
+
+class _FinalReviewStage extends StatefulWidget {
+  const _FinalReviewStage({required this.game, required this.state, super.key});
+
+  final GameState game;
+  final SpectatorSessionState state;
+
+  @override
+  State<_FinalReviewStage> createState() => _FinalReviewStageState();
+}
+
+class _FinalReviewStageState extends State<_FinalReviewStage> {
+  int _index = 0;
+  bool _paused = false;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!_paused && widget.game.roundHistory.length > 1) _move(1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  void _move(int delta) {
+    setState(() {
+      _index = (_index + delta) % widget.game.roundHistory.length;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rounds = widget.game.roundHistory;
+    final round = rounds[_index % rounds.length];
+    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: true);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.tr('Quiz-Auflösung · {0} / {1}', [
+                  _index + 1,
+                  rounds.length,
+                ]),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: context.tr('Vorherige Lösung'),
+              icon: const Icon(Icons.navigate_before, size: 32),
+              onPressed: rounds.length > 1 ? () => _move(-1) : null,
+            ),
+            IconButton(
+              tooltip: context.tr(
+                _paused
+                    ? 'Automatischen Wechsel fortsetzen'
+                    : 'Automatischen Wechsel pausieren',
+              ),
+              icon: Icon(_paused ? Icons.play_arrow : Icons.pause, size: 32),
+              onPressed: rounds.length > 1
+                  ? () => setState(() => _paused = !_paused)
+                  : null,
+            ),
+            IconButton(
+              tooltip: context.tr('Nächste Lösung'),
+              icon: const Icon(Icons.navigate_next, size: 32),
+              onPressed: rounds.length > 1 ? () => _move(1) : null,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: _QuestionStage(
+            key: ValueKey('review-round-$_index'),
+            game: reviewGame,
+            question: round.question!,
+            state: widget.state.copyWith(game: reviewGame),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// The board between two questions: whose turn it is and what is left.
 class _JeopardyBoardStage extends StatelessWidget {
@@ -695,10 +893,25 @@ class _DailyDoubleStage extends StatelessWidget {
 }
 
 class _LobbyStage extends StatelessWidget {
-  const _LobbyStage({required this.game, required this.joinUri, super.key});
+  const _LobbyStage({
+    required this.game,
+    required this.joinUri,
+    this.wifi,
+    super.key,
+  });
 
   final GameState game;
   final Uri joinUri;
+  final GuestWifi? wifi;
+
+  /// Before the first question the lobby shows the Wi-Fi code prominently;
+  /// afterwards it shrinks into the corner below the standings.
+  static bool isPregame(GameState game) =>
+      game.round.question == null &&
+      game.jeopardy == null &&
+      !game.showFinalReview &&
+      game.completedQuestionIds.isEmpty &&
+      game.scores.history.isEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -709,106 +922,408 @@ class _LobbyStage extends StatelessWidget {
         game.completedQuestionIds.isNotEmpty || game.scores.history.isNotEmpty;
     const maxChips = 14;
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          hasPlayed
-              ? context.tr("Next question coming up…")
-              : context.tr("Get ready to play!"),
-          textAlign: TextAlign.center,
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontSize: 64,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 40),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Always dark-on-white, whatever the theme: scanners need contrast.
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+    // Scales down instead of overflowing when both QR codes and a long
+    // roster compete for the stage.
+    return LayoutBuilder(
+      builder: (context, constraints) => FittedBox(
+        fit: BoxFit.scaleDown,
+        child: SizedBox(
+          width: constraints.maxWidth,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                hasPlayed
+                    ? context.tr("Next question coming up…")
+                    : context.tr("Get ready to play!"),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.displaySmall?.copyWith(
+                  fontSize: 64,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              padding: const EdgeInsets.all(20),
-              child: QrImageView(
-                data: joinUri.toString(),
-                size: 300,
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.white,
-                errorCorrectionLevel: QrErrorCorrectLevel.M,
-                semanticsLabel: context.tr("QR code to join at {0}", [joinUri]),
+              const SizedBox(height: 40),
+              if (wifi case final wifi? when isPregame(game))
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _QrStep(
+                      step: 1,
+                      title: context.tr('Connect to the Wi-Fi'),
+                      data: wifi.toQrPayload(),
+                      semanticsLabel: context.tr(
+                        'QR code to connect to the Wi-Fi {0}',
+                        [wifi.ssid],
+                      ),
+                      caption: wifi.ssid,
+                      detail: wifi.security == WifiSecurity.open
+                          ? context.tr('No password')
+                          : context.tr('Password: {0}', [wifi.password]),
+                    ),
+                    const SizedBox(width: 72),
+                    _QrStep(
+                      step: 2,
+                      title: context.tr('Scan to join with your phone'),
+                      data: joinUri.toString(),
+                      semanticsLabel: context.tr('QR code to join at {0}', [
+                        joinUri,
+                      ]),
+                      caption: joinUri.authority,
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Always dark-on-white, whatever the theme: scanners need contrast.
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: QrImageView(
+                        data: joinUri.toString(),
+                        size: 300,
+                        padding: EdgeInsets.zero,
+                        backgroundColor: Colors.white,
+                        errorCorrectionLevel: QrErrorCorrectLevel.M,
+                        semanticsLabel: context.tr("QR code to join at {0}", [
+                          joinUri,
+                        ]),
+                      ),
+                    ),
+                    const SizedBox(width: 56),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.tr("Scan to join with your phone"),
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 30,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            context.tr("or open"),
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontSize: 30,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            joinUri.authority,
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontSize: 64,
+                              fontWeight: FontWeight.w800,
+                              color: scheme.primary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 40),
+              Text(
+                online.isEmpty
+                    ? context.tr("Waiting for the first player…")
+                    : context.tr("{0} {1} online", [
+                        online.length,
+                        online.length == 1
+                            ? context.tr("player")
+                            : context.tr("players"),
+                      ]),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            const SizedBox(width: 56),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 20),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
+                runSpacing: 16,
                 children: [
-                  Text(
-                    context.tr("Scan to join with your phone"),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontSize: 30,
-                      color: scheme.onSurfaceVariant,
+                  for (final player in online.take(maxChips))
+                    _Pill(label: player.name, color: scheme.primaryContainer),
+                  if (online.length > maxChips)
+                    _Pill(
+                      label: '+${online.length - maxChips}',
+                      color: scheme.surfaceContainerHighest,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.tr("or open"),
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontSize: 30,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    joinUri.authority,
-                    style: theme.textTheme.displaySmall?.copyWith(
-                      fontSize: 64,
-                      fontWeight: FontWeight.w800,
-                      color: scheme.primary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
                 ],
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// White framed QR code: scanners need contrast, whatever the theme.
+class _TvQrCode extends StatelessWidget {
+  const _TvQrCode({
+    required this.data,
+    required this.size,
+    required this.semanticsLabel,
+  });
+
+  final String data;
+  final double size;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(size / 14),
+    ),
+    padding: EdgeInsets.all(size / 14),
+    child: QrImageView(
+      data: data,
+      size: size,
+      padding: EdgeInsets.zero,
+      backgroundColor: Colors.white,
+      errorCorrectionLevel: QrErrorCorrectLevel.M,
+      semanticsLabel: semanticsLabel,
+    ),
+  );
+}
+
+/// One numbered step of the pre-game lobby: Wi-Fi first, then the quiz.
+class _QrStep extends StatelessWidget {
+  const _QrStep({
+    required this.step,
+    required this.title,
+    required this.data,
+    required this.semanticsLabel,
+    required this.caption,
+    this.detail,
+    this.qrSize = 240,
+  });
+
+  /// Step number; `null` hides the badge (only one step shown).
+  final int? step;
+  final String title;
+  final String data;
+  final String semanticsLabel;
+  final String caption;
+  final String? detail;
+  final double qrSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return SizedBox(
+      width: 440,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (step case final step?) ...[
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: scheme.primary,
+                  child: Text(
+                    '$step',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+              ],
+              Flexible(
+                child: Text(
+                  title,
+                  maxLines: 2,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          _TvQrCode(data: data, size: qrSize, semanticsLabel: semanticsLabel),
+          const SizedBox(height: 16),
+          Text(
+            caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontSize: 40,
+              fontWeight: FontWeight.w800,
+              color: scheme.primary,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          if (detail case final detail?)
+            Text(
+              detail,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 26,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Join codes beside the Jeopardy board before the first question.
+class _JoinColumn extends StatelessWidget {
+  const _JoinColumn({required this.joinUri, required this.game, this.wifi});
+
+  final GuestWifi? wifi;
+  final Uri joinUri;
+  final GameState game;
+
+  /// The board is shown but nothing was played yet.
+  static bool isJeopardyOpening(GameState game) =>
+      game.jeopardy != null &&
+      game.jeopardy!.pendingDailyDoubleId == null &&
+      game.round.question == null &&
+      !game.showFinalReview &&
+      game.completedQuestionIds.isEmpty &&
+      game.scores.history.isEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final online = game.connectedPlayers.length;
+    final wifi = this.wifi;
+    return _TvPanel(
+      padding: 24,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (wifi != null) ...[
+              _QrStep(
+                step: 1,
+                title: context.tr('Connect to the Wi-Fi'),
+                data: wifi.toQrPayload(),
+                semanticsLabel: context.tr(
+                  'QR code to connect to the Wi-Fi {0}',
+                  [wifi.ssid],
+                ),
+                caption: wifi.ssid,
+                detail: wifi.security == WifiSecurity.open
+                    ? context.tr('No password')
+                    : context.tr('Password: {0}', [wifi.password]),
+                qrSize: 200,
+              ),
+              const SizedBox(height: 28),
+            ],
+            _QrStep(
+              step: wifi == null ? null : 2,
+              title: context.tr('Scan to join with your phone'),
+              data: joinUri.toString(),
+              semanticsLabel: context.tr('QR code to join at {0}', [joinUri]),
+              caption: joinUri.authority,
+              qrSize: wifi == null ? 300 : 200,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              online == 0
+                  ? context.tr("Waiting for the first player…")
+                  : context.tr("{0} {1} online", [
+                      online,
+                      online == 1
+                          ? context.tr("player")
+                          : context.tr("players"),
+                    ]),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontSize: 30,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 40),
-        Text(
-          online.isEmpty
-              ? context.tr("Waiting for the first player…")
-              : context.tr("{0} {1} online", [
-                  online.length,
-                  online.length == 1
-                      ? context.tr("player")
-                      : context.tr("players"),
-                ]),
-          style: theme.textTheme.headlineSmall?.copyWith(
-            fontSize: 34,
-            fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+/// Small Wi-Fi code in the corner while the game is running.
+class _WifiCorner extends StatelessWidget {
+  const _WifiCorner({required this.wifi});
+
+  final GuestWifi wifi;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return _TvPanel(
+      padding: 16,
+      child: Row(
+        children: [
+          _TvQrCode(
+            data: wifi.toQrPayload(),
+            size: 112,
+            semanticsLabel: context.tr('QR code to connect to the Wi-Fi {0}', [
+              wifi.ssid,
+            ]),
           ),
-        ),
-        const SizedBox(height: 20),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            for (final player in online.take(maxChips))
-              _Pill(label: player.name, color: scheme.primaryContainer),
-            if (online.length > maxChips)
-              _Pill(
-                label: '+${online.length - maxChips}',
-                color: scheme.surfaceContainerHighest,
-              ),
-          ],
-        ),
-      ],
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.wifi, size: 30, color: scheme.primary),
+                    const SizedBox(width: 10),
+                    Text(
+                      context.tr('Guest Wi-Fi'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontSize: 24,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  wifi.ssid,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1088,7 +1603,7 @@ class _CountdownBarState extends State<_CountdownBar> {
     final color = isUrgent ? scheme.error : scheme.primary;
 
     if (remaining == Duration.zero &&
-        widget.state.game?.round.question?.softTimeLimit == true) {
+        widget.state.game?.round.hasSoftTimer == true) {
       return Text(
         context.tr("Zeit abgelaufen · Der Spielleiter beendet die Runde."),
         style: theme.textTheme.titleLarge?.copyWith(fontSize: 24),
@@ -1590,15 +2105,27 @@ class _AwardsRow extends StatelessWidget {
 // -------------------------------------------------------------- standings ---
 
 class _StandingsPanel extends StatelessWidget {
-  const _StandingsPanel({required this.game});
+  const _StandingsPanel({required this.game, this.maxEntries = 8});
 
   final GameState game;
+  final int maxEntries;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final standings = buildTvStandings(game);
+    if (game.resultsHidden) {
+      return _TvPanel(
+        child: Center(
+          child: Text(
+            context.tr('Punktestand bis zum Quizende verborgen.'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 32),
+          ),
+        ),
+      );
+    }
+    final standings = buildTvStandings(game, maxEntries: maxEntries);
 
     return _TvPanel(
       padding: 36,

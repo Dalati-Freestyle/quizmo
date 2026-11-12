@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:shelf/shelf.dart';
 
 import '../core/engine/quiz_engine_bloc.dart';
 import '../core/net/session_uri.dart';
 import 'handlers/socket_handlers.dart';
+import 'handlers/media_handlers.dart';
 import 'server_contract.dart';
 
 /// Publishes a browser-owned engine through a same-origin internet relay.
@@ -57,6 +59,7 @@ final class RelayHost implements EmbeddedQuizServer {
       );
     }
     final ready = Completer<String>();
+    String? accessKey;
     try {
       final socket = _connect(
         sessionUri(origin).replace(
@@ -73,6 +76,7 @@ final class RelayHost implements EmbeddedQuizServer {
             final json = jsonDecode(frame as String);
             switch (json) {
               case {'type': 'room', 'room': final String room}:
+                if (json['accessKey'] case final String key) accessKey = key;
                 if (!ready.isCompleted) ready.complete(room);
               case {'type': 'open', 'id': final String id}:
                 final guest = StreamController<String>();
@@ -93,6 +97,15 @@ final class RelayHost implements EmbeddedQuizServer {
                 _guests[id]?.add(data);
               case {'type': 'close', 'id': final String id}:
                 _guests.remove(id)?.close();
+              case {
+                'type': 'mediaRequest',
+                'request': final String request,
+                'asset': final String asset,
+                'method': final String method,
+                'access': final String? access,
+                'range': final String? range,
+              }:
+                unawaited(_serveMedia(request, asset, method, access, range));
             }
           } on Object {
             socket.sink.close(3002, 'Invalid relay message');
@@ -103,6 +116,7 @@ final class RelayHost implements EmbeddedQuizServer {
             ready.completeError(StateError('Internet relay unavailable.'));
           }
           _endpoint = null;
+          if (!_engine.isClosed) _engine.add(const PauseForRecoveryEvent());
           _heartbeat?.cancel();
           for (final guest in _guests.values) {
             guest.close();
@@ -128,7 +142,15 @@ final class RelayHost implements EmbeddedQuizServer {
       _endpoint = ServerEndpoint(
         port: origin.port,
         addresses: [origin.host],
-        publicUri: sessionUri(origin).replace(path: '/rooms/$room'),
+        // Invitation, TV link and their QR codes carry the proxy access key,
+        // so guests skip the Basic Auth prompt.
+        publicUri: sessionUri(origin).replace(
+          path: '/rooms/$room',
+          queryParameters: accessKey == null
+              ? null
+              : {kAccessKeyParameter: accessKey!},
+        ),
+        recoverySessionId: _engine.recoverySessionId,
       );
       _heartbeat = Timer.periodic(
         const Duration(seconds: 15),
@@ -138,6 +160,56 @@ final class RelayHost implements EmbeddedQuizServer {
     } on Object {
       await stop();
       rethrow;
+    }
+  }
+
+  Future<void> _serveMedia(
+    String request,
+    String asset,
+    String method,
+    String? access,
+    String? range,
+  ) async {
+    try {
+      final response = serveMedia(
+        Request(
+          method,
+          Uri(
+            scheme: 'https',
+            host: 'relay.invalid',
+            path: '/api/media/$asset',
+            queryParameters: {'access': ?access},
+          ),
+          headers: {'range': ?range},
+        ),
+        asset,
+        _engine,
+      );
+      final bytes = await response.read().expand((chunk) => chunk).toList();
+      _send({
+        'type': 'mediaResponse',
+        'request': request,
+        'status': response.statusCode,
+        'headers': response.headers,
+        'body': base64Encode(bytes),
+      });
+    } on Object {
+      _send({
+        'type': 'mediaResponse',
+        'request': request,
+        'status': 502,
+        'headers': <String, String>{},
+        'body': '',
+      });
+      if (!_logs.isClosed) {
+        _logs.add(
+          ServerLogEntry(
+            level: ServerLogLevel.error,
+            message: 'Media transfer failed. The guest can retry the download.',
+            atMicros: DateTime.now().microsecondsSinceEpoch,
+          ),
+        );
+      }
     }
   }
 

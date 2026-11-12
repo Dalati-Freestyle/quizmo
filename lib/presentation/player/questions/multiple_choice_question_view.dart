@@ -21,6 +21,7 @@ class MultipleChoiceQuestionView extends StatefulWidget {
     this.selectedOptionIds = const [],
     this.onSubmitMultiple,
     this.enabled = true,
+    this.submissionAccepted = false,
     super.key,
   });
 
@@ -39,6 +40,7 @@ class MultipleChoiceQuestionView extends StatefulWidget {
   final List<String> selectedOptionIds;
   final ValueChanged<List<String>>? onSubmitMultiple;
   final bool enabled;
+  final bool submissionAccepted;
   @override
   State<MultipleChoiceQuestionView> createState() =>
       _MultipleChoiceQuestionViewState();
@@ -48,6 +50,14 @@ class _MultipleChoiceQuestionViewState
     extends State<MultipleChoiceQuestionView> {
   final Set<String> draft = {};
   bool submitted = false;
+  @override
+  void didUpdateWidget(covariant MultipleChoiceQuestionView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedOptionId != null && widget.selectedOptionId == null) {
+      submitted = false;
+    }
+  }
+
   MultipleChoiceQuestion get question => widget.question;
   RoundStatus get status => widget.status;
   String? get selectedOptionId => widget.selectedOptionId;
@@ -118,7 +128,9 @@ class _MultipleChoiceQuestionViewState
                   ? 'Correct!'
                   : context.tr("Not this time."),
             _ when selectedOptionId != null || submitted => context.tr(
-              "Antwort eingeloggt. Warte auf den Spielleiter…",
+              widget.submissionAccepted
+                  ? 'The host accepted your submission.'
+                  : 'Sending. Waiting for host confirmation...',
             ),
             _ =>
               question.allowMultipleAnswers

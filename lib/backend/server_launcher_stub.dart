@@ -4,6 +4,7 @@
 /// there. The stub fails loudly instead of silently pretending to work.
 library;
 
+import '../core/engine/guest_wifi_cubit.dart';
 import '../core/engine/quiz_engine_bloc.dart';
 import 'server_contract.dart';
 import 'web_client_bundle.dart';
@@ -19,6 +20,7 @@ EmbeddedQuizServer createEmbeddedServer({
   required QuizEngineBloc engine,
   String serverName = 'Quizmo Host',
   WebClientBundle? webClient,
+  GuestWifiCubit? guestWifi,
 }) => throw EmbeddedServerUnsupportedError(
   'Hosting is unavailable in the browser. Run the host on Android, iOS, '
   'macOS, Windows or Linux and join this browser tab as a player.',

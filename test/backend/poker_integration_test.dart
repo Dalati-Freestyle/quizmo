@@ -68,4 +68,81 @@ void main() {
     const message = PokerWagerMessage(questionId: 'q', wager: 20);
     expect(ClientMessage.decode(message.encode()), message);
   });
+
+  test('private acceptance survives reconnect without revealing poker answers to players or TV', () async {
+    final engine = QuizEngineBloc(
+      questionBank: const [
+        TrueFalseQuestion(id: 'q', prompt: 'True?', correctAnswer: true),
+      ],
+      teams: const {
+        'a': Team(id: 'a', name: 'A'),
+        'b': Team(id: 'b', name: 'B'),
+      },
+      pokerStartingChips: 100,
+    );
+    final server = EmbeddedServer(engine: engine);
+    final endpoint = await server.start(port: 0);
+    final player = QuizClient(baseUri: endpoint.loopbackUri);
+    final other = QuizClient(baseUri: endpoint.loopbackUri);
+    final tv = QuizClient(baseUri: endpoint.loopbackUri);
+    final returning = QuizClient(baseUri: endpoint.loopbackUri);
+    addTearDown(() async {
+      await player.dispose();
+      await other.dispose();
+      await tv.dispose();
+      await returning.dispose();
+      await server.dispose();
+      await engine.close();
+    });
+    await player.connect(name: 'Ada', teamId: 'a', handshakeProbes: 1);
+    await other.connect(name: 'Bob', teamId: 'b', handshakeProbes: 1);
+    await tv.watch();
+    final betting = player.games.firstWhere((game) => game.poker!.betting);
+    engine.add(const StartRoundEvent('q'));
+    await betting;
+    final wagered = player.games.firstWhere(
+      (game) => game.poker!.wagers['a'] == 25,
+    );
+    player.placePokerWager(questionId: 'q', wager: 25);
+    await wagered;
+    final otherWagered = other.games.firstWhere(
+      (game) => game.poker!.wagers['b'] == 25,
+    );
+    other.placePokerWager(questionId: 'q', wager: 25);
+    await otherWagered;
+    final opened = player.games.firstWhere((game) => !game.poker!.betting);
+    engine.add(const OpenPokerAnswersEvent());
+    await opened;
+    final own = player.snapshots.firstWhere(
+      (snapshot) => snapshot.ownSubmissionAccepted == true,
+    );
+    final watched = tv.snapshots.first;
+    final others = other.snapshots.first;
+    player.submitAnswer(
+      (id, timestamp, offset) => TrueFalseAnswer(
+        playerId: id,
+        questionId: 'q',
+        clientTimestampMicros: timestamp,
+        clockOffsetMicros: offset,
+        value: true,
+      ),
+    );
+    final receipt = await own.timeout(const Duration(seconds: 5));
+    expect(receipt.game.round.answers, isEmpty);
+    expect((await watched).game.round.answers, isEmpty);
+    expect((await others).ownSubmissionAccepted, isFalse);
+    final restored = returning.snapshots.firstWhere(
+      (snapshot) => snapshot.ownSubmissionAccepted == true,
+    );
+    await returning.connect(
+      name: 'Ada',
+      resumePlayerId: player.playerId,
+      resumeToken: player.resumeToken,
+      handshakeProbes: 1,
+    );
+    final restoredReceipt = await restored.timeout(const Duration(seconds: 5));
+    expect(restoredReceipt.game.round.answers, isEmpty);
+    expect(returning.playerId, player.playerId);
+    expect(engine.state.game.round.answers, hasLength(1));
+  });
 }

@@ -9,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/net/session_uri.dart';
+import '../core/data/session_recovery.dart';
 
 import 'common/role_selection_page.dart';
 import 'l10n/app_localizations.dart';
@@ -16,6 +17,7 @@ import 'settings/locale_cubit.dart';
 import 'spectator/tv_page.dart';
 import 'player/player_page.dart';
 import 'player/player_session_store.dart';
+import 'quizmaster/recovery/recovery_gate.dart';
 
 /// The application shell.
 class QuizmoApp extends StatefulWidget {
@@ -28,10 +30,12 @@ class QuizmoApp extends StatefulWidget {
     this.startAsTv = false,
     this.launchUri,
     this.localeCubit,
+    this.recoveryStore,
     super.key,
   });
 
   final LocaleCubit? localeCubit;
+  final SessionRecoveryStore? recoveryStore;
 
   @override
   State<QuizmoApp> createState() => _QuizmoAppState();
@@ -109,22 +113,30 @@ class _QuizmoAppState extends State<QuizmoApp> {
         darkTheme: QuizmoApp.buildTheme(Brightness.dark),
         home: widget.startAsTv
             ? TvPage(launchUri: widget.launchUri)
-            : _SessionHome(launchUri: widget.launchUri),
+            : _SessionHome(
+                launchUri: widget.launchUri,
+                recoveryStore: widget.recoveryStore,
+              ),
       ),
     ),
   );
 }
 
 class _SessionHome extends StatefulWidget {
-  const _SessionHome({this.launchUri});
+  const _SessionHome({this.launchUri, this.recoveryStore});
   final Uri? launchUri;
+  final SessionRecoveryStore? recoveryStore;
   @override
   State<_SessionHome> createState() => _SessionHomeState();
 }
 
 class _SessionHomeState extends State<_SessionHome> {
   late final Uri? _invitedRoom =
-      kIsWeb && isInternetSession(widget.launchUri ?? Uri.base)
+      kIsWeb &&
+          (isInternetSession(widget.launchUri ?? Uri.base) ||
+              (widget.launchUri ?? Uri.base).queryParameters.containsKey(
+                'session',
+              ))
       ? sessionUri(widget.launchUri ?? Uri.base)
       : null;
   late final Future<SavedPlayerSession?> _saved = _load();
@@ -141,8 +153,11 @@ class _SessionHomeState extends State<_SessionHome> {
     future: _saved,
     builder: (context, snapshot) => _invitedRoom != null
         ? PlayerPage(initialHostUri: _invitedRoom)
-        : snapshot.data != null
-        ? PlayerPage(initialHostUri: snapshot.data!.host)
-        : const RoleSelectionPage(),
+        : RecoveryGate(
+            store: widget.recoveryStore,
+            child: snapshot.data != null
+                ? PlayerPage(initialHostUri: snapshot.data!.host)
+                : const RoleSelectionPage(),
+          ),
   );
 }

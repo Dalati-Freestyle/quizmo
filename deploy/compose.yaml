@@ -5,6 +5,8 @@ services:
       context: ..
     environment:
       PUBLIC_ORIGIN: https://${QUIZMO_DOMAIN:?Set QUIZMO_DOMAIN in .env}
+      # Optional, only with Caddyfile.basic-auth: appended to invitation links.
+      QUIZMO_ACCESS_KEY: ${QUIZMO_ACCESS_KEY:-}
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]

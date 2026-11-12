@@ -21,6 +21,22 @@ MP3/WAV/OGG mit Play/Pause und optionalem Abspiellimit, MP4 mit Play/Pause und
 Positionssteuerung, YouTube-Links, Code mit Syntaxhervorhebung sowie verschiebbare
 OpenStreetMap-Kartenausschnitte. Medien werden im Editor vorab angezeigt.
 YouTube und Kartenkacheln benötigen Internet; lokale Uploads funktionieren im LAN.
+Vor dem Einlesen prüft der Editor die Dateigröße anhand der Picker-Metadaten.
+Leere Dateien, unbekannte Größen und Dateien über 20 MiB werden verständlich
+abgewiesen; Dateiendung und tatsächlicher Inhalt werden anschließend geprüft.
+Rasterbilder müssen außerdem vom Bilddecoder der aktuellen Plattform lesbar sein.
+MP4 bezeichnet einen Container und garantiert keinen unterstützten Codec.
+H.264 mit AAC sowie MP3 sind meist die kompatibelste Wahl. Die Wiedergabe muss
+auf den vorgesehenen Spieler- und TV-Geräten ausprobiert werden.
+
+Bei Rasterbildern bleibt das Original die Voreinstellung. Optional erzeugt
+„Optimierte PNG-Kopie als Vorschau“ eine verkleinerte, seitenverhältnistreue
+Kopie (maximale Kantenlänge 3840/2560/1920/1280 Pixel, kein Hochskalieren).
+Die Vorschau zeigt beide Bilder, Abmessungen und Dateigrößen. Nur die ausdrückliche
+Auswahl „Optimierte Kopie verwenden“ übernimmt die kleinere Datei ins Quiz.
+PNG kodiert verlustfrei; Verkleinern reduziert dennoch Details und entfernt
+Metadaten. Eine größere Kopie oder ein animiertes Bild wird nicht übernommen.
+Die Quelldatei auf dem Gerät wird niemals verändert.
 Mit „Details ausblenden“ bleiben Beschriftungen und Dateinamen auf Spieler- und
 TV-Ansichten verborgen und werden auch aus den übertragenen Snapshots entfernt.
 YouTube kann eigene Titel einblenden; MP4-Uploads zeigen keine solchen Titel.
@@ -54,8 +70,46 @@ Uploads erfolgen ausschließlich lokal im Host-Editor; das LAN bietet keinen
 öffentlichen Upload-Endpunkt. Native Vorschauen verwenden temporäre Dateien,
 die nach dem Schließen des Players gelöscht werden.
 
-Nach Änderungen: `flutter test`, `dart analyze`,
-`dart run tool/bundle_web_client.dart`, danach die Host-App neu bauen.
+Im Internet läuft derselbe Zugriff unter
+`/rooms/<raum>/api/media/<sha256>` über den Host des jeweiligen Raums. Der Host
+prüft bei jedem Abruf den Raumzugang und die aktuelle Freigabe, auch für
+Byte-Bereiche und HEAD. Es gibt keinen öffentlichen oder raumübergreifenden
+Mediencache auf dem Relay. Pro Antwort wird höchstens eine 20-MiB-Datei übertragen
+(rund 27 MiB Base64); die 64-MiB-Grenze des Relays bleibt unverändert.
+Offene Abrufe sind begrenzt und enden bei geschlossenem Raum oder nach 20 Sekunden.
+
+Spieler und TV laden veröffentlichte Anhänge vor Darstellung bzw. Wiedergabe
+vollständig in einen sitzungsbezogenen In-Memory-LRU (maximal 60 MiB kodierte
+Mediendaten). Parallele Abrufe derselben SHA-256-ID werden zusammengeführt;
+höchstens vier verschiedene Dateien werden gleichzeitig heruntergeladen.
+Weitere Snapshots, Wiedergaben und die Abschlussübersicht verwenden den Cache.
+Die Integrität wird per SHA-256 geprüft. Ein Raum-/Zugangswechsel oder das
+Schließen der Ansicht verwirft den Cache; verdrängte Dateien werden bei Bedarf
+erneut geladen. Bereits ausgelieferte Inhalte lassen sich nicht zurückrufen.
+
+**Geheimhaltung hat Vorrang:** Downloads beginnen erst mit Veröffentlichung der
+Frage, nicht vor dem Rundenstart. Es werden weder zukünftige Frage-Medien noch
+unveröffentlichte Lösungen vorab angefordert. Das bedeutet bewusst, dass die
+Antwortzeit während eines Downloads bereits laufen kann; der Host sollte bei
+medienlastigen Fragen ausreichend Zeit oder ein weiches Zeitlimit vorsehen.
+YouTube und Karten bleiben externe Inhalte und werden nicht vorgeladen.
+Der Ladezustand zeigt empfangene MiB und, sofern bekannt, den Gesamtfortschritt.
+Die Wartezeit auf einen freien Downloadplatz und der eigentliche Download sind
+jeweils auf 30 Sekunden begrenzt. Danach erscheinen eine Fehlermeldung und
+„Erneut versuchen“. Andere Bedienelemente bleiben währenddessen benutzbar.
+
+Das portable Quizformat mit eingebetteten Medien und alle bisherigen Importer
+bleiben unverändert; dafür ist kein Schema-Wechsel erforderlich.
+
+Automatisierte Regressionen decken LAN-Freigaben, echte Relay-HTTP-Abrufe für
+Spieler/TV, Raumtrennung, Lösungs-Redaktion, Byte-Bereiche, Cache/Timeout/Retry
+und das Übertragungsvolumen wiederholter Snapshots ab. 100 wiederholte
+Cache-Zugriffe übertragen die Datei nur einmal.
+
+Nach Änderungen relevante `flutter test`-Tests und statische Analyse ausführen.
+Nur bei ausdrücklich gewünschtem lokalem Host-Build zuerst
+`dart run tool/bundle_web_client.dart` ausführen; die Release-Pipeline erledigt dies
+automatisch.
 
 ## Jeopardy-Auswahl
 

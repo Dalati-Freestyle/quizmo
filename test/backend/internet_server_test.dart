@@ -14,6 +14,7 @@ import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
 import 'package:quizmo/core/net/session_uri.dart';
+import 'package:quizmo/core/net/media_cache.dart';
 import 'package:web_socket_channel/io.dart';
 
 void main() {
@@ -25,9 +26,9 @@ void main() {
   final clients = <QuizClient>[];
   final sockets = <IOWebSocketChannel>[];
 
-  Future<RelayHost> host() async {
+  Future<RelayHost> host({List<Question>? questions}) async {
     final engine = QuizEngineBloc(
-      questionBank: sampleQuestionBank,
+      questionBank: questions ?? sampleQuestionBank,
       teams: sampleTeams,
     );
     engines.add(engine);
@@ -85,7 +86,10 @@ void main() {
       final health = await http.get(base.resolve('/api/health'));
       expect(health.statusCode, 200);
       expect(health.headers['x-content-type-options'], 'nosniff');
-      expect(health.headers['referrer-policy'], 'no-referrer');
+      expect(
+        health.headers['referrer-policy'],
+        'strict-origin-when-cross-origin',
+      );
       final tv = await http.get(base.resolve('/rooms/invitation/tv'));
       expect(tv.body, '<html>quizmo</html>');
       expect(tv.headers['cache-control'], 'no-store');
@@ -146,6 +150,38 @@ void main() {
     },
   );
 
+  test('the proxy access key ends up in invitation and TV links', () async {
+    await server.close();
+    expect(
+      () => InternetServer(
+        publicOrigin: Uri.parse(allowedOrigin),
+        accessKey: 'too-short',
+        webClient: InMemoryWebClientBundle({
+          'index.html': Uint8List.fromList(utf8.encode('<html></html>')),
+        }),
+      ).start(port: 0),
+      throwsArgumentError,
+    );
+    const key = 'abcdefghijklmnopqrstuvwxyz0123456789_-AB';
+    server = InternetServer(
+      publicOrigin: Uri.parse(allowedOrigin),
+      accessKey: key,
+      webClient: InMemoryWebClientBundle({
+        'index.html': Uint8List.fromList(utf8.encode('<html>quizmo</html>')),
+      }),
+    );
+    base = Uri.parse('http://127.0.0.1:${await server.start(port: 0)}');
+    final room = await host();
+    final endpoint = room.endpoint!;
+    expect(endpoint.lanUri.queryParameters[kAccessKeyParameter], key);
+    expect(endpoint.lanTvUri.queryParameters[kAccessKeyParameter], key);
+    expect(endpoint.lanTvUri.path, '${endpoint.publicUri!.path}/tv');
+    // Guests keep using the link, including the key, to reach the room.
+    final tv = client(endpoint.lanTvUri);
+    await tv.watch();
+    expect(tv.status, QuizClientStatus.connected);
+  });
+
   test('rooms have unpredictable invitations and isolated state', () async {
     final first = await host();
     final second = await host();
@@ -167,6 +203,192 @@ void main() {
     await expectLater(overflow.ready, throwsA(isA<Exception>()));
     await overflow.stream.drain<dynamic>().catchError((Object _) {});
   });
+
+  test(
+    'room-scoped media, TV preload, retries and snapshot transfer volume',
+    () async {
+      MediaAsset image(String contents) => MediaAsset.upload(
+        Uint8List.fromList(utf8.encode('<svg>$contents</svg>')),
+        'svg',
+      );
+      final asset = image(' ' * (1024 * 1024));
+      final solution = image('solution');
+      final future = image('future');
+      final room = await host(
+        questions: [
+          TrueFalseQuestion(
+            id: 'media',
+            prompt: 'Visible question',
+            correctAnswer: true,
+            media: [ImageAttachment(asset: asset)],
+            solutionMedia: [ImageAttachment(asset: solution)],
+          ),
+          TrueFalseQuestion(
+            id: 'future',
+            prompt: 'SECRET',
+            correctAnswer: false,
+            media: [ImageAttachment(asset: future)],
+          ),
+        ],
+      );
+      final engine = engines.single;
+      engine.access.configure(code: 'secret-code');
+      final tv = client(room.endpoint!.publicUri!);
+      await tv.watch(joinCode: 'secret-code');
+      final cache = SessionMediaCache(baseUri: tv.mediaBaseUri);
+      addTearDown(cache.dispose);
+      final reference = MediaAsset(id: asset.id, mimeType: asset.mimeType);
+      await expectLater(cache.load(reference), throwsStateError);
+      final visible = tv.games.firstWhere(
+        (game) => game.round.question != null,
+      );
+      engine.add(const StartRoundEvent('media'));
+      final snapshot = await visible.timeout(const Duration(seconds: 5));
+      final wireBytes = utf8.encode(jsonEncode(snapshot.toJson())).length;
+      expect(wireBytes, lessThan(16000));
+      expect(jsonEncode(snapshot.toJson()), isNot(contains('SECRET')));
+      expect(snapshot.round.question!.solutionMedia, isEmpty);
+      expect(snapshot.round.question!.media.single.asset!.data, isNull);
+      final snapshotSizes = <int>[];
+      final measurements = tv.snapshots.listen((message) {
+        snapshotSizes.add(utf8.encode(message.encode()).length);
+        expect(message.encode(), isNot(contains(asset.data!)));
+      });
+      for (var i = 0; i < 10; i++) {
+        final revision = engine.state.game.tvMediaCommandRevision;
+        final next = tv.snapshots.firstWhere(
+          (message) => message.game.tvMediaCommandRevision > revision,
+        );
+        engine.add(const ControlTvMediaEvent(TvMediaAction.restart));
+        await next.timeout(const Duration(seconds: 5));
+      }
+      await measurements.cancel();
+      expect(snapshotSizes, hasLength(10));
+      expect(
+        snapshotSizes.reduce((a, b) => a + b),
+        lessThan(asset.data!.length ~/ 10),
+      );
+      expect((await cache.load(reference)).data, asset.data);
+      expect((await cache.load(reference)).data, asset.data);
+      final mediaUri = sessionMediaUri(tv.mediaBaseUri, reference);
+      expect((await http.get(mediaUri)).statusCode, 200);
+      expect((await http.get(mediaUri.replace(query: ''))).statusCode, 403);
+      expect(
+        (await http.get(
+          sessionMediaUri(
+            tv.mediaBaseUri,
+            MediaAsset(id: solution.id, mimeType: solution.mimeType),
+          ),
+        )).statusCode,
+        404,
+      );
+      expect(
+        (await http.get(
+          sessionMediaUri(
+            tv.mediaBaseUri,
+            MediaAsset(id: future.id, mimeType: future.mimeType),
+          ),
+        )).statusCode,
+        404,
+      );
+      final range = await http.get(mediaUri, headers: {'range': 'bytes=0-9'});
+      expect(range.statusCode, 206);
+      expect(range.bodyBytes, asset.bytes!.take(10));
+      expect(
+        (await http.head(mediaUri)).headers['content-length'],
+        '${asset.bytes!.length}',
+      );
+      expect(
+        (await http.get(
+          mediaUri,
+          headers: {'range': 'bytes=99999999-'},
+        )).statusCode,
+        416,
+      );
+      final second = await host();
+      final crossRoom = mediaUri.replace(
+        path: '${second.endpoint!.publicUri!.path}${reference.route}',
+      );
+      expect((await http.get(crossRoom)).statusCode, 404);
+      final revealed = tv.games.firstWhere(
+        (game) => game.round.status == RoundStatus.revealed,
+      );
+      engine.add(const RevealRoundEvent());
+      await revealed;
+      expect(
+        (await http.get(
+          sessionMediaUri(
+            tv.mediaBaseUri,
+            MediaAsset(id: solution.id, mimeType: solution.mimeType),
+          ),
+        )).statusCode,
+        200,
+      );
+      // Each asset envelope is <= 20 MiB raw / ~27 MiB Base64, below 64 MiB.
+      expect(
+        jsonEncode({'body': 'a' * ((maxMediaBytes + 2) ~/ 3 * 4)}).length,
+        lessThan(64 * 1024 * 1024),
+      );
+      expect(wireBytes * 100, lessThan(asset.data!.length));
+    },
+  );
+
+  test(
+    'relay guests obey code, approval, lobby lock, resume and spectator policy',
+    () async {
+      final room = await host();
+      final engine = engines.single;
+      engine.access.configure(code: 'secret-code', requireApproval: true);
+      final player = client(room.endpoint!.publicUri!);
+      await expectLater(
+        player.connect(name: 'Ada', joinCode: 'wrong', handshakeProbes: 1),
+        throwsA(isA<JoinRejectedException>()),
+      );
+      final pending = player.admissions.firstWhere((value) => value);
+      final joining = player.connect(
+        name: 'Ada',
+        joinCode: 'secret-code',
+        handshakeProbes: 1,
+      );
+      await pending;
+      expect(engine.state.game.players, isEmpty);
+      engine.access.decide(
+        engine.access.state.requests.keys.single,
+        approve: true,
+      );
+      await joining;
+      final id = player.playerId!;
+      final token = player.resumeToken!;
+      engine.access.configure(locked: true);
+      final returning = client(room.endpoint!.publicUri!);
+      await returning.connect(
+        name: 'Ada',
+        resumePlayerId: id,
+        resumeToken: token,
+        handshakeProbes: 1,
+      );
+      expect(returning.playerId, id);
+      final tv = client(room.endpoint!.publicUri!);
+      await tv.watch(joinCode: 'secret-code');
+      engine.access.configure(allowSpectators: false);
+      final disabled = client(room.endpoint!.publicUri!);
+      await expectLater(
+        disabled.watch(joinCode: 'secret-code'),
+        throwsStateError,
+      );
+      engine.add(KickPlayerEvent(id, ban: true));
+      await engine.stream.firstWhere((s) => !s.game.players.containsKey(id));
+      await expectLater(
+        returning.connect(
+          name: 'Ada',
+          resumePlayerId: id,
+          resumeToken: token,
+          handshakeProbes: 1,
+        ),
+        throwsStateError,
+      );
+    },
+  );
 
   test('guest control envelopes cannot impersonate the host', () async {
     final room = await host();
@@ -211,11 +433,26 @@ void main() {
       final tv = client(uri);
       await tv.watch();
       final disconnected = tv.statuses.firstWhere(
-        (status) => status == QuizClientStatus.disconnected,
+        (status) => status == QuizClientStatus.closed,
       );
       await room.stop();
       await disconnected.timeout(const Duration(seconds: 5));
+      await Stream.periodic(const Duration(milliseconds: 10))
+          .firstWhere((_) => server.roomCount == 0)
+          .timeout(const Duration(seconds: 5));
       expect(server.roomCount, 0);
+      final returning = client(uri);
+      await expectLater(
+        returning.connect(name: 'Returning', handshakeProbes: 1),
+        throwsA(
+          isA<JoinRejectedException>().having(
+            (error) => error.code,
+            'code',
+            'hostClosed',
+          ),
+        ),
+      );
+      expect(returning.status, QuizClientStatus.closed);
       expect(
         (await http.get(uri.replace(path: '${uri.path}/ws'))).statusCode,
         404,

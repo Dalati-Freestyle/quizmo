@@ -28,7 +28,7 @@ void main() {
           File('test/fixtures/quiz_v${version}_with_media.quizmo.json')
               .readAsStringSync(),
         );
-        expect(quiz.schemaVersion, 5);
+        expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
         expect(quiz.questions.every((q) => !q.softTimeLimit), isTrue);
         expect(quiz.questions.first.hasSolution, isTrue);
         expect(quiz.questions.first.media, isNotEmpty);

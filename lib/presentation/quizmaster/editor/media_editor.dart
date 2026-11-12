@@ -5,6 +5,8 @@ import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
 import '../../common/question_media_view.dart';
+import 'image_optimization_dialog.dart';
+import 'media_upload.dart';
 
 enum _MediaKind { image, audio, video, youtube, code, geo }
 
@@ -56,14 +58,16 @@ class _MediaEditorState extends State<MediaEditor> {
         );
         if (result == null || !mounted) return;
         final file = result;
-        final bytes = await file.readAsBytes();
+        var asset = await readMediaUpload(file);
         if (!mounted) return;
-        if (bytes.length > maxMediaBytes) {
-          throw JsonContractException(
-            context.tr("Datei zu groß oder nicht lesbar (maximal 20 MiB)."),
+        if (kind == _MediaKind.image && asset.mimeType != 'image/svg+xml') {
+          final selected = await showDialog<MediaAsset>(
+            context: context,
+            builder: (_) => ImageOptimizationDialog(original: asset),
           );
+          if (selected == null || !mounted) return;
+          asset = selected;
         }
-        final asset = MediaAsset.upload(bytes, file.extension ?? '');
         attachment = switch (kind) {
           _MediaKind.image => ImageAttachment(asset: asset, caption: file.name),
           _MediaKind.audio => AudioAttachment(asset: asset, caption: file.name),
@@ -87,7 +91,7 @@ class _MediaEditorState extends State<MediaEditor> {
         publish();
       }
     } on Object catch (error) {
-      if (mounted) _error('$error');
+      if (mounted) _error(context.tr('$error'));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -175,6 +179,14 @@ class _MediaEditorState extends State<MediaEditor> {
                       },
                     ),
                     QuestionMediaView(media: [attachment]),
+                    if (attachment is AudioAttachment ||
+                        attachment is VideoAttachment &&
+                            attachment.asset != null)
+                      Text(
+                        context.tr(
+                          'Playback depends on the device, browser and installed codecs. MP4 is a container, not a codec guarantee. H.264 video with AAC audio and MP3 audio are usually the most compatible choices. Test on every player and TV device before the quiz.',
+                        ),
+                      ),
                     if (attachment is ImageAttachment)
                       SwitchListTile(
                         title: Text(context.tr("Zoom erlauben")),

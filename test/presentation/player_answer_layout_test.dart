@@ -8,6 +8,8 @@ import 'package:quizmo/presentation/player/player_page.dart';
 import 'package:quizmo/presentation/player/player_session_cubit.dart';
 import 'package:quizmo/presentation/player/questions/new_question_views.dart';
 
+import '../helpers/mock_lan_discovery.dart';
+
 const _leftLabel = 'Eine lange Beschreibung, die mehrere Zeilen benötigt';
 const _rightLabel = 'Eine ausführliche Antwort mit mehreren Wörtern und Zeilen';
 const _matching = MatchingQuestion(
@@ -41,6 +43,7 @@ Future<void> _pumpPhone(WidgetTester tester, Widget child) async {
 }
 
 void main() {
+  setUp(mockLanDiscoveryUnavailable);
   const questions = <Question>[
     ShortAnswerQuestion(id: 'short', prompt: _leftLabel),
     EstimationQuestion(id: 'estimate', prompt: _leftLabel, unit: 'Kilometer'),

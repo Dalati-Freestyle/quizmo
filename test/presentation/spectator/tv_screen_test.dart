@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/presentation/app.dart';
@@ -154,6 +155,50 @@ void main() {
     expect(find.text('192.168.1.42:8080'), findsOneWidget);
     expect(find.text('2 players online'), findsOneWidget);
     expect(find.text('LIVE'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('guest Wi-Fi is prominent before the game, small afterwards', (
+    tester,
+  ) async {
+    const wifi = GuestWifi(ssid: 'Quiz Night', password: 'correct horse');
+    double? qrSize(String ssid) => tester
+        .widgetList<QrImageView>(find.byType(QrImageView))
+        .firstWhere((qr) => qr.semanticsLabel.contains(ssid))
+        .size;
+
+    await pump(
+      tester,
+      SpectatorSessionState(
+        status: QuizClientStatus.connected,
+        game: const GameState(players: players),
+        snapshotReceivedAt: DateTime(2030),
+        guestWifi: wifi,
+      ),
+    );
+    expect(find.text('Connect to the Wi-Fi'), findsOneWidget);
+    expect(find.text('Password: correct horse'), findsOneWidget);
+    expect(find.text('192.168.1.42:8080'), findsOneWidget);
+    expect(find.byType(QrImageView), findsNWidgets(2));
+    expect(qrSize('Quiz Night'), 240);
+    expect(tester.takeException(), isNull);
+
+    await pump(
+      tester,
+      SpectatorSessionState(
+        status: QuizClientStatus.connected,
+        snapshotReceivedAt: DateTime.now(),
+        guestWifi: wifi,
+        game: const GameState(
+          players: players,
+          round: RoundState(question: choice, status: RoundStatus.locked),
+        ),
+      ),
+    );
+    expect(find.text('Connect to the Wi-Fi'), findsNothing);
+    expect(find.text('Guest Wi-Fi'), findsOneWidget);
+    expect(find.textContaining('correct horse'), findsNothing);
+    expect(qrSize('Quiz Night'), 112);
     expect(tester.takeException(), isNull);
   });
 

@@ -1,6 +1,7 @@
 /// `dart:io` implementation of the embedded server factory.
 library;
 
+import '../core/engine/guest_wifi_cubit.dart';
 import '../core/engine/quiz_engine_bloc.dart';
 import 'embedded_server.dart';
 import 'server_contract.dart';
@@ -20,8 +21,10 @@ EmbeddedQuizServer createEmbeddedServer({
   required QuizEngineBloc engine,
   String serverName = 'Quizmo Host',
   WebClientBundle? webClient,
+  GuestWifiCubit? guestWifi,
 }) => EmbeddedServer(
   engine: engine,
   serverName: serverName,
   webClient: webClient,
+  guestWifi: guestWifi,
 );

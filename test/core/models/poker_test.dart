@@ -19,11 +19,7 @@ void main() {
     expect(original.schemaVersion, Quiz.currentSchemaVersion);
   });
   test('invalid poker settings cannot be imported', () {
-    for (final original in [
-      quiz(0),
-      quiz(-1),
-      quiz(1000001),
-    ]) {
+    for (final original in [quiz(0), quiz(-1), quiz(1000001)]) {
       expect(original.validationErrors(), isNotEmpty);
       expect(
         () => Quiz.fromJson(original.toJson()),

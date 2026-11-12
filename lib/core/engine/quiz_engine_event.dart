@@ -18,6 +18,30 @@ sealed class QuizEngineEvent extends Equatable {
   List<Object?> get props => const [];
 }
 
+enum RecoveryTimerPolicy { savedTime, restart, soft }
+
+final class PauseForRecoveryEvent extends QuizEngineEvent {
+  const PauseForRecoveryEvent();
+}
+
+final class ResumeRecoveredGameEvent extends QuizEngineEvent {
+  const ResumeRecoveredGameEvent(this.timerPolicy);
+  final RecoveryTimerPolicy timerPolicy;
+  @override
+  List<Object?> get props => [timerPolicy];
+}
+
+final class RebindRecoveredPlayerEvent extends QuizEngineEvent {
+  const RebindRecoveredPlayerEvent({
+    required this.playerId,
+    required this.temporaryPlayerId,
+  });
+  final String playerId;
+  final String temporaryPlayerId;
+  @override
+  List<Object?> get props => [playerId, temporaryPlayerId];
+}
+
 /// A client completed the join handshake.
 ///
 /// Re-joining with a known id is idempotent and simply flips the player back to
@@ -166,13 +190,97 @@ final class LockBuzzerEvent extends QuizEngineEvent {
 /// The quizmaster judged the spoken answer of the active player.
 final class JudgeBuzzerEvent extends QuizEngineEvent {
   /// Accepts or rejects the answer of the active player.
-  const JudgeBuzzerEvent({required this.wasCorrect});
+  const JudgeBuzzerEvent({
+    required this.wasCorrect,
+    this.reason,
+    this.playerId,
+    this.questionId,
+    this.startedAtHostMicros,
+    this.resolvedAttempts,
+  });
+
+  final String? reason;
+  final String? playerId;
+  final String? questionId;
+  final int? startedAtHostMicros;
+  final int? resolvedAttempts;
 
   /// Whether the spoken answer was accepted.
   final bool wasCorrect;
 
   @override
-  List<Object?> get props => [wasCorrect];
+  List<Object?> get props => [
+    wasCorrect,
+    reason,
+    playerId,
+    questionId,
+    startedAtHostMicros,
+    resolvedAttempts,
+  ];
+}
+
+/// The host accepted or rejected a written answer in a specific round.
+final class JudgeAnswerEvent extends QuizEngineEvent {
+  /// Creates a verdict tied to the displayed question and its opening time.
+  const JudgeAnswerEvent({
+    required this.playerId,
+    required this.questionId,
+    required this.startedAtHostMicros,
+    required this.wasCorrect,
+    this.reason,
+  });
+
+  final String playerId;
+  final String questionId;
+  final int startedAtHostMicros;
+  final bool wasCorrect;
+  final String? reason;
+
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    startedAtHostMicros,
+    wasCorrect,
+    reason,
+  ];
+}
+
+final class CorrectScoreEvent extends QuizEngineEvent {
+  const CorrectScoreEvent({
+    required this.requestId,
+    required this.playerId,
+    required this.questionId,
+    required this.roundStartedAt,
+    required this.delta,
+    this.reason,
+  });
+
+  final String requestId;
+  final String playerId;
+  final String questionId;
+  final int roundStartedAt;
+  final int delta;
+  final String? reason;
+
+  @override
+  List<Object?> get props => [
+    requestId,
+    playerId,
+    questionId,
+    roundStartedAt,
+    delta,
+    reason,
+  ];
+}
+
+final class UndoCorrectionEvent extends QuizEngineEvent {
+  const UndoCorrectionEvent(this.correctionId, {this.reason});
+  final String correctionId;
+  final String? reason;
+
+  @override
+  List<Object?> get props => [correctionId, reason];
 }
 
 /// Closes the round, books the points and publishes the solution.
@@ -295,10 +403,11 @@ final class ControlTvMediaEvent extends QuizEngineEvent {
 }
 
 final class KickPlayerEvent extends QuizEngineEvent {
-  const KickPlayerEvent(this.playerId);
+  const KickPlayerEvent(this.playerId, {this.ban = false});
   final String playerId;
+  final bool ban;
   @override
-  List<Object?> get props => [playerId];
+  List<Object?> get props => [playerId, ban];
 }
 
 final class MergePlayersEvent extends QuizEngineEvent {

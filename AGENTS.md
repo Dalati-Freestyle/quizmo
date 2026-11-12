@@ -134,6 +134,12 @@ the release pipeline does this automatically.
    Keep text ≥ 22 px, show at most 8 leaderboard rows and switch exhaustively over the sealed `Question` hierarchy.
 4. `SpectatorSessionCubit` must keep reconnecting forever (the TV runs unattended) and keep the last snapshot.
 5. `main()` decides via `isTvLaunchUri(Uri.base)` *before* `runApp`, because Flutter Web rewrites the address bar.
+6. Guest Wi-Fi (`GuestWifi`, `GuestWifiCubit`) is host-owned and reaches TVs only as `GuestWifiMessage` from the
+   embedded LAN hub; never put it into `GameState` or player snapshots, and never forward it through the internet relay.
+   Before the first question the TV lobby shows it as a second large QR code, afterwards as a small corner code.
+   Credentials live in secure storage (`GuestWifiStore`). Windows reads the connected network through
+   wlanapi.dll (UAC/netsh export as fallback); Android cannot read Wi-Fi passwords, so the host imports the QR
+   screenshot of the system "Share Wi-Fi" screen.
 
 ---
 
@@ -146,11 +152,21 @@ the release pipeline does this automatically.
 
 ## 6. Required Feature Delivery
 * Run the relevant tests and static analysis. Do NOT automatically build APKs, Windows executables, or web bundles, install apps, or deploy to a device at the end of an agent session. Only perform local builds/deployments when explicitly requested.
-* Every new feature MUST increase the app version in `pubspec.yaml`, normally a **minor** bump (`1.2.3+7` -> `1.3.0+8`). Increase the build number as well; never reset or reuse it. Use `powershell -NoProfile -File tool/bump_version.ps1` (default: minor). Bump once per delivered feature, not once per file or follow-up fix within that feature.
-* Use `-Part patch` for bug-fix-only deliveries and `-Part major` for breaking app changes or an explicit user request. App versions and quiz `schemaVersion` are separate: maintain both where required.
+* Check the current Git branch before changing the app version in `pubspec.yaml`. On `main` and `develop`, new features normally receive a **minor** bump (`1.2.3+7` -> `1.3.0+8`) using `powershell -NoProfile -File tool/bump_version.ps1`. On these two branches, use `-Part patch` for bug-fix-only deliveries and `-Part major` for breaking app changes or an explicit user request.
+* On every branch other than `main` or `develop`, take `MAJOR.MINOR.PATCH` from the branch name instead of applying an automatic semantic-version bump. For example, branch `release-1.2.0` requires `version: 1.2.0+BUILD`. This branch-derived version takes precedence over the normal minor/patch/major bump rules; do not run the default bump script on these branches. If the branch name contains no unambiguous version, ask the user instead of guessing.
+* Increase the build number once per delivered feature or bug fix; never reset or reuse it. Preserve an already incremented build number when correcting the semantic version or making follow-up fixes within the same feature. Do not bump once per file.
+* App versions and quiz `schemaVersion` are separate: maintain both where required.
 * `.github/workflows/release.yml` owns release builds and publication. A version change pushed to `main`/`master` (or a matching `vMAJOR.MINOR.PATCH` tag/manual run) builds the web bundle, unsigned Windows installer, self-signed APK and Linux amd64 backend Docker image. After all builds/tests succeed, publish versioned images to GHCR and native downloads, Docker archive and deployment ZIP in a GitHub Release.
+* `.github/workflows/beta.yml` runs the same reusable release pipeline for every push to `develop`. Beta releases, download versions and container versions use `-beta`; native versions stay numeric. Serialize beta and production publication, delete previous beta releases/tags before replacement, and remove a same-version beta when production is published. Never publish a beta for an already released production version or move production's `latest` container tag for beta builds.
 * Android release keys are permanent and private. Never regenerate them per session/build or commit keys/passwords. `tool/create_android_signing.ps1` is a one-time setup outside the repository; `tool/use_android_signing.ps1` selects the same key for explicitly requested local builds. Never replace an existing key without an explicit migration request. Windows remains unsigned unless requested otherwise.
 * Report the new version and verification results; distinguish local checks from CI results. Never claim an artifact or release exists before the pipeline succeeds. Do not commit, push, tag, or publish on the user's behalf unless requested.
+
+### Private servers (Basic Auth + access links)
+* The relay never authenticates itself; a reverse proxy does (`deploy/Caddyfile.basic-auth`). With
+  `QUIZMO_ACCESS_KEY` set, `InternetServer` passes the key to the host socket only, and `RelayHost` appends
+  `?quizmo_key=` (`kAccessKeyParameter`) to the invitation and TV links. The proxy trades it for a cookie.
+* `sessionUri` keeps `quizmo_key` (like `session`) so TV QR codes and player reconnects carry it. Never send the
+  key to players over the protocol and never log it.
 
 ### Pokerchips format
 * `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.

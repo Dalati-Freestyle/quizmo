@@ -19,6 +19,7 @@ class NewQuestionFields extends StatefulWidget {
 class _NewQuestionFieldsState extends State<NewQuestionFields> {
   late String content;
   late int edits;
+  late bool manualGrading;
   late String unit;
   late String scale;
   late bool truth;
@@ -50,6 +51,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       TrueFalseQuestion() || MultipleChoiceQuestion() || BuzzerQuestion() => '',
     };
     edits = q is ShortAnswerQuestion ? q.maxEdits : 1;
+    manualGrading = q is ShortAnswerQuestion && q.manualGrading;
     unit = q is EstimationQuestion ? q.unit : '';
     scale = q is EstimationQuestion ? '${q.zeroScale}' : '1';
     truth = q is TrueFalseQuestion ? q.correctAnswer ?? true : true;
@@ -65,6 +67,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       ShortAnswerQuestion() => <String, Object?>{
         'acceptedAnswers': lines,
         'maxEdits': edits,
+        'manualGrading': manualGrading,
       },
       OrderingQuestion() => _orderingFields(),
       MatchingQuestion() => _matchingFields(),
@@ -166,11 +169,41 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               },
             ),
           const SizedBox(height: 20),
-          if (widget.question is ShortAnswerQuestion)
+          if (widget.question is ShortAnswerQuestion) ...[
+            DropdownButtonFormField<bool>(
+              initialValue: manualGrading,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: context.tr('Bewertung')),
+              items: [
+                DropdownMenuItem(
+                  value: false,
+                  child: Text(context.tr('Automatisch')),
+                ),
+                DropdownMenuItem(
+                  value: true,
+                  child: Text(
+                    context.tr('Manuell durch den Spielleiter'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => manualGrading = value);
+                changed();
+              },
+            ),
+            const SizedBox(height: 20),
             DropdownButtonFormField<int>(
               initialValue: edits,
               decoration: InputDecoration(
                 labelText: context.tr("Erlaubte Zeichenänderungen"),
+                helperText: manualGrading
+                    ? context.tr(
+                        'Bei manueller Bewertung gilt diese Toleranz nur für die Empfehlung. Der Spielleiter entscheidet.',
+                      )
+                    : null,
+                helperMaxLines: 3,
               ),
               items: [
                 for (var i = 0; i <= 5; i++)
@@ -181,6 +214,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 changed();
               },
             ),
+          ],
           if (widget.question is EstimationQuestion) ...[
             TextFormField(
               initialValue: unit,

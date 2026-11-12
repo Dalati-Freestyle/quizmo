@@ -16,6 +16,9 @@ import 'package:quizmo/presentation/common/question_result_view.dart';
 import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
 import 'package:quizmo/presentation/spectator/tv_page.dart';
 
+import '../helpers/memory_recovery_store.dart';
+import '../helpers/mock_lan_discovery.dart';
+
 class MemoryLanguageStore implements LanguagePreferenceStore {
   String? value;
   bool fail = false;
@@ -222,13 +225,16 @@ void main() {
   testWidgets(
     'uses browser/system language, switches live and preserves player form',
     (tester) async {
+      mockLanDiscoveryUnavailable();
       await tester.binding.setSurfaceSize(const Size(1200, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       tester.platformDispatcher.localesTestValue = [const Locale('de', 'DE')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
       final cubit = LocaleCubit(store: MemoryLanguageStore());
       addTearDown(cubit.close);
-      await tester.pumpWidget(QuizmoApp(localeCubit: cubit));
+      await tester.pumpWidget(
+        QuizmoApp(localeCubit: cubit, recoveryStore: MemoryRecoveryStore()),
+      );
       await tester.pumpAndSettle();
       expect(find.text(germanMessages['Host a quiz']!), findsOneWidget);
       await tester.tap(find.text(germanMessages['Open player view']!));
@@ -240,9 +246,13 @@ void main() {
       await tester.enterText(nameField, 'Wahr / Falsch');
       await tester.tap(find.byTooltip('Einstellungen'));
       await tester.pumpAndSettle();
+      expect(find.text('Erweiterte Einstellungen'), findsOneWidget);
+      expect(find.text('Beispielquizzes neu erstellen'), findsOneWidget);
       await tester.tap(find.text('English'));
       await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Advanced settings'), findsOneWidget);
+      expect(find.text('Recreate example quizzes'), findsOneWidget);
       expect(cubit.state.preference, LanguagePreference.en);
       await tester.pageBack();
       await tester.pumpAndSettle();
