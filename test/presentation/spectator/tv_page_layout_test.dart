@@ -36,7 +36,7 @@ void main() {
     // Stack used to shrink to 0×0 with it, which blanked the whole screen.
     expect(find.byType(TextField), findsNothing);
     expect(tester.getSize(find.byType(TvScreen)), const Size(1920, 1080));
-    expect(tester.getSize(find.byType(FittedBox)), const Size(1280, 720));
+    expect(tester.getSize(find.byType(FittedBox).first), const Size(1280, 720));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

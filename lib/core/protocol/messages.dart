@@ -252,28 +252,32 @@ sealed class ServerMessage extends Equatable {
   String encode() => jsonEncode(toJson());
 
   /// Restores a message from [json].
-  static ServerMessage fromJson(JsonMap json) =>
-      switch (json.readString('type')) {
-        WelcomeMessage._type => WelcomeMessage.fromJson(json),
-        'lobbySnapshot' => LobbySnapshotMessage(
-          teams: json.readMap('teams', Team.fromJson),
-          requiresTeam: json.readBool('requiresTeam'),
-          codeRequired: json['codeRequired'] == true,
-          locked: json['locked'] == true,
-          requireApproval: json['requireApproval'] == true,
-        ),
-        'admissionPending' => const AdmissionPendingMessage(),
-        JoinAcceptedMessage._type => JoinAcceptedMessage.fromJson(json),
-        WatchAcceptedMessage._type => WatchAcceptedMessage(
-          accessToken: json.readStringOrNull('accessToken'),
-        ),
-        SyncPong._type => SyncPong.fromJson(json),
-        GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
-        ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
-        final unknown => throw JsonContractException(
-          'Unknown server message "$unknown".',
-        ),
-      };
+  static ServerMessage fromJson(JsonMap json) => switch (json.readString(
+    'type',
+  )) {
+    WelcomeMessage._type => WelcomeMessage.fromJson(json),
+    'lobbySnapshot' => LobbySnapshotMessage(
+      teams: json.readMap('teams', Team.fromJson),
+      requiresTeam: json.readBool('requiresTeam'),
+      codeRequired: json['codeRequired'] == true,
+      locked: json['locked'] == true,
+      requireApproval: json['requireApproval'] == true,
+    ),
+    'admissionPending' => const AdmissionPendingMessage(),
+    JoinAcceptedMessage._type => JoinAcceptedMessage.fromJson(json),
+    WatchAcceptedMessage._type => WatchAcceptedMessage(
+      accessToken: json.readStringOrNull('accessToken'),
+    ),
+    GuestWifiMessage._type => GuestWifiMessage(
+      json['wifi'] == null ? null : GuestWifi.fromJson(json.readObject('wifi')),
+    ),
+    SyncPong._type => SyncPong.fromJson(json),
+    GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
+    ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
+    final unknown => throw JsonContractException(
+      'Unknown server message "$unknown".',
+    ),
+  };
 
   /// Decodes a raw web socket frame.
   static ServerMessage decode(String raw) =>
@@ -381,6 +385,25 @@ final class WatchAcceptedMessage extends ServerMessage {
 
   @override
   List<Object?> get props => [accessToken];
+}
+
+/// Guest Wi-Fi the LAN host shows on TV screens; `null` hides the code.
+///
+/// Sent to spectators only, never to players and never through the relay.
+final class GuestWifiMessage extends ServerMessage {
+  /// Creates the announcement.
+  const GuestWifiMessage(this.wifi);
+
+  static const String _type = 'guestWifi';
+
+  /// Credentials to show, or `null`.
+  final GuestWifi? wifi;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'wifi': wifi?.toJson()};
+
+  @override
+  List<Object?> get props => [wifi];
 }
 
 /// Answers a [SyncPing] and closes one clock probe.

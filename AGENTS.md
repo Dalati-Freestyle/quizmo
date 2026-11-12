@@ -134,6 +134,12 @@ the release pipeline does this automatically.
    Keep text ≥ 22 px, show at most 8 leaderboard rows and switch exhaustively over the sealed `Question` hierarchy.
 4. `SpectatorSessionCubit` must keep reconnecting forever (the TV runs unattended) and keep the last snapshot.
 5. `main()` decides via `isTvLaunchUri(Uri.base)` *before* `runApp`, because Flutter Web rewrites the address bar.
+6. Guest Wi-Fi (`GuestWifi`, `GuestWifiCubit`) is host-owned and reaches TVs only as `GuestWifiMessage` from the
+   embedded LAN hub; never put it into `GameState` or player snapshots, and never forward it through the internet relay.
+   Before the first question the TV lobby shows it as a second large QR code, afterwards as a small corner code.
+   Credentials live in secure storage (`GuestWifiStore`). Windows reads the connected network through
+   wlanapi.dll (UAC/netsh export as fallback); Android cannot read Wi-Fi passwords, so the host imports the QR
+   screenshot of the system "Share Wi-Fi" screen.
 
 ---
 

@@ -90,6 +90,10 @@ class QuizClient {
   bool _awaitingApproval = false;
   final _admissions = StreamController<bool>.broadcast();
   Stream<bool> get admissions => _admissions.stream;
+  final _guestWifi = StreamController<GuestWifi?>.broadcast();
+
+  /// Guest Wi-Fi announcements of a LAN host (spectators only).
+  Stream<GuestWifi?> get guestWifi => _guestWifi.stream;
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
@@ -382,6 +386,7 @@ class QuizClient {
     await _statuses.close();
     await _errors.close();
     await _lobbies.close();
+    await _guestWifi.close();
     await _admissions.close();
   }
 
@@ -551,6 +556,8 @@ class QuizClient {
             roundTripMicros: clock.roundTripMicros,
           ),
         );
+      case GuestWifiMessage(:final wifi):
+        if (!_guestWifi.isClosed) _guestWifi.add(wifi);
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
         if (!_snapshots.isClosed) _snapshots.add(message);

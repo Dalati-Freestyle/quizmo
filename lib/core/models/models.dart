@@ -6,6 +6,7 @@ library;
 
 export 'answer.dart';
 export 'game_state.dart';
+export 'guest_wifi.dart';
 export 'jeopardy.dart';
 export 'json.dart';
 export 'manual_correction.dart';

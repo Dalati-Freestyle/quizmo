@@ -26,6 +26,7 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 
+import '../core/engine/guest_wifi_cubit.dart';
 import '../core/engine/quiz_engine_bloc.dart';
 import '../core/sync/clock.dart';
 import 'handlers/api_handlers.dart';
@@ -50,9 +51,11 @@ class EmbeddedServer implements EmbeddedQuizServer {
     this.serverName = 'Quizmo Host',
     NowMicros now = systemNowMicros,
     WebClientBundle? webClient,
+    GuestWifiCubit? guestWifi,
   }) : _engine = engine,
        _now = now,
-       _webClient = webClient;
+       _webClient = webClient,
+       _guestWifi = guestWifi;
 
   /// Friendly name announced to clients.
   final String serverName;
@@ -60,6 +63,9 @@ class EmbeddedServer implements EmbeddedQuizServer {
   final QuizEngineBloc _engine;
   final NowMicros _now;
   final WebClientBundle? _webClient;
+
+  /// Guest Wi-Fi announced to TV screens on this LAN.
+  final GuestWifiCubit? _guestWifi;
   final StreamController<ServerLogEntry> _logs =
       StreamController<ServerLogEntry>.broadcast();
 
@@ -93,6 +99,7 @@ class EmbeddedServer implements EmbeddedQuizServer {
       serverName: serverName,
       now: _now,
       onLog: _emitLog,
+      guestWifi: _guestWifi,
     );
     _hub = hub;
 
