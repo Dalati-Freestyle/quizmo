@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
 import 'package:quizmo/presentation/app.dart';
@@ -38,7 +39,11 @@ void main() {
     'blue': Team(id: 'blue', name: 'Blue Whales'),
   };
 
-  Future<void> pump(WidgetTester tester, GameState game) async {
+  Future<void> pump(
+    WidgetTester tester,
+    GameState game, {
+    GuestWifi? wifi,
+  }) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -52,6 +57,7 @@ void main() {
               status: QuizClientStatus.connected,
               game: game,
               snapshotReceivedAt: DateTime.now(),
+              guestWifi: wifi,
             ),
             joinUri: joinUri,
           ),
@@ -77,6 +83,40 @@ void main() {
     expect(find.text('History'), findsOneWidget);
     expect(find.text('100'), findsNWidgets(2));
     expect(find.text('Red Foxes picks the next question'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the opening board shows join and Wi-Fi codes beside it', (
+    tester,
+  ) async {
+    final opening = GameState(
+      mode: const TeamMode(),
+      teams: teams,
+      jeopardy: JeopardyState.start(board, teams.keys),
+    );
+    await pump(
+      tester,
+      opening,
+      wifi: const GuestWifi(ssid: 'Quiz Night', password: 'correct horse'),
+    );
+    expect(find.text('Connect to the Wi-Fi'), findsOneWidget);
+    expect(find.text('Scan to join with your phone'), findsOneWidget);
+    expect(find.text('Standings'), findsNothing);
+    expect(find.byType(QrImageView), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+
+    await pump(tester, opening);
+    expect(find.text('Connect to the Wi-Fi'), findsNothing);
+    expect(find.byType(QrImageView), findsOneWidget);
+
+    await pump(
+      tester,
+      opening.copyWith(completedQuestionIds: const {'q1'}),
+      wifi: const GuestWifi(ssid: 'Quiz Night', password: 'correct horse'),
+    );
+    expect(find.text('Standings'), findsOneWidget);
+    expect(find.text('Guest Wi-Fi'), findsOneWidget);
+    expect(find.text('Scan to join with your phone'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
