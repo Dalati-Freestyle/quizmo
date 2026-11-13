@@ -157,7 +157,7 @@ class _DashboardLayoutSettingsPageState
           builder: (context, entries, _) => entries.isEmpty
               ? Text(
                   context.tr(
-                    'Noch keine Layouts gespeichert. „Speichern unter …“ legt das aktuelle Layout hier ab.',
+                    'Noch keine Layouts gespeichert. „Speichern“ legt das aktuelle Layout hier ab.',
                   ),
                 )
               : ListView(
@@ -254,7 +254,7 @@ class _DashboardLayoutSettingsPageState
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               context.tr(
-                'Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Auf- und Zuklappen in der Admin-Ansicht wird gemerkt. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.',
+                'Am einfachsten passt du die Ansicht direkt in der Admin-Ansicht an („Ansicht anpassen“). Hier siehst du dasselbe Raster mit allen Bereichen. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.',
               ),
             ),
           ),
@@ -282,7 +282,7 @@ class _DashboardLayoutSettingsPageState
                 OutlinedButton.icon(
                   key: const ValueKey('layout-save-as'),
                   icon: const Icon(Icons.bookmark_add_outlined),
-                  label: Text(context.tr('Speichern unter …')),
+                  label: Text(context.tr('Speichern')),
                   onPressed: () => _saveAs(layout),
                 ),
                 OutlinedButton.icon(
@@ -314,100 +314,13 @@ class _DashboardLayoutSettingsPageState
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          Expanded(
-            child: ReorderableListView.builder(
-              padding: const EdgeInsets.all(16),
-              buildDefaultDragHandles: false,
-              itemCount: layout.sections.length,
-              onReorderItem: (from, to) => _save(layout.move(from, to)),
-              itemBuilder: (context, index) {
-                final entry = layout.sections[index];
-                final color = kDashboardPalette[entry.colorIndex];
-                final title = context.tr(entry.section.titleKey);
-                return Card(
-                  key: ValueKey(entry.section),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        ReorderableDragStartListener(
-                          index: index,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Icon(
-                              Icons.drag_indicator,
-                              semanticLabel: context.tr('{0} verschieben', [
-                                title,
-                              ]),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          key: ValueKey('layout-color-${entry.section.name}'),
-                          tooltip: context.tr('Farbe von {0}', [title]),
-                          icon: CircleAvatar(
-                            radius: 12,
-                            backgroundColor: color,
-                          ),
-                          onPressed: () async {
-                            final picked = await _pickColor(entry.colorIndex);
-                            if (picked != null) {
-                              await _save(
-                                layout.update(
-                                  entry.copyWith(colorIndex: picked),
-                                ),
-                              );
-                            }
-                          },
-                        ),
-                        Icon(dashboardSectionIcon(entry.section), size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            entry.section.required
-                                ? '$title (${context.tr('Pflicht')})'
-                                : title,
-                          ),
-                        ),
-                        Tooltip(
-                          message: context.tr('Anzeigen'),
-                          child: Switch(
-                            key: ValueKey(
-                              'layout-visible-${entry.section.name}',
-                            ),
-                            value: entry.isVisible,
-                            onChanged: entry.section.required
-                                ? null
-                                : (value) => _save(
-                                    layout.update(
-                                      entry.copyWith(visible: value),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        IconButton(
-                          key: ValueKey(
-                            'layout-expanded-${entry.section.name}',
-                          ),
-                          tooltip: context.tr(
-                            entry.expanded ? 'Ausgeklappt' : 'Minimiert',
-                          ),
-                          icon: Icon(
-                            entry.expanded
-                                ? Icons.unfold_more
-                                : Icons.unfold_less,
-                          ),
-                          onPressed: () => _save(
-                            layout.update(
-                              entry.copyWith(expanded: !entry.expanded),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          // The same grid as the admin view, with every section as a
+          // placeholder tile: drag, colour and hide them in place.
+          const Expanded(
+            child: DashboardSectionGrid(
+              sections: {},
+              editable: false,
+              alwaysEditing: true,
             ),
           ),
         ],

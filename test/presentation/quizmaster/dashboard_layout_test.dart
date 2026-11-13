@@ -183,12 +183,15 @@ void main() {
     await tester.pumpAndSettle();
     final store = DashboardLayoutStore.instance;
 
-    final liveSwitch = tester.widget<Switch>(
-      find.byKey(const ValueKey('layout-visible-liveRound')),
+    final liveToggle = tester.widget<IconButton>(
+      find.byKey(const ValueKey('edit-visible-liveRound')),
     );
-    expect(liveSwitch.onChanged, isNull);
+    expect(liveToggle.onPressed, isNull);
 
-    await tester.tap(find.byKey(const ValueKey('layout-visible-serverLog')));
+    final serverLog = find.byKey(const ValueKey('edit-visible-serverLog'));
+    await tester.ensureVisible(serverLog);
+    await tester.pumpAndSettle();
+    await tester.tap(serverLog);
     await tester.pumpAndSettle();
     expect(store.layout.value[DashboardSection.serverLog].isVisible, isTrue);
     expect(DashboardLayout.decode(backend.value), store.layout.value);
@@ -202,6 +205,48 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('layout-reset')));
     await tester.pumpAndSettle();
     expect(store.layout.value, DashboardLayout.standard());
+  });
+
+  testWidgets('tiles are reordered by dragging them in the real grid', (
+    tester,
+  ) async {
+    DashboardLayoutStore.useBackend(_MemoryBackend());
+    await tester.binding.setSurfaceSize(const Size(1400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      app(
+        const DashboardSectionGrid(
+          sections: {
+            DashboardSection.liveRound: Text('live panel'),
+            DashboardSection.scoreboard: Text('score panel'),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final store = DashboardLayoutStore.instance;
+    expect(find.text('live panel'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('dashboard-edit')));
+    await tester.pumpAndSettle();
+    // Editing shows every section in place, the panels are hidden meanwhile.
+    expect(find.text('live panel'), findsNothing);
+    expect(find.byKey(const ValueKey('edit-sessionAccess')), findsOneWidget);
+    final handle = find.byKey(const ValueKey('edit-handle-scoreboard'));
+    final target = find.byKey(const ValueKey('edit-sessionAccess'));
+    await tester.ensureVisible(handle);
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.moveTo(tester.getCenter(target));
+    await tester.pump(const Duration(milliseconds: 50));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(
+      store.layout.value.sections.first.section,
+      DashboardSection.scoreboard,
+    );
+    await tester.tap(find.byKey(const ValueKey('dashboard-edit-done')));
+    await tester.pumpAndSettle();
+    expect(find.text('score panel'), findsOneWidget);
   });
 
   testWidgets('the settings screen exports and imports layouts', (
