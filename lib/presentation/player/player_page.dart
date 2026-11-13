@@ -31,6 +31,7 @@ import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/quiz_review_view.dart';
+import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
 
 /// Player facing screen.
@@ -440,7 +441,24 @@ class _GameBoard extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(child: _QuestionStage(state: state)),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (game != null)
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: RoundCountdown(
+                        game: game,
+                        hostNowMicros: context
+                            .read<PlayerSessionCubit>()
+                            .hostNowMicros,
+                      ),
+                    ),
+                  _QuestionStage(state: state),
+                ],
+              ),
+            ),
           ),
         ),
       ),

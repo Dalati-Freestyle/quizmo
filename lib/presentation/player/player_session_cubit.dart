@@ -316,6 +316,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   QuizClient? _client;
   Uri? _baseUri;
   Uri? get mediaBaseUri => _client?.mediaBaseUri ?? _baseUri;
+
+  /// Current host time estimated through the clock synchronisation.
+  int hostNowMicros() =>
+      _localNow?.call() ?? systemNowMicros() - state.clockOffsetMicros;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<GameSnapshotMessage>? _snapshotSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;

@@ -1003,5 +1003,6 @@
   "Chipänderung": "Chip change",
   "Dein Team {0} belegt Platz {1} von {2} mit {3} {4}.": "Your team {0} finished {1} of {2} with {3} {4}.",
   "Du belegst Platz {1} von {2} mit {3} {4}.": "You finished {1} of {2} with {3} {4}.",
-  "Endstand": "Final standings"
+  "Endstand": "Final standings",
+  "Verbleibende Zeit: {0}": "Time left: {0}"
 }
