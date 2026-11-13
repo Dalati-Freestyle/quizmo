@@ -34,13 +34,9 @@ Map<String, Object?> _withLimit(
 };
 
 void main() {
-  test('schema 8 is the current schema', () {
-    expect(Quiz.currentSchemaVersion, 8);
-  });
-
   test('a schema 7 file keeps its limit, reveal mode and media', () {
     final quiz = parseQuizImport(jsonEncode(_fixtureV7()));
-    expect(quiz.schemaVersion, 8);
+    expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
     expect(
       quiz.format,
       const StandardFormat(revealMode: SolutionRevealMode.atEnd),
@@ -65,7 +61,7 @@ void main() {
     final quiz = parseQuizImport(jsonEncode(source));
     expect(quiz.questions.single.hasTimeLimit, isFalse);
     final exported = jsonDecode(exportQuizJson(quiz)) as Map<String, Object?>;
-    expect(exported['schemaVersion'], 8);
+    expect(exported['schemaVersion'], Quiz.currentSchemaVersion);
     expect(((exported['questions']! as List).single as Map)['timeLimitMs'], 0);
     expect(parseQuizImport(jsonEncode(exported)), quiz);
   });
@@ -94,7 +90,12 @@ void main() {
 
   test('a file from a newer schema asks for an update', () {
     expect(
-      () => parseQuizImport(jsonEncode({..._fixtureV7(), 'schemaVersion': 9})),
+      () => parseQuizImport(
+        jsonEncode({
+          ..._fixtureV7(),
+          'schemaVersion': Quiz.currentSchemaVersion + 1,
+        }),
+      ),
       throwsA(isA<QuizImportUpdateRequiredException>()),
     );
   });

@@ -16,7 +16,7 @@ void main() {
     createdAt: createdAt,
     updatedAt: updatedAt,
     teams: const [
-      Team(id: 'team-red', name: 'Red Foxes', colorValue: 0xFFE5484D),
+      Team(id: 'team-red', name: 'Red Foxes', colorValue: 0xFFC0392B),
     ],
     questions: const [
       MultipleChoiceQuestion(

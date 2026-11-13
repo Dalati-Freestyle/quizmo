@@ -98,7 +98,7 @@ with an AI assistant using [the AI quiz guide](docs/ai-quiz-guide.md).
 
 * [Quiz file format and versions](docs/quiz-file-format.md)
 * [Question types and media](docs/question-types-and-media.md)
-* [AI quiz guide](docs/ai-quiz-guide.md)
+* AI quiz guide: [English](docs/ai-quiz-guide.en.md), [German](docs/ai-quiz-guide.md)
 * [Deployment of the internet server](deploy/README.md)
 * Host topics below: session access, final report, connection status, example
   quizzes, editor preview, manual grading, reveal modes, recovery, internet
@@ -286,14 +286,16 @@ Default status is local library metadata, not part of exported quiz files.
 
 ## Create a quiz with an AI assistant
 
-[`docs/ai-quiz-guide.md`](docs/ai-quiz-guide.md) is a guide for any current AI
+[`docs/ai-quiz-guide.en.md`](docs/ai-quiz-guide.en.md) (English) and
+[`docs/ai-quiz-guide.md`](docs/ai-quiz-guide.md) (German) are a guide for any current AI
 assistant (ChatGPT, Claude, Gemini, …). Load or paste it into a chat: the
 assistant offers a fully automatic mode or walks you through format, teams,
 timers, scoring and every question, and ends with one importable
-`*.quizmo.json` file. Hosts can download the same file in the app under
+`*.quizmo.json` file. Hosts can download the same file in the app language under
 **Settings > Hosting > Create a quiz with AI**. It covers all formats and
-question types of the current schema; uploaded images and audio are added in
-the editor afterwards.
+question types of the current schema. Team colours are chosen by name from the
+palette of the admin view, never by colour code. The assistant cannot embed
+own images, audio or videos: add them in the editor afterwards.
 
 ## Editor preview
 
@@ -424,7 +426,7 @@ continuation. Corrupt/incomplete records are not overwritten or silently rolled
 back; they require retry or explicit discard. Low-level permission/I/O failures
 also prevent hosting until resolved.
 
-The recovery envelope writes **schema 2**, independently of quiz schema 8
+The recovery envelope writes **schema 2**, independently of quiz schema 9
 and the app version. It checks both the checkpoint and the referenced quiz,
 requires complete/lossless fields and validates cross-references. Future recovery
 schemas must retain a dedicated importer for each previous schema, migrate both

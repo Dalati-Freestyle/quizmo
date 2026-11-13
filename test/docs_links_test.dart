@@ -11,6 +11,7 @@ const _documents = [
   'docs/quiz-file-format.md',
   'docs/question-types-and-media.md',
   'docs/ai-quiz-guide.md',
+  'docs/ai-quiz-guide.en.md',
   'deploy/README.md',
 ];
 
@@ -71,6 +72,7 @@ void main() {
       'deploy/Caddyfile.basic-auth',
       'deploy/.env.example',
       'docs/ai-quiz-guide.md',
+      'docs/ai-quiz-guide.en.md',
     ]) {
       expect(File(path).existsSync(), isTrue, reason: path);
     }

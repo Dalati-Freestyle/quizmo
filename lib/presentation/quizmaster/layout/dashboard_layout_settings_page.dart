@@ -9,6 +9,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../../core/models/team_color.dart';
+import '../../common/palette_color_picker.dart';
 import 'dashboard_layout.dart';
 import 'dashboard_layout_store.dart';
 import 'dashboard_section_view.dart';
@@ -114,29 +116,9 @@ class _DashboardLayoutSettingsPageState
     context: context,
     builder: (context) => AlertDialog(
       title: Text(context.tr('Farbe wählen')),
-      content: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var index = 0; index < kDashboardPalette.length; index++)
-            Semantics(
-              button: true,
-              selected: index == current,
-              label: context.tr('Farbe {0}', [index + 1]),
-              child: InkWell(
-                key: ValueKey('palette-$index'),
-                customBorder: const CircleBorder(),
-                onTap: () => Navigator.pop(context, index),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: kDashboardPalette[index],
-                  child: index == current
-                      ? const Icon(Icons.check, color: Colors.white)
-                      : null,
-                ),
-              ),
-            ),
-        ],
+      content: PaletteColorPicker(
+        selected: current == null ? null : TeamColor.values[current],
+        onSelected: (color) => Navigator.pop(context, color.index),
       ),
       actions: [
         TextButton(

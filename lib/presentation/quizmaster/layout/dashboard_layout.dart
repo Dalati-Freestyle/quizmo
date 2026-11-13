@@ -6,6 +6,8 @@ library;
 
 import 'dart:convert';
 
+import '../../../core/models/team_color.dart';
+
 /// Sections of the host dashboard.
 ///
 /// Format dependent content shares one section: [questions] shows the
@@ -38,7 +40,7 @@ enum DashboardSection {
 }
 
 /// Number of colours offered for the sections.
-const kDashboardPaletteSize = 16;
+final kDashboardPaletteSize = TeamColor.values.length;
 
 /// Per section settings.
 final class DashboardSectionSettings {

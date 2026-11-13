@@ -401,7 +401,11 @@ class SocketHub {
         }
         final createdTeam = newTeamName == null
             ? null
-            : Team(id: newId('team'), name: newTeamName.trim());
+            : Team(
+                id: newId('team'),
+                name: newTeamName.trim(),
+                colorValue: TeamColor.forIndex(game.teams.length).argb,
+              );
         if (createdTeam != null &&
             resumePlayerId != null &&
             game.players.containsKey(resumePlayerId)) {

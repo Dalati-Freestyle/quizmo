@@ -126,7 +126,13 @@ final class PreviewSession {
     }
     final requiresTeam = game.mode is TeamMode || game.poker != null;
     final createTeam = ownTeam || (requiresTeam && teamId == null);
-    final team = createTeam ? Team(id: '$id-team', name: name.trim()) : null;
+    final team = createTeam
+        ? Team(
+            id: '$id-team',
+            name: name.trim(),
+            colorValue: TeamColor.forIndex(game.teams.length).argb,
+          )
+        : null;
     final player = Player(
       id: id,
       name: name.trim(),

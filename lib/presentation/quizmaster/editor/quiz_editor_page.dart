@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../common/palette_color_picker.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/settings_page.dart';
 
@@ -340,7 +341,11 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
   Future<void> _editTeam(QuizEditorCubit cubit, [Team? team]) async {
     final edited = await showDialog<Team>(
       context: context,
-      builder: (_) => _TeamDialog(team: team, newId: widget.createId),
+      builder: (_) => _TeamDialog(
+        team: team,
+        newId: widget.createId,
+        teamCount: cubit.state.draft.teams.length,
+      ),
     );
     if (edited == null || !mounted) return;
     if (team == null) {
@@ -509,10 +514,17 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
 }
 
 class _TeamDialog extends StatefulWidget {
-  const _TeamDialog({required this.team, required this.newId});
+  const _TeamDialog({
+    required this.team,
+    required this.newId,
+    required this.teamCount,
+  });
 
   final Team? team;
   final String Function() newId;
+
+  /// Number of existing teams; a new team gets the next palette colour.
+  final int teamCount;
 
   @override
   State<_TeamDialog> createState() => _TeamDialogState();
@@ -521,23 +533,20 @@ class _TeamDialog extends StatefulWidget {
 class _TeamDialogState extends State<_TeamDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _colorController;
+  late TeamColor _color;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.team?.name ?? '');
-    _colorController = TextEditingController(
-      text: (widget.team?.colorValue ?? 0xFF5E6AD2)
-          .toRadixString(16)
-          .padLeft(8, '0'),
-    );
+    _color = widget.team == null
+        ? TeamColor.forIndex(widget.teamCount)
+        : TeamColor.nearest(widget.team!.colorValue);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _colorController.dispose();
     super.dispose();
   }
 
@@ -559,14 +568,15 @@ class _TeamDialogState extends State<_TeamDialog> {
                 : null,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _colorController,
-            decoration: InputDecoration(
-              labelText: context.tr("ARGB colour (for example FF5E6AD2)"),
-            ),
-            validator: (value) => _parseColor(value) == null
-                ? context.tr("Enter an 8-digit hexadecimal ARGB colour.")
-                : null,
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(context.tr('Teamfarbe')),
+          ),
+          const SizedBox(height: 8),
+          PaletteColorPicker(
+            selected: _color,
+            keyPrefix: 'team-color',
+            onSelected: (color) => setState(() => _color = color),
           ),
         ],
       ),
@@ -586,11 +596,9 @@ class _TeamDialogState extends State<_TeamDialog> {
       Team(
         id: widget.team?.id ?? widget.newId(),
         name: _nameController.text.trim(),
-        colorValue: _parseColor(_colorController.text)!,
+        colorValue: _color.argb,
       ),
     );
   }
 
-  int? _parseColor(String? value) =>
-      int.tryParse(value?.trim().replaceFirst('#', '') ?? '', radix: 16);
 }

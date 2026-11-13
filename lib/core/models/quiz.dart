@@ -9,6 +9,7 @@ import 'json.dart';
 import 'question.dart';
 import 'quiz_format.dart';
 import 'team.dart';
+import 'team_color.dart';
 
 /// Describes quiz content that cannot be saved or imported safely.
 final class QuizValidationException implements Exception {
@@ -41,7 +42,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 8;
+  static const int currentSchemaVersion = 9;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -66,6 +67,7 @@ final class Quiz extends Equatable {
       6 => Quiz._fromJsonV6(json),
       7 => Quiz._fromJsonV7(json),
       8 => Quiz._fromJsonV8(json),
+      9 => Quiz._fromJsonV9(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -117,7 +119,21 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV8(json);
   }
 
-  factory Quiz._fromJsonV8(JsonMap json) {
+  /// Schema 8 and older stored any ARGB team colour; schema 9 stores the name
+  /// of a palette colour, so older colours move to the nearest one.
+  factory Quiz._fromJsonV8(JsonMap json) => Quiz._fromJsonV9({
+    ...json,
+    'teams': json.readList(
+      'teams',
+      (team) => {
+        for (final entry in team.entries)
+          if (entry.key != 'colorValue') entry.key: entry.value,
+        'color': TeamColor.nearest(team.readInt('colorValue')).name,
+      },
+    ),
+  });
+
+  factory Quiz._fromJsonV9(JsonMap json) {
     final quiz = Quiz(
       schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
@@ -125,7 +141,7 @@ final class Quiz extends Equatable {
       description: json.readString('description'),
       category: json.readString('category'),
       questions: json.readList('questions', Question.fromJson),
-      teams: json.readList('teams', Team.fromJson),
+      teams: json.readList('teams', _teamFromQuizJson),
       // Files written before formats existed have no entry: plain quiz.
       format: switch (json.readObjectOrNull('format')) {
         final JsonMap value => QuizFormat.fromJson(value),
@@ -279,7 +295,7 @@ final class Quiz extends Equatable {
     'questions': questions
         .map((question) => question.toJson())
         .toList(growable: false),
-    'teams': teams.map((team) => team.toJson()).toList(growable: false),
+    'teams': teams.map(_teamToQuizJson).toList(growable: false),
     'format': format.toJson(),
     'createdAtMicros': createdAt.toUtc().microsecondsSinceEpoch,
     'updatedAtMicros': updatedAt.toUtc().microsecondsSinceEpoch,
@@ -299,6 +315,30 @@ final class Quiz extends Equatable {
     updatedAt,
   ];
 }
+
+/// Reads a team of a quiz file: its colour is a palette name (schema 9).
+Team _teamFromQuizJson(JsonMap json) {
+  final name = json.readString('color');
+  final color = TeamColor.byName(name);
+  if (color == null) {
+    throw JsonContractException(
+      'Unknown team colour "$name". Use one of: '
+      '${TeamColor.values.map((c) => c.name).join(', ')}.',
+    );
+  }
+  return Team.fromJson({
+    for (final entry in json.entries)
+      if (entry.key != 'color') entry.key: entry.value,
+    'colorValue': color.argb,
+  });
+}
+
+/// Writes a team of a quiz file with the name of its palette colour.
+JsonMap _teamToQuizJson(Team team) => {
+  for (final entry in team.toJson().entries)
+    if (entry.key != 'colorValue') entry.key: entry.value,
+  'color': TeamColor.nearest(team.colorValue).name,
+};
 
 /// A quiz file that requires a newer version of Quizmo.
 final class QuizSchemaUpdateRequiredException extends JsonContractException {

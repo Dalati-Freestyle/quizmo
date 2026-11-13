@@ -3,12 +3,13 @@
 <!--
   Diese Datei ist gleichzeitig die Anleitung im Repository und die Datei, die
   Quizmo unter Einstellungen → „Quiz mit KI erstellen“ ausliefert (Asset).
+  Die englische Fassung ist ai-quiz-guide.en.md; beide stets gemeinsam pflegen.
   test/core/data/ai_quiz_guide_test.dart importiert jedes Beispiel unten und
   schlägt fehl, sobald sich die schemaVersion ändert. Dann diese Anleitung an
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **8**
+Quizmo-Schema-Version dieser Anleitung: **9**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -44,7 +45,8 @@ Frage entsteht. Frage aktiv nach und schlage sinnvolle Standards vor:
    samt formatspezifischer Regeln (Board-Aufbau, Minuspunkte, Steal, Startchips,
    Auflösung nach jeder Frage oder am Ende).
 2. **Teams oder Solo** – vordefinierte Teams (Namen, Farben) oder Einzelspieler.
-3. **Zeitlimits** – Standard-Zeit pro Frage, hartes oder weiches Limit.
+3. **Zeitlimits** – kein Zeitlimit (Spielleitung beendet die Runde) oder eine
+   Standard-Zeit pro Frage, hartes oder weiches Limit.
 4. **Wertung** – feste Punkte, Geschwindigkeitsbonus, Buzzer-Wertung,
    Minuspunkte bei falscher Antwort.
 5. **Inhalt** – Thema, Zielgruppe, Schwierigkeit, Sprache, Anzahl der Fragen
@@ -65,13 +67,15 @@ Bestätigung, bevor du zur nächsten gehst.
    Datei-Download, falls dein Werkzeug das kann). Keine Kommentare im JSON.
 3. Schreibe darunter kurz, wie man importiert: Datei als `<name>.quizmo.json`
    speichern → Quizmo öffnen → Quiz-Bibliothek → „Importieren“ → Datei wählen.
-   Bilder, Audio und Videos lassen sich danach im Quiz-Editor ergänzen.
+   Eigene Bilder, Audiodateien und Videos kann die KI nicht einbetten: Sie
+   werden nach dem Import im Quiz-Editor bei der jeweiligen Frage (oder
+   Lösung) über „Medien“ hochgeladen.
 
 ## 2. Aufbau der Datei
 
 ```text
 {
-  "schemaVersion": 8,               // immer genau 8
+  "schemaVersion": 9,               // immer genau 9
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -87,10 +91,13 @@ Bestätigung, bevor du zur nächsten gehst.
 * `createdAtMicros` / `updatedAtMicros`: Zeitpunkt in Mikrosekunden seit
   1970 (UTC). Nimm den aktuellen Zeitpunkt; `updatedAtMicros` darf nicht vor
   `createdAtMicros` liegen.
-* Team: `{"id": "team-rot", "name": "Rot", "colorValue": 4293212469}` –
-  `colorValue` ist eine ARGB-Farbe als Dezimalzahl (z. B. `0xFFE53935` =
-  `4293212469`, `0xFF1E88E5` = `4280191205`, `0xFF43A047` = `4282622023`,
-  `0xFFFDD835` = `4294826037`).
+* Team: `{"id": "team-rot", "name": "Rot", "color": "red"}` – `color` ist der
+  Name einer Farbe der Quizmo-Palette (dieselben Farben wie in der
+  Admin-Ansicht). Erlaubt sind genau diese Namen: `blue` (Blau), `teal`
+  (Türkis), `orange`, `purple` (Lila), `green` (Grün), `pink`, `ochre` (Ocker),
+  `cyan`, `red` (Rot), `olive` (Oliv), `indigo`, `brown` (Braun), `darkTeal`
+  (Petrol), `orchid` (Orchidee), `slate` (Schiefergrau), `vermilion` (Zinnober).
+  Niemals Farbcodes (Hex, ARGB) verwenden. Gib jedem Team eine andere Farbe.
 * Alle IDs (Quiz, Teams, Fragen, Optionen) sind innerhalb ihrer Liste eindeutig.
 
 ## 3. Quizformate
@@ -169,8 +176,9 @@ eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 Eingebettete Dateien (Bilder, Audio, MP4) enthalten Base64-Daten mit SHA-256-ID.
 **Erzeuge solche Uploads nicht** – das kann ein Chat-Modell nicht zuverlässig.
 Lass `media`/`solutionMedia` leer oder verwende nur diese Referenzen ohne
-Dateiinhalt, und sag der Person, dass Bilder und Audio im Quiz-Editor ergänzt
-werden:
+Dateiinhalt. Weise die Person darauf hin, dass sie eigene Bilder, Audio und
+Videos nach dem Import im Quiz-Editor über „Medien“ bei der Frage oder Lösung
+einfügen muss; schlage ruhig vor, welche Medien wo passen würden:
 
 | Art | JSON |
 | --- | --- |
@@ -183,16 +191,18 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 8` steht ganz oben.
+- [ ] `"schemaVersion": 9` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
-- [ ] Jede Frage hat einen Text, ein Zeitlimit > 0 und eine gültige `scoringRule`.
+- [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
+      Geschwindigkeitsbonus braucht > 0) und eine gültige `scoringRule`.
 - [ ] Jede Frage hat eine vollständige, gültige Lösung (siehe Abschnitt 5).
 - [ ] Jeopardy: Jede `questionId` existiert, keine Frage doppelt, Zeilenpunkte > 0,
       jede Kategorie hat einen Namen, mindestens zwei Teams.
 - [ ] Poker: `startingChips` zwischen 1 und 1.000.000.
-- [ ] Teams haben `id`, `name` und `colorValue`.
-- [ ] Keine Upload-Medien (`asset` mit Daten); nur YouTube, Karte, Code.
+- [ ] Teams haben `id`, `name` und `color` (ein Palettenname aus Abschnitt 2).
+- [ ] Keine Upload-Medien (`asset` mit Daten); nur YouTube, Karte, Code. Eigene
+      Bilder, Audio und Videos fügt die Person danach im Quiz-Editor ein.
 - [ ] Gültiges JSON: doppelte Anführungszeichen, keine Kommentare, keine
       nachgestellten Kommas.
 
@@ -204,10 +214,10 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
-  "description": "Sieben Fragen mit allen Fragetypen.",
+  "description": "Acht Fragen mit allen Fragetypen.",
   "category": "Allgemeinwissen",
   "questions": [
     {
@@ -366,7 +376,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -388,7 +398,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     },
     {
       "type": "buzzer", "id": "t1", "prompt": "Wer gilt als Erfinder des World Wide Web?",
-      "timeLimitMs": 20000, "softTimeLimit": false, "category": "Technik", "adminNotes": "",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": "Technik", "adminNotes": "",
       "media": [], "solutionMedia": [],
       "scoringRule": {"type": "firstBuzzer", "points": 10, "penalty": 0, "rankDecay": 0},
       "expectedAnswer": "Tim Berners-Lee", "lockOutOnMiss": true, "hostEndsRound": false, "retryLimit": null
@@ -406,8 +416,8 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     }
   ],
   "teams": [
-    {"id": "team-rot", "name": "Rot", "colorValue": 4293212469},
-    {"id": "team-blau", "name": "Blau", "colorValue": 4280191205}
+    {"id": "team-rot", "name": "Rot", "color": "red"},
+    {"id": "team-blau", "name": "Blau", "color": "blue"}
   ],
   "format": {
     "type": "jeopardy",
@@ -436,7 +446,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",

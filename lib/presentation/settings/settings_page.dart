@@ -82,9 +82,10 @@ class _SettingsPageState extends State<SettingsPage> {
     final saved = context.tr('Anleitung gespeichert.');
     final failed = context.tr('Die Anleitung konnte nicht gespeichert werden.');
     final title = context.tr('KI-Anleitung speichern');
+    final german = Localizations.localeOf(context).languageCode == 'de';
     try {
       await ai_guide.loadLibrary();
-      if (await ai_guide.saveAiQuizGuide(dialogTitle: title)) {
+      if (await ai_guide.saveAiQuizGuide(dialogTitle: title, german: german)) {
         messenger.showSnackBar(SnackBar(content: Text(saved)));
       }
     } on Object {

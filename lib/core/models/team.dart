@@ -11,7 +11,7 @@ final class Team extends Equatable {
   const Team({
     required this.id,
     required this.name,
-    this.colorValue = 0xFF5E6AD2,
+    this.colorValue = 0xFF3F6FD8,
   });
 
   /// Restores a team from [json].
@@ -27,7 +27,7 @@ final class Team extends Equatable {
   /// Display name.
   final String name;
 
-  /// 32 bit ARGB accent colour.
+  /// 32 bit ARGB accent colour, normally one of [TeamColor].
   ///
   /// Stored as a plain `int` so that `lib/core` stays free of `dart:ui`.
   final int colorValue;

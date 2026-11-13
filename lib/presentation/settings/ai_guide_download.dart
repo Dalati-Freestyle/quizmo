@@ -1,4 +1,5 @@
-/// Offers the AI quiz guide (`docs/ai-quiz-guide.md`) as a file.
+/// Offers the AI quiz guide (`docs/ai-quiz-guide.md`, English
+/// `docs/ai-quiz-guide.en.md`) as a file.
 ///
 /// Loaded deferred from the settings, so the guide never enlarges the
 /// player bundle that guests load when joining.
@@ -9,15 +10,24 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
-/// Asset path of the guide; the same file as in the repository.
+/// Asset path of the German guide; the same file as in the repository.
 const kAiQuizGuideAsset = 'docs/ai-quiz-guide.md';
 
-/// Saves (native) or downloads (web) the guide. Returns `false` on cancel.
-Future<bool> saveAiQuizGuide({required String dialogTitle}) async {
-  final text = await rootBundle.loadString(kAiQuizGuideAsset);
+/// Asset path of the English guide; the same file as in the repository.
+const kAiQuizGuideEnglishAsset = 'docs/ai-quiz-guide.en.md';
+
+/// Saves (native) or downloads (web) the guide in the app language: German
+/// for [german], English otherwise. Returns `false` on cancel.
+Future<bool> saveAiQuizGuide({
+  required String dialogTitle,
+  required bool german,
+}) async {
+  final text = await rootBundle.loadString(
+    german ? kAiQuizGuideAsset : kAiQuizGuideEnglishAsset,
+  );
   final saved = await FilePicker.saveFile(
     dialogTitle: dialogTitle,
-    fileName: 'quizmo-ki-anleitung.md',
+    fileName: german ? 'quizmo-ki-anleitung.md' : 'quizmo-ai-guide.md',
     bytes: utf8.encode(text),
     mimeType: 'text/markdown',
   );

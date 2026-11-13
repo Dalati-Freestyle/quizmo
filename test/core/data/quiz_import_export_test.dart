@@ -257,7 +257,7 @@ void main() {
       const GeoAttachment(latitude: 52.52, longitude: 13.405, zoom: 10),
     ];
     final withMedia = quiz.copyWith(
-      teams: const [Team(id: 'red', name: 'Red', colorValue: 0xFFFF0000)],
+      teams: const [Team(id: 'red', name: 'Red', colorValue: 0xFFC0392B)],
       questions: [
         Question.fromJson({
           ...quiz.questions.single.toJson(),

@@ -20,5 +20,6 @@ export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
 export 'team.dart';
+export 'team_color.dart';
 
 export 'media_attachment.dart';

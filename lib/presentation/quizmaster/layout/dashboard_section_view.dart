@@ -7,29 +7,16 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../common/adaptive_layout.dart';
+import '../../../core/models/team_color.dart';
 import 'dashboard_layout.dart';
 import 'dashboard_layout_store.dart';
 
-/// Section colours; distinguishable hues that work in light and dark themes
-/// as accent strips and tinted headers (text stays in the theme colours).
-const kDashboardPalette = <Color>[
-  Color(0xFF3F6FD8), // blue
-  Color(0xFF1E9E8F), // teal
-  Color(0xFFD9822B), // orange
-  Color(0xFF8E5BD6), // purple
-  Color(0xFF2E9E4F), // green
-  Color(0xFFD64F7A), // pink
-  Color(0xFFB59A12), // ochre
-  Color(0xFF0B8FC4), // cyan
-  Color(0xFFC0392B), // red
-  Color(0xFF6D7F1A), // olive
-  Color(0xFF5C6BC0), // indigo
-  Color(0xFF8D6E63), // brown
-  Color(0xFF00897B), // dark teal
-  Color(0xFFAD5FB0), // orchid
-  Color(0xFF607D8B), // slate
-  Color(0xFFE0682B), // vermilion
-];
+/// Section colours; the same named palette as the team colours
+/// ([TeamColor]). Distinguishable hues that work in light and dark themes as
+/// accent strips and tinted headers (text stays in the theme colours).
+final kDashboardPalette = List<Color>.unmodifiable([
+  for (final color in TeamColor.values) Color(color.argb),
+]);
 
 /// Icon of [section].
 IconData dashboardSectionIcon(DashboardSection section) => switch (section) {
