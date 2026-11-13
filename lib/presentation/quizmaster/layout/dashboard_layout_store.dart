@@ -62,6 +62,15 @@ final class DashboardLayoutStore {
     }
   }();
 
+  /// Applies [value] and stores it in the background. A failed write keeps
+  /// the layout for this session instead of disturbing the game.
+  void remember(DashboardLayout value) {
+    layout.value = value;
+    unawaited(
+      _backend.write(value.encode()).then<void>((_) {}, onError: (Object _) {}),
+    );
+  }
+
   /// Applies and stores [value]. The new layout applies even if storing fails.
   Future<void> save(DashboardLayout value) async {
     layout.value = value;

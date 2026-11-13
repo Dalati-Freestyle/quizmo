@@ -57,8 +57,12 @@ class DashboardSectionView extends StatefulWidget {
   const DashboardSectionView({
     required this.settings,
     required this.child,
+    this.onExpandedChanged,
     super.key,
   });
+
+  /// Receives a toggle, so that the layout remembers it.
+  final ValueChanged<bool>? onExpandedChanged;
 
   /// Settings of the section (colour and initial expansion).
   final DashboardSectionSettings settings;
@@ -105,7 +109,10 @@ class _DashboardSectionViewState extends State<DashboardSectionView> {
             child: InkWell(
               key: ValueKey('dashboard-section-${section.name}'),
               borderRadius: BorderRadius.circular(10),
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap: () {
+                setState(() => _expanded = !_expanded);
+                widget.onExpandedChanged?.call(_expanded);
+              },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -138,7 +145,7 @@ class _DashboardSectionViewState extends State<DashboardSectionView> {
           if (_expanded)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: widget.child,
+              child: InSectionFrame(child: widget.child),
             ),
         ],
       ),
@@ -182,6 +189,13 @@ class _DashboardSectionGridState extends State<DashboardSectionGrid> {
               DashboardSectionView(
                 key: ValueKey(entry.section),
                 settings: entry,
+                onExpandedChanged: (expanded) => _store.remember(
+                  _store.layout.value.update(
+                    _store.layout.value[entry.section].copyWith(
+                      expanded: expanded,
+                    ),
+                  ),
+                ),
                 child: panel,
               ),
       ],

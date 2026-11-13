@@ -3,6 +3,9 @@ library;
 
 import 'dart:async';
 
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -14,7 +17,33 @@ import 'dashboard_section_view.dart';
 /// every admin view section.
 class DashboardLayoutSettingsPage extends StatefulWidget {
   /// Creates the page.
-  const DashboardLayoutSettingsPage({super.key});
+  const DashboardLayoutSettingsPage({
+    this.pickLayoutFile = _pickLayoutFile,
+    this.saveLayoutFile = _saveLayoutFile,
+    super.key,
+  });
+
+  /// Lets the host pick a layout file; returns its text or `null`.
+  final Future<String?> Function() pickLayoutFile;
+
+  /// Offers [contents] as a download or save dialog; `false` if cancelled.
+  final Future<bool> Function(String contents) saveLayoutFile;
+
+  static Future<String?> _pickLayoutFile() async {
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+    );
+    if (file == null) return null;
+    return utf8.decode(await file.readAsBytes(), allowMalformed: true);
+  }
+
+  static Future<bool> _saveLayoutFile(String contents) async =>
+      await FilePicker.saveFile(
+        fileName: DashboardLayout.fileName,
+        bytes: utf8.encode(contents),
+      ) !=
+      null;
 
   @override
   State<DashboardLayoutSettingsPage> createState() =>
@@ -42,6 +71,42 @@ class _DashboardLayoutSettingsPageState
           () => _error = 'Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.',
         );
       }
+    }
+  }
+
+  Future<void> _export(DashboardLayout layout) async {
+    try {
+      await widget.saveLayoutFile(layout.encode());
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'Das Layout konnte nicht exportiert werden.');
+      }
+    }
+  }
+
+  Future<void> _import() async {
+    final String? contents;
+    try {
+      contents = await widget.pickLayoutFile();
+    } on Object {
+      if (mounted) {
+        setState(() => _error = 'Die Datei konnte nicht gelesen werden.');
+      }
+      return;
+    }
+    if (contents == null) return;
+    final DashboardLayout layout;
+    try {
+      layout = DashboardLayout.parseFile(contents);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+      return;
+    }
+    await _save(layout);
+    if (mounted && _error == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('Layout importiert.'))));
     }
   }
 
@@ -94,7 +159,7 @@ class _DashboardLayoutSettingsPageState
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               context.tr(
-                'Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden. Die Anpassung gilt nur auf diesem Gerät.',
+                'Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Auf- und Zuklappen in der Admin-Ansicht wird gemerkt. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.',
               ),
             ),
           ),
@@ -118,6 +183,18 @@ class _DashboardLayoutSettingsPageState
                   icon: const Icon(Icons.restart_alt),
                   label: Text(context.tr('Standardlayout wiederherstellen')),
                   onPressed: () => _save(DashboardLayout.standard()),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('layout-export'),
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: Text(context.tr('Layout exportieren')),
+                  onPressed: () => _export(layout),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('layout-import'),
+                  icon: const Icon(Icons.file_upload_outlined),
+                  label: Text(context.tr('Layout importieren')),
+                  onPressed: _import,
                 ),
               ],
             ),
@@ -206,9 +283,7 @@ class _DashboardLayoutSettingsPageState
                             'layout-expanded-${entry.section.name}',
                           ),
                           tooltip: context.tr(
-                            entry.expanded
-                                ? 'Startet ausgeklappt'
-                                : 'Startet minimiert',
+                            entry.expanded ? 'Ausgeklappt' : 'Minimiert',
                           ),
                           icon: Icon(
                             entry.expanded

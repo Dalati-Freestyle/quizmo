@@ -116,6 +116,21 @@ class AdaptivePanelGrid extends StatelessWidget {
 }
 
 /// A titled surface used for every dashboard section.
+/// Marks content that sits inside a titled dashboard section frame.
+///
+/// Panels inside it drop their own title, which the frame already shows.
+class InSectionFrame extends InheritedWidget {
+  /// Marks [child] as framed.
+  const InSectionFrame({required super.child, super.key});
+
+  /// Whether [context] is inside a section frame.
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<InSectionFrame>() != null;
+
+  @override
+  bool updateShouldNotify(InSectionFrame oldWidget) => false;
+}
+
 class PanelCard extends StatelessWidget {
   /// Creates a titled panel.
   const PanelCard({
@@ -141,6 +156,7 @@ class PanelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final framed = InSectionFrame.of(context);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -149,24 +165,34 @@ class PanelCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            if (framed) ...[
+              if (trailing != null) ...[
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: trailing,
+                ),
+                const SizedBox(height: 8),
+              ],
+            ] else ...[
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 18, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                if (trailing != null) ?trailing,
-              ],
-            ),
-            const SizedBox(height: 12),
+                  if (trailing != null) ?trailing,
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             child,
           ],
         ),

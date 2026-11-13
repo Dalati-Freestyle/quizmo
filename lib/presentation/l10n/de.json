@@ -1005,7 +1005,6 @@
   "Farbe wählen": "Farbe wählen",
   "Farbe {0}": "Farbe {0}",
   "Admin-Ansicht anpassen": "Admin-Ansicht anpassen",
-  "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden. Die Anpassung gilt nur auf diesem Gerät.": "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden. Die Anpassung gilt nur auf diesem Gerät.",
   "Allen Bereichen dieselbe Farbe": "Allen Bereichen dieselbe Farbe",
   "Standardlayout wiederherstellen": "Standardlayout wiederherstellen",
   "{0} verschieben": "{0} verschieben",
@@ -1027,8 +1026,6 @@
   "Server-Log": "Server-Log",
   "Sitzungszugang": "Sitzungszugang",
   "Spielstand-Sicherung": "Spielstand-Sicherung",
-  "Startet ausgeklappt": "Startet ausgeklappt",
-  "Startet minimiert": "Startet minimiert",
   "{0} minimieren": "{0} minimieren",
   "{0} aufklappen": "{0} aufklappen",
   "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.",
@@ -1110,5 +1107,15 @@
   "Zeitlimit": "Zeitlimit",
   "Ohne Zeitlimit": "Ohne Zeitlimit",
   "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.": "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.",
-  "{0} · {1} · {2}": "{0} · {1} · {2}"
+  "{0} · {1} · {2}": "{0} · {1} · {2}",
+  "Layout importiert.": "Layout importiert.",
+  "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Auf- und Zuklappen in der Admin-Ansicht wird gemerkt. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.": "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Auf- und Zuklappen in der Admin-Ansicht wird gemerkt. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.",
+  "Layout exportieren": "Layout exportieren",
+  "Layout importieren": "Layout importieren",
+  "Das Layout konnte nicht exportiert werden.": "Das Layout konnte nicht exportiert werden.",
+  "Die Datei konnte nicht gelesen werden.": "Die Datei konnte nicht gelesen werden.",
+  "Die Datei ist kein gültiges JSON.": "Die Datei ist kein gültiges JSON.",
+  "Die Datei ist keine Quizmo-Layoutdatei für die Admin-Ansicht.": "Die Datei ist keine Quizmo-Layoutdatei für die Admin-Ansicht.",
+  "Ausgeklappt": "Ausgeklappt",
+  "Minimiert": "Minimiert"
 }

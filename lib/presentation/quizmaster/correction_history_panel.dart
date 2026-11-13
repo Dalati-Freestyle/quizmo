@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
+import '../common/adaptive_layout.dart';
 import '../l10n/app_localizations.dart';
 
 class CorrectionHistoryPanel extends StatelessWidget {
@@ -16,58 +17,77 @@ class CorrectionHistoryPanel extends StatelessWidget {
   final QuizEngineBloc engine;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ExpansionTile(
-      leading: const Icon(Icons.history),
-      title: Text(context.tr('Korrekturverlauf')),
-      subtitle: Text(
-        context.tr('Nur für den Host · {0} Einträge', [
-          game.corrections.length,
-        ]),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: FilledButton.tonalIcon(
-            icon: const Icon(Icons.edit_outlined),
-            label: Text(
-              context.tr(
-                game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
-              ),
+  Widget build(BuildContext context) {
+    final subtitle = Text(
+      context.tr('Nur für den Host · {0} Einträge', [game.corrections.length]),
+    );
+    final children = _children(context);
+    // In a dashboard section the frame is the title and the expander.
+    if (InSectionFrame.of(context)) {
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: subtitle,
             ),
-            onPressed:
-                !game.recoveryPaused &&
-                    (game.mode is TeamMode || game.poker != null
-                        ? game.teams.isNotEmpty
-                        : game.players.isNotEmpty)
-                ? () async {
-                    final event = await showDialog<CorrectScoreEvent>(
-                      context: context,
-                      builder: (_) => _ScoreCorrectionDialog(game: game),
-                    );
-                    if (event != null && !engine.isClosed) engine.add(event);
-                  }
-                : null,
+            ...children,
+          ],
+        ),
+      );
+    }
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.history),
+        title: Text(context.tr('Korrekturverlauf')),
+        subtitle: subtitle,
+        children: children,
+      ),
+    );
+  }
+
+  List<Widget> _children(BuildContext context) => [
+    Padding(
+      padding: const EdgeInsets.all(12),
+      child: FilledButton.tonalIcon(
+        icon: const Icon(Icons.edit_outlined),
+        label: Text(
+          context.tr(
+            game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
           ),
         ),
-        if (game.corrections.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(context.tr('Noch keine manuellen Korrekturen.')),
-          )
-        else
-          SizedBox(
-            height: 360,
-            child: ListView(
-              children: [
-                for (final entry in game.corrections.reversed)
-                  _entry(context, entry),
-              ],
-            ),
-          ),
-      ],
+        onPressed:
+            !game.recoveryPaused &&
+                (game.mode is TeamMode || game.poker != null
+                    ? game.teams.isNotEmpty
+                    : game.players.isNotEmpty)
+            ? () async {
+                final event = await showDialog<CorrectScoreEvent>(
+                  context: context,
+                  builder: (_) => _ScoreCorrectionDialog(game: game),
+                );
+                if (event != null && !engine.isClosed) engine.add(event);
+              }
+            : null,
+      ),
     ),
-  );
+    if (game.corrections.isEmpty)
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(context.tr('Noch keine manuellen Korrekturen.')),
+      )
+    else
+      SizedBox(
+        height: 360,
+        child: ListView(
+          children: [
+            for (final entry in game.corrections.reversed)
+              _entry(context, entry),
+          ],
+        ),
+      ),
+  ];
 
   Widget _entry(BuildContext context, ManualCorrection entry) {
     final error = engine.correctionUndoError(entry);

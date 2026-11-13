@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/data/session_report.dart';
 import '../../core/models/game_state.dart';
+import '../common/adaptive_layout.dart';
 import '../l10n/app_localizations.dart';
 
 class SessionReportPanel extends StatefulWidget {
@@ -63,173 +64,180 @@ class _SessionReportPanelState extends State<SessionReportPanel> {
         ? context.tr('Not applicable / unavailable')
         : value.toStringAsFixed(2);
     final unit = context.tr(report.format == 'poker' ? 'Chips' : 'Points');
+    final children = <Widget>[
+      Text(context.tr('Report metrics explained')),
+      const SizedBox(height: 8),
+      Text(context.tr('Report storage explained')),
+      if (!report.historyComplete)
+        Text(
+          context.tr(
+            'Older save: detailed history is incomplete. Final standings are authoritative.',
+          ),
+        ),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        onPressed: _exporting ? null : () => _export(report),
+        icon: const Icon(Icons.download),
+        label: Text(context.tr('CSV export')),
+      ),
+      const SizedBox(height: 16),
+      Text(
+        context.tr('Final standings'),
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      for (final entry in report.summaries)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(
+            '${context.tr(entry.isTeam ? 'Team' : 'Player')}: ${entry.name}',
+          ),
+          subtitle: Text(
+            context.tr(
+              'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}',
+              [
+                entry.correct,
+                entry.evaluated,
+                metric(entry.hitRate == null ? null : entry.hitRate! * 100),
+                metric(
+                  entry.meanElapsedMicros == null
+                      ? null
+                      : entry.meanElapsedMicros! / 1000,
+                ),
+                context.tr(
+                  !entry.inRoster
+                      ? 'Removed from roster'
+                      : entry.connected
+                      ? 'Connected at end'
+                      : 'Disconnected at end',
+                ),
+              ],
+            ),
+          ),
+          trailing: SizedBox(
+            width: 100,
+            child: Text(
+              entry.finalScore == null
+                  ? context.tr('Not applicable / unavailable')
+                  : '${entry.finalScore} $unit',
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ),
+      ExpansionTile(
+        title: Text(context.tr('Score progression')),
+        children: [
+          for (final entry in report.progress)
+            ListTile(
+              title: Text('${entry.phase}. ${entry.name}'),
+              subtitle: Text(entry.questionId),
+              trailing: Text('${entry.score} $unit'),
+            ),
+        ],
+      ),
+      for (final phase in report.answers.map((a) => a.phase).toSet())
+        ExpansionTile(
+          key: ValueKey('report-phase-$phase'),
+          title: Text(
+            '$phase. ${report.answers.firstWhere((a) => a.phase == phase).question}',
+          ),
+          subtitle: Text(
+            [
+              if (report.answers.firstWhere((a) => a.phase == phase).steal)
+                context.tr('Steal'),
+              if (report.answers
+                  .firstWhere((a) => a.phase == phase)
+                  .dailyDouble)
+                context.tr('Daily Double'),
+            ].join(' · '),
+          ),
+          children: [
+            for (final team
+                in report.answers
+                    .where((a) => a.phase == phase)
+                    .map((a) => a.teamId)
+                    .whereType<String>()
+                    .toSet())
+              Builder(
+                builder: (context) {
+                  final rows = report.answers.where(
+                    (a) => a.phase == phase && a.teamId == team,
+                  );
+                  final metrics = reportMetrics(rows);
+                  return ListTile(
+                    title: Text(
+                      '${context.tr('Team')}: ${rows.first.team ?? team}',
+                    ),
+                    subtitle: Text(
+                      context.tr(
+                        'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms',
+                        [
+                          metrics.correct,
+                          metrics.evaluated,
+                          metric(
+                            metrics.hitRate == null
+                                ? null
+                                : metrics.hitRate! * 100,
+                          ),
+                          metric(
+                            metrics.meanElapsedMicros == null
+                                ? null
+                                : metrics.meanElapsedMicros! / 1000,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            for (final row in report.answers.where((a) => a.phase == phase))
+              ListTile(
+                title: Text(
+                  '${row.player}${row.team == null ? '' : ' / ${row.team}'}',
+                ),
+                subtitle: Text(
+                  [
+                    row.answer ?? context.tr('No answer recorded'),
+                    context.tr(_statusLabel(row.status)),
+                    context.tr('Accuracy / response time: {0} % / {1} ms', [
+                      metric(row.accuracy == null ? null : row.accuracy! * 100),
+                      metric(
+                        row.elapsedMicros == null
+                            ? null
+                            : row.elapsedMicros! / 1000,
+                      ),
+                    ]),
+                    if (row.disconnected)
+                      context.tr('Disconnection observed during this phase'),
+                    if (row.practice) context.tr('Practice only'),
+                    if (row.wager != null)
+                      context.tr('Stake: {0} chips', [row.wager]),
+                    if (row.pointsAtStake != null)
+                      context.tr('Points at stake: {0}', [row.pointsAtStake]),
+                  ].join('\n'),
+                ),
+              ),
+          ],
+        ),
+    ];
+    // In a dashboard section the frame is the title and the expander.
+    if (InSectionFrame.of(context)) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
+          ),
+        ),
+      );
+    }
     return Card(
       child: ExpansionTile(
         leading: const Icon(Icons.assessment_outlined),
         title: Text(context.tr('Final report')),
         childrenPadding: const EdgeInsets.all(16),
         expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(context.tr('Report metrics explained')),
-          const SizedBox(height: 8),
-          Text(context.tr('Report storage explained')),
-          if (!report.historyComplete)
-            Text(
-              context.tr(
-                'Older save: detailed history is incomplete. Final standings are authoritative.',
-              ),
-            ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _exporting ? null : () => _export(report),
-            icon: const Icon(Icons.download),
-            label: Text(context.tr('CSV export')),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.tr('Final standings'),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          for (final entry in report.summaries)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '${context.tr(entry.isTeam ? 'Team' : 'Player')}: ${entry.name}',
-              ),
-              subtitle: Text(
-                context.tr(
-                  'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}',
-                  [
-                    entry.correct,
-                    entry.evaluated,
-                    metric(entry.hitRate == null ? null : entry.hitRate! * 100),
-                    metric(
-                      entry.meanElapsedMicros == null
-                          ? null
-                          : entry.meanElapsedMicros! / 1000,
-                    ),
-                    context.tr(
-                      !entry.inRoster
-                          ? 'Removed from roster'
-                          : entry.connected
-                          ? 'Connected at end'
-                          : 'Disconnected at end',
-                    ),
-                  ],
-                ),
-              ),
-              trailing: SizedBox(
-                width: 100,
-                child: Text(
-                  entry.finalScore == null
-                      ? context.tr('Not applicable / unavailable')
-                      : '${entry.finalScore} $unit',
-                  textAlign: TextAlign.end,
-                ),
-              ),
-            ),
-          ExpansionTile(
-            title: Text(context.tr('Score progression')),
-            children: [
-              for (final entry in report.progress)
-                ListTile(
-                  title: Text('${entry.phase}. ${entry.name}'),
-                  subtitle: Text(entry.questionId),
-                  trailing: Text('${entry.score} $unit'),
-                ),
-            ],
-          ),
-          for (final phase in report.answers.map((a) => a.phase).toSet())
-            ExpansionTile(
-              key: ValueKey('report-phase-$phase'),
-              title: Text(
-                '$phase. ${report.answers.firstWhere((a) => a.phase == phase).question}',
-              ),
-              subtitle: Text(
-                [
-                  if (report.answers.firstWhere((a) => a.phase == phase).steal)
-                    context.tr('Steal'),
-                  if (report.answers
-                      .firstWhere((a) => a.phase == phase)
-                      .dailyDouble)
-                    context.tr('Daily Double'),
-                ].join(' · '),
-              ),
-              children: [
-                for (final team
-                    in report.answers
-                        .where((a) => a.phase == phase)
-                        .map((a) => a.teamId)
-                        .whereType<String>()
-                        .toSet())
-                  Builder(
-                    builder: (context) {
-                      final rows = report.answers.where(
-                        (a) => a.phase == phase && a.teamId == team,
-                      );
-                      final metrics = reportMetrics(rows);
-                      return ListTile(
-                        title: Text(
-                          '${context.tr('Team')}: ${rows.first.team ?? team}',
-                        ),
-                        subtitle: Text(
-                          context.tr(
-                            'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms',
-                            [
-                              metrics.correct,
-                              metrics.evaluated,
-                              metric(
-                                metrics.hitRate == null
-                                    ? null
-                                    : metrics.hitRate! * 100,
-                              ),
-                              metric(
-                                metrics.meanElapsedMicros == null
-                                    ? null
-                                    : metrics.meanElapsedMicros! / 1000,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                for (final row in report.answers.where((a) => a.phase == phase))
-                  ListTile(
-                    title: Text(
-                      '${row.player}${row.team == null ? '' : ' / ${row.team}'}',
-                    ),
-                    subtitle: Text(
-                      [
-                        row.answer ?? context.tr('No answer recorded'),
-                        context.tr(_statusLabel(row.status)),
-                        context.tr('Accuracy / response time: {0} % / {1} ms', [
-                          metric(
-                            row.accuracy == null ? null : row.accuracy! * 100,
-                          ),
-                          metric(
-                            row.elapsedMicros == null
-                                ? null
-                                : row.elapsedMicros! / 1000,
-                          ),
-                        ]),
-                        if (row.disconnected)
-                          context.tr(
-                            'Disconnection observed during this phase',
-                          ),
-                        if (row.practice) context.tr('Practice only'),
-                        if (row.wager != null)
-                          context.tr('Stake: {0} chips', [row.wager]),
-                        if (row.pointsAtStake != null)
-                          context.tr('Points at stake: {0}', [
-                            row.pointsAtStake,
-                          ]),
-                      ].join('\n'),
-                    ),
-                  ),
-              ],
-            ),
-        ],
+        children: children,
       ),
     );
   }

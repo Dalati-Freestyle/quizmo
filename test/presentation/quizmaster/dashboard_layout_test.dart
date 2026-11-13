@@ -61,7 +61,7 @@ void main() {
           .move(0, 5)
           .withColor(3)
           .update(
-            DashboardLayout.standard()[DashboardSection.players].copyWith(
+            DashboardLayout.standard()[DashboardSection.scoreboard].copyWith(
               visible: false,
               expanded: false,
               colorIndex: 9,
@@ -69,8 +69,8 @@ void main() {
           );
       final restored = DashboardLayout.decode(layout.encode());
       expect(restored, layout);
-      expect(restored[DashboardSection.players].isVisible, isFalse);
-      expect(restored[DashboardSection.players].colorIndex, 9);
+      expect(restored[DashboardSection.scoreboard].isVisible, isFalse);
+      expect(restored[DashboardSection.scoreboard].colorIndex, 9);
       expect(restored.sections[5].section, DashboardSection.sessionAccess);
     });
 
@@ -98,6 +98,16 @@ void main() {
       expect(hidden.isVisible, isTrue);
       expect(DashboardSection.serverLog.required, isFalse);
       expect(DashboardSection.questions.required, isTrue);
+      expect(DashboardSection.players.required, isTrue);
+      expect(DashboardSection.sessionAccess.required, isTrue);
+    });
+
+    test('an exported file imports, other files are rejected', () {
+      final layout = DashboardLayout.standard().withColor(5).move(2, 0);
+      expect(DashboardLayout.parseFile(layout.encode()), layout);
+      for (final source in ['nonsense', '[]', '{"sections": []}']) {
+        expect(() => DashboardLayout.parseFile(source), throwsFormatException);
+      }
     });
   });
 
@@ -112,7 +122,7 @@ void main() {
     final backend = _MemoryBackend(
       DashboardLayout.standard()
           .update(
-            DashboardLayout.standard()[DashboardSection.players].copyWith(
+            DashboardLayout.standard()[DashboardSection.corrections].copyWith(
               visible: false,
             ),
           )
@@ -124,7 +134,7 @@ void main() {
         const DashboardSectionGrid(
           sections: {
             DashboardSection.liveRound: Text('live panel'),
-            DashboardSection.players: Text('players panel'),
+            DashboardSection.corrections: Text('corrections panel'),
             DashboardSection.serverLog: Text('log panel'),
           },
         ),
@@ -132,11 +142,18 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('live panel'), findsOneWidget);
-    expect(find.text('players panel'), findsNothing);
+    expect(find.text('corrections panel'), findsNothing);
     expect(find.text('log panel'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('dashboard-section-liveRound')));
     await tester.pump();
     expect(find.text('live panel'), findsNothing);
+    // The collapsed state is remembered on the device.
+    expect(
+      DashboardLayout.decode(
+        backend.value,
+      )[DashboardSection.liveRound].expanded,
+      isFalse,
+    );
     await tester.tap(find.byKey(const ValueKey('dashboard-section-liveRound')));
     await tester.pump();
     expect(find.text('live panel'), findsOneWidget);
@@ -177,6 +194,46 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('layout-reset')));
     await tester.pumpAndSettle();
     expect(store.layout.value, DashboardLayout.standard());
+  });
+
+  testWidgets('the settings screen exports and imports layouts', (
+    tester,
+  ) async {
+    DashboardLayoutStore.useBackend(_MemoryBackend());
+    await tester.binding.setSurfaceSize(const Size(900, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    String? exported;
+    var picked = 'not a layout';
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [AppLocalizations.delegate],
+        home: Scaffold(
+          body: DashboardLayoutSettingsPage(
+            saveLayoutFile: (contents) async {
+              exported = contents;
+              return true;
+            },
+            pickLayoutFile: () async => picked,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final store = DashboardLayoutStore.instance;
+    await tester.tap(find.byKey(const ValueKey('layout-export')));
+    await tester.pumpAndSettle();
+    expect(DashboardLayout.parseFile(exported!), store.layout.value);
+
+    await tester.tap(find.byKey(const ValueKey('layout-import')));
+    await tester.pumpAndSettle();
+    expect(find.text('The file is not valid JSON.'), findsOneWidget);
+    expect(store.layout.value, DashboardLayout.standard());
+
+    final custom = DashboardLayout.standard().withColor(7);
+    picked = custom.encode();
+    await tester.tap(find.byKey(const ValueKey('layout-import')));
+    await tester.pumpAndSettle();
+    expect(store.layout.value, custom);
   });
 
   testWidgets('the admin view only switches the stored guest Wi-Fi', (

@@ -12,7 +12,7 @@ import 'dart:convert';
 /// Jeopardy board in a Jeopardy session and the question list otherwise, so
 /// both inherit the settings of that slot.
 enum DashboardSection {
-  sessionAccess('Sitzungszugang', required: false),
+  sessionAccess('Sitzungszugang', required: true),
   guestWifi('Gäste-WLAN', required: false),
   recovery('Spielstand-Sicherung', required: true),
   startQuiz('Quiz starten', required: true),
@@ -24,7 +24,7 @@ enum DashboardSection {
   scoreboard('Rangliste', required: false),
   corrections('Korrekturverlauf', required: false),
   report('Ergebnisbericht', required: false),
-  players('Spieler', required: false),
+  players('Spieler', required: true),
   serverLog('Server-Log', required: false);
 
   const DashboardSection(this.titleKey, {required this.required});
@@ -32,7 +32,8 @@ enum DashboardSection {
   /// Message key of the section title.
   final String titleKey;
 
-  /// Whether the game cannot run without the section; it cannot be hidden.
+  /// Whether the game cannot run without the section; it cannot be hidden,
+  /// only minimised.
   final bool required;
 }
 
@@ -58,7 +59,8 @@ final class DashboardSectionSettings {
   /// Whether the section is shown; required sections are always shown.
   final bool visible;
 
-  /// Whether the section starts expanded.
+  /// Whether the section is expanded; toggling it on the dashboard is
+  /// remembered.
   final bool expanded;
 
   /// Effective visibility.
@@ -158,8 +160,35 @@ final class DashboardLayout {
   DashboardSectionSettings operator [](DashboardSection section) =>
       sections.firstWhere((entry) => entry.section == section);
 
-  /// Serializes the layout.
+  /// Marker of exported layout files.
+  static const fileType = 'quizmo-dashboard-layout';
+
+  /// Suggested name of an exported layout file.
+  static const fileName = 'quizmo-admin-ansicht.json';
+
+  /// Reads an exported layout file.
+  ///
+  /// Unlike [DashboardLayout.decode] it rejects files that are not a Quizmo
+  /// layout with a [FormatException], so an import never silently resets the
+  /// view. Unknown sections and invalid values still fall back to defaults.
+  factory DashboardLayout.parseFile(String source) {
+    final Object? json;
+    try {
+      json = jsonDecode(source);
+    } on FormatException {
+      throw const FormatException('Die Datei ist kein gültiges JSON.');
+    }
+    if (json is! Map || json['type'] != fileType || json['sections'] is! List) {
+      throw const FormatException(
+        'Die Datei ist keine Quizmo-Layoutdatei für die Admin-Ansicht.',
+      );
+    }
+    return DashboardLayout.decode(source);
+  }
+
+  /// Serializes the layout (also the export file format).
   String encode() => jsonEncode({
+    'type': fileType,
     'version': 1,
     'sections': [for (final entry in sections) entry._toJson()],
   });

@@ -1005,7 +1005,6 @@
   "Farbe wählen": "Choose colour",
   "Farbe {0}": "Colour {0}",
   "Admin-Ansicht anpassen": "Customise admin view",
-  "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden. Die Anpassung gilt nur auf diesem Gerät.": "Drag the handle to change the order. Required sections cannot be hidden. The layout only applies to this device.",
   "Allen Bereichen dieselbe Farbe": "Same colour for all sections",
   "Standardlayout wiederherstellen": "Restore default layout",
   "{0} verschieben": "Move {0}",
@@ -1027,8 +1026,6 @@
   "Server-Log": "Server log",
   "Sitzungszugang": "Session access",
   "Spielstand-Sicherung": "Game recovery",
-  "Startet ausgeklappt": "Starts expanded",
-  "Startet minimiert": "Starts collapsed",
   "{0} minimieren": "Collapse {0}",
   "{0} aufklappen": "Expand {0}",
   "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "The layout applies now but could not be saved permanently.",
@@ -1110,5 +1107,15 @@
   "Zeitlimit": "Time limit",
   "Ohne Zeitlimit": "No time limit",
   "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.": "Without a time limit no clock runs; the host ends the round.",
-  "{0} · {1} · {2}": "{0} · {1} · {2}"
+  "{0} · {1} · {2}": "{0} · {1} · {2}",
+  "Layout importiert.": "Layout imported.",
+  "Reihenfolge per Ziehen am Griff ändern. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Auf- und Zuklappen in der Admin-Ansicht wird gemerkt. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.": "Drag the handle to reorder. Required sections cannot be hidden, but they can be minimised. Expanding and collapsing in the admin view is remembered. The layout applies to this device; export and import transfer it.",
+  "Layout exportieren": "Export layout",
+  "Layout importieren": "Import layout",
+  "Das Layout konnte nicht exportiert werden.": "The layout could not be exported.",
+  "Die Datei konnte nicht gelesen werden.": "The file could not be read.",
+  "Die Datei ist kein gültiges JSON.": "The file is not valid JSON.",
+  "Die Datei ist keine Quizmo-Layoutdatei für die Admin-Ansicht.": "The file is not a Quizmo admin view layout.",
+  "Ausgeklappt": "Expanded",
+  "Minimiert": "Minimised"
 }
