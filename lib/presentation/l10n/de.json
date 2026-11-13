@@ -1034,5 +1034,10 @@
   "Startet minimiert": "Startet minimiert",
   "{0} minimieren": "{0} minimieren",
   "{0} aufklappen": "{0} aufklappen",
-  "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden."
+  "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.",
+  "Quiz mit KI erstellen": "Quiz mit KI erstellen",
+  "Anleitung für ChatGPT, Claude & Co. herunterladen. Die KI erstellt damit im Gespräch eine importierbare Quizdatei.": "Anleitung für ChatGPT, Claude & Co. herunterladen. Die KI erstellt damit im Gespräch eine importierbare Quizdatei.",
+  "Anleitung gespeichert.": "Anleitung gespeichert.",
+  "Die Anleitung konnte nicht gespeichert werden.": "Die Anleitung konnte nicht gespeichert werden.",
+  "KI-Anleitung speichern": "KI-Anleitung speichern"
 }

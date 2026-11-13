@@ -10,6 +10,7 @@ import '../quizmaster/layout/dashboard_layout_settings_page.dart'
     deferred as admin_layout;
 import '../quizmaster/wifi/guest_wifi_settings_page.dart'
     deferred as guest_wifi;
+import 'ai_guide_download.dart' deferred as ai_guide;
 
 class SettingsButton extends StatelessWidget {
   const SettingsButton({
@@ -74,6 +75,21 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
+  }
+
+  Future<void> _downloadGuide() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final saved = context.tr('Anleitung gespeichert.');
+    final failed = context.tr('Die Anleitung konnte nicht gespeichert werden.');
+    final title = context.tr('KI-Anleitung speichern');
+    try {
+      await ai_guide.loadLibrary();
+      if (await ai_guide.saveAiQuizGuide(dialogTitle: title)) {
+        messenger.showSnackBar(SnackBar(content: Text(saved)));
+      }
+    } on Object {
+      messenger.showSnackBar(SnackBar(content: Text(failed)));
+    }
   }
 
   @override
@@ -159,6 +175,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   return guest_wifi.GuestWifiSettingsPage();
                 }),
               ),
+            ListTile(
+              key: const ValueKey('settings-ai-guide'),
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: Text(context.tr('Quiz mit KI erstellen')),
+              subtitle: Text(
+                context.tr(
+                  'Anleitung für ChatGPT, Claude & Co. herunterladen. Die KI erstellt damit im Gespräch eine importierbare Quizdatei.',
+                ),
+              ),
+              trailing: const Icon(Icons.download_outlined),
+              onTap: _downloadGuide,
+            ),
           ],
           const Divider(height: 48),
           Text(

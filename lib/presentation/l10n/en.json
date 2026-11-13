@@ -1034,5 +1034,10 @@
   "Startet minimiert": "Starts collapsed",
   "{0} minimieren": "Collapse {0}",
   "{0} aufklappen": "Expand {0}",
-  "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "The layout applies now but could not be saved permanently."
+  "Die Anpassung gilt jetzt, konnte aber nicht dauerhaft gespeichert werden.": "The layout applies now but could not be saved permanently.",
+  "Quiz mit KI erstellen": "Create a quiz with AI",
+  "Anleitung für ChatGPT, Claude & Co. herunterladen. Die KI erstellt damit im Gespräch eine importierbare Quizdatei.": "Download the guide for ChatGPT, Claude & co. With it, the AI writes an importable quiz file in a conversation.",
+  "Anleitung gespeichert.": "Guide saved.",
+  "Die Anleitung konnte nicht gespeichert werden.": "The guide could not be saved.",
+  "KI-Anleitung speichern": "Save AI guide"
 }
