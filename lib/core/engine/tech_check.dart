@@ -35,6 +35,7 @@ enum TechCheckStatus {
 /// The individual checks.
 enum TechCheckId {
   hostServer,
+  webPlayer,
   reachability,
   players,
   deviceTest,
@@ -196,6 +197,7 @@ final class TechCheckInput {
     this.mediaRequired = true,
     this.deviceTestConfirmed,
     this.deviceTestScreens = 0,
+    this.outdatedWebPlayer,
   });
 
   /// Whether the host server (LAN) or relay room (internet) is up.
@@ -228,6 +230,10 @@ final class TechCheckInput {
 
   /// TV screens that show (and confirmed) the running device test.
   final int deviceTestScreens;
+
+  /// Version of the packed web player when it differs from the host app,
+  /// `null` when it matches or cannot be read.
+  final String? outdatedWebPlayer;
 }
 
 /// Media of a quiz as seen by the media check.
@@ -297,6 +303,7 @@ List<TechCheckResult> evaluateTechCheck(
   TechCheckThresholds thresholds = const TechCheckThresholds(),
 }) => [
   _hostServer(input),
+  _webPlayer(input),
   _reachability(input, thresholds),
   _players(input, thresholds),
   _deviceTest(input),
@@ -612,3 +619,31 @@ String techCheckReport(
         for (final detail in result.details) '    • $detail',
     ].join('\n'),
 ].join('\n');
+
+TechCheckResult _webPlayer(TechCheckInput input) {
+  if (input.internet) {
+    return const TechCheckResult(
+      id: TechCheckId.webPlayer,
+      status: TechCheckStatus.notRequired,
+      summary: 'Im Internetbetrieb liefert der Server den Web-Player aus.',
+      nextStep: 'Nichts zu tun.',
+    );
+  }
+  if (input.outdatedWebPlayer case final version?) {
+    return TechCheckResult(
+      id: TechCheckId.webPlayer,
+      status: TechCheckStatus.fail,
+      summary:
+          'Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.',
+      arguments: [version],
+      nextStep:
+          '„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.',
+    );
+  }
+  return const TechCheckResult(
+    id: TechCheckId.webPlayer,
+    status: TechCheckStatus.pass,
+    summary: 'Der Web-Player passt zur Version des Hosts.',
+    nextStep: 'Nichts zu tun.',
+  );
+}

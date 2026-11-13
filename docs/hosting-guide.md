@@ -211,6 +211,11 @@ in-memory engine. It starts no server or internet room, writes no recovery
 record or report, and never modifies the library or a real game's scores.
 Invalid drafts show validation errors before the preview opens.
 
+The preview uses the same views as a real game: the host view shows the same
+admin sections in the stored layout (plus the test participants), the player
+view is the real player screen including the final page with protocol
+download, and the TV view is the real TV screen.
+
 Switch between **Host**, **Player** and **TV**. The host uses the real round
 controls; the player uses the real answer forms, buzzer and format controls.
 Choose a test participant to answer manually. Player and TV snapshots use the

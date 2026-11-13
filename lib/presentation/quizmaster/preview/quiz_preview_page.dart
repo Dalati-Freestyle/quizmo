@@ -10,13 +10,13 @@ import '../../../core/net/quiz_client.dart';
 import '../../../core/simulation/bot_decisions.dart';
 import '../../../core/simulation/preview_session.dart';
 import '../../common/adaptive_layout.dart';
-import '../../common/scoreboard_view.dart';
 import '../../l10n/app_localizations.dart';
 import '../../player/player_page.dart';
 import '../../player/player_session_cubit.dart';
 import '../../spectator/spectator_session_cubit.dart';
 import '../../spectator/tv_page.dart';
-import '../dashboard_panels.dart';
+import '../game_sections.dart';
+import '../layout/dashboard_section_view.dart';
 
 class QuizPreviewPage extends StatefulWidget {
   const QuizPreviewPage({required this.quiz, this.seed, super.key});
@@ -171,30 +171,7 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
       return Scaffold(
         appBar: AppBar(
           title: Text(context.tr('Preview · {0}', [widget.quiz.name])),
-          actions: [
-            if (_view == 0)
-              PopupMenuButton<GameMode>(
-                tooltip: context.tr('Game mode'),
-                icon: const Icon(Icons.tune),
-                onSelected: (mode) => _session.send(ChangeGameModeEvent(mode)),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: const SoloMode(),
-                    child: Text(context.tr('Solo scoring')),
-                  ),
-                  PopupMenuItem(
-                    value: const TeamMode(),
-                    child: Text(context.tr('Team scoring (shared buzzer)')),
-                  ),
-                  PopupMenuItem(
-                    value: const TeamMode(sharedBuzzer: false),
-                    child: Text(
-                      context.tr('Team scoring (individual buzzers)'),
-                    ),
-                  ),
-                ],
-              ),
-          ],
+          actions: [if (_view == 0) GameModeMenu(engine: _session.engine)],
         ),
         body: LayoutBuilder(
           builder: (context, constraints) => Column(
@@ -386,182 +363,63 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
     ),
   );
 
+  /// The host view of the preview: exactly the game sections of the real
+  /// admin view ([buildGameSections]) in the stored layout, plus the test
+  /// participants of the simulation.
   Widget _host(QuizEngineState state) {
     final game = state.game;
     final engine = _session.engine;
-    return AdaptivePanelGrid(
-      panels: [
-        if (!game.isStarted)
+    return JeopardyPickConfirmation(
+      engine: engine,
+      child: DashboardSectionGrid(
+        leading: [
           PanelCard(
-            title: context.tr('Quiz starten'),
-            icon: Icons.play_arrow,
-            child: FilledButton(
-              onPressed: () => _session.send(const StartGameEvent()),
-              child: Text(context.tr('Quiz jetzt starten')),
-            ),
-          ),
-        LiveRoundPanel(
-          state: state,
-          onJudge: (correct) =>
-              _session.send(JudgeBuzzerEvent(wasCorrect: correct)),
-          onJudgeAnswer: _session.send,
-          onReveal: () => _session.send(const RevealRoundEvent()),
-          onLock: () => _session.send(const LockBuzzerEvent()),
-          onNext: () => _session.send(const NextQuestionEvent()),
-          onCloseRound: () => _session.send(const CloseRoundEvent()),
-          onFinish: () => _session.send(const FinishQuizEvent()),
-          onFinishEarly: () =>
-              _session.send(const FinishQuizEvent(early: true)),
-          onReopenBuzzer: () => _session.send(const ReopenBuzzerEvent()),
-          onReopenBuzzerForAll: () =>
-              _session.send(const ReopenBuzzerEvent(forAll: true)),
-          onEndRound: () => _session.send(const EndRoundEvent()),
-        ),
-        if (game.poker case final poker?)
-          PanelCard(
-            title: context.tr('Pokerchips'),
-            icon: Icons.casino_outlined,
+            title: context.tr('Test participants'),
+            icon: Icons.smart_toy_outlined,
             child: Column(
               children: [
-                for (final team in game.teams.values)
-                  Text(
-                    '${team.name}: ${poker.chips[team.id]} · ${poker.wagers[team.id] ?? 0}',
-                  ),
-                if (poker.betting)
-                  FilledButton(
-                    onPressed: () =>
-                        _session.send(const OpenPokerAnswersEvent()),
-                    child: Text(
-                      context.tr('Einsätze schließen & Antworten öffnen'),
+                for (final participant in _session.participants)
+                  ListTile(
+                    title: Text(
+                      game.players[participant.player.id]?.name ??
+                          participant.player.name,
+                    ),
+                    subtitle: Text(
+                      participant.bot == null
+                          ? context.tr('Manual input')
+                          : context.tr('Bot: {0}% · {1}–{2} ms', [
+                              (participant.bot!.accuracy * 100).round(),
+                              participant.bot!.minDelayMs,
+                              participant.bot!.maxDelayMs,
+                            ]),
+                    ),
+                    trailing: IconButton(
+                      tooltip: context.tr('Remove test participant'),
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () {
+                        final id = participant.player.id;
+                        _session.removeParticipant(id);
+                        if (_selectedPlayer == id) {
+                          _selectPlayer(
+                            _session.participants.firstOrNull?.player.id,
+                          );
+                        } else {
+                          setState(() {});
+                        }
+                      },
                     ),
                   ),
               ],
             ),
           ),
-        if (game.jeopardy case final jeopardy?)
-          JeopardyBoardPanel(
-            game: game,
-            jeopardy: jeopardy,
-            canPick:
-                game.isStarted &&
-                state.canStartRound &&
-                jeopardy.pendingPickQuestionId == null,
-            maxWager: engine.maxDailyDoubleWager(game),
-            onSelect: (id) => _session.send(SelectJeopardyCellEvent(id)),
-            onPlaceWager: (wager) =>
-                _session.send(PlaceDailyDoubleWagerEvent(wager)),
-            onSetTurn: (id) => _session.send(SetJeopardyTurnEvent(id)),
-            onSetOrder: (ids) => _session.send(SetJeopardyOrderEvent(ids)),
-          ),
-        if (game.jeopardy case final board?
-            when board.pendingPickQuestionId != null)
-          PanelCard(
-            title: context.tr('Fragenauswahl bestätigen'),
-            icon: Icons.grid_view,
-            child: Wrap(
-              spacing: 8,
-              children: [
-                Text(
-                  board.board.categoryNameOf(board.pendingPickQuestionId!) ??
-                      '',
-                ),
-                for (final accepted in [true, false])
-                  TextButton(
-                    onPressed: () => _session.send(
-                      ConfirmQuestionPickEvent(
-                        questionId: board.pendingPickQuestionId!,
-                        playerId: board.pendingPickPlayerId!,
-                        accepted: accepted,
-                      ),
-                    ),
-                    child: Text(
-                      context.tr(accepted ? 'Bestätigen' : 'Ablehnen'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        if (game.jeopardy == null)
-          QuestionBankPanel(
-            game: game,
-            canStart: game.isStarted && state.canStartRound,
-            onStart: (id) => _session.send(StartRoundEvent(id)),
-          ),
-        PanelCard(
-          title: context.tr('Test participants'),
-          icon: Icons.smart_toy_outlined,
-          child: Column(
-            children: [
-              for (final participant in _session.participants)
-                ListTile(
-                  title: Text(
-                    game.players[participant.player.id]?.name ??
-                        participant.player.name,
-                  ),
-                  subtitle: Text(
-                    participant.bot == null
-                        ? context.tr('Manual input')
-                        : context.tr('Bot: {0}% · {1}–{2} ms', [
-                            (participant.bot!.accuracy * 100).round(),
-                            participant.bot!.minDelayMs,
-                            participant.bot!.maxDelayMs,
-                          ]),
-                  ),
-                  trailing: IconButton(
-                    tooltip: context.tr('Remove test participant'),
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () {
-                      final id = participant.player.id;
-                      _session.removeParticipant(id);
-                      if (_selectedPlayer == id) {
-                        _selectPlayer(
-                          _session.participants.firstOrNull?.player.id,
-                        );
-                      } else {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ),
-            ],
-          ),
+        ],
+        sections: buildGameSections(
+          context,
+          engine: engine,
+          engineState: state,
+          quizName: widget.quiz.name,
         ),
-        PlayersPanel(
-          game: game,
-          onAssignTeam: (id, team) =>
-              _session.send(AssignTeamEvent(playerId: id, teamId: team)),
-          onSetOrder: state.canStartRound
-              ? (ids) => _session.send(SetPlayerOrderEvent(ids))
-              : null,
-        ),
-        PanelCard(
-          title: context.tr('Scoreboard'),
-          icon: Icons.leaderboard_outlined,
-          child: ScoreboardView(game: game),
-        ),
-        PanelCard(
-          title: context.tr('Medienwiedergabe'),
-          icon: Icons.live_tv,
-          child: Wrap(
-            children: [
-              for (final action in TvMediaAction.values)
-                IconButton(
-                  tooltip: context.tr(switch (action) {
-                    TvMediaAction.play => 'Abspielen',
-                    TvMediaAction.pause => 'Pause',
-                    TvMediaAction.restart => 'Neu starten',
-                  }),
-                  onPressed: () => _session.send(ControlTvMediaEvent(action)),
-                  icon: Icon(switch (action) {
-                    TvMediaAction.play => Icons.play_arrow,
-                    TvMediaAction.pause => Icons.pause,
-                    TvMediaAction.restart => Icons.replay,
-                  }),
-                ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

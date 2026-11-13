@@ -158,6 +158,14 @@ no second web server, no `flutter run -d chrome` needed.
 Skip it and everything still works; the host just serves a placeholder page at
 `/` and says so in the dashboard and the server log.
 
+**`flutter run` does not rebuild the bundle.** A host started with
+`flutter run -d windows` embeds whatever `bundle.zip` is on disk. If it is
+older than the app, browser players and TVs get the old player and miss new
+features (final page, timers, …) although the host and its preview already
+have them. The dashboard then shows a red "Veralteter Web-Player" banner and
+the tech check fails on "Web-Player". Re-run the command above before testing
+on real devices.
+
 ### 3.1 Host + two browser players (recommended demo)
 
 ```powershell

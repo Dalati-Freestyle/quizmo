@@ -122,6 +122,24 @@ the LAN address — no install, no second web server.
    `pubspec.yaml` only bundles files directly inside a declared asset folder, so
    the single zip is what keeps that list from rotting.
 
+### Preview and real game must behave the same
+The quiz preview (editor → "Preview quiz") and the hosted game must show the same views. Differences between
+preview and real player/TV devices have been reported repeatedly, so every change to the host, player or TV
+views MUST be checked in both, and the views are shared structurally:
+
+1. **Host:** the game controls exist only in `buildGameSections` (`lib/presentation/quizmaster/game_sections.dart`)
+   plus `JeopardyPickConfirmation` and `GameModeMenu`. `HostDashboardPage` adds only host-only sections (server,
+   session access, guest Wi-Fi, recovery, server log); the preview adds only its simulation controls. Never build
+   game panels (`LiveRoundPanel`, `QuestionBankPanel`, …) directly in either screen.
+2. **Player:** joined players see `PlayerGameColumn` (status, device test, game, final page with protocol) inside
+   `SessionNotifications`, both in `PlayerPage` and in the preview's `LocalPlayerBoard`.
+3. **TV:** both render `TvScreen` from the redacted guest snapshot (`guestSnapshotOf`).
+4. `test/presentation/preview_parity_test.dart` guards this; extend it when adding views or sections.
+5. A host started with `flutter run` embeds whatever `assets/web_client/bundle.zip` is on disk. If it is stale,
+   browser players and TVs miss new features although host and preview have them. The dashboard shows a red
+   `OutdatedWebClientBanner` and the tech check fails ("Web-Player"); rebuild the bundle with
+   `dart run tool/bundle_web_client.dart` before testing a host on real devices.
+
 ### Changing the TV (Spectator) Screen
 `http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,
 streaming stick, casted tab). It is a route of the same web bundle, so rebuild

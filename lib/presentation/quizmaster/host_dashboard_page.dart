@@ -21,18 +21,16 @@ import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
 import '../common/bundled_web_client.dart';
-import '../common/scoreboard_view.dart';
 import '../common/session_notifications.dart';
 import '../player/player_page.dart';
 import '../spectator/tv_page.dart';
 import 'dashboard_panels.dart';
-import 'correction_history_panel.dart';
+import 'game_sections.dart';
 import 'host_server_cubit.dart';
 import 'recovery/recovery_store.dart';
 import 'recovery/rebind_recovery_panel.dart';
 import '../../core/engine/session_access.dart';
 import 'session_access_panel.dart';
-import 'session_report_panel.dart';
 import 'tech_check_page.dart' deferred as tech_check;
 import 'layout/dashboard_layout.dart';
 import 'layout/dashboard_section_view.dart';
@@ -283,462 +281,272 @@ class _HostDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     final engine = context.read<QuizEngineBloc>();
 
-    return BlocConsumer<QuizEngineBloc, QuizEngineState>(
-      listenWhen: (previous, current) =>
-          current.game.jeopardy?.pendingPickQuestionId != null &&
-          (previous.game.jeopardy?.pendingPickQuestionId !=
-                  current.game.jeopardy?.pendingPickQuestionId ||
-              (previous.game.recoveryPaused && !current.game.recoveryPaused) ||
-              previous.game.jeopardy?.pendingPickPlayerId !=
-                  current.game.jeopardy?.pendingPickPlayerId),
-      listener: (context, state) async {
-        final pick = state.game.jeopardy!;
-        final id = pick.pendingPickQuestionId!;
-        final playerId = pick.pendingPickPlayerId!;
-        final question = state.game.questionById(id);
-        final accepted = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(context.tr("Fragenauswahl bestätigen")),
-            content: Text(
-              context.tr(
-                "{0} hat {1} für {2} Punkte gewählt.\n\n{3}\n\nBitte bestätige die Auswahl, um die Frage zu öffnen.",
-                [
-                  state.game.players[playerId]?.name ?? "Spieler",
-                  pick.board.categoryNameOf(id),
-                  pick.board.pointsFor(id),
-                  question?.prompt ?? "",
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(context.tr("Ablehnen")),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(context.tr("Bestätigen")),
-              ),
-            ],
-          ),
-        );
-        if (!engine.isClosed) {
-          engine.add(
-            ConfirmQuestionPickEvent(
-              questionId: id,
-              playerId: playerId,
-              accepted: accepted == true,
-            ),
-          );
-        }
-      },
-      builder: (context, engineState) {
-        return BlocBuilder<HostServerCubit, HostServerState>(
-          builder: (context, serverState) {
-            final game = engineState.game;
-            final savedRemainingMicros =
-                (game.round.question?.timeLimit.inMicroseconds ?? 0) -
-                game.round.timerElapsedAt(game.hostTimeMicros).inMicroseconds;
+    return JeopardyPickConfirmation(
+      engine: engine,
+      child: BlocBuilder<QuizEngineBloc, QuizEngineState>(
+        builder: (context, engineState) {
+          return BlocBuilder<HostServerCubit, HostServerState>(
+            builder: (context, serverState) {
+              final game = engineState.game;
+              final savedRemainingMicros =
+                  (game.round.question?.timeLimit.inMicroseconds ?? 0) -
+                  game.round.timerElapsedAt(game.hostTimeMicros).inMicroseconds;
 
-            // The preview connects through loopback (always reachable on this
-            // device) but tells players the LAN address they can really use.
-            VoidCallback? openTvPreview;
-            if (serverState.endpoint case final endpoint?) {
-              openTvPreview = () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => TvPage(
-                    hostUri: endpoint.loopbackUri,
-                    joinUri: endpoint.lanUri,
+              // The preview connects through loopback (always reachable on
+              // this device) but tells players the LAN address they can use.
+              VoidCallback? openTvPreview;
+              if (serverState.endpoint case final endpoint?) {
+                openTvPreview = () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    fullscreenDialog: true,
+                    builder: (_) => TvPage(
+                      hostUri: endpoint.loopbackUri,
+                      joinUri: endpoint.lanUri,
+                    ),
+                  ),
+                );
+              }
+
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(context.tr("Quizmaster · {0}", [quizName])),
+                  actions: [
+                    IconButton(
+                      tooltip: context.tr("Technikcheck"),
+                      icon: const Icon(Icons.fact_check_outlined),
+                      onPressed: () => openTechCheck(context, game),
+                    ),
+                    const SettingsButton(),
+                    IconButton(
+                      tooltip: context.tr("Preview the TV screen"),
+                      onPressed: openTvPreview,
+                      icon: const Icon(Icons.tv),
+                    ),
+                    IconButton(
+                      tooltip: context.tr(
+                        "Join this session as a local player",
+                      ),
+                      onPressed: serverState.endpoint == null
+                          ? null
+                          : () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => PlayerPage(
+                                  initialHostUri:
+                                      serverState.endpoint!.loopbackUri,
+                                ),
+                              ),
+                            ),
+                      icon: const Icon(Icons.person_add_alt),
+                    ),
+                    IconButton(
+                      tooltip: context.tr("Reset scores"),
+                      onPressed: () => engine.add(const ResetGameEvent()),
+                      icon: const Icon(Icons.restart_alt),
+                    ),
+                    GameModeMenu(engine: engine),
+                  ],
+                ),
+                body: SessionNotifications(
+                  game: game,
+                  child: DashboardSectionGrid(
+                    leading: [
+                      if (serverState.outdatedWebClientVersion
+                          case final version?)
+                        OutdatedWebClientBanner(webClientVersion: version),
+                    ],
+                    sections: {
+                      DashboardSection.sessionAccess: SessionAccessPanel(
+                        access: engine.access,
+                      ),
+                      // Guest Wi-Fi only exists for the embedded LAN host;
+                      // the browser host plays through the internet relay.
+                      if (!kIsWeb)
+                        DashboardSection.guestWifi: GuestWifiToggle(
+                          guestWifi: context.read<GuestWifiCubit>(),
+                        ),
+                      DashboardSection.recovery: _RecoveryPanel(
+                        recovery: recovery,
+                        engine: engine,
+                        game: game,
+                        previousJoinUri: previousJoinUri,
+                        savedRemainingMicros: savedRemainingMicros,
+                      ),
+                      ...buildGameSections(
+                        context,
+                        engine: engine,
+                        engineState: engineState,
+                        quizName: quizName,
+                        connectionsAvailable:
+                            serverState.status == HostServerStatus.running,
+                        startExtras: [
+                          OutlinedButton.icon(
+                            key: const ValueKey("open-tech-check"),
+                            onPressed: () => openTechCheck(context, game),
+                            icon: const Icon(Icons.fact_check_outlined),
+                            label: Text(context.tr("Technikcheck")),
+                          ),
+                        ],
+                      ),
+                      DashboardSection.server: ServerControlPanel(
+                        state: serverState,
+                        connectedPlayers:
+                            serverState.status == HostServerStatus.running
+                            ? game.connectedPlayers.length
+                            : 0,
+                        onOpenTvPreview: openTvPreview,
+                        onStart: () => context.read<HostServerCubit>().start(),
+                        onStop: () => context.read<HostServerCubit>().stop(),
+                      ),
+                      DashboardSection.serverLog: ServerLogPanel(
+                        logs: serverState.logs,
+                      ),
+                    },
                   ),
                 ),
               );
-            }
+            },
+          );
+        },
+      ),
+    );
+  }
+}
 
-            return Scaffold(
-              appBar: AppBar(
-                title: Text(context.tr("Quizmaster · {0}", [quizName])),
-                actions: [
-                  IconButton(
-                    tooltip: context.tr("Technikcheck"),
-                    icon: const Icon(Icons.fact_check_outlined),
-                    onPressed: () => openTechCheck(context, game),
-                  ),
-                  const SettingsButton(),
-                  IconButton(
-                    tooltip: context.tr("Preview the TV screen"),
-                    onPressed: openTvPreview,
-                    icon: const Icon(Icons.tv),
-                  ),
-                  IconButton(
-                    tooltip: context.tr("Join this session as a local player"),
-                    onPressed: serverState.endpoint == null
-                        ? null
-                        : () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => PlayerPage(
-                                initialHostUri:
-                                    serverState.endpoint!.loopbackUri,
-                              ),
-                            ),
-                          ),
-                    icon: const Icon(Icons.person_add_alt),
-                  ),
-                  IconButton(
-                    tooltip: context.tr("Reset scores"),
-                    onPressed: () => engine.add(const ResetGameEvent()),
-                    icon: const Icon(Icons.restart_alt),
-                  ),
-                  PopupMenuButton<GameMode>(
-                    tooltip: context.tr("Game mode"),
-                    icon: const Icon(Icons.tune),
-                    onSelected: (mode) => engine.add(ChangeGameModeEvent(mode)),
-                    itemBuilder: (_) => [
-                      PopupMenuItem<GameMode>(
-                        value: SoloMode(),
-                        child: Text(context.tr("Solo scoring")),
-                      ),
-                      PopupMenuItem<GameMode>(
-                        value: TeamMode(),
-                        child: Text(context.tr("Team scoring (shared buzzer)")),
-                      ),
-                      PopupMenuItem<GameMode>(
-                        value: TeamMode(sharedBuzzer: false),
-                        child: Text(
-                          context.tr("Team scoring (individual buzzers)"),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+class _RecoveryPanel extends StatelessWidget {
+  const _RecoveryPanel({
+    required this.recovery,
+    required this.engine,
+    required this.game,
+    required this.previousJoinUri,
+    required this.savedRemainingMicros,
+  });
+
+  final SessionRecovery recovery;
+  final QuizEngineBloc engine;
+  final GameState game;
+  final Uri? previousJoinUri;
+  final int savedRemainingMicros;
+
+  @override
+  Widget build(BuildContext context) => PanelCard(
+    title: context.tr('Saved game recovery'),
+    icon: Icons.save_outlined,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          recovery.lastError == null
+              ? context.tr('Automatic recovery save: {0}', [
+                  recovery.lastSavedAtMicros == null
+                      ? '-'
+                      : DateTime.fromMicrosecondsSinceEpoch(
+                          recovery.lastSavedAtMicros!,
+                        ).toLocal().toString(),
+                ])
+              : context.tr(recovery.lastError!.message),
+        ),
+        if (recovery.lastError != null)
+          OutlinedButton(
+            onPressed: () async {
+              try {
+                await recovery.checkpoint();
+              } on RecoveryException {
+                // The persistent status above shows this failure.
+              }
+            },
+            child: Text(context.tr('Retry')),
+          ),
+        if (previousJoinUri != null)
+          Text(
+            context.tr('Previous invitation (may be invalid): {0}', [
+              previousJoinUri,
+            ]),
+          ),
+        if (game.recoveryPaused) ...[
+          if ((game.round.question?.hasTimeLimit ?? false) &&
+              game.round.status.acceptsInput &&
+              !(game.poker?.betting ?? false))
+            Text(
+              context.tr('Saved timer: {0} s remaining', [
+                savedRemainingMicros <= 0
+                    ? 0
+                    : (savedRemainingMicros / 1000000).ceil(),
+              ]),
+            ),
+          Text(
+            context.tr(
+              'Timer choices affect the current round only. Closed rounds stay closed.',
+            ),
+          ),
+          Text(
+            context.tr(
+              'Game paused for recovery. Reconnect participants before continuing. Media stays paused.',
+            ),
+          ),
+          Text(
+            context.tr(
+              'Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.',
+            ),
+          ),
+          RebindRecoveryPanel(engine: engine, game: game),
+          for (final policy in RecoveryTimerPolicy.values)
+            OutlinedButton(
+              onPressed: recovery.lastError != null
+                  ? null
+                  : () => engine.add(ResumeRecoveredGameEvent(policy)),
+              child: Text(
+                context.tr(switch (policy) {
+                  RecoveryTimerPolicy.savedTime => 'Continue with saved time',
+                  RecoveryTimerPolicy.restart => 'Restart the full timer',
+                  RecoveryTimerPolicy.soft => 'Continue with a soft timer',
+                }),
               ),
-              body: SessionNotifications(
-                game: game,
-                child: DashboardSectionGrid(
-                  sections: {
-                    DashboardSection.sessionAccess: SessionAccessPanel(
-                      access: engine.access,
-                    ),
-                    // Guest Wi-Fi only exists for the embedded LAN host; the
-                    // browser host plays through the internet relay.
-                    if (!kIsWeb)
-                      DashboardSection.guestWifi: GuestWifiToggle(
-                        guestWifi: context.read<GuestWifiCubit>(),
-                      ),
-                    DashboardSection.recovery: PanelCard(
-                      title: context.tr('Saved game recovery'),
-                      icon: Icons.save_outlined,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            recovery.lastError == null
-                                ? context.tr('Automatic recovery save: {0}', [
-                                    recovery.lastSavedAtMicros == null
-                                        ? '-'
-                                        : DateTime.fromMicrosecondsSinceEpoch(
-                                            recovery.lastSavedAtMicros!,
-                                          ).toLocal().toString(),
-                                  ])
-                                : context.tr(recovery.lastError!.message),
-                          ),
-                          if (recovery.lastError != null)
-                            OutlinedButton(
-                              onPressed: () async {
-                                try {
-                                  await recovery.checkpoint();
-                                } on RecoveryException {
-                                  // The persistent status above shows this failure.
-                                }
-                              },
-                              child: Text(context.tr('Retry')),
-                            ),
-                          if (previousJoinUri != null)
-                            Text(
-                              context.tr(
-                                'Previous invitation (may be invalid): {0}',
-                                [previousJoinUri],
-                              ),
-                            ),
-                          if (game.recoveryPaused) ...[
-                            if ((game.round.question?.hasTimeLimit ?? false) &&
-                                game.round.status.acceptsInput &&
-                                !(game.poker?.betting ?? false))
-                              Text(
-                                context.tr('Saved timer: {0} s remaining', [
-                                  savedRemainingMicros <= 0
-                                      ? 0
-                                      : (savedRemainingMicros / 1000000).ceil(),
-                                ]),
-                              ),
-                            Text(
-                              context.tr(
-                                'Timer choices affect the current round only. Closed rounds stay closed.',
-                              ),
-                            ),
-                            Text(
-                              context.tr(
-                                'Game paused for recovery. Reconnect participants before continuing. Media stays paused.',
-                              ),
-                            ),
-                            Text(
-                              context.tr(
-                                'Internet recovery creates a new room. Old internet links are invalid; share the new invitation and TV links. LAN addresses may also change.',
-                              ),
-                            ),
-                            RebindRecoveryPanel(engine: engine, game: game),
-                            for (final policy in RecoveryTimerPolicy.values)
-                              OutlinedButton(
-                                onPressed: recovery.lastError != null
-                                    ? null
-                                    : () => engine.add(
-                                        ResumeRecoveredGameEvent(policy),
-                                      ),
-                                child: Text(
-                                  context.tr(switch (policy) {
-                                    RecoveryTimerPolicy.savedTime =>
-                                      'Continue with saved time',
-                                    RecoveryTimerPolicy.restart =>
-                                      'Restart the full timer',
-                                    RecoveryTimerPolicy.soft =>
-                                      'Continue with a soft timer',
-                                  }),
-                                ),
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (!game.isStarted)
-                      DashboardSection.startQuiz: PanelCard(
-                        title: context.tr("Quiz starten"),
-                        icon: Icons.play_circle_outline,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              context.tr(
-                                "Spieler können beitreten. Die Fragenauswahl wird erst nach dem Start freigegeben.",
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
-                              onPressed: () =>
-                                  engine.add(const StartGameEvent()),
-                              icon: const Icon(Icons.play_arrow),
-                              label: Text(context.tr("Quiz jetzt starten")),
-                            ),
-                            const SizedBox(height: 8),
-                            OutlinedButton.icon(
-                              key: const ValueKey("open-tech-check"),
-                              onPressed: () => openTechCheck(context, game),
-                              icon: const Icon(Icons.fact_check_outlined),
-                              label: Text(context.tr("Technikcheck")),
-                            ),
-                          ],
-                        ),
-                      ),
-                    DashboardSection.liveRound: LiveRoundPanel(
-                      state: engineState,
-                      onJudge: (wasCorrect) => engine.add(
-                        JudgeBuzzerEvent(
-                          wasCorrect: wasCorrect,
-                          playerId: game.round.activePlayerId,
-                          questionId: game.round.question?.id,
-                          startedAtHostMicros: game.round.startedAtHostMicros,
-                          resolvedAttempts: game.round.resolvedAttempts,
-                        ),
-                      ),
-                      onJudgeAnswer: engine.add,
-                      onJudgeBuzzer: engine.add,
-                      onReveal: () => engine.add(const RevealRoundEvent()),
-                      onLock: () => engine.add(const LockBuzzerEvent()),
-                      onReopenBuzzer: () =>
-                          engine.add(const ReopenBuzzerEvent()),
-                      onReopenBuzzerForAll: () =>
-                          engine.add(const ReopenBuzzerEvent(forAll: true)),
-                      onEndRound: () => engine.add(const EndRoundEvent()),
-                      onNext: () {
-                        if (game.isStarted) {
-                          engine.add(const NextQuestionEvent());
-                        }
-                      },
-                      onCloseRound: () => engine.add(const CloseRoundEvent()),
-                      onFinish: () => engine.add(const FinishQuizEvent()),
-                      onFinishEarly: () =>
-                          engine.add(const FinishQuizEvent(early: true)),
-                    ),
-                    if (game.round.question case final question?)
-                      if ([
-                        ...question.media,
-                        if (game.round.status == RoundStatus.revealed)
-                          ...question.solutionMedia,
-                      ].any(
-                        (m) => m is AudioAttachment || m is VideoAttachment,
-                      ))
-                        DashboardSection.media: PanelCard(
-                          title: context.tr("Medienwiedergabe"),
-                          icon: Icons.live_tv,
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              FilledButton.icon(
-                                onPressed: () => engine.add(
-                                  const ControlTvMediaEvent(TvMediaAction.play),
-                                ),
-                                icon: const Icon(Icons.play_arrow),
-                                label: Text(context.tr("Abspielen")),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: () => engine.add(
-                                  const ControlTvMediaEvent(
-                                    TvMediaAction.pause,
-                                  ),
-                                ),
-                                icon: const Icon(Icons.pause),
-                                label: Text(context.tr("Pause")),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: () => engine.add(
-                                  const ControlTvMediaEvent(
-                                    TvMediaAction.restart,
-                                  ),
-                                ),
-                                icon: const Icon(Icons.replay),
-                                label: Text(context.tr("Neu starten")),
-                              ),
-                              Text(
-                                game.tvMediaPaused
-                                    ? context.tr("TV: pausiert")
-                                    : context.tr("TV: Wiedergabe angefordert"),
-                              ),
-                            ],
-                          ),
-                        ),
-                    if (game.poker case final poker?)
-                      DashboardSection.poker: PanelCard(
-                        title: context.tr("Pokerchips"),
-                        icon: Icons.casino_outlined,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              context.tr("{0} Startchips pro Team · {1}", [
-                                poker.startingChips,
-                                poker.betting
-                                    ? context.tr("Einsatzphase")
-                                    : context.tr("Antwortphase"),
-                              ]),
-                            ),
-                            for (final team in game.teams.values)
-                              Text(
-                                context.tr("{0}: {1} Chips · Einsatz: {2}", [
-                                  team.name,
-                                  poker.chips[team.id] ?? 0,
-                                  poker.wagers[team.id] ?? "–",
-                                ]),
-                              ),
-                            if (poker.betting)
-                              FilledButton(
-                                onPressed: () =>
-                                    engine.add(const OpenPokerAnswersEvent()),
-                                child: Text(
-                                  context.tr(
-                                    "Einsätze schließen & Antworten öffnen",
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    if (game.jeopardy case final jeopardy?)
-                      DashboardSection.questions: JeopardyBoardPanel(
-                        game: game,
-                        jeopardy: jeopardy,
-                        canPick:
-                            game.isStarted &&
-                            engineState.canStartRound &&
-                            jeopardy.pendingPickQuestionId == null,
-                        maxWager: engine.maxDailyDoubleWager(game),
-                        onSelect: (questionId) =>
-                            engine.add(SelectJeopardyCellEvent(questionId)),
-                        onPlaceWager: (wager) =>
-                            engine.add(PlaceDailyDoubleWagerEvent(wager)),
-                        onSetOrder: (ids) =>
-                            engine.add(SetJeopardyOrderEvent(ids)),
-                        onSetTurn: (teamId) =>
-                            engine.add(SetJeopardyTurnEvent(teamId)),
-                      ),
-                    DashboardSection.server: ServerControlPanel(
-                      state: serverState,
-                      connectedPlayers:
-                          serverState.status == HostServerStatus.running
-                          ? game.connectedPlayers.length
-                          : 0,
-                      onOpenTvPreview: openTvPreview,
-                      onStart: () => context.read<HostServerCubit>().start(),
-                      onStop: () => context.read<HostServerCubit>().stop(),
-                    ),
-                    DashboardSection.scoreboard: PanelCard(
-                      title: game.poker == null
-                          ? context.tr("Scoreboard · {0}", [
-                              context.tr(game.mode.label),
-                            ])
-                          : context.tr("Pokerchips · Teams"),
-                      icon: Icons.leaderboard_outlined,
-                      child: ScoreboardView(game: game),
-                    ),
-                    DashboardSection.corrections: CorrectionHistoryPanel(
-                      game: game,
-                      engine: engine,
-                    ),
-                    if (game.isFinished)
-                      DashboardSection.report: SessionReportPanel(
-                        game: game,
-                        quizName: quizName,
-                      ),
-                    DashboardSection.players: PlayersPanel(
-                      game: game,
-                      connectionsAvailable:
-                          serverState.status == HostServerStatus.running,
-                      onSetOrder:
-                          engineState.canStartRound &&
-                              game.jeopardy?.pendingPickQuestionId == null &&
-                              game.jeopardy?.pendingDailyDoubleId == null
-                          ? (ids) => engine.add(SetPlayerOrderEvent(ids))
-                          : null,
-                      onKick: (id) => engine.add(KickPlayerEvent(id)),
-                      onBan: (id) => engine.add(KickPlayerEvent(id, ban: true)),
-                      onMerge: (source, target) => engine.add(
-                        MergePlayersEvent(
-                          sourcePlayerId: source,
-                          targetPlayerId: target,
-                        ),
-                      ),
-                      onAssignTeam: (playerId, teamId) => engine.add(
-                        AssignTeamEvent(playerId: playerId, teamId: teamId),
-                      ),
-                    ),
-                    if (game.jeopardy == null)
-                      DashboardSection.questions: QuestionBankPanel(
-                        game: game,
-                        canStart: game.isStarted && engineState.canStartRound,
-                        onStart: (questionId) =>
-                            engine.add(StartRoundEvent(questionId)),
-                      ),
-                    DashboardSection.serverLog: ServerLogPanel(
-                      logs: serverState.logs,
-                    ),
-                  },
+            ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// Unmissable warning that guests and TVs get an outdated web player.
+///
+/// A host started with `flutter run` (or built without re-running
+/// `tool/bundle_web_client.dart`) embeds whatever `bundle.zip` is on disk, so
+/// browsers then miss every newer feature although the host and its preview
+/// already have it.
+class OutdatedWebClientBanner extends StatelessWidget {
+  /// Creates the banner.
+  const OutdatedWebClientBanner({required this.webClientVersion, super.key});
+
+  /// Version of the packed web player.
+  final String webClientVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      key: const ValueKey('outdated-web-client'),
+      color: scheme.errorContainer,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, color: scheme.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                context.tr(
+                  'Veralteter Web-Player ({0}): Spieler- und TV-Browser bekommen eine alte Version und sehen neue Funktionen nicht (z. B. Abschlussseite, Timer). Vor dem Start des Hosts „dart run tool/bundle_web_client.dart“ ausführen.',
+                  [webClientVersion],
                 ),
+                style: TextStyle(color: scheme.onErrorContainer),
               ),
-            );
-          },
-        );
-      },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

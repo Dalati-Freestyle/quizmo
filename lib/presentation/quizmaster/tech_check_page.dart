@@ -165,6 +165,7 @@ class _TechCheckPageState extends State<TechCheckPage> {
         deviceTestConfirmed: widget.server.deviceCheck?.confirmedPlayerIds,
         deviceTestScreens:
             widget.server.deviceCheck?.confirmedScreenIds.length ?? 0,
+        outdatedWebPlayer: widget.server.state.outdatedWebClientVersion,
       ),
       thresholds: _thresholds,
     );
@@ -349,6 +350,7 @@ class _ResultCard extends StatelessWidget {
 
   static String _title(TechCheckId id) => switch (id) {
     TechCheckId.hostServer => 'Host-Server',
+    TechCheckId.webPlayer => 'Web-Player für Spieler und TV',
     TechCheckId.reachability => 'Erreichbarkeit für Gäste',
     TechCheckId.players => 'Spieler-Verbindungen',
     TechCheckId.deviceTest => 'Gerätetest (alle tippen)',
