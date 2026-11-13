@@ -12,6 +12,9 @@ const _documents = [
   'docs/question-types-and-media.md',
   'docs/ai-quiz-guide.md',
   'docs/ai-quiz-guide.en.md',
+  'docs/hosting-guide.md',
+  'docs/internet-hosting.md',
+  'docs/developer-guide.md',
   'deploy/README.md',
 ];
 
