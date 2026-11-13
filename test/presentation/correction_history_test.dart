@@ -57,7 +57,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Bitte eine Begründung angeben oder „Keine Begründung“ wählen.',
+        'Bitte eine Begründung angeben oder „Ohne Begründung anwenden“ wählen.',
       ),
       findsOneWidget,
     );
@@ -100,7 +100,7 @@ void main() {
       await tester.tap(find.byTooltip('Rücknahme'));
       await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextField, 'Grund (optional)'),
+        find.byKey(const ValueKey('undo-reason')),
         'Mistake',
       );
       await tester.tap(find.text('Rücknahme bestätigen'));
@@ -157,8 +157,8 @@ void main() {
       find.byKey(const ValueKey('score-change-delta')),
       '-4',
     );
+    expect(find.text('One'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('score-change-no-reason')));
-    await tester.tap(find.text('Korrektur anwenden'));
     await tester.pumpAndSettle();
     final entry = engine.state.game.corrections.single;
     expect(entry.targetsTeam, isTrue);

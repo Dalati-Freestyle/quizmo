@@ -63,7 +63,7 @@ void main() {
 
   group('reason is mandatory', () {
     test('empty and blank reasons are rejected by the engine', () async {
-      await start();
+      await start(teams: false);
       await send(change('empty', 5, playerId: 'p1', reason: ''));
       await send(change('blank', 5, playerId: 'p1', reason: '   \n\t'));
       expect(engine.state.game.corrections, isEmpty);
@@ -72,7 +72,7 @@ void main() {
     });
 
     test('the shrug emoji is a valid reason and is stored trimmed', () async {
-      await start();
+      await start(teams: false);
       await send(
         change('shrug', 5, playerId: 'p1', reason: ' $kNoReasonGiven '),
       );
@@ -82,7 +82,7 @@ void main() {
   });
 
   test('a change is possible before the first and between questions', () async {
-    await start();
+    await start(teams: false);
     expect(engine.state.game.round.question, isNull);
     await send(change('lobby', 7, playerId: 'p1'));
     expect(engine.state.game.scores.scoreOf('p1'), 7);
@@ -114,9 +114,12 @@ void main() {
       expect(entry.teamDeltas, {'b': 10});
     });
 
-    test('team totals combine player points and direct team points', () async {
+    test('a change for a player is booked on the team', () async {
       await start();
       await send(change('player', 4, playerId: 'p1'));
+      expect(engine.state.game.scores.scoreOf('p1'), 0);
+      expect(engine.state.game.scores.byTeam, {'a': 4});
+      expect(engine.state.game.corrections.single.targetsTeam, isTrue);
       await send(change('team', -6, teamId: 'a'));
       expect(engine.state.game.teamScores['a'], -2);
       expect(engine.state.game.corrections.last.beforeValue, 4);
@@ -132,7 +135,7 @@ void main() {
       await send(UndoCorrectionEvent(original.id));
       final game = engine.state.game;
       expect(game.teamScores['a'], 3);
-      expect(game.scores.byTeam, {'a': 0});
+      expect(game.scores.byTeam, {'a': 3});
       expect(game.corrections.last.reversesId, original.id);
       expect(game.corrections.last.teamDeltas, {'a': -10});
     });

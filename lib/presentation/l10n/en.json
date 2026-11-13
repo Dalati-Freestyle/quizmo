@@ -965,12 +965,10 @@
   "Guest Wi-Fi": "Guest Wi-Fi",
   "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.",
   "Ziel": "Target",
-  "Keine Begründung": "No reason",
   "Ohne Bezug zu einer Frage": "Not tied to a question",
   "Aktueller Stand: {0} Chips": "Current balance: {0} chips",
   "Begründung (Pflicht)": "Reason (required)",
   "Bitte eine Begründung angeben.": "Please enter a reason.",
-  "Bitte eine Begründung angeben oder „Keine Begründung“ wählen.": "Enter a reason or choose “No reason”.",
   "Protokoll gespeichert.": "Protocol saved.",
   "PDF konnte nicht erstellt werden: {0}": "Could not create the PDF: {0}",
   "Spielprotokoll": "Game protocol",
@@ -1102,5 +1100,10 @@
   "Technikcheck": "Tech check",
   "Testwiedergabe": "Test playback",
   "Schließen": "Close",
-  "bestätigt": "acknowledged"
+  "bestätigt": "acknowledged",
+  "Ohne Begründung anwenden": "Apply without reason",
+  "Ohne Begründung zurücknehmen": "Undo without reason",
+  "Bitte eine Begründung angeben oder „Ohne Begründung anwenden“ wählen.": "Enter a reason or choose “Apply without reason”.",
+  "Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.": "Enter a reason or choose “Undo without reason”.",
+  "Runde": "Round"
 }

@@ -971,9 +971,19 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   void _onCorrectScore(CorrectScoreEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
     final poker = game.poker;
-    final player = event.playerId == null ? null : game.players[event.playerId];
-    final team = event.teamId == null ? null : game.teams[event.teamId];
     final bound = event.questionId != null || event.roundStartedAt != null;
+    var player = event.playerId == null ? null : game.players[event.playerId];
+    var team = event.teamId == null ? null : game.teams[event.teamId];
+    // With teams, players have no points of their own: a free change for a
+    // player is booked on the player's team.
+    final playerTeam = game.teams[player?.teamId];
+    if (!bound &&
+        event.teamId == null &&
+        (game.mode is TeamMode || poker != null) &&
+        playerTeam != null) {
+      team = playerTeam;
+      player = null;
+    }
     if (game.recoveryPaused ||
         event.requestId.isEmpty ||
         event.delta == 0 ||

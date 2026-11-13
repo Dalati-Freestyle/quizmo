@@ -37,7 +37,9 @@ class CorrectionHistoryPanel extends StatelessWidget {
             ),
             onPressed:
                 !game.recoveryPaused &&
-                    (game.players.isNotEmpty || game.teams.isNotEmpty)
+                    (game.mode is TeamMode || game.poker != null
+                        ? game.teams.isNotEmpty
+                        : game.players.isNotEmpty)
                 ? () async {
                     final event = await showDialog<CorrectScoreEvent>(
                       context: context,
@@ -159,11 +161,14 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
 
   bool get _teamTargets => _game.mode is TeamMode || _game.poker != null;
 
+  /// With teams, players have no points of their own, so only teams can be
+  /// chosen; solo games list the players.
   List<_Target> get _targets => [
     if (_teamTargets)
-      for (final team in _game.teams.values) (playerId: null, teamId: team.id),
-    for (final player in _game.players.values)
-      (playerId: player.id, teamId: null),
+      for (final team in _game.teams.values) (playerId: null, teamId: team.id)
+    else
+      for (final player in _game.players.values)
+        (playerId: player.id, teamId: null),
   ];
 
   String _label(_Target target) {
@@ -190,12 +195,8 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
     super.dispose();
   }
 
-  void _useNoReason() {
-    setState(() => _reason.text = kNoReasonGiven);
-    _form.currentState?.validate();
-  }
-
-  void _apply() {
+  void _apply({bool withoutReason = false}) {
+    if (withoutReason) _reason.text = kNoReasonGiven;
     if (!_form.currentState!.validate()) return;
     Navigator.pop(
       context,
@@ -280,7 +281,7 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
                 ),
                 validator: (text) => (text?.trim().isEmpty ?? true)
                     ? context.tr(
-                        'Bitte eine Begründung angeben oder „Keine Begründung“ wählen.',
+                        'Bitte eine Begründung angeben oder „Ohne Begründung anwenden“ wählen.',
                       )
                     : null,
               ),
@@ -289,8 +290,8 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
                 child: TextButton.icon(
                   key: const ValueKey('score-change-no-reason'),
                   icon: const Text(kNoReasonGiven),
-                  label: Text(context.tr('Keine Begründung')),
-                  onPressed: _useNoReason,
+                  label: Text(context.tr('Ohne Begründung anwenden')),
+                  onPressed: () => _apply(withoutReason: true),
                 ),
               ),
             ],
@@ -320,6 +321,7 @@ class _UndoDialog extends StatefulWidget {
 }
 
 class _UndoDialogState extends State<_UndoDialog> {
+  final _form = GlobalKey<FormState>();
   final _reason = TextEditingController();
 
   @override
@@ -328,25 +330,51 @@ class _UndoDialogState extends State<_UndoDialog> {
     super.dispose();
   }
 
+  void _confirm({bool withoutReason = false}) {
+    if (withoutReason) _reason.text = kNoReasonGiven;
+    if (!_form.currentState!.validate()) return;
+    Navigator.pop(context, _reason.text.trim());
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(context.tr('Korrektur zurücknehmen?')),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.tr(
-            'Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.',
-            [widget.entry.participantName],
+    content: Form(
+      key: _form,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr(
+              'Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.',
+              [widget.entry.participantName],
+            ),
           ),
-        ),
-        TextField(
-          controller: _reason,
-          decoration: InputDecoration(
-            labelText: context.tr('Grund (optional)'),
+          TextFormField(
+            key: const ValueKey('undo-reason'),
+            controller: _reason,
+            maxLength: 200,
+            decoration: InputDecoration(
+              labelText: context.tr('Begründung (Pflicht)'),
+            ),
+            validator: (text) => (text?.trim().isEmpty ?? true)
+                ? context.tr(
+                    'Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.',
+                  )
+                : null,
           ),
-        ),
-      ],
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: const ValueKey('undo-no-reason'),
+              icon: const Text(kNoReasonGiven),
+              label: Text(context.tr('Ohne Begründung zurücknehmen')),
+              onPressed: () => _confirm(withoutReason: true),
+            ),
+          ),
+        ],
+      ),
     ),
     actions: [
       TextButton(
@@ -354,7 +382,7 @@ class _UndoDialogState extends State<_UndoDialog> {
         child: Text(context.tr('Abbrechen')),
       ),
       FilledButton(
-        onPressed: () => Navigator.pop(context, _reason.text.trim()),
+        onPressed: _confirm,
         child: Text(context.tr('Rücknahme bestätigen')),
       ),
     ],
