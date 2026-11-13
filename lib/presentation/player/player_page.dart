@@ -173,9 +173,6 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                           ? PlayerFinalPage(
                               game: state.game!,
                               playerId: state.playerId,
-                              mediaBaseUri: context
-                                  .read<PlayerSessionCubit>()
-                                  .mediaBaseUri,
                             )
                           : state.playerId != null && state.game != null
                           ? AbsorbPointer(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -112,6 +113,34 @@ void main() {
     );
     expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
   });
+
+  test(
+    'draws emoji with the bundled Noto Emoji font without a renderer',
+    () async {
+      final emojiFont = pw.Font.ttf(
+        ByteData.sublistView(
+          File('assets/fonts/protocol/NotoEmoji-Regular.ttf').readAsBytesSync(),
+        ),
+      );
+      final missing = <String>[];
+      final bytes = await runZoned(
+        () => buildProtocolPdf(
+          _protocol,
+          tr: _tr,
+          regular: regular,
+          bold: bold,
+          emojiFont: emojiFont,
+        ),
+        zoneSpecification: ZoneSpecification(
+          print: (_, _, _, line) {
+            if (line.contains('Unable to find a font')) missing.add(line);
+          },
+        ),
+      );
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+      expect(missing, isEmpty);
+    },
+  );
 
   test('file names are safe', () {
     expect(protocolFileName(_protocol), 'Quizabend-Größe-protokoll.pdf');

@@ -252,6 +252,17 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<PlacePokerWagerEvent>(_onPlacePokerWager);
     on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
     on<ResetGameEvent>(_onResetGame);
+    on<FinishQuizEvent>((event, emit) {
+      final game = state.game;
+      if (!game.canFinish) {
+        emit(
+          state.copyWith(notice: 'Das Quiz kann noch nicht beendet werden.'),
+        );
+        return;
+      }
+      _graceTimer?.cancel();
+      emit(_publish(game.copyWith(isFinished: true)));
+    });
     on<ExpireRoundEvent>((event, emit) {
       final game = state.game;
       final round = game.round;
@@ -2129,16 +2140,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     final question = game.round.question;
     final jeopardy = game.jeopardy;
+    // The last reveal does not finish the game: guests keep seeing the
+    // solution until the host finishes it (`FinishQuizEvent`).
     return game.copyWith(
-      isFinished:
-          game.questionBank.isNotEmpty &&
-          (game.jeopardy?.board.questionIds ??
-                  game.questionBank.map((q) => q.id))
-              .every(
-                (id) =>
-                    game.completedQuestionIds.contains(id) ||
-                    id == question?.id,
-              ),
       round: game.round.copyWith(status: RoundStatus.revealed),
       roundHistory: game.revealMode == SolutionRevealMode.atEnd
           ? [

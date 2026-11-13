@@ -261,6 +261,23 @@ final class GameState extends Equatable {
   /// game is finished (see `guestSnapshotOf`). The host state never holds it.
   final GameProtocol? protocol;
 
+  /// Whether every question of the bank (or of the board) has been played.
+  /// The game then waits for the host to finish it (`FinishQuizEvent`).
+  bool get allQuestionsPlayed =>
+      questionBank.isNotEmpty &&
+      (jeopardy?.board.questionIds ?? questionBank.map((q) => q.id)).every(
+        completedQuestionIds.contains,
+      );
+
+  /// Whether the host can finish the game now: every question is played and
+  /// no round is running.
+  bool get canFinish =>
+      !isFinished &&
+      !recoveryPaused &&
+      allQuestionsPlayed &&
+      (round.status == RoundStatus.idle ||
+          round.status == RoundStatus.revealed);
+
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
       revealMode == SolutionRevealMode.atEnd && !isFinished;

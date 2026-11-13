@@ -171,6 +171,7 @@ void main() {
     expect(get(image).statusCode, 404);
     expect(get(solution).statusCode, 404);
     await send(const RevealRoundEvent());
+    await send(const FinishQuizEvent());
     expect(get(image).statusCode, 200);
     expect(get(solution).statusCode, 200);
     await send(const CloseRoundEvent());

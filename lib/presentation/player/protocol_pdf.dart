@@ -31,15 +31,22 @@ final _emoji = RegExp(
 
 /// Builds the PDF bytes of [protocol].
 ///
-/// [emoji] renders an emoji to a PNG; without it emoji stay plain characters.
+/// [emoji] renders an emoji to a colour PNG (browser only). Emoji it cannot
+/// render are drawn with [emojiFont] (monochrome Noto Emoji) when given.
 Future<Uint8List> buildProtocolPdf(
   GameProtocol protocol, {
   required Translate tr,
   required pw.Font regular,
   required pw.Font bold,
   Uint8List? Function(String emoji)? emoji,
+  pw.Font? emojiFont,
 }) {
-  final theme = pw.ThemeData.withFont(base: regular, bold: bold);
+  final fallback = [?emojiFont];
+  final theme = pw.ThemeData.withFont(
+    base: regular,
+    bold: bold,
+    fontFallback: fallback,
+  );
   final base = pw.TextStyle(font: regular, fontSize: 10);
   final strong = pw.TextStyle(font: bold, fontSize: 10);
 
@@ -247,7 +254,7 @@ Future<Uint8List> buildProtocolPdf(
                     entry.question ?? tr('Ohne Bezug zu einer Frage'),
                   ].join('\n'),
                   entry.target,
-                  '${protocolCorrectionChange(entry, tr)}'
+                  '${protocolCorrectionChange(entry, tr, arrow: '->')}'
                       '${entry.delta == null ? '' : ' (${signed(entry.delta!)})'}',
                   entry.reason ?? '',
                 ],
@@ -276,12 +283,16 @@ Future<bool> downloadProtocolPdf(GameProtocol protocol, Translate tr) async {
   final bold = pw.Font.ttf(
     await rootBundle.load('assets/fonts/protocol/Roboto-Bold.ttf'),
   );
+  final emojiFont = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/protocol/NotoEmoji-Regular.ttf'),
+  );
   final bytes = await buildProtocolPdf(
     protocol,
     tr: tr,
     regular: regular,
     bold: bold,
     emoji: rasterizeEmoji,
+    emojiFont: emojiFont,
   );
   final saved = await FilePicker.saveFile(
     dialogTitle: tr('Protokoll als PDF speichern'),

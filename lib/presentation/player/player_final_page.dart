@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import '../../core/models/models.dart';
 import '../common/browser_exit_guard.dart';
 import '../common/protocol_view.dart';
-import '../common/quiz_review_view.dart';
 import '../l10n/app_localizations.dart';
 import 'protocol_pdf.dart' deferred as protocol_pdf;
 
@@ -22,7 +21,6 @@ class PlayerFinalPage extends StatefulWidget {
   const PlayerFinalPage({
     required this.game,
     required this.playerId,
-    this.mediaBaseUri,
     super.key,
   });
 
@@ -31,9 +29,6 @@ class PlayerFinalPage extends StatefulWidget {
 
   /// The viewing player.
   final String? playerId;
-
-  /// Base address for media of the final solution overview.
-  final Uri? mediaBaseUri;
 
   @override
   State<PlayerFinalPage> createState() => _PlayerFinalPageState();
@@ -197,14 +192,6 @@ class _PlayerFinalPageState extends State<PlayerFinalPage> {
                   ),
                 ],
               ),
-              if (widget.game.showFinalReview) ...[
-                const SizedBox(height: 24),
-                QuizReviewView(
-                  game: widget.game,
-                  playerId: widget.playerId,
-                  mediaBaseUri: widget.mediaBaseUri,
-                ),
-              ],
             ],
           ),
         ),

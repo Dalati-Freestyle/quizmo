@@ -107,6 +107,10 @@ void main() {
           text: 'Berlin',
         ),
       );
+      while (!engine.state.game.allQuestionsPlayed) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      engine.add(const FinishQuizEvent());
       for (final snapshot in await Future.wait([
         playerReview,
         tvReview,

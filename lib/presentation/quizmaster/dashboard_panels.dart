@@ -1013,6 +1013,7 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onFinish,
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
@@ -1038,6 +1039,9 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Takes a revealed question off the stage and returns to the Jeopardy board.
   final VoidCallback onCloseRound;
+
+  /// Finishes the game once every question is played.
+  final VoidCallback? onFinish;
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
@@ -1066,7 +1070,14 @@ class LiveRoundPanel extends StatelessWidget {
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (jeopardy != null)
+                if (jeopardy != null && game.canFinish && onFinish != null)
+                  FilledButton.icon(
+                    key: const ValueKey('finish-quiz'),
+                    onPressed: onFinish,
+                    icon: const Icon(Icons.emoji_events_outlined),
+                    label: Text(context.tr('Quiz abschließen')),
+                  )
+                else if (jeopardy != null)
                   EmptyHint(
                     jeopardy.pendingDailyDoubleId != null
                         ? context.tr(
@@ -1083,11 +1094,19 @@ class LiveRoundPanel extends StatelessWidget {
                     icon: Icons.play_circle_outline,
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: game.isStarted ? onNext : null,
-                    icon: const Icon(Icons.skip_next),
-                    label: Text(context.tr("Start next pending question")),
-                  ),
+                  if (game.canFinish && onFinish != null)
+                    FilledButton.icon(
+                      key: const ValueKey('finish-quiz'),
+                      onPressed: onFinish,
+                      icon: const Icon(Icons.emoji_events_outlined),
+                      label: Text(context.tr('Quiz abschließen')),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: game.isStarted ? onNext : null,
+                      icon: const Icon(Icons.skip_next),
+                      label: Text(context.tr("Start next pending question")),
+                    ),
                 ],
               ],
             )
@@ -1170,6 +1189,7 @@ class LiveRoundPanel extends StatelessWidget {
                   onLock: onLock,
                   onNext: onNext,
                   onCloseRound: onCloseRound,
+                  onFinish: onFinish,
                   onReopenBuzzer: onReopenBuzzer,
                   onReopenBuzzerForAll: onReopenBuzzerForAll,
                   onEndRound: onEndRound,
@@ -1252,6 +1272,7 @@ class _RoundActions extends StatefulWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onFinish,
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
@@ -1265,6 +1286,7 @@ class _RoundActions extends StatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onCloseRound;
   final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onFinish;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
   final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
@@ -1300,6 +1322,7 @@ class _RoundActionsState extends State<_RoundActions> {
     final onLock = widget.onLock;
     final onNext = widget.onNext;
     final onCloseRound = widget.onCloseRound;
+    final onFinish = widget.onFinish;
     final onReopenBuzzer = widget.onReopenBuzzer;
     final onReopenBuzzerForAll = widget.onReopenBuzzerForAll;
     final onEndRound = widget.onEndRound;
@@ -1411,7 +1434,14 @@ class _RoundActionsState extends State<_RoundActions> {
           runSpacing: 8,
           children: switch (round.status) {
             RoundStatus.idle => [
-              if (jeopardy == null)
+              if (game.canFinish && onFinish != null)
+                FilledButton.icon(
+                  key: const ValueKey('finish-quiz'),
+                  onPressed: onFinish,
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: Text(context.tr('Quiz abschließen')),
+                )
+              else if (jeopardy == null)
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),
@@ -1505,7 +1535,14 @@ class _RoundActionsState extends State<_RoundActions> {
                 ),
             ],
             RoundStatus.revealed => [
-              if (jeopardy == null)
+              if (game.canFinish && onFinish != null)
+                FilledButton.icon(
+                  key: const ValueKey('finish-quiz'),
+                  onPressed: onFinish,
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: Text(context.tr('Quiz abschließen')),
+                )
+              else if (jeopardy == null)
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),

@@ -380,6 +380,8 @@ void main() {
     expect(session.guestGame.round.question!.hasSolution, isFalse);
     session.send(const NextQuestionEvent());
     await session.flush();
+    session.send(const FinishQuizEvent());
+    await session.flush();
     expect(session.guestGame.showFinalReview, isTrue);
     expect(session.guestGame.roundHistory.length, 2);
     expect(

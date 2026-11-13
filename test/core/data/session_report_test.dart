@@ -89,6 +89,7 @@ void main() {
           reason: '+correction',
         ),
       );
+      await send(const FinishQuizEvent());
       final result = report();
       expect(result.finished, isTrue);
       expect(result.historyComplete, isTrue);

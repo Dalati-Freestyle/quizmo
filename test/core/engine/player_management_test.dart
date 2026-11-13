@@ -99,6 +99,8 @@ void main() {
   test('all answered emits one revision and quiz completion resets', () async {
     await scoreBoth();
     expect(engine.state.game.allAnswersRevision, 1);
+    expect(engine.state.game.isFinished, isFalse);
+    await send(const FinishQuizEvent());
     expect(engine.state.game.isFinished, isTrue);
     expect(engine.state.game.redactedForPlayers().isFinished, isTrue);
     await send(const RevealRoundEvent());

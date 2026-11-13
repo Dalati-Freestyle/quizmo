@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.3.0+22
+version: 1.3.0+23
 
 environment:
   sdk: ^3.13.4
@@ -119,7 +119,8 @@ flutter:
   assets:
     - assets/branding/logo.png
     - assets/web_client/
-    # Unicode fonts for the protocol PDF (Roboto, Apache 2.0, see LICENSE.txt).
+    # Unicode fonts for the protocol PDF (Roboto, Apache 2.0, see LICENSE.txt;
+    # monochrome Noto Emoji, OFL 1.1, see NotoEmoji-OFL.txt).
     - assets/fonts/protocol/
     # Guide for AI assistants that write importable quiz files; the same file
     # as in the repository (single source, see docs/ai-quiz-guide.md).

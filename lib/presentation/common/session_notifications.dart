@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
@@ -67,12 +69,7 @@ class _SessionNotificationsState extends State<SessionNotifications> {
       }
     }
     final me = game.players[widget.playerId];
-    final showPlacement =
-        game.isFinished &&
-        game.protocol == null &&
-        !game.showFinalReview &&
-        me != null &&
-        !_placementShown;
+    final showPlacement = game.isFinished && me != null && !_placementShown;
     if (showPlacement) _placementShown = true;
     if (messages.isEmpty && !showPlacement) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -87,9 +84,8 @@ class _SessionNotificationsState extends State<SessionNotifications> {
         final myScore = scores[teamCompetition ? me.teamId : me.id] ?? 0;
         final place =
             1 + scores.values.where((score) => score > myScore).length;
-        showDialog<void>(
-          context: context,
-          builder: (context) => PointerInterceptor(
+        _showPlacement(
+          PointerInterceptor(
             child: AlertDialog(
               title: Text(context.tr("Quiz beendet")),
               content: Text(
@@ -106,7 +102,7 @@ class _SessionNotificationsState extends State<SessionNotifications> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => _closePlacement(),
                   child: Text(context.tr("OK")),
                 ),
               ],
@@ -115,6 +111,54 @@ class _SessionNotificationsState extends State<SessionNotifications> {
         );
       }
     });
+  }
+
+  Route<void>? _placementRoute;
+  Timer? _placementTimer;
+
+  @override
+  void dispose() {
+    _placementTimer?.cancel();
+    super.dispose();
+  }
+
+  /// How long the placement stays before it fades out by itself.
+  static const placementDuration = Duration(seconds: 8);
+
+  /// Shows the placement above the final page and lets it fade out slowly.
+  void _showPlacement(Widget dialog) {
+    final navigator = Navigator.of(context);
+    final route = RawDialogRoute<void>(
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black38,
+      transitionDuration: const Duration(milliseconds: 1500),
+      pageBuilder: (_, _, _) => dialog,
+      transitionBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+        child: child,
+      ),
+    );
+    _placementRoute = route;
+    navigator.push(route).whenComplete(() {
+      if (_placementRoute == route) _placementRoute = null;
+    });
+    _placementTimer?.cancel();
+    _placementTimer = Timer(placementDuration, () {
+      if (_placementRoute == route) _closePlacement();
+    });
+  }
+
+  void _closePlacement() {
+    final route = _placementRoute;
+    if (route == null || !route.isActive) return;
+    _placementRoute = null;
+    final navigator = route.navigator!;
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
   }
 
   @override

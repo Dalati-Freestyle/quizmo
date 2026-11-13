@@ -167,7 +167,12 @@ portable quiz schema.
 
 ## Final report and CSV export
 
-After the final question, the host dashboard shows **Final report** with the
+The last reveal does not end the game: players and TVs keep the solution of the
+last question until the host presses **Quiz abschließen** (Finish quiz) in the
+running round section. Players then get the final page with their placement
+(shown as a pop-up that fades out after a few seconds), the standings and the
+game protocol as a view and PDF (emoji are drawn with the bundled Noto Emoji
+font, in the browser in colour). Then the host dashboard shows **Final report** with the
 authoritative final player/team standings, score progression, answers, accuracy
 and response times by question/phase and participant. Manual point/chip
 corrections and their reversals are reflected immediately; the CSV includes a
@@ -354,12 +359,11 @@ automatic grading. Exports always use the latest schema.
 The standard quiz editor offers **Auflösung > Nach jeder Frage** (the default)
 or **Am Quizende**. In the latter mode, the host still sees and grades answers
 normally, but players and TVs receive no solutions, verdicts or standings until
-the last question is completed. This also applies to REST snapshots and uploaded
+the host finishes the quiz after the last question. This also applies to REST snapshots and uploaded
 solution-media URLs, not just the visible controls.
 
-At the end, players get an expandable overview of every played question, its
-solution, their submitted answer and assessment, including question/solution
-media. The TV cycles through the solutions every 12 seconds; pause, previous and
+At the end, players get the final page whose protocol lists every played
+question, its solution, their submitted answer and assessment. The TV cycles through the solutions every 12 seconds; pause, previous and
 next controls are available. The final standings are shown alongside the TV
 overview. Reset clears the overview while retaining the configured reveal mode.
 Jeopardy and Pokerchips keep their existing per-question reveal behavior.

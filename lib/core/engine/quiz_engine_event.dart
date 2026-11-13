@@ -305,6 +305,13 @@ final class RevealRoundEvent extends QuizEngineEvent {
   const RevealRoundEvent();
 }
 
+/// Finishes the game after the last question: guests then get the final
+/// page with standings and protocol, and deferred solutions are published.
+final class FinishQuizEvent extends QuizEngineEvent {
+  /// Finishes the game.
+  const FinishQuizEvent();
+}
+
 /// Clears scores, history and round, keeping players and question bank.
 final class ResetGameEvent extends QuizEngineEvent {
   /// Resets the session.

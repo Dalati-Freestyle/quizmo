@@ -1105,5 +1105,7 @@
   "Ohne Begründung zurücknehmen": "Undo without reason",
   "Bitte eine Begründung angeben oder „Ohne Begründung anwenden“ wählen.": "Enter a reason or choose “Apply without reason”.",
   "Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.": "Enter a reason or choose “Undo without reason”.",
-  "Runde": "Round"
+  "Runde": "Round",
+  "Quiz abschließen": "Finish quiz",
+  "Das Quiz kann noch nicht beendet werden.": "The quiz cannot be finished yet."
 }

@@ -90,6 +90,7 @@ void main() {
     await pumpEventQueue();
     expect(engine.state.roundStatus, RoundStatus.revealed);
     expect(engine.state.game.jeopardy!.isStealRound, isFalse);
-    expect(engine.state.game.isFinished, isTrue);
+    expect(engine.state.game.allQuestionsPlayed, isTrue);
+    expect(engine.state.game.isFinished, isFalse);
   });
 }

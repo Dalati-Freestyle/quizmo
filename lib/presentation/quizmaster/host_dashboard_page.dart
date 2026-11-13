@@ -566,6 +566,7 @@ class _HostDashboardView extends StatelessWidget {
                         }
                       },
                       onCloseRound: () => engine.add(const CloseRoundEvent()),
+                      onFinish: () => engine.add(const FinishQuizEvent()),
                     ),
                     if (game.round.question case final question?)
                       if ([

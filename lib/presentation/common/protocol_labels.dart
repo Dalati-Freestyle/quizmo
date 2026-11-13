@@ -66,7 +66,13 @@ List<String> protocolQuestionTags(ProtocolQuestion question, Translate tr) => [
 ];
 
 /// Readable value of a correction (before → after).
-String protocolCorrectionChange(ProtocolCorrection entry, Translate tr) {
+///
+/// [arrow] separates both values; the PDF fonts have no arrow glyph.
+String protocolCorrectionChange(
+  ProtocolCorrection entry,
+  Translate tr, {
+  String arrow = '→',
+}) {
   String value(int? number) => switch (entry.kind) {
     ProtocolCorrectionKind.answer || ProtocolCorrectionKind.buzzer =>
       number == null
@@ -76,5 +82,5 @@ String protocolCorrectionChange(ProtocolCorrection entry, Translate tr) {
           : tr('Wrong'),
     _ => number?.toString() ?? '–',
   };
-  return '${value(entry.before)} → ${value(entry.after)}';
+  return '${value(entry.before)} $arrow ${value(entry.after)}';
 }

@@ -85,6 +85,7 @@ void main() {
     await judge('p1', 'q2', true);
     await judge('p2', 'q2', true);
     await send(const RevealRoundEvent());
+    await send(const FinishQuizEvent());
   }
 
   test('no protocol is sent while the game is running', () async {
@@ -167,6 +168,7 @@ void main() {
       await send(const RevealRoundEvent());
       await send(const StartRoundEvent('q2'));
       await send(const RevealRoundEvent());
+      await send(const FinishQuizEvent());
       final snapshot = guestSnapshotOf(engine.state.game, title: 'Teams');
       final protocol = snapshot.protocol!;
       expect(protocol.teamMode, isTrue);
@@ -211,6 +213,7 @@ void main() {
     await send(const StartRoundEvent('q2'));
     await send(const OpenPokerAnswersEvent());
     await send(const RevealRoundEvent());
+    await send(const FinishQuizEvent());
     final protocol = guestSnapshotOf(
       engine.state.game,
       title: 'Poker',

@@ -409,6 +409,7 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
           onLock: () => _session.send(const LockBuzzerEvent()),
           onNext: () => _session.send(const NextQuestionEvent()),
           onCloseRound: () => _session.send(const CloseRoundEvent()),
+          onFinish: () => _session.send(const FinishQuizEvent()),
           onReopenBuzzer: () => _session.send(const ReopenBuzzerEvent()),
           onReopenBuzzerForAll: () =>
               _session.send(const ReopenBuzzerEvent(forAll: true)),
