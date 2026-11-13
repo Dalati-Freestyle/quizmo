@@ -33,7 +33,15 @@ enum TechCheckStatus {
 }
 
 /// The individual checks.
-enum TechCheckId { hostServer, reachability, players, latency, tv, media }
+enum TechCheckId {
+  hostServer,
+  reachability,
+  players,
+  deviceTest,
+  latency,
+  tv,
+  media,
+}
 
 /// One finding.
 final class TechCheckResult {
@@ -67,11 +75,15 @@ final class TechCheckResult {
 }
 
 /// Thresholds the latency check uses; shown to the host with the result.
+///
+/// The defaults are generous, because games through the internet relay
+/// often take a few hundred milliseconds; hosts can change them in the
+/// settings.
 final class TechCheckThresholds {
   /// Creates thresholds.
   const TechCheckThresholds({
-    this.goodRoundTrip = const Duration(milliseconds: 150),
-    this.maxRoundTrip = const Duration(milliseconds: 400),
+    this.goodRoundTrip = const Duration(milliseconds: defaultGoodMs),
+    this.maxRoundTrip = const Duration(milliseconds: defaultMaxMs),
     this.silentAfter = const Duration(seconds: 15),
   });
 
@@ -83,6 +95,16 @@ final class TechCheckThresholds {
 
   /// A socket without any frame for this long counts as not responding.
   final Duration silentAfter;
+
+  /// Default for [goodRoundTrip] in milliseconds.
+  static const defaultGoodMs = 300;
+
+  /// Default for [maxRoundTrip] in milliseconds.
+  static const defaultMaxMs = 1000;
+
+  /// Whether the values can be used: both positive and good ≤ limit.
+  bool get isValid =>
+      goodRoundTrip > Duration.zero && maxRoundTrip >= goodRoundTrip;
 }
 
 /// Kind of an open socket.
@@ -151,6 +173,7 @@ final class TechCheckInput {
     required this.questions,
     this.tvRequired = true,
     this.mediaRequired = true,
+    this.deviceTestConfirmed,
   });
 
   /// Whether the host server (LAN) or relay room (internet) is up.
@@ -176,6 +199,10 @@ final class TechCheckInput {
 
   /// Whether the media check matters for this game.
   final bool mediaRequired;
+
+  /// Players whose device confirmed the running device test (a tap on the
+  /// device); `null` while no device test runs.
+  final Set<String>? deviceTestConfirmed;
 }
 
 /// Media of a quiz as seen by the media check.
@@ -247,6 +274,7 @@ List<TechCheckResult> evaluateTechCheck(
   _hostServer(input),
   _reachability(input, thresholds),
   _players(input, thresholds),
+  _deviceTest(input),
   _latency(input, thresholds),
   _tv(input, thresholds),
   _media(input),
@@ -285,8 +313,7 @@ TechCheckResult _hostServer(TechCheckInput input) {
       summary: timedOut
           ? 'Der Host-Server antwortet nicht innerhalb des Zeitlimits.'
           : 'Der Host-Server ist unter seiner LAN-Adresse nicht erreichbar.',
-      nextStep:
-          'Firewall des Host-Geräts prüfen, eine andere angezeigte Adresse wählen oder den Server neu starten.',
+      nextStep: 'Firewall des Host-Geräts prüfen, eine andere angezeigte Adresse wählen oder den Server neu starten.',
     ),
     HealthNotRun() => const TechCheckResult(
       id: TechCheckId.hostServer,
@@ -364,8 +391,49 @@ TechCheckResult _players(TechCheckInput input, TechCheckThresholds thresholds) {
         : TechCheckStatus.warning,
     summary: '{0} von {1} Spielern sind nicht verbunden oder antworten nicht.',
     arguments: [missing.length, input.players.length],
-    nextStep:
-        'Betroffene Geräte neu laden lassen (Seite bleibt im selben Spiel) oder Spieler entfernen.',
+    nextStep: 'Betroffene Geräte neu laden lassen (Seite bleibt im selben Spiel) oder Spieler entfernen.',
+    details: missing,
+  );
+}
+
+TechCheckResult _deviceTest(TechCheckInput input) {
+  final confirmed = input.deviceTestConfirmed;
+  if (confirmed == null) {
+    return const TechCheckResult(
+      id: TechCheckId.deviceTest,
+      status: TechCheckStatus.notCheckable,
+      summary: 'Der Gerätetest wurde noch nicht gestartet.',
+      nextStep: '„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät.',
+    );
+  }
+  final connected = input.players.where((p) => p.isConnected).toList();
+  if (connected.isEmpty) {
+    return const TechCheckResult(
+      id: TechCheckId.deviceTest,
+      status: TechCheckStatus.notCheckable,
+      summary: 'Kein verbundener Spieler für den Gerätetest.',
+      nextStep: 'Spieler über den QR-Code oder Link beitreten lassen.',
+    );
+  }
+  final missing = [
+    for (final player in connected)
+      if (!confirmed.contains(player.id)) player.name,
+  ];
+  if (missing.isEmpty) {
+    return TechCheckResult(
+      id: TechCheckId.deviceTest,
+      status: TechCheckStatus.pass,
+      summary: 'Alle {0} Spieler haben ihr Gerät bestätigt.',
+      arguments: [connected.length],
+      nextStep: 'Nichts zu tun.',
+    );
+  }
+  return TechCheckResult(
+    id: TechCheckId.deviceTest,
+    status: TechCheckStatus.warning,
+    summary: '{0} von {1} Spielern haben noch nicht getippt.',
+    arguments: [missing.length, connected.length],
+    nextStep: 'Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.',
     details: missing,
   );
 }
@@ -378,13 +446,13 @@ TechCheckResult _latency(TechCheckInput input, TechCheckThresholds thresholds) {
       id: TechCheckId.latency,
       status: TechCheckStatus.notCheckable,
       summary: 'Keine Messwerte zur Uhrensynchronisation vorhanden.',
-      nextStep:
-          'Warten, bis Spieler verbunden sind; die Messung läuft beim Beitritt automatisch.',
+      nextStep: 'Warten, bis Spieler verbunden sind; die Messung läuft beim Beitritt automatisch.',
     );
   }
   final slow = [
     for (final player in measured)
-      if (Duration(microseconds: player.roundTripMicros) > thresholds.maxRoundTrip)
+      if (Duration(microseconds: player.roundTripMicros) >
+          thresholds.maxRoundTrip)
         player,
   ];
   final sluggish = [
@@ -410,17 +478,14 @@ TechCheckResult _latency(TechCheckInput input, TechCheckThresholds thresholds) {
   return TechCheckResult(
     id: TechCheckId.latency,
     status: status,
-    summary:
-        'Höchste Laufzeit {0} ms (gut bis {1} ms, Grenze {2} ms); {3} Gerät(e) ohne Messwert.',
+    summary: 'Höchste Laufzeit {0} ms (gut bis {1} ms, Grenze {2} ms); {3} Gerät(e) ohne Messwert.',
     arguments: [
       worst ~/ 1000,
       thresholds.goodRoundTrip.inMilliseconds,
       thresholds.maxRoundTrip.inMilliseconds,
       unmeasured,
     ],
-    nextStep: status == TechCheckStatus.pass
-        ? 'Nichts zu tun.'
-        : 'Betroffene Geräte näher an den Router bringen, ins selbe WLAN statt mobile Daten wechseln oder neu verbinden. Buzzer bleiben dank Uhrensynchronisation fair.',
+    nextStep: status == TechCheckStatus.pass ? 'Nichts zu tun.' : 'Betroffene Geräte näher an den Router bringen, ins selbe WLAN statt mobile Daten wechseln oder neu verbinden. Buzzer bleiben dank Uhrensynchronisation fair.',
     details: details,
   );
 }
@@ -453,8 +518,7 @@ TechCheckResult _tv(TechCheckInput input, TechCheckThresholds thresholds) {
     summary: tvs.isEmpty
         ? 'Keine TV-Ansicht verbunden.'
         : 'Die TV-Ansicht antwortet nicht.',
-    nextStep:
-        'Auf dem TV die TV-Adresse öffnen (QR-Code im Bereich „Server“) oder den Check als nicht erforderlich markieren.',
+    nextStep: 'Auf dem TV die TV-Adresse öffnen (QR-Code im Bereich „Server“) oder den Check als nicht erforderlich markieren.',
   );
 }
 
@@ -482,7 +546,8 @@ TechCheckResult _media(TechCheckInput input) {
       status: TechCheckStatus.fail,
       summary: '{0} Mediendatei(en) sind beschädigt oder fehlen.',
       arguments: [summary.broken.length],
-      nextStep: 'Medium im Quiz-Editor erneut hochladen und das Quiz speichern.',
+      nextStep:
+          'Medium im Quiz-Editor erneut hochladen und das Quiz speichern.',
       details: summary.broken,
     );
   }
@@ -502,9 +567,10 @@ TechCheckResult _media(TechCheckInput input) {
   );
 }
 
-/// Plain text report that is safe to share: statuses and generic messages
-/// only. Room links, join codes, addresses and resume tokens never appear,
-/// because [TechCheckResult]s never carry them.
+/// Plain text report that is safe to share: statuses, generic messages and,
+/// for problems, the affected players or media (names only). Room links,
+/// join codes, addresses and resume tokens never appear, because
+/// [TechCheckResult]s never carry them.
 String techCheckReport(
   List<TechCheckResult> results,
   String Function(String key, [List<Object?> arguments]) tr,
@@ -514,5 +580,8 @@ String techCheckReport(
       '${result.id.name}: ${result.status.name}',
       '  ${tr(result.summary, result.arguments)}',
       '  → ${tr(result.nextStep)}',
+      if (result.status != TechCheckStatus.pass &&
+          result.status != TechCheckStatus.notRequired)
+        for (final detail in result.details) '    • $detail',
     ].join('\n'),
 ].join('\n');

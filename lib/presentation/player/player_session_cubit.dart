@@ -32,6 +32,7 @@ final class PlayerSessionState extends Equatable {
     this.lobby,
     this.waitingForApproval = false,
     this.submissionStatus = SubmissionStatus.idle,
+    this.deviceCheckId,
   });
 
   /// Connection lifecycle.
@@ -63,6 +64,10 @@ final class PlayerSessionState extends Equatable {
   final LobbySnapshotMessage? lobby;
   final bool waitingForApproval;
   final SubmissionStatus submissionStatus;
+
+  /// Running device check of the host's technical check that this device
+  /// has not confirmed yet; `null` otherwise.
+  final String? deviceCheckId;
   bool get isChoosingTeam =>
       lobby != null &&
       playerId == null &&
@@ -124,6 +129,8 @@ final class PlayerSessionState extends Equatable {
     LobbySnapshotMessage? lobby,
     bool? waitingForApproval,
     SubmissionStatus? submissionStatus,
+    String? deviceCheckId,
+    bool clearDeviceCheck = false,
   }) => PlayerSessionState(
     status: status ?? this.status,
     game: game ?? this.game,
@@ -141,6 +148,9 @@ final class PlayerSessionState extends Equatable {
     submissionStatus:
         submissionStatus ??
         (clearSubmission ? SubmissionStatus.idle : this.submissionStatus),
+    deviceCheckId: clearDeviceCheck
+        ? null
+        : deviceCheckId ?? this.deviceCheckId,
   );
 
   @override
@@ -157,6 +167,7 @@ final class PlayerSessionState extends Equatable {
     lobby,
     waitingForApproval,
     submissionStatus,
+    deviceCheckId,
   ];
 }
 
@@ -326,6 +337,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   StreamSubscription<LobbySnapshotMessage>? _lobbySubscription;
   StreamSubscription<bool>? _admissionSubscription;
+  StreamSubscription<String?>? _deviceCheckSubscription;
   String _joiningName = '';
   String? _lastQuestionId;
   int? _lastRoundStart;
@@ -365,6 +377,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     });
     _admissionSubscription = client.admissions.listen((waiting) {
       if (!isClosed) emit(state.copyWith(waitingForApproval: waiting));
+    });
+    _deviceCheckSubscription = client.deviceChecks.listen((checkId) {
+      if (isClosed) return;
+      emit(
+        checkId == null
+            ? state.copyWith(clearDeviceCheck: true)
+            : state.copyWith(deviceCheckId: checkId),
+      );
     });
 
     _snapshotSubscription = client.snapshots.listen((snapshot) {
@@ -555,6 +575,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         emit(state.copyWith(error: '$error'));
       }
     }
+  }
+
+  /// Confirms the host's device check with a tap on this device.
+  void confirmDeviceCheck() {
+    final checkId = state.deviceCheckId;
+    if (checkId == null || !state.isConnected) return;
+    _client?.confirmDeviceCheck(checkId);
+    emit(state.copyWith(clearDeviceCheck: true));
   }
 
   void renameTeam(String name) {
@@ -819,12 +847,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     await _errorSubscription?.cancel();
     await _lobbySubscription?.cancel();
     await _admissionSubscription?.cancel();
+    await _deviceCheckSubscription?.cancel();
     _gameSubscription = null;
     _snapshotSubscription = null;
     _statusSubscription = null;
     _errorSubscription = null;
     _lobbySubscription = null;
     _admissionSubscription = null;
+    _deviceCheckSubscription = null;
     _lastQuestionId = null;
     await _client?.dispose();
     _client = null;

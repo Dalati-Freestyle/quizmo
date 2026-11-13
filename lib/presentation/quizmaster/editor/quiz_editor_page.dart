@@ -600,5 +600,4 @@ class _TeamDialogState extends State<_TeamDialog> {
       ),
     );
   }
-
 }

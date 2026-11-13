@@ -44,6 +44,15 @@ final class RelayHost implements EmbeddedQuizServer {
   @override
   List<ConnectionHealth> get connectionHealth =>
       _hub?.connectionHealth ?? const [];
+
+  @override
+  DeviceCheckStatus? get deviceCheck => _hub?.deviceCheck;
+
+  @override
+  DeviceCheckStatus? startDeviceCheck() => _hub?.startDeviceCheck();
+
+  @override
+  void stopDeviceCheck() => _hub?.stopDeviceCheck();
   @override
   bool get servesWebClient => isRunning;
   @override

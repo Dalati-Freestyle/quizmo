@@ -88,6 +88,15 @@ class EmbeddedServer implements EmbeddedQuizServer {
       _hub?.connectionHealth ?? const [];
 
   @override
+  DeviceCheckStatus? get deviceCheck => _hub?.deviceCheck;
+
+  @override
+  DeviceCheckStatus? startDeviceCheck() => _hub?.startDeviceCheck();
+
+  @override
+  void stopDeviceCheck() => _hub?.stopDeviceCheck();
+
+  @override
   Stream<ServerLogEntry> get logs => _logs.stream;
 
   /// Whether a non-empty web player bundle is being served at `/`.

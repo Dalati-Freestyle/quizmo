@@ -10,6 +10,8 @@ import '../quizmaster/layout/dashboard_layout_settings_page.dart'
     deferred as admin_layout;
 import '../quizmaster/wifi/guest_wifi_settings_page.dart'
     deferred as guest_wifi;
+import '../quizmaster/tech_check_settings_page.dart'
+    deferred as tech_check_settings;
 import 'ai_guide_download.dart' deferred as ai_guide;
 
 class SettingsButton extends StatelessWidget {
@@ -161,6 +163,18 @@ class _SettingsPageState extends State<SettingsPage> {
               onTap: () => _open(() async {
                 await admin_layout.loadLibrary();
                 return admin_layout.DashboardLayoutSettingsPage();
+              }),
+            ),
+            ListTile(
+              key: const ValueKey('settings-tech-check'),
+              leading: const Icon(Icons.network_check),
+              title: Text(context.tr('Technikcheck-Grenzwerte')),
+              subtitle: Text(
+                context.tr('Ab welcher Laufzeit der Technikcheck warnt'),
+              ),
+              onTap: () => _open(() async {
+                await tech_check_settings.loadLibrary();
+                return tech_check_settings.TechCheckSettingsPage();
               }),
             ),
             if (!kIsWeb)

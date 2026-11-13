@@ -159,6 +159,8 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                   children: [
                     ConnectionStatusView(status: state.status),
                     SubmissionStatusView(state: state),
+                    if (state.deviceCheckId != null && state.isConnected)
+                      const DeviceCheckBanner(),
                     if (!state.isConnected && state.error != null)
                       Padding(
                         padding: const EdgeInsets.all(12),
@@ -1176,6 +1178,48 @@ class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
             child: Text(context.tr("Einsatz bestätigen & Frage öffnen")),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Asks the player to confirm the device for the host's technical check.
+///
+/// Bound to `Listener.onPointerDown` like the buzzer, so the tap also proves
+/// that touch input reaches the app without delay.
+class DeviceCheckBanner extends StatelessWidget {
+  /// Creates the banner.
+  const DeviceCheckBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.tr(
+                'Technikcheck: Tippe auf den Knopf, damit die Spielleitung sieht, dass dein Gerät funktioniert.',
+              ),
+              style: TextStyle(color: scheme.onTertiaryContainer),
+            ),
+            const SizedBox(height: 8),
+            Listener(
+              key: const ValueKey('device-check-tap'),
+              onPointerDown: (_) =>
+                  context.read<PlayerSessionCubit>().confirmDeviceCheck(),
+              child: FilledButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.touch_app),
+                label: Text(context.tr('Hier tippen')),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

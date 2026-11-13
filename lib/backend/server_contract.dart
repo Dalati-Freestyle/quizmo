@@ -69,6 +69,36 @@ final class ConnectionHealth extends Equatable {
   List<Object?> get props => [role, playerId, silentForMicros];
 }
 
+/// A running device check: every player device is asked to confirm itself
+/// by a tap. Carries player ids only, no address, token or code.
+final class DeviceCheckStatus extends Equatable {
+  /// Creates the value.
+  const DeviceCheckStatus({
+    required this.id,
+    required this.startedAtMicros,
+    this.confirmedPlayerIds = const {},
+  });
+
+  /// Identifier sent to the devices.
+  final String id;
+
+  /// Host clock when the check started.
+  final int startedAtMicros;
+
+  /// Players whose device confirmed the check.
+  final Set<String> confirmedPlayerIds;
+
+  /// Returns a copy in which [playerId] confirmed.
+  DeviceCheckStatus confirm(String playerId) => DeviceCheckStatus(
+    id: id,
+    startedAtMicros: startedAtMicros,
+    confirmedPlayerIds: Set.unmodifiable({...confirmedPlayerIds, playerId}),
+  );
+
+  @override
+  List<Object?> get props => [id, startedAtMicros, confirmedPlayerIds];
+}
+
 /// Where a running server can be reached.
 final class ServerEndpoint extends Equatable {
   /// Creates an endpoint description.
@@ -163,6 +193,16 @@ abstract interface class EmbeddedQuizServer {
 
   /// Open sockets with the time since their last frame (technical check).
   List<ConnectionHealth> get connectionHealth;
+
+  /// The running device check, or `null`.
+  DeviceCheckStatus? get deviceCheck;
+
+  /// Asks every player device to confirm itself by a tap; `null` while the
+  /// server is stopped.
+  DeviceCheckStatus? startDeviceCheck();
+
+  /// Ends the device check on every player device.
+  void stopDeviceCheck();
 
   /// Whether a non-empty web player bundle is being served at `/`.
   ///

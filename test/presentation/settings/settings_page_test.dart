@@ -17,6 +17,9 @@ void main() {
   Future<void> pump(WidgetTester tester, {required bool host}) async {
     final cubit = LocaleCubit(store: _MemoryLanguageStore());
     addTearDown(cubit.close);
+    tester.view.physicalSize = const Size(900, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: const [AppLocalizations.delegate],
@@ -39,6 +42,7 @@ void main() {
     expect(find.byKey(const ValueKey('settings-admin-layout')), findsOneWidget);
     expect(find.byKey(const ValueKey('settings-guest-wifi')), findsOneWidget);
     expect(find.byKey(const ValueKey('settings-ai-guide')), findsOneWidget);
+    expect(find.byKey(const ValueKey('settings-tech-check')), findsOneWidget);
     expect(find.text('Create a quiz with AI'), findsOneWidget);
   });
 

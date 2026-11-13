@@ -95,6 +95,12 @@ class QuizClient {
   /// Guest Wi-Fi announcements of a LAN host (spectators only).
   Stream<GuestWifi?> get guestWifi => _guestWifi.stream;
 
+  final _deviceChecks = StreamController<String?>.broadcast();
+
+  /// Device checks of the host's technical check: an id asks the player to
+  /// confirm the device by a tap, `null` ends the request.
+  Stream<String?> get deviceChecks => _deviceChecks.stream;
+
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
   Timer? _resyncTimer;
@@ -258,6 +264,12 @@ class QuizClient {
     _send(RenameTeamMessage(name: name));
   }
 
+  /// Confirms the device check [checkId] (a tap on the player device).
+  void confirmDeviceCheck(String checkId) {
+    if (_playerId == null) return;
+    _send(DeviceCheckReply(checkId));
+  }
+
   /// Watches the session as a read-only spectator, for example on a TV.
   ///
   /// Unlike [connect] this skips the clock handshake and never creates a
@@ -387,6 +399,7 @@ class QuizClient {
     await _errors.close();
     await _lobbies.close();
     await _guestWifi.close();
+    await _deviceChecks.close();
     await _admissions.close();
   }
 
@@ -558,6 +571,8 @@ class QuizClient {
         );
       case GuestWifiMessage(:final wifi):
         if (!_guestWifi.isClosed) _guestWifi.add(wifi);
+      case DeviceCheckMessage(:final checkId):
+        if (!_deviceChecks.isClosed) _deviceChecks.add(checkId);
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
         if (!_snapshots.isClosed) _snapshots.add(message);

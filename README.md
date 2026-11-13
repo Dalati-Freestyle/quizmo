@@ -112,13 +112,17 @@ with an AI assistant using [the AI quiz guide](docs/ai-quiz-guide.md).
 **Tech check** (dashboard app bar or the **Start quiz** section) checks the
 host server (a timed, cancellable request to its own LAN address), the
 reachability for guests, player connections, latency and clock sync against
-thresholds (good up to 150 ms round trip, error above 400 ms), the TV and the
-quiz media (checksums of uploads, online media). Each finding is passed,
+thresholds (default: good up to 300 ms round trip, error above 1000 ms;
+adjustable under **Settings > Hosting > Tech check thresholds**), the TV and
+the quiz media (checksums of uploads, online media). **Start device test**
+asks every player device to show a "Tap here" button; the check lists who
+has not tapped yet. The test never touches the game and ends when the check
+page is closed. Each finding is passed,
 warning, error, not checkable or not required, with a next step. Missing data
 is never shown as success, and a local server answer never counts as proof
 that guests can reach the host. Warnings can be acknowledged; TV and media can
 be marked as not required. **Copy report** contains no links, addresses, codes
-or tokens. The check never changes the game.
+or tokens; for problems it names the affected players or media. The check never changes the game.
 
 Multi-device procedure: start the server, join with one phone over the QR code
 and open the TV address on the TV; run the check and expect "passed" for

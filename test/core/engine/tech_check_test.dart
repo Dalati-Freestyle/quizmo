@@ -19,7 +19,9 @@ TechCheckInput _input({
   List<Question> questions = const [_question],
   bool tvRequired = true,
   bool mediaRequired = true,
+  Set<String>? deviceTest,
 }) => TechCheckInput(
+  deviceTestConfirmed: deviceTest,
   serverRunning: running,
   internet: internet,
   health: health,
@@ -166,9 +168,28 @@ void main() {
         ),
         TechCheckId.latency,
       ).status;
-      expect(status(80), TechCheckStatus.pass);
-      expect(status(250), TechCheckStatus.warning);
-      expect(status(900), TechCheckStatus.fail);
+      // Generous defaults for games through the internet relay.
+      expect(status(250), TechCheckStatus.pass);
+      expect(status(600), TechCheckStatus.warning);
+      expect(status(1200), TechCheckStatus.fail);
+      // Custom thresholds from the settings.
+      final custom = evaluateTechCheck(
+        _input(
+          players: [Player(id: 'a', name: 'A', roundTripMicros: 250000)],
+        ),
+        thresholds: const TechCheckThresholds(
+          goodRoundTrip: Duration(milliseconds: 100),
+          maxRoundTrip: Duration(milliseconds: 200),
+        ),
+      ).firstWhere((result) => result.id == TechCheckId.latency);
+      expect(custom.status, TechCheckStatus.fail);
+      expect(
+        const TechCheckThresholds(
+          goodRoundTrip: Duration(milliseconds: 500),
+          maxRoundTrip: Duration(milliseconds: 100),
+        ).isValid,
+        isFalse,
+      );
     });
 
     test('a connected player without a sample turns a pass into a warning', () {
@@ -282,5 +303,52 @@ void main() {
     expect(report, isNot(contains('192.168')));
     expect(report, isNot(contains('http')));
     expect(report, contains('hostServer: pass'));
+  });
+
+  test('the report names the players affected by a problem', () {
+    final results = evaluateTechCheck(
+      _input(
+        players: const [
+          Player(id: 'p', name: 'Anna', isConnected: true),
+          Player(id: 'q', name: 'Ben', isConnected: true),
+        ],
+        connections: [_player('p'), _player('q')],
+        deviceTest: const {'p'},
+      ),
+    );
+    final report = techCheckReport(results, (key, [args = const []]) => key);
+    expect(report, contains('deviceTest: warning'));
+    expect(report, contains('• Ben'));
+    expect(report, isNot(contains('• Anna')));
+  });
+
+  group('device test', () {
+    test('a test that was not started is not checkable', () {
+      expect(
+        _result(_input(), TechCheckId.deviceTest).status,
+        TechCheckStatus.notCheckable,
+      );
+    });
+
+    test('passes once every connected player tapped', () {
+      final players = const [
+        Player(id: 'p', name: 'Anna', isConnected: true),
+        Player(id: 'q', name: 'Ben', isConnected: true),
+        Player(id: 'r', name: 'Cem', isConnected: false),
+      ];
+      final waiting = _result(
+        _input(players: players, deviceTest: const {}),
+        TechCheckId.deviceTest,
+      );
+      expect(waiting.status, TechCheckStatus.warning);
+      expect(waiting.details, ['Anna', 'Ben']);
+      expect(
+        _result(
+          _input(players: players, deviceTest: const {'p', 'q'}),
+          TechCheckId.deviceTest,
+        ).status,
+        TechCheckStatus.pass,
+      );
+    });
   });
 }

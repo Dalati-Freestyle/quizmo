@@ -116,6 +116,48 @@ class SocketHub {
   /// Number of open sockets.
   int get connectionCount => _connections.length;
 
+  DeviceCheckStatus? _deviceCheck;
+  var _deviceCheckCount = 0;
+
+  /// The running device check (technical check), or `null`.
+  DeviceCheckStatus? get deviceCheck => _deviceCheck;
+
+  /// Asks every player device to confirm itself by a tap. Replaces a running
+  /// check; never touches the game state.
+  DeviceCheckStatus startDeviceCheck() {
+    final check = DeviceCheckStatus(
+      id: 'check-${++_deviceCheckCount}-${_now()}',
+      startedAtMicros: _now(),
+    );
+    _deviceCheck = check;
+    for (final connection in _connections.values) {
+      _sendDeviceCheck(connection);
+    }
+    return check;
+  }
+
+  /// Ends the device check on every player device.
+  void stopDeviceCheck() {
+    if (_deviceCheck == null) return;
+    _deviceCheck = null;
+    for (final connection in _connections.values) {
+      if (connection.playerId != null && !connection.isSpectator) {
+        connection.send(const DeviceCheckMessage(null));
+      }
+    }
+  }
+
+  void _sendDeviceCheck(_Connection connection) {
+    final check = _deviceCheck;
+    if (check == null ||
+        connection.playerId == null ||
+        connection.isSpectator ||
+        check.confirmedPlayerIds.contains(connection.playerId)) {
+      return;
+    }
+    connection.send(DeviceCheckMessage(check.id));
+  }
+
   /// Liveness of every joined socket (players, TVs, lobby browsers).
   List<ConnectionHealth> get connectionHealth {
     final now = _now();
@@ -500,6 +542,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendDeviceCheck(connection);
         _log(ServerLogLevel.info, 'Participant $playerId joined.');
 
       case LobbyRequest():
@@ -649,6 +692,12 @@ class SocketHub {
           ),
         );
 
+      case DeviceCheckReply(:final checkId):
+        final playerId = connection.playerId;
+        final check = _deviceCheck;
+        if (playerId == null || check == null || check.id != checkId) return;
+        _deviceCheck = check.confirm(playerId);
+
       case LeaveNotice():
         _onDisconnected(connection);
         connection.closeSocket();
@@ -772,6 +821,7 @@ class SocketHub {
         ),
       );
       connection.send(_snapshotFor(connection));
+      _sendDeviceCheck(connection);
     } on Object {
       connection.send(
         const ProtocolErrorMessage(

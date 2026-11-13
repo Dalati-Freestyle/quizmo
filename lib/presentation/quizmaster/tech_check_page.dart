@@ -15,6 +15,7 @@ import '../../core/models/models.dart';
 import '../common/question_media_view.dart';
 import '../l10n/app_localizations.dart';
 import 'host_server_cubit.dart';
+import 'tech_check_settings.dart';
 
 /// Shows the readiness findings and lets the host repeat single checks.
 ///
@@ -26,7 +27,7 @@ class TechCheckPage extends StatefulWidget {
     required this.engine,
     required this.server,
     required this.questions,
-    this.thresholds = const TechCheckThresholds(),
+    this.thresholds,
     this.probeTimeout = const Duration(seconds: 5),
     this.httpClient,
     super.key,
@@ -41,8 +42,8 @@ class TechCheckPage extends StatefulWidget {
   /// Questions of the quiz for the media check.
   final List<Question> questions;
 
-  /// Latency thresholds shown with the results.
-  final TechCheckThresholds thresholds;
+  /// Latency thresholds; `null` uses the ones stored in the settings.
+  final TechCheckThresholds? thresholds;
 
   /// Time limit of the health request.
   final Duration probeTimeout;
@@ -62,6 +63,8 @@ class _TechCheckPageState extends State<TechCheckPage> {
   bool _tvRequired = true;
   bool _mediaRequired = true;
   final _acknowledged = <TechCheckId>{};
+  late TechCheckThresholds _thresholds =
+      widget.thresholds ?? const TechCheckThresholds();
 
   bool get _internet => kIsWeb;
 
@@ -69,6 +72,13 @@ class _TechCheckPageState extends State<TechCheckPage> {
   void initState() {
     super.initState();
     unawaited(_probe());
+    if (widget.thresholds == null) {
+      unawaited(
+        TechCheckSettingsStore.instance.load().then((value) {
+          if (mounted) setState(() => _thresholds = value);
+        }),
+      );
+    }
     _refresh = Timer.periodic(const Duration(seconds: 2), (_) {
       if (mounted) setState(() {});
     });
@@ -77,6 +87,8 @@ class _TechCheckPageState extends State<TechCheckPage> {
   @override
   void dispose() {
     _refresh?.cancel();
+    // Leaving the check ends the request on the player devices.
+    widget.server.stopDeviceCheck();
     _client?.close();
     super.dispose();
   }
@@ -150,8 +162,28 @@ class _TechCheckPageState extends State<TechCheckPage> {
         questions: widget.questions,
         tvRequired: _tvRequired,
         mediaRequired: _mediaRequired,
+        deviceTestConfirmed: widget.server.deviceCheck?.confirmedPlayerIds,
       ),
-      thresholds: widget.thresholds,
+      thresholds: _thresholds,
+    );
+  }
+
+  Widget? _deviceTestButton(BuildContext context) {
+    if (widget.server.state.status != HostServerStatus.running) return null;
+    final running = widget.server.deviceCheck != null;
+    return TextButton.icon(
+      key: const ValueKey('tech-check-device-test'),
+      icon: Icon(running ? Icons.stop_circle_outlined : Icons.touch_app),
+      label: Text(
+        context.tr(running ? 'Gerätetest beenden' : 'Gerätetest starten'),
+      ),
+      onPressed: () => setState(() {
+        if (running) {
+          widget.server.stopDeviceCheck();
+        } else {
+          widget.server.startDeviceCheck();
+        }
+      }),
     );
   }
 
@@ -272,14 +304,16 @@ class _TechCheckPageState extends State<TechCheckPage> {
                   TechCheckId.media => _mediaRequired,
                   _ => true,
                 },
-                extra: result.id == TechCheckId.media && _testMedia != null
-                    ? TextButton.icon(
-                        key: const ValueKey('tech-check-play'),
-                        icon: const Icon(Icons.play_circle_outline),
-                        label: Text(context.tr('Testwiedergabe')),
-                        onPressed: () => _playTest(_testMedia!),
-                      )
-                    : null,
+                extra: switch (result.id) {
+                  TechCheckId.media when _testMedia != null => TextButton.icon(
+                    key: const ValueKey('tech-check-play'),
+                    icon: const Icon(Icons.play_circle_outline),
+                    label: Text(context.tr('Testwiedergabe')),
+                    onPressed: () => _playTest(_testMedia!),
+                  ),
+                  TechCheckId.deviceTest => _deviceTestButton(context),
+                  _ => null,
+                },
               ),
           ],
         ),
@@ -315,6 +349,7 @@ class _ResultCard extends StatelessWidget {
     TechCheckId.hostServer => 'Host-Server',
     TechCheckId.reachability => 'Erreichbarkeit für Gäste',
     TechCheckId.players => 'Spieler-Verbindungen',
+    TechCheckId.deviceTest => 'Gerätetest (alle tippen)',
     TechCheckId.latency => 'Latenz und Uhrensynchronisation',
     TechCheckId.tv => 'TV-Verbindung',
     TechCheckId.media => 'Medien',
