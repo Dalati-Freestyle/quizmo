@@ -1152,5 +1152,11 @@
   "Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.": "Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.",
   "Gerätetest (alle tippen)": "Gerätetest (alle tippen)",
   "Gerätetest starten": "Gerätetest starten",
-  "Gerätetest beenden": "Gerätetest beenden"
+  "Gerätetest beenden": "Gerätetest beenden",
+  "Quiz vorzeitig beenden?": "Quiz vorzeitig beenden?",
+  "Quiz vorzeitig beenden": "Quiz vorzeitig beenden",
+  "Die laufende Runde wird abgebrochen und nicht gewertet.": "Die laufende Runde wird abgebrochen und nicht gewertet.",
+  "{0} Fragen wurden noch nicht gespielt.": "{0} Fragen wurden noch nicht gespielt.",
+  "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.": "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.",
+  "Quiz beenden": "Quiz beenden"
 }

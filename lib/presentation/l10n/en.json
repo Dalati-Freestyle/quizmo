@@ -1152,5 +1152,11 @@
   "Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.": "Ask the affected players to tap “Tap here”. If the button does not appear, reload the page.",
   "Gerätetest (alle tippen)": "Device test (everyone taps)",
   "Gerätetest starten": "Start device test",
-  "Gerätetest beenden": "End device test"
+  "Gerätetest beenden": "End device test",
+  "Quiz vorzeitig beenden?": "End the quiz early?",
+  "Quiz vorzeitig beenden": "End the quiz early",
+  "Die laufende Runde wird abgebrochen und nicht gewertet.": "The running round is cancelled and not scored.",
+  "{0} Fragen wurden noch nicht gespielt.": "{0} questions have not been played yet.",
+  "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.": "Players and the TV then see the final page. Only resetting the game undoes this.",
+  "Quiz beenden": "End quiz"
 }

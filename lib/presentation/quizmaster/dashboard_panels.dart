@@ -1014,6 +1014,7 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onNext,
     required this.onCloseRound,
     this.onFinish,
+    this.onFinishEarly,
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
@@ -1042,6 +1043,55 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Finishes the game once every question is played.
   final VoidCallback? onFinish;
+
+  /// Ends the game before every question is played; asks for a
+  /// confirmation first.
+  final VoidCallback? onFinishEarly;
+
+  Future<void> _confirmEarlyFinish(BuildContext context, GameState game) async {
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    final open =
+        (game.jeopardy?.board.questionIds ?? game.questionBank.map((q) => q.id))
+            .where((id) => !game.completedQuestionIds.contains(id))
+            .length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.tr('Quiz vorzeitig beenden?')),
+        content: Text(
+          [
+            if (running)
+              context.tr(
+                'Die laufende Runde wird abgebrochen und nicht gewertet.',
+              ),
+            context.tr('{0} Fragen wurden noch nicht gespielt.', [open]),
+            context.tr(
+              'Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.',
+            ),
+          ].join('\n\n'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.tr('Abbrechen')),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-finish-early'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.tr('Quiz beenden')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) onFinishEarly?.call();
+  }
+
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
@@ -1059,12 +1109,24 @@ class LiveRoundPanel extends StatelessWidget {
     return PanelCard(
       title: context.tr("Live round"),
       icon: Icons.sensors,
-      trailing: Chip(
-        visualDensity: VisualDensity.compact,
-        label: Text(
-          context.tr(round.status.name),
-          style: theme.textTheme.labelSmall,
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Chip(
+            visualDensity: VisualDensity.compact,
+            label: Text(
+              context.tr(round.status.name),
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+          if (game.canFinishEarly && !game.canFinish && onFinishEarly != null)
+            IconButton(
+              key: const ValueKey('finish-quiz-early'),
+              tooltip: context.tr('Quiz vorzeitig beenden'),
+              icon: const Icon(Icons.outlined_flag),
+              onPressed: () => _confirmEarlyFinish(context, game),
+            ),
+        ],
       ),
       child: question == null
           ? Column(

@@ -70,7 +70,10 @@ portable quiz schema.
 
 The last reveal does not end the game: players and TVs keep the solution of the
 last question until the host presses **Quiz abschließen** (Finish quiz) in the
-running round section. Players then get the final page with their placement
+running round section. The flag icon in that section's header (**Quiz vorzeitig
+beenden**) ends a game early after a confirmation; a running round is then
+cancelled without scoring and reserved poker stakes go back to the teams.
+Players then get the final page with their placement
 (shown as a pop-up that fades out after a few seconds), the standings and the
 game protocol as a view and PDF (emoji are drawn with the bundled Noto Emoji
 font, in the browser in colour). Then the host dashboard shows **Final report** with the

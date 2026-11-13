@@ -269,6 +269,10 @@ final class GameState extends Equatable {
         completedQuestionIds.contains,
       );
 
+  /// Whether the host can end the game before every question is played
+  /// (after a confirmation; a running round is cancelled without scoring).
+  bool get canFinishEarly => isStarted && !isFinished && !recoveryPaused;
+
   /// Whether the host can finish the game now: every question is played and
   /// no round is running.
   bool get canFinish =>

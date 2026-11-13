@@ -307,9 +307,19 @@ final class RevealRoundEvent extends QuizEngineEvent {
 
 /// Finishes the game after the last question: guests then get the final
 /// page with standings and protocol, and deferred solutions are published.
+///
+/// With [early] the host ends the game before every question is played; a
+/// running round is then cancelled without scoring. The host UI asks for a
+/// confirmation first.
 final class FinishQuizEvent extends QuizEngineEvent {
   /// Finishes the game.
-  const FinishQuizEvent();
+  const FinishQuizEvent({this.early = false});
+
+  /// Whether unplayed questions or a running round may be skipped.
+  final bool early;
+
+  @override
+  List<Object?> get props => [early];
 }
 
 /// Clears scores, history and round, keeping players and question bank.

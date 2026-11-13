@@ -253,14 +253,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
     on<ResetGameEvent>(_onResetGame);
     on<FinishQuizEvent>((event, emit) {
-      final game = state.game;
-      if (!game.canFinish) {
+      var game = state.game;
+      if (!(event.early ? game.canFinishEarly : game.canFinish)) {
         emit(
           state.copyWith(notice: 'Das Quiz kann noch nicht beendet werden.'),
         );
         return;
       }
       _graceTimer?.cancel();
+      _roundTimer?.cancel();
+      if (event.early) game = _cancelRunningRound(game);
       emit(_publish(game.copyWith(isFinished: true)));
     });
     on<ExpireRoundEvent>((event, emit) {
@@ -744,6 +746,39 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             player.id: player.copyWith(teamId: event.teamId),
           },
         ),
+      ),
+    );
+  }
+
+  /// Cancels a round that is not revealed yet, for an early end of the game:
+  /// nothing is scored, the question stays unplayed, reserved poker stakes go
+  /// back to the teams and pending board picks are dropped.
+  GameState _cancelRunningRound(GameState game) {
+    final poker = game.poker;
+    final jeopardy = game.jeopardy;
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    return game.copyWith(
+      round: running ? RoundState.idle : game.round,
+      poker: poker == null || game.round.status == RoundStatus.revealed
+          ? poker
+          : poker.copyWith(
+              chips: {
+                for (final entry in poker.chips.entries)
+                  entry.key: poker.settledTeamIds.contains(entry.key)
+                      ? entry.value
+                      : entry.value + (poker.wagers[entry.key] ?? 0),
+              },
+              wagers: const {},
+              betting: false,
+            ),
+      jeopardy: jeopardy?.copyWith(
+        pendingDailyDoubleId: null,
+        pendingPickQuestionId: null,
+        pendingPickPlayerId: null,
+        activePoints: running ? null : jeopardy.activePoints,
+        isStealRound: running ? false : jeopardy.isStealRound,
       ),
     );
   }
