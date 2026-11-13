@@ -963,5 +963,12 @@
   "No password": "Kein Passwort",
   "Password: {0}": "Passwort: {0}",
   "Guest Wi-Fi": "Gäste-WLAN",
-  "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "Der gehostete Web-Client ist veraltet ({0}). TV-Ansichten und Browser-Spieler sehen neuere Funktionen nicht. `dart run tool/bundle_web_client.dart` ausführen und den Host neu bauen."
+  "The hosted web player is outdated ({0}). TV screens and browser players miss newer features. Run `dart run tool/bundle_web_client.dart` and rebuild the host.": "Der gehostete Web-Client ist veraltet ({0}). TV-Ansichten und Browser-Spieler sehen neuere Funktionen nicht. `dart run tool/bundle_web_client.dart` ausführen und den Host neu bauen.",
+  "Ziel": "Ziel",
+  "Keine Begründung": "Keine Begründung",
+  "Ohne Bezug zu einer Frage": "Ohne Bezug zu einer Frage",
+  "Aktueller Stand: {0} Chips": "Aktueller Stand: {0} Chips",
+  "Begründung (Pflicht)": "Begründung (Pflicht)",
+  "Bitte eine Begründung angeben.": "Bitte eine Begründung angeben.",
+  "Bitte eine Begründung angeben oder „Keine Begründung“ wählen.": "Bitte eine Begründung angeben oder „Keine Begründung“ wählen."
 }
