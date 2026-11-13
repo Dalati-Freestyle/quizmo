@@ -121,6 +121,9 @@ flutter:
     - assets/web_client/
     # Unicode fonts for the protocol PDF (Roboto, Apache 2.0, see LICENSE.txt).
     - assets/fonts/protocol/
+    # Guide for AI assistants that write importable quiz files; the same file
+    # as in the repository (single source, see docs/ai-quiz-guide.md).
+    - docs/ai-quiz-guide.md
 
   # To add assets to your application, add an assets section, like this:
   # assets:

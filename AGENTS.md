@@ -106,6 +106,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * If a quiz file requires a schema newer than the installed app supports, stop the import before touching persistence and explicitly prompt the user to update Quizmo and retry. Treat malformed versions and other invalid content as validation errors, not update requests. Compatibility means newer apps can read all older files; older apps must clearly request an update for newer files.
 * Cover compatibility with fixed fixtures from older releases and round-trip tests that include question and solution media. Invalid imports must leave the library untouched.
 * The portable format is a single `*.quizmo.json` document: quiz metadata, format rules, teams, questions, solutions, and uploaded media bytes (Base64, MIME type, SHA-256 ID). YouTube and map attachments retain their references; their remote content is not embedded.
+* `docs/ai-quiz-guide.md` describes the file format for AI assistants and ships in the app (settings → "Quiz mit KI erstellen"). Every schema bump MUST update its description and examples; `test/core/data/ai_quiz_guide_test.dart` fails until the guide states the new `schemaVersion` and all its examples import cleanly.
 
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs

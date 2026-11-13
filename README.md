@@ -156,6 +156,17 @@ defaults and restores deleted ones. Saving an example in the editor makes it a
 normal quiz: it and all custom quizzes are preserved, even across repeated resets.
 Default status is local library metadata, not part of exported quiz files.
 
+## Create a quiz with an AI assistant
+
+[`docs/ai-quiz-guide.md`](docs/ai-quiz-guide.md) is a guide for any current AI
+assistant (ChatGPT, Claude, Gemini, …). Load or paste it into a chat: the
+assistant offers a fully automatic mode or walks you through format, teams,
+timers, scoring and every question, and ends with one importable
+`*.quizmo.json` file. Hosts can download the same file in the app under
+**Settings > Hosting > Create a quiz with AI**. It covers all formats and
+question types of the current schema; uploaded images and audio are added in
+the editor afterwards.
+
 ## Editor preview
 
 Choose **Preview quiz / Quiz-Vorschau** in the quiz editor to play the current
