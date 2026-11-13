@@ -33,6 +33,7 @@ import 'recovery/rebind_recovery_panel.dart';
 import '../../core/engine/session_access.dart';
 import 'session_access_panel.dart';
 import 'session_report_panel.dart';
+import 'tech_check_page.dart' deferred as tech_check;
 import 'layout/dashboard_layout.dart';
 import 'layout/dashboard_section_view.dart';
 import 'wifi/guest_wifi_toggle.dart';
@@ -360,6 +361,11 @@ class _HostDashboardView extends StatelessWidget {
               appBar: AppBar(
                 title: Text(context.tr("Quizmaster · {0}", [quizName])),
                 actions: [
+                  IconButton(
+                    tooltip: context.tr("Technikcheck"),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    onPressed: () => openTechCheck(context, game),
+                  ),
                   const SettingsButton(),
                   IconButton(
                     tooltip: context.tr("Preview the TV screen"),
@@ -523,6 +529,13 @@ class _HostDashboardView extends StatelessWidget {
                                   engine.add(const StartGameEvent()),
                               icon: const Icon(Icons.play_arrow),
                               label: Text(context.tr("Quiz jetzt starten")),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              key: const ValueKey("open-tech-check"),
+                              onPressed: () => openTechCheck(context, game),
+                              icon: const Icon(Icons.fact_check_outlined),
+                              label: Text(context.tr("Technikcheck")),
                             ),
                           ],
                         ),
@@ -725,4 +738,21 @@ class _HostDashboardView extends StatelessWidget {
       },
     );
   }
+}
+
+/// Opens the optional technical check (loaded on demand).
+Future<void> openTechCheck(BuildContext context, GameState game) async {
+  final engine = context.read<QuizEngineBloc>();
+  final server = context.read<HostServerCubit>();
+  final navigator = Navigator.of(context);
+  await tech_check.loadLibrary();
+  await navigator.push(
+    MaterialPageRoute<void>(
+      builder: (_) => tech_check.TechCheckPage(
+        engine: engine,
+        server: server,
+        questions: game.questionBank,
+      ),
+    ),
+  );
 }
