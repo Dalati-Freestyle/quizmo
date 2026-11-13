@@ -8,17 +8,24 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dashboard_layout.dart';
 
-/// Reads and writes the raw layout document.
+/// Reads and writes the raw layout documents.
 abstract interface class DashboardLayoutBackend {
-  /// Returns the stored document, or `null`.
+  /// Returns the stored active layout, or `null`.
   Future<String?> read();
 
-  /// Stores [value].
+  /// Stores the active layout [value].
   Future<void> write(String value);
+
+  /// Returns the stored library of named layouts, or `null`.
+  Future<String?> readLibrary();
+
+  /// Stores the library of named layouts.
+  Future<void> writeLibrary(String value);
 }
 
 final class _PreferencesBackend implements DashboardLayoutBackend {
   static const _key = 'quizmo.dashboard-layout.v1';
+  static const _libraryKey = 'quizmo.dashboard-layouts.v1';
   late final _preferences = SharedPreferencesAsync();
 
   @override
@@ -26,12 +33,20 @@ final class _PreferencesBackend implements DashboardLayoutBackend {
 
   @override
   Future<void> write(String value) => _preferences.setString(_key, value);
+
+  @override
+  Future<String?> readLibrary() => _preferences.getString(_libraryKey);
+
+  @override
+  Future<void> writeLibrary(String value) =>
+      _preferences.setString(_libraryKey, value);
 }
 
 /// Shares the layout between the settings screen and the dashboard.
 ///
 /// A missing or broken stored layout yields the standard layout instead of an
-/// error, so the dashboard always renders.
+/// error, so the dashboard always renders. Besides the active layout the host
+/// can keep named layouts in a library and switch between them.
 final class DashboardLayoutStore {
   DashboardLayoutStore._(this._backend);
 
@@ -53,12 +68,24 @@ final class DashboardLayoutStore {
     DashboardLayout.standard(),
   );
 
-  /// Loads the stored layout once.
+  /// Named layouts of the library, sorted by name.
+  final ValueNotifier<List<NamedDashboardLayout>> library = ValueNotifier(
+    const [],
+  );
+
+  /// Loads the stored layout and library once.
   Future<void> load() => _loading ??= () async {
     try {
       layout.value = DashboardLayout.decode(await _backend.read());
     } on Object {
       layout.value = DashboardLayout.standard();
+    }
+    try {
+      library.value = _sorted(
+        NamedDashboardLayout.decodeLibrary(await _backend.readLibrary()),
+      );
+    } on Object {
+      library.value = const [];
     }
   }();
 
@@ -76,4 +103,41 @@ final class DashboardLayoutStore {
     layout.value = value;
     await _backend.write(value.encode());
   }
+
+  /// Saves [value] under [name] in the library, replacing an entry with the
+  /// same name.
+  Future<void> saveAs(String name, DashboardLayout value) => _writeLibrary([
+    for (final entry in library.value)
+      if (entry.name != name.trim()) entry,
+    NamedDashboardLayout(name: name.trim(), layout: value),
+  ]);
+
+  /// Renames the library entry [from] to [to] (replacing an entry named [to]).
+  Future<void> rename(String from, String to) => _writeLibrary([
+    for (final entry in library.value)
+      if (entry.name == from)
+        NamedDashboardLayout(name: to.trim(), layout: entry.layout)
+      else if (entry.name != to.trim())
+        entry,
+  ]);
+
+  /// Removes the library entry [name].
+  Future<void> delete(String name) => _writeLibrary([
+    for (final entry in library.value)
+      if (entry.name != name) entry,
+  ]);
+
+  Future<void> _writeLibrary(List<NamedDashboardLayout> entries) async {
+    library.value = _sorted(entries);
+    await _backend.writeLibrary(
+      NamedDashboardLayout.encodeLibrary(library.value),
+    );
+  }
+
+  static List<NamedDashboardLayout> _sorted(
+    List<NamedDashboardLayout> entries,
+  ) => List.unmodifiable(
+    [...entries]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())),
+  );
 }

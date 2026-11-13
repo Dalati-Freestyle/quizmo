@@ -76,9 +76,11 @@ class _DashboardLayoutSettingsPageState
     }
   }
 
-  Future<void> _export(DashboardLayout layout) async {
+  Future<void> _export(DashboardLayout layout) => _exportFile(layout.encode());
+
+  Future<void> _exportFile(String contents) async {
     try {
-      await widget.saveLayoutFile(layout.encode());
+      await widget.saveLayoutFile(contents);
     } on Object {
       if (mounted) {
         setState(() => _error = 'Das Layout konnte nicht exportiert werden.');
@@ -105,12 +107,123 @@ class _DashboardLayoutSettingsPageState
       return;
     }
     await _save(layout);
+    // Imported layouts also land in the library to switch back later.
+    final name =
+        NamedDashboardLayout.nameInFile(contents) ??
+        (mounted ? context.tr('Importiertes Layout') : 'Importiertes Layout');
+    await _storeInLibrary(name, layout);
     if (mounted && _error == null) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(context.tr('Layout importiert.'))));
     }
   }
+
+  Future<void> _storeInLibrary(String name, DashboardLayout layout) async {
+    try {
+      await _store.saveAs(name, layout);
+    } on Object {
+      if (mounted) {
+        setState(
+          () =>
+              _error = 'Die Layout-Bibliothek konnte nicht gespeichert werden.',
+        );
+      }
+    }
+  }
+
+  Future<String?> _askName({String initial = ''}) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => _LayoutNameDialog(initial: initial),
+    );
+    final trimmed = name?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<void> _saveAs(DashboardLayout layout) async {
+    final name = await _askName();
+    if (name != null) await _storeInLibrary(name, layout);
+  }
+
+  Future<void> _openLibrary() => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: Text(context.tr('Gespeicherte Layouts')),
+      content: SizedBox(
+        width: 420,
+        child: ValueListenableBuilder<List<NamedDashboardLayout>>(
+          valueListenable: _store.library,
+          builder: (context, entries, _) => entries.isEmpty
+              ? Text(
+                  context.tr(
+                    'Noch keine Layouts gespeichert. „Speichern unter …“ legt das aktuelle Layout hier ab.',
+                  ),
+                )
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final entry in entries)
+                      ListTile(
+                        key: ValueKey('layout-library-${entry.name}'),
+                        leading: Icon(
+                          entry.layout == _store.layout.value
+                              ? Icons.check_circle
+                              : Icons.dashboard_outlined,
+                        ),
+                        title: Text(entry.name),
+                        subtitle: Text(context.tr('Antippen zum Anwenden')),
+                        onTap: () async {
+                          await _save(entry.layout);
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                        },
+                        trailing: PopupMenuButton<String>(
+                          key: ValueKey('layout-library-menu-${entry.name}'),
+                          onSelected: (action) async {
+                            switch (action) {
+                              case 'rename':
+                                final name = await _askName(
+                                  initial: entry.name,
+                                );
+                                if (name != null) {
+                                  await _store.rename(entry.name, name);
+                                }
+                              case 'export':
+                                await _exportFile(entry.encodeFile());
+                              case 'delete':
+                                await _store.delete(entry.name);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'rename',
+                              child: Text(context.tr('Umbenennen')),
+                            ),
+                            PopupMenuItem(
+                              value: 'export',
+                              child: Text(context.tr('Exportieren')),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text(context.tr('Löschen')),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: Text(context.tr('Schließen')),
+        ),
+      ],
+    ),
+  );
 
   Future<int?> _pickColor(int? current) => showDialog<int>(
     context: context,
@@ -165,6 +278,18 @@ class _DashboardLayoutSettingsPageState
                   icon: const Icon(Icons.restart_alt),
                   label: Text(context.tr('Standardlayout wiederherstellen')),
                   onPressed: () => _save(DashboardLayout.standard()),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('layout-save-as'),
+                  icon: const Icon(Icons.bookmark_add_outlined),
+                  label: Text(context.tr('Speichern unter …')),
+                  onPressed: () => _saveAs(layout),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('layout-library'),
+                  icon: const Icon(Icons.collections_bookmark_outlined),
+                  label: Text(context.tr('Gespeicherte Layouts')),
+                  onPressed: _openLibrary,
                 ),
                 OutlinedButton.icon(
                   key: const ValueKey('layout-export'),
@@ -288,5 +413,48 @@ class _DashboardLayoutSettingsPageState
         ],
       ),
     ),
+  );
+}
+
+/// Asks for the name of a saved layout; owns its text controller.
+class _LayoutNameDialog extends StatefulWidget {
+  const _LayoutNameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_LayoutNameDialog> createState() => _LayoutNameDialogState();
+}
+
+class _LayoutNameDialogState extends State<_LayoutNameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(context.tr('Name des Layouts')),
+    content: TextField(
+      key: const ValueKey('layout-name'),
+      controller: _controller,
+      autofocus: true,
+      maxLength: 60,
+      onSubmitted: (value) => Navigator.pop(context, value),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.tr('Abbrechen')),
+      ),
+      FilledButton(
+        key: const ValueKey('layout-name-ok'),
+        onPressed: () => Navigator.pop(context, _controller.text),
+        child: Text(context.tr('Speichern')),
+      ),
+    ],
   );
 }

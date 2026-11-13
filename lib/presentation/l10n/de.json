@@ -1158,5 +1158,15 @@
   "Die laufende Runde wird abgebrochen und nicht gewertet.": "Die laufende Runde wird abgebrochen und nicht gewertet.",
   "{0} Fragen wurden noch nicht gespielt.": "{0} Fragen wurden noch nicht gespielt.",
   "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.": "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.",
-  "Quiz beenden": "Quiz beenden"
+  "Quiz beenden": "Quiz beenden",
+  "Importiertes Layout": "Importiertes Layout",
+  "Gespeicherte Layouts": "Gespeicherte Layouts",
+  "Noch keine Layouts gespeichert. „Speichern unter …“ legt das aktuelle Layout hier ab.": "Noch keine Layouts gespeichert. „Speichern unter …“ legt das aktuelle Layout hier ab.",
+  "Antippen zum Anwenden": "Antippen zum Anwenden",
+  "Umbenennen": "Umbenennen",
+  "Exportieren": "Exportieren",
+  "Löschen": "Löschen",
+  "Speichern unter …": "Speichern unter …",
+  "Name des Layouts": "Name des Layouts",
+  "Die Layout-Bibliothek konnte nicht gespeichert werden.": "Die Layout-Bibliothek konnte nicht gespeichert werden."
 }

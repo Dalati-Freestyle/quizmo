@@ -255,3 +255,64 @@ final class DashboardLayout {
     return result;
   }
 }
+
+/// A layout the host saved under a [name] in the layout library.
+final class NamedDashboardLayout {
+  /// Creates an entry.
+  const NamedDashboardLayout({required this.name, required this.layout});
+
+  /// Display name chosen by the host.
+  final String name;
+
+  /// The saved layout.
+  final DashboardLayout layout;
+
+  /// Encodes the library [entries].
+  static String encodeLibrary(List<NamedDashboardLayout> entries) =>
+      jsonEncode({
+        'version': 1,
+        'layouts': [
+          for (final entry in entries)
+            {'name': entry.name, 'layout': entry.layout.encode()},
+        ],
+      });
+
+  /// Restores a library; never throws, broken entries are skipped.
+  static List<NamedDashboardLayout> decodeLibrary(String? source) {
+    if (source == null || source.isEmpty) return const [];
+    try {
+      final json = jsonDecode(source);
+      if (json is! Map || json['layouts'] is! List) return const [];
+      return [
+        for (final entry in json['layouts'] as List)
+          if (entry is Map &&
+              entry['name'] is String &&
+              (entry['name'] as String).trim().isNotEmpty &&
+              entry['layout'] is String)
+            NamedDashboardLayout(
+              name: (entry['name'] as String).trim(),
+              layout: DashboardLayout.decode(entry['layout'] as String),
+            ),
+      ];
+    } on Object {
+      return const [];
+    }
+  }
+
+  /// Export file of this entry: the layout file plus its name.
+  String encodeFile() => jsonEncode({
+    ...jsonDecode(layout.encode()) as Map<String, Object?>,
+    'name': name,
+  });
+
+  /// Name stored in an exported layout file, if any.
+  static String? nameInFile(String source) {
+    try {
+      final json = jsonDecode(source);
+      final name = json is Map ? json['name'] : null;
+      return name is String && name.trim().isNotEmpty ? name.trim() : null;
+    } on Object {
+      return null;
+    }
+  }
+}

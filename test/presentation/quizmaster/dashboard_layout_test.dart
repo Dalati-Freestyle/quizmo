@@ -19,6 +19,14 @@ class _MemoryBackend implements DashboardLayoutBackend {
 
   @override
   Future<void> write(String value) async => this.value = value;
+
+  String? libraryValue;
+
+  @override
+  Future<String?> readLibrary() async => libraryValue;
+
+  @override
+  Future<void> writeLibrary(String value) async => libraryValue = value;
 }
 
 class _MemoryWifiStore extends GuestWifiStore {
@@ -234,6 +242,70 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('layout-import')));
     await tester.pumpAndSettle();
     expect(store.layout.value, custom);
+    // The import also lands in the library.
+    expect(store.library.value.single.layout, custom);
+  });
+
+  test('the library saves, renames, deletes and survives a reload', () async {
+    final backend = _MemoryBackend();
+    DashboardLayoutStore.useBackend(backend);
+    final store = DashboardLayoutStore.instance;
+    await store.load();
+    final quiz = DashboardLayout.standard().withColor(2);
+    await store.saveAs('Quizabend', quiz);
+    await store.saveAs('Beamer', DashboardLayout.standard());
+    expect(store.library.value.map((e) => e.name), ['Beamer', 'Quizabend']);
+    await store.rename('Beamer', 'Großer Bildschirm');
+    await store.saveAs('Quizabend', DashboardLayout.standard().withColor(5));
+    await store.delete('Großer Bildschirm');
+
+    DashboardLayoutStore.useBackend(backend);
+    final reloaded = DashboardLayoutStore.instance;
+    await reloaded.load();
+    expect(reloaded.library.value, hasLength(1));
+    expect(reloaded.library.value.single.name, 'Quizabend');
+    expect(
+      reloaded.library.value.single.layout,
+      DashboardLayout.standard().withColor(5),
+    );
+    final file = reloaded.library.value.single.encodeFile();
+    expect(NamedDashboardLayout.nameInFile(file), 'Quizabend');
+    expect(
+      DashboardLayout.parseFile(file),
+      reloaded.library.value.single.layout,
+    );
+    expect(NamedDashboardLayout.decodeLibrary('broken'), isEmpty);
+  });
+
+  testWidgets('the settings screen saves and applies named layouts', (
+    tester,
+  ) async {
+    DashboardLayoutStore.useBackend(_MemoryBackend());
+    await tester.binding.setSurfaceSize(const Size(900, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(
+        localizationsDelegates: [AppLocalizations.delegate],
+        home: DashboardLayoutSettingsPage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final store = DashboardLayoutStore.instance;
+    await tester.tap(find.byKey(const ValueKey('layout-save-as')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('layout-name')), 'Party');
+    await tester.tap(find.byKey(const ValueKey('layout-name-ok')));
+    await tester.pumpAndSettle();
+    expect(store.library.value.single.name, 'Party');
+
+    await tester.tap(find.byKey(const ValueKey('layout-reset')));
+    await store.save(DashboardLayout.standard().withColor(9));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('layout-library')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('layout-library-Party')));
+    await tester.pumpAndSettle();
+    expect(store.layout.value, DashboardLayout.standard());
   });
 
   testWidgets('the admin view only switches the stored guest Wi-Fi', (

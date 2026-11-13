@@ -1158,5 +1158,15 @@
   "Die laufende Runde wird abgebrochen und nicht gewertet.": "The running round is cancelled and not scored.",
   "{0} Fragen wurden noch nicht gespielt.": "{0} questions have not been played yet.",
   "Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.": "Players and the TV then see the final page. Only resetting the game undoes this.",
-  "Quiz beenden": "End quiz"
+  "Quiz beenden": "End quiz",
+  "Importiertes Layout": "Imported layout",
+  "Gespeicherte Layouts": "Saved layouts",
+  "Noch keine Layouts gespeichert. „Speichern unter …“ legt das aktuelle Layout hier ab.": "No layouts saved yet. “Save as …” keeps the current layout here.",
+  "Antippen zum Anwenden": "Tap to apply",
+  "Umbenennen": "Rename",
+  "Exportieren": "Export",
+  "Löschen": "Delete",
+  "Speichern unter …": "Save as …",
+  "Name des Layouts": "Layout name",
+  "Die Layout-Bibliothek konnte nicht gespeichert werden.": "The layout library could not be saved."
 }
