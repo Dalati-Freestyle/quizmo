@@ -333,7 +333,10 @@ final class SessionReport {
             'reverses_correction': entry.reversesId,
             'score_delta': poker
                 ? entry.chipDeltas.values.fold<int>(0, (a, b) => a + b)
-                : entry.scoreDeltas.values.fold<int>(0, (a, b) => a + b),
+                : [
+                    ...entry.scoreDeltas.values,
+                    ...entry.teamDeltas.values,
+                  ].fold<int>(0, (a, b) => a + b),
           }),
       ]),
     );

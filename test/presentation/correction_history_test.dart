@@ -73,6 +73,7 @@ void main() {
           questionId: 'q',
           roundStartedAt: engine.state.game.round.startedAtHostMicros!,
           delta: 20,
+          reason: 'Bonus',
         ),
       );
       await tester.pumpAndSettle();

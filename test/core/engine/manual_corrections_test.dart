@@ -168,6 +168,7 @@ void main() {
           questionId: 'q',
           roundStartedAt: _epoch - 1,
           delta: 100,
+          reason: 'Stale',
         ),
       );
       expect(engine.state.game.corrections, hasLength(1));

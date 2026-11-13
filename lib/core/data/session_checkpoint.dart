@@ -387,15 +387,28 @@ final class SessionCheckpoint {
       game.scores.byPlayer.keys.every(game.players.containsKey) &&
           game.scores.history.every(
             (e) =>
-                game.players.containsKey(e.playerId) &&
-                questions.containsKey(e.questionId),
-          ),
+                (e.isTeamBooking
+                    ? e.playerId.isEmpty && game.teams.containsKey(e.teamId)
+                    : game.players.containsKey(e.playerId)) &&
+                (e.questionId.isEmpty || questions.containsKey(e.questionId)),
+          ) &&
+          game.scores.byTeam.keys.every(game.teams.containsKey),
       'score history.',
     );
     final totals = <String, int>{};
+    final teamTotals = <String, int>{};
     for (final entry in game.scores.history) {
-      totals[entry.playerId] = (totals[entry.playerId] ?? 0) + entry.points;
+      if (entry.teamId case final teamId?) {
+        teamTotals[teamId] = (teamTotals[teamId] ?? 0) + entry.points;
+      } else {
+        totals[entry.playerId] = (totals[entry.playerId] ?? 0) + entry.points;
+      }
     }
+    require(
+      game.scores.byTeam.length == teamTotals.length &&
+          game.scores.byTeam.entries.every((e) => e.value == teamTotals[e.key]),
+      "team score totals do not match score history.",
+    );
     require(
       game.players.keys.every(game.scores.byPlayer.containsKey) &&
           game.scores.byPlayer.entries.every(
@@ -409,9 +422,16 @@ final class SessionCheckpoint {
       require(
         entry.id.isNotEmpty &&
             !corrections.containsKey(entry.id) &&
-            questions.containsKey(entry.questionId) &&
-            entry.roundStartedAt > 0 &&
-            entry.playerId.isNotEmpty &&
+            (entry.questionId == null
+                ? entry.roundStartedAt == null &&
+                      (entry.kind == CorrectionKind.points ||
+                          entry.kind == CorrectionKind.chips)
+                : questions.containsKey(entry.questionId) &&
+                      (entry.roundStartedAt ?? 0) > 0) &&
+            (entry.playerId.isNotEmpty ||
+                (entry.teamId != null &&
+                    (entry.kind == CorrectionKind.points ||
+                        entry.kind == CorrectionKind.chips))) &&
             entry.atHostMicros > 0 &&
             entry.atHostMicros <= game.hostTimeMicros &&
             entry.participantName.isNotEmpty,
@@ -427,10 +447,15 @@ final class SessionCheckpoint {
         CorrectionKind.points =>
           before != null &&
               after != null &&
-              entry.scoreDeltas.length == 1 &&
-              entry.scoreDeltas[entry.playerId] == after - before &&
               after != before &&
-              entry.chipDeltas.isEmpty,
+              entry.chipDeltas.isEmpty &&
+              (entry.targetsTeam
+                  ? entry.scoreDeltas.isEmpty &&
+                        entry.teamDeltas.length == 1 &&
+                        entry.teamDeltas[entry.teamId] == after - before
+                  : entry.teamDeltas.isEmpty &&
+                        entry.scoreDeltas.length == 1 &&
+                        entry.scoreDeltas[entry.playerId] == after - before),
         CorrectionKind.chips =>
           before != null &&
               after != null &&
@@ -440,7 +465,8 @@ final class SessionCheckpoint {
               entry.chipDeltas.length == 1 &&
               entry.chipDeltas[entry.teamId] == after - before &&
               after != before &&
-              entry.scoreDeltas.isEmpty,
+              entry.scoreDeltas.isEmpty &&
+              entry.teamDeltas.isEmpty,
         CorrectionKind.answer =>
           (before == null || before == 0 || before == 1) &&
               (after == 0 || after == 1 || (isReversal && after == null)) &&
@@ -490,6 +516,10 @@ final class SessionCheckpoint {
                 ) &&
                 entry.chipDeltas.entries.every(
                   (e) => e.value == -(original.chipDeltas[e.key] ?? 0),
+                ) &&
+                entry.teamDeltas.length == original.teamDeltas.length &&
+                entry.teamDeltas.entries.every(
+                  (e) => e.value == -(original.teamDeltas[e.key] ?? 0),
                 )),
         'invalid counter-correction.',
       );

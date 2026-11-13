@@ -600,6 +600,7 @@ void main() {
           roundStartedAt: now,
           requestId: 'chips',
           delta: 5,
+          reason: 'Bonus',
         ),
       );
       result = report();
