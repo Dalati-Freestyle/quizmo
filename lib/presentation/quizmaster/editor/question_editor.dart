@@ -38,12 +38,14 @@ final class QuestionTemplate {
 ///
 /// Add one entry here when a new question type is introduced, so that it can
 /// be used in every quiz format right away.
+/// New questions start without a time limit; the host ends the round.
 final List<QuestionTemplate> kQuestionTemplates = [
   QuestionTemplate(
     label: 'Freitext',
     icon: Icons.text_fields,
     create: (id) => ShortAnswerQuestion(
       id: id,
+      timeLimit: Duration.zero,
       prompt: '',
       acceptedAnswers: const ['Antwort'],
     ),
@@ -53,6 +55,7 @@ final List<QuestionTemplate> kQuestionTemplates = [
     icon: Icons.sort,
     create: (id) => OrderingQuestion(
       id: id,
+      timeLimit: Duration.zero,
       prompt: '',
       items: const [
         AnswerOption(id: 'a', label: 'Erstes'),
@@ -66,6 +69,7 @@ final List<QuestionTemplate> kQuestionTemplates = [
     icon: Icons.compare_arrows,
     create: (id) => MatchingQuestion(
       id: id,
+      timeLimit: Duration.zero,
       prompt: '',
       leftItems: const [
         AnswerOption(id: 'a', label: 'Deutschland'),
@@ -81,25 +85,36 @@ final List<QuestionTemplate> kQuestionTemplates = [
   QuestionTemplate(
     label: 'Schätzfrage',
     icon: Icons.numbers,
-    create: (id) => EstimationQuestion(id: id, prompt: '', correctValue: 100),
+    create: (id) => EstimationQuestion(
+      id: id,
+      timeLimit: Duration.zero,
+      prompt: '',
+      correctValue: 100,
+    ),
   ),
   QuestionTemplate(
     label: 'Wahr / Falsch',
     icon: Icons.rule,
-    create: (id) => TrueFalseQuestion(id: id, prompt: '', correctAnswer: true),
+    create: (id) => TrueFalseQuestion(
+      id: id,
+      timeLimit: Duration.zero,
+      prompt: '',
+      correctAnswer: true,
+    ),
   ),
   QuestionTemplate(
     label: 'Multiple choice',
     icon: Icons.checklist,
     create: (id) => MultipleChoiceQuestion(
       id: id,
+      timeLimit: Duration.zero,
       prompt: '',
       options: const [
         AnswerOption(id: 'option-a', label: 'Option A'),
         AnswerOption(id: 'option-b', label: 'Option B'),
       ],
       correctOptionId: 'option-a',
-      scoringRule: const SpeedBonusRule(),
+      scoringRule: const FixedPointsRule(),
     ),
   ),
   QuestionTemplate(
@@ -107,6 +122,7 @@ final List<QuestionTemplate> kQuestionTemplates = [
     icon: Icons.bolt,
     create: (id) => BuzzerQuestion(
       id: id,
+      timeLimit: Duration.zero,
       prompt: '',
       scoringRule: const FirstBuzzerRule(),
     ),
@@ -198,6 +214,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   late bool _lockOutOnMiss;
   bool _hostEndsRound = false;
   bool _softTimeLimit = false;
+  late bool _hasTimeLimit;
   late final TextEditingController _retryLimitController;
   late _ScoringRuleKind _scoringKind;
 
@@ -206,6 +223,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     super.initState();
     final question = widget.question;
     _softTimeLimit = question.softTimeLimit;
+    _hasTimeLimit = question.hasTimeLimit;
     _hostEndsRound = question is BuzzerQuestion && question.hostEndsRound;
     _retryLimitController = TextEditingController(
       text: question is BuzzerQuestion
@@ -218,7 +236,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     _promptController = TextEditingController(text: question.prompt);
     _categoryController = TextEditingController(text: question.category ?? '');
     _timeLimitController = TextEditingController(
-      text: question.timeLimit.inSeconds.toString(),
+      text: question.hasTimeLimit
+          ? question.timeLimit.inSeconds.toString()
+          : '30',
     );
     _expectedAnswerController = TextEditingController(
       text: switch (question) {
@@ -370,28 +390,42 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _timeLimitController,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Time limit in seconds"),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: _positiveInt(
-                      context.tr("Enter a positive time limit."),
-                    ),
-                  ),
                   SwitchListTile(
+                    key: const ValueKey('time-limit-switch'),
                     contentPadding: EdgeInsets.zero,
-                    title: Text(context.tr("Weiches Zeitlimit")),
+                    title: Text(context.tr("Zeitlimit")),
                     subtitle: Text(
                       context.tr(
-                        "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
+                        "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.",
                       ),
                     ),
-                    value: _softTimeLimit,
-                    onChanged: (value) =>
-                        setState(() => _softTimeLimit = value),
+                    value: _hasTimeLimit,
+                    onChanged: (value) => setState(() => _hasTimeLimit = value),
                   ),
+                  if (_hasTimeLimit) ...[
+                    TextFormField(
+                      controller: _timeLimitController,
+                      decoration: InputDecoration(
+                        labelText: context.tr("Time limit in seconds"),
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: _positiveInt(
+                        context.tr("Enter a positive time limit."),
+                      ),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(context.tr("Weiches Zeitlimit")),
+                      subtitle: Text(
+                        context.tr(
+                          "Hart: Nach Ablauf sind keine Antworten mehr möglich. Weich: Die Zeit dient als Orientierung; erst der Spielleiter beendet die Runde.",
+                        ),
+                      ),
+                      value: _softTimeLimit,
+                      onChanged: (value) =>
+                          setState(() => _softTimeLimit = value),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -689,7 +723,9 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
 
   void _saveValid() {
     if (!_formKey.currentState!.validate()) return;
-    final timeLimit = Duration(seconds: int.parse(_timeLimitController.text));
+    final timeLimit = _hasTimeLimit
+        ? Duration(seconds: int.parse(_timeLimitController.text))
+        : Duration.zero;
     final rule = widget.usesQuestionPoints
         ? _buildScoringRule()
         : widget.question.scoringRule;
@@ -734,7 +770,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     };
     question = Question.fromJson({
       ...question.toJson(),
-      'softTimeLimit': _softTimeLimit,
+      'softTimeLimit': _hasTimeLimit && _softTimeLimit,
       'media': _media.map((m) => m.toJson()).toList(),
       'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
       'adminNotes': _notesController.text,

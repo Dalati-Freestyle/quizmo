@@ -472,9 +472,11 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                       : question.prompt,
                 ),
                 subtitle: Text(
-                  context.tr("{0} · {1}s · {2}", [
+                  context.tr("{0} · {1} · {2}", [
                     context.tr(question.kindLabel),
-                    question.timeLimit.inSeconds,
+                    question.hasTimeLimit
+                        ? "${question.timeLimit.inSeconds}s"
+                        : context.tr("Ohne Zeitlimit"),
                     switch (widget.format) {
                       StandardFormat() => context.tr(
                         question.scoringRule.label,

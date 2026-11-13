@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import '../engine/scoring_rules.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 import 'question.dart';
@@ -40,7 +41,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 7;
+  static const int currentSchemaVersion = 8;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -64,6 +65,7 @@ final class Quiz extends Equatable {
       5 => Quiz._fromJsonV5(json),
       6 => Quiz._fromJsonV6(json),
       7 => Quiz._fromJsonV7(json),
+      8 => Quiz._fromJsonV8(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -102,7 +104,20 @@ final class Quiz extends Equatable {
     });
   }
 
+  /// Schema 7 and older always had a positive time limit; 0 (no limit)
+  /// only exists from schema 8 on, so it stays invalid in older files.
   factory Quiz._fromJsonV7(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question.readInt('timeLimitMs') <= 0) {
+        throw JsonContractException(
+          'Question "${question['id']}" needs a positive time limit.',
+        );
+      }
+    }
+    return Quiz._fromJsonV8(json);
+  }
+
+  factory Quiz._fromJsonV8(JsonMap json) {
     final quiz = Quiz(
       schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
@@ -330,6 +345,8 @@ List<String> _jeopardyValidationErrors(
 }
 
 List<String> _questionValidationErrors(Question question) => [
+  if (question.scoringRule is SpeedBonusRule && !question.hasTimeLimit)
+    'Question "${question.id}" needs a time limit for the speed bonus.',
   if (question.media.length + question.solutionMedia.length > 10)
     'Maximal zehn Medien pro Frage.',
   for (final media in [...question.media, ...question.solutionMedia]) ...[
@@ -423,8 +440,8 @@ List<String> _baseQuestionValidationErrors({
   final errors = <String>[];
   if (id.trim().isEmpty) errors.add('A question ID must not be empty.');
   if (prompt.trim().isEmpty) errors.add('Question "$id" needs a prompt.');
-  if (timeLimit <= Duration.zero) {
-    errors.add('Question "$id" needs a positive time limit.');
+  if (timeLimit < Duration.zero) {
+    errors.add('Question "$id" must not have a negative time limit.');
   }
   return errors;
 }

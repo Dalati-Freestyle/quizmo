@@ -21,7 +21,7 @@ Duration? remainingAnswerTime(GameState game, int hostNowMicros) {
       round.status != RoundStatus.acceptingAnswers ||
       round.timerStartedAtHostMicros == null ||
       (game.poker?.betting ?? false) ||
-      question.timeLimit <= Duration.zero) {
+      !question.hasTimeLimit) {
     return null;
   }
   final now = game.recoveryPaused ? game.hostTimeMicros : hostNowMicros;
@@ -35,6 +35,9 @@ Duration? remainingAnswerTime(GameState game, int hostNowMicros) {
 /// synchronisation (local time minus the measured offset), so the value
 /// matches the TV instead of the possibly skewed device clock.
 class RoundCountdown extends StatefulWidget {
+  /// Below this screen width an expired timer shows only a deep red `0`.
+  static const compactCountdownWidth = 600.0;
+
   /// Creates the countdown.
   const RoundCountdown({
     required this.game,
@@ -76,12 +79,21 @@ class _RoundCountdownState extends State<RoundCountdown> {
     final scheme = Theme.of(context).colorScheme;
     final urgent = remaining <= const Duration(seconds: 5);
     final expired = remaining == Duration.zero;
+    // Phones only show a deep red 0; the text would crowd the question.
+    final compact =
+        MediaQuery.sizeOf(context).width < RoundCountdown.compactCountdownWidth;
+    final expiredText = context.tr("Time's up");
     final label = expired
-        ? context.tr("Time's up")
+        ? (compact ? '0' : expiredText)
         : '${(remaining.inMilliseconds / 1000).ceil()} s';
+    final deepRed = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFFF5252)
+        : const Color(0xFFB71C1C);
     return Semantics(
       liveRegion: urgent,
-      label: context.tr('Verbleibende Zeit: {0}', [label]),
+      label: context.tr('Verbleibende Zeit: {0}', [
+        expired ? expiredText : label,
+      ]),
       child: ExcludeSemantics(
         child: Container(
           key: const ValueKey('round-countdown'),
@@ -106,7 +118,9 @@ class _RoundCountdownState extends State<RoundCountdown> {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  color: urgent
+                  color: expired && compact
+                      ? deepRed
+                      : urgent
                       ? scheme.onErrorContainer
                       : scheme.onSecondaryContainer,
                 ),

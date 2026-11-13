@@ -763,7 +763,6 @@
   "{0} pts{1}": "{0} Pkt.{1}",
   "{0} {1} online": "{0} {1} online",
   "{0} · Teameinsatz in Chips": "{0} · Teameinsatz in Chips",
-  "{0} · {1}s · {2}": "{0} · {1}s · {2}",
   "{0}, place your wager!": "{0}, lege deinen Einsatz fest!",
   "{0}: {1} Chips · Einsatz: {2}": "{0}: {1} Chips · Einsatz: {2}",
   "Quiz gestartet.": "Quiz gestartet.",
@@ -1107,5 +1106,9 @@
   "Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.": "Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.",
   "Runde": "Runde",
   "Quiz abschließen": "Quiz abschließen",
-  "Das Quiz kann noch nicht beendet werden.": "Das Quiz kann noch nicht beendet werden."
+  "Das Quiz kann noch nicht beendet werden.": "Das Quiz kann noch nicht beendet werden.",
+  "Zeitlimit": "Zeitlimit",
+  "Ohne Zeitlimit": "Ohne Zeitlimit",
+  "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.": "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.",
+  "{0} · {1} · {2}": "{0} · {1} · {2}"
 }

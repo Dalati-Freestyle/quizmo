@@ -61,6 +61,16 @@ void main() {
         isNull,
       );
       expect(remainingAnswerTime(_game(betting: true), _seconds(1)), isNull);
+      final untimed = _game().copyWith(
+        round: _game().round.copyWith(
+          question: const BuzzerQuestion(
+            id: 'q',
+            prompt: 'Buzz',
+            timeLimit: Duration.zero,
+          ),
+        ),
+      );
+      expect(remainingAnswerTime(untimed, _seconds(1)), isNull);
     });
 
     test('stands still while the host is paused for recovery', () {
@@ -90,5 +100,32 @@ void main() {
     expect(find.text('3 s'), findsOneWidget);
     await pump(_game(status: RoundStatus.revealed));
     expect(find.byKey(const ValueKey('round-countdown')), findsNothing);
+  });
+
+  testWidgets('an expired clock shows a deep red 0 on phones', (tester) async {
+    Future<void> pumpAt(double width) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: RoundCountdown(
+              game: _game(),
+              hostNowMicros: () => _seconds(30),
+            ),
+          ),
+        ),
+      );
+    }
+
+    addTearDown(tester.view.reset);
+    await pumpAt(360);
+    expect(find.text('0'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('0')).style?.color,
+      const Color(0xFFB71C1C),
+    );
+    await pumpAt(1200);
+    expect(find.text("Time's up"), findsOneWidget);
   });
 }

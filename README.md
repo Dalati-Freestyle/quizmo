@@ -424,7 +424,7 @@ continuation. Corrupt/incomplete records are not overwritten or silently rolled
 back; they require retry or explicit discard. Low-level permission/I/O failures
 also prevent hosting until resolved.
 
-The recovery envelope writes **schema 2**, independently of quiz schema 7
+The recovery envelope writes **schema 2**, independently of quiz schema 8
 and the app version. It checks both the checkpoint and the referenced quiz,
 requires complete/lossless fields and validates cross-references. Future recovery
 schemas must retain a dedicated importer for each previous schema, migrate both

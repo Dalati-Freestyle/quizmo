@@ -73,6 +73,7 @@ final class SpectatorSessionState extends Equatable {
         receivedAt == null ||
         round == null ||
         question == null ||
+        !question.hasTimeLimit ||
         startedAt == null ||
         round.status != RoundStatus.acceptingAnswers) {
       return null;

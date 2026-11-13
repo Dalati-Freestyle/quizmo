@@ -17,6 +17,12 @@ Die bestehende Punkte-Regel bestimmt die Maximalpunkte. Auf einem Jeopardy-Board
 werden stattdessen die Zeilenpunkte bzw. der Daily-Double-Einsatz verwendet.
 Zeitlimits, Team-Regeln, Steals und Uhrensynchronisation gelten weiterhin.
 
+Neue Fragen haben kein Zeitlimit (Schalter „Zeitlimit“ im Editor, Datei:
+`timeLimitMs: 0`, ab Schema 8). Dann läuft keine Uhr, Spieler und TV zeigen
+keinen Timer und der Spielleiter beendet die Runde. Ein Geschwindigkeitsbonus
+braucht ein Zeitlimit. Mit Zeitlimit zeigt das Spielergerät die Restzeit; bei
+Ablauf auf schmalen Bildschirmen eine tiefrote 0, sonst „Zeit abgelaufen“.
+
 Jede Frage hat `media` und `solutionMedia`. Lösungsmedien und Lösungen werden erst
 bei der Auflösung veröffentlicht. Unterstützt sind PNG/JPEG/WebP/SVG mit Zoom,
 MP3/WAV/OGG mit Play/Pause und optionalem Abspiellimit, MP4 mit Play/Pause und

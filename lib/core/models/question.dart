@@ -59,8 +59,12 @@ sealed class Question extends Equatable {
   /// Rule that converts a submission into points.
   final ScoringRule scoringRule;
 
-  /// Budget for the whole round.
+  /// Budget for the whole round; [Duration.zero] means no time limit (the
+  /// host ends the round). Supported from quiz schema 8 on.
   final Duration timeLimit;
+
+  /// Whether the round runs against a clock at all.
+  bool get hasTimeLimit => timeLimit > Duration.zero;
   final bool softTimeLimit;
 
   /// Optional grouping label such as `Geography`.

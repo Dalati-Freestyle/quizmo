@@ -268,6 +268,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       final round = game.round;
       if (round.question?.id != event.questionId ||
           round.startedAtHostMicros != event.startedAt ||
+          round.question?.hasTimeLimit != true ||
           round.hasSoftTimer ||
           !round.status.acceptsInput ||
           (game.poker?.betting ?? false)) {
@@ -1983,6 +1984,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     final start = round.startedAtHostMicros;
     if (question != null &&
+        question.hasTimeLimit &&
         start != null &&
         !game.recoveryPaused &&
         !round.hasSoftTimer &&
@@ -2172,7 +2174,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
-    if (!round.hasSoftTimer &&
+    if (question.hasTimeLimit &&
+        !round.hasSoftTimer &&
         !(state.game.poker?.betting ?? false) &&
         round.timerElapsedAt(_now()) >= question.timeLimit) {
       return 'Zeit abgelaufen. Antworten sind geschlossen.';

@@ -1466,6 +1466,7 @@ class _QuestionStage extends StatelessWidget {
           height: 56,
           child:
               round.status == RoundStatus.acceptingAnswers &&
+                  question.hasTimeLimit &&
                   !(game.poker?.betting ?? false)
               ? _CountdownBar(state: state, limit: question.timeLimit)
               : null,

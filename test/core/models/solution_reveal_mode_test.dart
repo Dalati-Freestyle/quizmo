@@ -27,7 +27,7 @@ void main() {
       if (name.startsWith('quiz_v6')) {
         expect(quiz.questions.single.requiresManualGrading, isTrue);
       }
-      expect(quiz.schemaVersion, 7);
+      expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
       expect(parseQuizImport(exportQuizJson(quiz)), quiz);
     });
   }
@@ -49,7 +49,7 @@ void main() {
       for (final mode in SolutionRevealMode.values) {
         final source = old.copyWith(format: StandardFormat(revealMode: mode));
         final exported = exportQuizJson(source);
-        expect(jsonDecode(exported)['schemaVersion'], 7);
+        expect(jsonDecode(exported)['schemaVersion'], Quiz.currentSchemaVersion);
         final restored = parseQuizImport(exported);
         expect(restored, source);
         expect(

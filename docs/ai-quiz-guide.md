@@ -8,7 +8,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **7**
+Quizmo-Schema-Version dieser Anleitung: **8**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -71,7 +71,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 7,               // immer genau 7
+  "schemaVersion": 8,               // immer genau 8
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -130,7 +130,7 @@ Bestätigung, bevor du zur nächsten gehst.
   "type": "…",                  // siehe Abschnitt 5
   "id": "q1",                   // eindeutig
   "prompt": "Fragetext",
-  "timeLimitMs": 30000,         // > 0, in Millisekunden
+  "timeLimitMs": 30000,         // in Millisekunden; 0 = kein Zeitlimit (Spielleitung beendet die Runde)
   "softTimeLimit": false,       // true = Runde bleibt nach Ablauf offen, bis die Spielleitung beendet
   "category": "Geschichte",     // optional, sonst null
   "adminNotes": "",             // Notiz nur für die Spielleitung
@@ -145,7 +145,7 @@ Bestätigung, bevor du zur nächsten gehst.
 | Regel | JSON | Bedeutung |
 | --- | --- | --- |
 | Feste Punkte | `{"type": "fixed", "correctPoints": 10, "wrongPoints": 0}` | Richtig = `correctPoints`; falsch = `wrongPoints` (0 oder negativ). |
-| Geschwindigkeitsbonus | `{"type": "speedBonus", "basePoints": 10, "maxSpeedBonus": 10, "wrongPoints": 0}` | Grundpunkte plus Bonus, je schneller die Antwort. |
+| Geschwindigkeitsbonus | `{"type": "speedBonus", "basePoints": 10, "maxSpeedBonus": 10, "wrongPoints": 0}` | Grundpunkte plus Bonus, je schneller die Antwort. Braucht ein Zeitlimit (`timeLimitMs` > 0). |
 | Buzzer | `{"type": "firstBuzzer", "points": 15, "penalty": -5, "rankDecay": 5}` | Für Buzzerfragen: Punkte für richtig, `penalty` für falsch, `rankDecay` Abzug pro späterem Rang. |
 
 Bei Schätzfragen werden die Punkte anteilig nach Genauigkeit vergeben. Auf einem
@@ -183,7 +183,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 7` steht ganz oben.
+- [ ] `"schemaVersion": 8` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit > 0 und eine gültige `scoringRule`.
@@ -204,7 +204,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Sieben Fragen mit allen Fragetypen.",
@@ -366,7 +366,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -436,7 +436,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",

@@ -463,7 +463,7 @@ class _HostDashboardView extends StatelessWidget {
                               ),
                             ),
                           if (game.recoveryPaused) ...[
-                            if (game.round.question != null &&
+                            if ((game.round.question?.hasTimeLimit ?? false) &&
                                 game.round.status.acceptsInput &&
                                 !(game.poker?.betting ?? false))
                               Text(
