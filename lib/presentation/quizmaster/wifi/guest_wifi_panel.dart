@@ -17,14 +17,20 @@ import 'wifi_qr_image.dart';
 /// Lets the quizmaster pick the guest network and show it on the TV.
 class GuestWifiPanel extends StatefulWidget {
   const GuestWifiPanel({
-    required this.guestWifi,
+    this.guestWifi,
+    this.editorOnly = false,
     this.store,
     this.currentNetwork = currentWifiName,
     super.key,
   });
 
-  /// Announcement forwarded to TV screens on this LAN.
-  final GuestWifiCubit guestWifi;
+  /// Announcement forwarded to TV screens on this LAN; `null` in the
+  /// settings, where nothing is published.
+  final GuestWifiCubit? guestWifi;
+
+  /// Only edits the stored networks (settings screen): no TV switch, and the
+  /// stored "show on TV" choice of the dashboard stays unchanged.
+  final bool editorOnly;
 
   /// Secure storage; replaced in tests.
   final GuestWifiStore? store;
@@ -91,7 +97,7 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
       }
     });
     if (settings.showOnTv && preferred != null) {
-      widget.guestWifi.publish(preferred);
+      widget.guestWifi?.publish(preferred);
     }
   }
 
@@ -108,6 +114,7 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
       setState(() => _message = wifi.validationError);
       return;
     }
+    if (widget.editorOnly) showOnTv = _settings.showOnTv;
     final settings = _settings.remember(wifi, showOnTv: showOnTv);
     setState(() {
       _busy = true;
@@ -120,13 +127,13 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
     } on Object {
       _message = 'Could not save the Wi-Fi details on this device.';
     }
-    widget.guestWifi.publish(showOnTv ? wifi : null);
+    if (!widget.editorOnly) widget.guestWifi?.publish(showOnTv ? wifi : null);
     if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _toggle(bool show) async {
     if (!show) {
-      widget.guestWifi.publish(null);
+      widget.guestWifi?.publish(null);
       final settings = GuestWifiSettings(
         networks: _settings.networks,
         lastSsid: _settings.lastSsid,
@@ -144,7 +151,7 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
 
   Future<void> _forget() async {
     final settings = _settings.forget(_draft.ssid);
-    widget.guestWifi.publish(null);
+    widget.guestWifi?.publish(null);
     setState(() {
       _settings = settings;
       _password.clear();
@@ -246,7 +253,7 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
   @override
   Widget build(BuildContext context) {
     final error = _draft.validationError;
-    final shown = _settings.showOnTv && widget.guestWifi.state != null;
+    final shown = _settings.showOnTv && widget.guestWifi?.state != null;
     return PanelCard(
       title: context.tr('Guest Wi-Fi on the TV'),
       icon: Icons.wifi,
@@ -258,12 +265,13 @@ class _GuestWifiPanelState extends State<GuestWifiPanel> {
               'Shows a second QR code on the TV that connects guests to this Wi-Fi. The password is stored encrypted on this device and only sent to TV screens on this network.',
             ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.tr('Show Wi-Fi QR code on the TV')),
-            value: shown,
-            onChanged: _busy || (error != null && !shown) ? null : _toggle,
-          ),
+          if (!widget.editorOnly)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.tr('Show Wi-Fi QR code on the TV')),
+              value: shown,
+              onChanged: _busy || (error != null && !shown) ? null : _toggle,
+            ),
           if (_settings.networks.length > 1)
             DropdownButtonFormField<String>(
               initialValue: _isSaved ? _draft.ssid : null,

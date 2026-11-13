@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,11 +6,22 @@ import '../l10n/app_localizations.dart';
 import 'app_version_label.dart';
 import 'locale_cubit.dart';
 import 'example_quiz_settings.dart' deferred as advanced;
+import '../quizmaster/layout/dashboard_layout_settings_page.dart'
+    deferred as admin_layout;
+import '../quizmaster/wifi/guest_wifi_settings_page.dart'
+    deferred as guest_wifi;
 
 class SettingsButton extends StatelessWidget {
-  const SettingsButton({this.onExamplesChanged, super.key});
+  const SettingsButton({
+    this.onExamplesChanged,
+    this.hostSettings = true,
+    super.key,
+  });
 
   final Future<void> Function()? onExamplesChanged;
+
+  /// Whether host-only entries (admin view, guest Wi-Fi) are offered.
+  final bool hostSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +35,10 @@ class SettingsButton extends StatelessWidget {
         MaterialPageRoute<void>(
           builder: (_) => BlocProvider.value(
             value: controller,
-            child: SettingsPage(onExamplesChanged: onExamplesChanged),
+            child: SettingsPage(
+              onExamplesChanged: onExamplesChanged,
+              hostSettings: hostSettings,
+            ),
           ),
         ),
       ),
@@ -32,9 +47,17 @@ class SettingsButton extends StatelessWidget {
 }
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({this.onExamplesChanged, this.loadVersion, super.key});
+  const SettingsPage({
+    this.onExamplesChanged,
+    this.loadVersion,
+    this.hostSettings = true,
+    super.key,
+  });
 
   final Future<void> Function()? onExamplesChanged;
+
+  /// Whether host-only entries (admin view, guest Wi-Fi) are offered.
+  final bool hostSettings;
 
   /// Overrides how the version is read (tests); defaults to the platform.
   final AppVersionLoader? loadVersion;
@@ -45,6 +68,13 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final Future<void> _advancedLoad = advanced.loadLibrary();
+
+  Future<void> _open(Future<Widget> Function() load) async {
+    final page = await load();
+    if (!mounted) return;
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => page));
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -97,6 +127,38 @@ class _SettingsPageState extends State<SettingsPage> {
                   context.read<LocaleCubit>().select(state.preference),
               child: Text(context.tr('Retry')),
             ),
+          ],
+          if (widget.hostSettings) ...[
+            const Divider(height: 48),
+            Text(
+              context.tr('Spielleitung'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            ListTile(
+              key: const ValueKey('settings-admin-layout'),
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: Text(context.tr('Admin-Ansicht anpassen')),
+              subtitle: Text(
+                context.tr('Reihenfolge, Farben und sichtbare Bereiche'),
+              ),
+              onTap: () => _open(() async {
+                await admin_layout.loadLibrary();
+                return admin_layout.DashboardLayoutSettingsPage();
+              }),
+            ),
+            if (!kIsWeb)
+              ListTile(
+                key: const ValueKey('settings-guest-wifi'),
+                leading: const Icon(Icons.wifi),
+                title: Text(context.tr('Gäste-WLAN')),
+                subtitle: Text(
+                  context.tr('WLAN-Code, der auf dem TV angezeigt werden kann'),
+                ),
+                onTap: () => _open(() async {
+                  await guest_wifi.loadLibrary();
+                  return guest_wifi.GuestWifiSettingsPage();
+                }),
+              ),
           ],
           const Divider(height: 48),
           Text(

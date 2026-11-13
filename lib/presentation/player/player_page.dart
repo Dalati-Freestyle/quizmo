@@ -109,7 +109,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
               ],
             ),
             actions: [
-              const SettingsButton(),
+              const SettingsButton(hostSettings: false),
               if (state.game?.teams[state.me?.teamId] case final team?
                   when state.isConnected)
                 IconButton(

@@ -33,7 +33,9 @@ import 'recovery/rebind_recovery_panel.dart';
 import '../../core/engine/session_access.dart';
 import 'session_access_panel.dart';
 import 'session_report_panel.dart';
-import 'wifi/guest_wifi_panel.dart';
+import 'layout/dashboard_layout.dart';
+import 'layout/dashboard_section_view.dart';
+import 'wifi/guest_wifi_toggle.dart';
 
 /// Host facing screen: run the server, drive rounds, judge answers.
 class HostDashboardPage extends StatelessWidget {
@@ -408,14 +410,18 @@ class _HostDashboardView extends StatelessWidget {
               ),
               body: SessionNotifications(
                 game: game,
-                child: AdaptivePanelGrid(
-                  panels: [
-                    SessionAccessPanel(access: engine.access),
+                child: DashboardSectionGrid(
+                  sections: {
+                    DashboardSection.sessionAccess: SessionAccessPanel(
+                      access: engine.access,
+                    ),
                     // Guest Wi-Fi only exists for the embedded LAN host; the
                     // browser host plays through the internet relay.
                     if (!kIsWeb)
-                      GuestWifiPanel(guestWifi: context.read<GuestWifiCubit>()),
-                    PanelCard(
+                      DashboardSection.guestWifi: GuestWifiToggle(
+                        guestWifi: context.read<GuestWifiCubit>(),
+                      ),
+                    DashboardSection.recovery: PanelCard(
                       title: context.tr('Saved game recovery'),
                       icon: Icons.save_outlined,
                       child: Column(
@@ -500,7 +506,7 @@ class _HostDashboardView extends StatelessWidget {
                       ),
                     ),
                     if (!game.isStarted)
-                      PanelCard(
+                      DashboardSection.startQuiz: PanelCard(
                         title: context.tr("Quiz starten"),
                         icon: Icons.play_circle_outline,
                         child: Column(
@@ -521,7 +527,7 @@ class _HostDashboardView extends StatelessWidget {
                           ],
                         ),
                       ),
-                    LiveRoundPanel(
+                    DashboardSection.liveRound: LiveRoundPanel(
                       state: engineState,
                       onJudge: (wasCorrect) => engine.add(
                         JudgeBuzzerEvent(
@@ -556,7 +562,7 @@ class _HostDashboardView extends StatelessWidget {
                       ].any(
                         (m) => m is AudioAttachment || m is VideoAttachment,
                       ))
-                        PanelCard(
+                        DashboardSection.media: PanelCard(
                           title: context.tr("Medienwiedergabe"),
                           icon: Icons.live_tv,
                           child: Wrap(
@@ -597,7 +603,7 @@ class _HostDashboardView extends StatelessWidget {
                           ),
                         ),
                     if (game.poker case final poker?)
-                      PanelCard(
+                      DashboardSection.poker: PanelCard(
                         title: context.tr("Pokerchips"),
                         icon: Icons.casino_outlined,
                         child: Column(
@@ -633,7 +639,7 @@ class _HostDashboardView extends StatelessWidget {
                         ),
                       ),
                     if (game.jeopardy case final jeopardy?)
-                      JeopardyBoardPanel(
+                      DashboardSection.questions: JeopardyBoardPanel(
                         game: game,
                         jeopardy: jeopardy,
                         canPick:
@@ -650,7 +656,7 @@ class _HostDashboardView extends StatelessWidget {
                         onSetTurn: (teamId) =>
                             engine.add(SetJeopardyTurnEvent(teamId)),
                       ),
-                    ServerControlPanel(
+                    DashboardSection.server: ServerControlPanel(
                       state: serverState,
                       connectedPlayers:
                           serverState.status == HostServerStatus.running
@@ -660,7 +666,7 @@ class _HostDashboardView extends StatelessWidget {
                       onStart: () => context.read<HostServerCubit>().start(),
                       onStop: () => context.read<HostServerCubit>().stop(),
                     ),
-                    PanelCard(
+                    DashboardSection.scoreboard: PanelCard(
                       title: game.poker == null
                           ? context.tr("Scoreboard · {0}", [
                               context.tr(game.mode.label),
@@ -669,10 +675,16 @@ class _HostDashboardView extends StatelessWidget {
                       icon: Icons.leaderboard_outlined,
                       child: ScoreboardView(game: game),
                     ),
-                    CorrectionHistoryPanel(game: game, engine: engine),
+                    DashboardSection.corrections: CorrectionHistoryPanel(
+                      game: game,
+                      engine: engine,
+                    ),
                     if (game.isFinished)
-                      SessionReportPanel(game: game, quizName: quizName),
-                    PlayersPanel(
+                      DashboardSection.report: SessionReportPanel(
+                        game: game,
+                        quizName: quizName,
+                      ),
+                    DashboardSection.players: PlayersPanel(
                       game: game,
                       connectionsAvailable:
                           serverState.status == HostServerStatus.running,
@@ -695,14 +707,16 @@ class _HostDashboardView extends StatelessWidget {
                       ),
                     ),
                     if (game.jeopardy == null)
-                      QuestionBankPanel(
+                      DashboardSection.questions: QuestionBankPanel(
                         game: game,
                         canStart: game.isStarted && engineState.canStartRound,
                         onStart: (questionId) =>
                             engine.add(StartRoundEvent(questionId)),
                       ),
-                    ServerLogPanel(logs: serverState.logs),
-                  ],
+                    DashboardSection.serverLog: ServerLogPanel(
+                      logs: serverState.logs,
+                    ),
+                  },
                 ),
               ),
             );

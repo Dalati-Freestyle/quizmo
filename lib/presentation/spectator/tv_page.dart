@@ -256,7 +256,7 @@ class _TvViewState extends State<_TvView> {
               const Positioned(
                 top: 12,
                 left: 12,
-                child: SafeArea(child: SettingsButton()),
+                child: SafeArea(child: SettingsButton(hostSettings: false)),
               ),
               BlocBuilder<SpectatorSessionCubit, SpectatorSessionState>(
                 builder: (context, state) => state.isConnected
