@@ -278,7 +278,7 @@ final class SessionReport {
               player.id,
               player.name,
               false,
-              poker || !game.players.containsKey(player.id)
+              teamMode || !game.players.containsKey(player.id)
                   ? null
                   : game.scores.scoreOf(player.id),
               game.players[player.id]?.isConnected ?? false,

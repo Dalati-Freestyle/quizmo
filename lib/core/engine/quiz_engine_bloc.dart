@@ -407,7 +407,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (!state.game.players.containsKey(event.playerId)) return;
     resumeTokenHashes.remove(event.playerId);
     if (event.ban) access.ban(event.playerId);
-    emit(_publish(_removePlayer(state.game, event.playerId)));
+    emit(
+      _publish(
+        _removePlayer(
+          _handOverPoints(state.game, event.playerId),
+          event.playerId,
+        ),
+      ),
+    );
     if (state.game.round.status.acceptsInput &&
         state.game.round.buzzerQueue.isNotEmpty) {
       add(const LockBuzzerEvent());
@@ -725,14 +732,37 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    // Points earned so far stay with the team they were earned for.
+    final handedOver = player.teamId == event.teamId
+        ? game
+        : _handOverPoints(game, player.id);
     emit(
       _publish(
-        game.copyWith(
+        handedOver.copyWith(
           players: {
             ...game.players,
             player.id: player.copyWith(teamId: event.teamId),
           },
         ),
+      ),
+    );
+  }
+
+  /// With teams, the points of [playerId] stay with their current team
+  /// before they leave it (team change or removal).
+  GameState _handOverPoints(GameState game, String playerId) {
+    final teamId = game.players[playerId]?.teamId;
+    if (game.mode is! TeamMode ||
+        game.poker != null ||
+        teamId == null ||
+        !game.teams.containsKey(teamId)) {
+      return game;
+    }
+    return game.copyWith(
+      scores: game.scores.handOverToTeam(
+        playerId: playerId,
+        teamId: teamId,
+        atHostMicros: _now(),
       ),
     );
   }

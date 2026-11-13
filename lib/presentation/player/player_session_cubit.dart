@@ -90,10 +90,16 @@ final class PlayerSessionState extends Equatable {
     return id == null ? null : game?.players[id];
   }
 
-  /// Current score of this player.
-  int get myScore => game?.poker == null
-      ? (playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0)
-      : game!.poker!.chips[me?.teamId] ?? 0;
+  /// Current score of this player; with teams the score of the own team,
+  /// because points belong to the team.
+  int get myScore {
+    final game = this.game;
+    if (game == null || playerId == null) return 0;
+    if (game.poker case final poker?) return poker.chips[me?.teamId] ?? 0;
+    return game.mode is TeamMode
+        ? game.teamScores[me?.teamId] ?? 0
+        : game.scores.scoreOf(playerId!);
+  }
 
   bool get mayAnswerQuestion => game?.mayAnswerQuestion(playerId) ?? false;
 

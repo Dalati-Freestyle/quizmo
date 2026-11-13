@@ -171,6 +171,31 @@ final class ScoreState extends Equatable {
     );
   }
 
+  /// Moves the points [playerId] earned to a direct booking of [teamId].
+  ///
+  /// With teams, points belong to the team: before a player leaves it (team
+  /// change or removal), their points stay with the team they were earned
+  /// for. Both bookings carry no question, so they never count as a win.
+  ScoreState handOverToTeam({
+    required String playerId,
+    required String teamId,
+    required int atHostMicros,
+  }) {
+    final points = scoreOf(playerId);
+    if (points == 0) return this;
+    return apply(
+      playerId: playerId,
+      questionId: '',
+      delta: ScoreDelta(-points, reason: 'Team handover'),
+      atHostMicros: atHostMicros,
+    ).applyToTeam(
+      teamId: teamId,
+      questionId: '',
+      delta: ScoreDelta(points, reason: 'Team handover'),
+      atHostMicros: atHostMicros,
+    );
+  }
+
   /// Aggregates the player totals into team totals.
   ///
   /// Players without a team are ignored, which makes the method safe to call in

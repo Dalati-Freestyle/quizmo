@@ -149,10 +149,7 @@ class _TeamStandings extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    '${game.scores.scoreOf(player.id)}',
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  // Points belong to the team; members carry no score.
                 ],
               ),
             ),
