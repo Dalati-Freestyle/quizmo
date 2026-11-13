@@ -44,6 +44,31 @@ final class ServerLogEntry extends Equatable {
   List<Object?> get props => [level, message, atMicros];
 }
 
+/// Role of an open socket.
+enum ConnectionRole { player, spectator, lobby }
+
+/// Liveness of one open socket; carries no address, token or code.
+final class ConnectionHealth extends Equatable {
+  /// Creates the value.
+  const ConnectionHealth({
+    required this.role,
+    required this.silentForMicros,
+    this.playerId,
+  });
+
+  /// What the socket is used for.
+  final ConnectionRole role;
+
+  /// Player behind a player socket.
+  final String? playerId;
+
+  /// Microseconds since the last frame arrived (heartbeats included).
+  final int silentForMicros;
+
+  @override
+  List<Object?> get props => [role, playerId, silentForMicros];
+}
+
 /// Where a running server can be reached.
 final class ServerEndpoint extends Equatable {
   /// Creates an endpoint description.
@@ -135,6 +160,9 @@ abstract interface class EmbeddedQuizServer {
 
   /// Number of open web socket connections.
   int get connectionCount;
+
+  /// Open sockets with the time since their last frame (technical check).
+  List<ConnectionHealth> get connectionHealth;
 
   /// Whether a non-empty web player bundle is being served at `/`.
   ///

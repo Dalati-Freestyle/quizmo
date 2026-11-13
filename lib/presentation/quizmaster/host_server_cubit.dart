@@ -168,6 +168,10 @@ class HostServerCubit extends Cubit<HostServerState> {
   Future<void> _lifecycle = Future.value();
   bool _closing = false;
 
+  /// Liveness of the open sockets, for the technical check.
+  List<ConnectionHealth> get connectionHealth =>
+      _server?.connectionHealth ?? const [];
+
   /// Binds the server to [port].
   Future<void> start({int? port}) {
     if (_closing) return _lifecycle;

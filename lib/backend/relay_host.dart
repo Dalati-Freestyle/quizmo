@@ -40,6 +40,10 @@ final class RelayHost implements EmbeddedQuizServer {
   ServerEndpoint? get endpoint => _endpoint;
   @override
   int get connectionCount => _hub?.connectionCount ?? 0;
+
+  @override
+  List<ConnectionHealth> get connectionHealth =>
+      _hub?.connectionHealth ?? const [];
   @override
   bool get servesWebClient => isRunning;
   @override

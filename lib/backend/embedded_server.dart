@@ -84,6 +84,10 @@ class EmbeddedServer implements EmbeddedQuizServer {
   int get connectionCount => _hub?.connectionCount ?? 0;
 
   @override
+  List<ConnectionHealth> get connectionHealth =>
+      _hub?.connectionHealth ?? const [];
+
+  @override
   Stream<ServerLogEntry> get logs => _logs.stream;
 
   /// Whether a non-empty web player bundle is being served at `/`.

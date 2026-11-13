@@ -116,6 +116,26 @@ class SocketHub {
   /// Number of open sockets.
   int get connectionCount => _connections.length;
 
+  /// Liveness of every joined socket (players, TVs, lobby browsers).
+  List<ConnectionHealth> get connectionHealth {
+    final now = _now();
+    return [
+      for (final connection in _connections.values)
+        if (connection.playerId != null ||
+            connection.isSpectator ||
+            connection.isLobby)
+          ConnectionHealth(
+            role: connection.playerId != null
+                ? ConnectionRole.player
+                : connection.isSpectator
+                ? ConnectionRole.spectator
+                : ConnectionRole.lobby,
+            playerId: connection.playerId,
+            silentForMicros: now - connection.lastFrameAt,
+          ),
+    ];
+  }
+
   /// The shelf handler that performs the web socket upgrade.
   Handler get handler => createSocketUpgradeHandler(
     (WebSocketChannel channel, String? protocol) => _onConnected(channel),
