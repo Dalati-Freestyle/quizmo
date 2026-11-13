@@ -45,6 +45,7 @@ import '../app.dart';
 import '../common/jeopardy_board_view.dart';
 import 'spectator_session_cubit.dart';
 import 'tv_launch.dart';
+import 'tv_final_stage.dart';
 import 'tv_standings.dart';
 import 'animated_score_value.dart';
 
@@ -339,6 +340,21 @@ class TvScreen extends StatelessWidget {
           Expanded(
             child: game == null
                 ? _ConnectingStage(state: state, joinUri: joinUri)
+                : game.isFinished && game.protocol != null
+                ? TvFinalStage(
+                    protocol: game.protocol!,
+                    review: game.showFinalReview
+                        ? _TvPanel(
+                            child: _FinalReviewStage(
+                              key: ValueKey(
+                                game.roundHistory.first.startedAtHostMicros,
+                              ),
+                              game: game,
+                              state: state,
+                            ),
+                          )
+                        : null,
+                  )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
