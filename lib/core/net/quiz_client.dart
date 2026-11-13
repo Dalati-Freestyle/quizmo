@@ -265,9 +265,15 @@ class QuizClient {
   }
 
   /// Confirms the device check [checkId] (a tap on the player device).
+  ///
+  /// Players confirm with a tap, a TV confirms that it shows the request.
   void confirmDeviceCheck(String checkId) {
-    if (_playerId == null) return;
-    _send(DeviceCheckReply(checkId));
+    if (_status != QuizClientStatus.connected) return;
+    try {
+      _send(DeviceCheckReply(checkId));
+    } on StateError {
+      // The socket closed meanwhile; the host keeps waiting for this device.
+    }
   }
 
   /// Watches the session as a read-only spectator, for example on a TV.

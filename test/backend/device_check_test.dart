@@ -43,7 +43,25 @@ void main() {
       expect(hub.deviceCheck!.confirmedPlayerIds, {playerId});
       expect(engine.state.game, gameBefore);
 
+      // A TV that starts watching during the check shows and confirms it.
+      final tvInbound = StreamController<String>();
+      final tvFrames = <ServerMessage>[];
+      hub.attach(
+        stream: tvInbound.stream,
+        send: (frame) => tvFrames.add(ServerMessage.decode(frame)),
+        close: () async {},
+      );
+      tvInbound.add(const WatchRequest().encode());
+      await pumpEventQueue();
+      expect(tvFrames.whereType<DeviceCheckMessage>().single.checkId, check.id);
+      tvInbound.add(DeviceCheckReply(check.id).encode());
+      await pumpEventQueue();
+      expect(hub.deviceCheck!.confirmedScreenIds, hasLength(1));
+      expect(hub.deviceCheck!.confirmedPlayerIds, {playerId});
+
       hub.stopDeviceCheck();
+      expect(tvFrames.whereType<DeviceCheckMessage>().last.checkId, isNull);
+      await tvInbound.close();
       expect(hub.deviceCheck, isNull);
       expect(frames.whereType<DeviceCheckMessage>().last.checkId, isNull);
 

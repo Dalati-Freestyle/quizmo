@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/engine/tech_check.dart';
 
-/// Reads and writes the thresholds; a broken entry yields the defaults.
+/// Reads and writes the thresholds for LAN and internet games separately;
+/// a missing or broken entry yields the defaults of that mode.
 class TechCheckSettingsStore {
   /// Creates the store.
   TechCheckSettingsStore();
@@ -18,38 +19,47 @@ class TechCheckSettingsStore {
   @visibleForTesting
   static void useStore(TechCheckSettingsStore store) => instance = store;
 
-  static const _goodKey = 'quizmo.tech-check.good-ms';
-  static const _maxKey = 'quizmo.tech-check.max-ms';
   late final _preferences = SharedPreferencesAsync();
 
-  /// The stored thresholds, or the defaults.
-  Future<TechCheckThresholds> load() async {
+  static String _key(String value, {required bool internet}) =>
+      'quizmo.tech-check.${internet ? 'internet' : 'lan'}.$value-ms';
+
+  /// The stored thresholds of the mode, or its defaults.
+  Future<TechCheckThresholds> load({required bool internet}) async {
+    final defaults = TechCheckThresholds.defaultsFor(internet: internet);
     try {
-      final good = await _preferences.getInt(_goodKey);
-      final max = await _preferences.getInt(_maxKey);
+      final good = await _preferences.getInt(_key('good', internet: internet));
+      final max = await _preferences.getInt(_key('max', internet: internet));
       final thresholds = TechCheckThresholds(
-        goodRoundTrip: Duration(
-          milliseconds: good ?? TechCheckThresholds.defaultGoodMs,
-        ),
-        maxRoundTrip: Duration(
-          milliseconds: max ?? TechCheckThresholds.defaultMaxMs,
-        ),
+        goodRoundTrip: good == null
+            ? defaults.goodRoundTrip
+            : Duration(milliseconds: good),
+        maxRoundTrip: max == null
+            ? defaults.maxRoundTrip
+            : Duration(milliseconds: max),
       );
-      return thresholds.isValid ? thresholds : const TechCheckThresholds();
+      return thresholds.isValid ? thresholds : defaults;
     } on Object {
-      return const TechCheckThresholds();
+      return defaults;
     }
   }
 
-  /// Stores [thresholds]; they must be [TechCheckThresholds.isValid].
-  Future<void> save(TechCheckThresholds thresholds) async {
+  /// Stores [thresholds] of the mode; they must be
+  /// [TechCheckThresholds.isValid].
+  Future<void> save(
+    TechCheckThresholds thresholds, {
+    required bool internet,
+  }) async {
     if (!thresholds.isValid) {
       throw ArgumentError.value(thresholds, 'thresholds');
     }
     await _preferences.setInt(
-      _goodKey,
+      _key('good', internet: internet),
       thresholds.goodRoundTrip.inMilliseconds,
     );
-    await _preferences.setInt(_maxKey, thresholds.maxRoundTrip.inMilliseconds);
+    await _preferences.setInt(
+      _key('max', internet: internet),
+      thresholds.maxRoundTrip.inMilliseconds,
+    );
   }
 }

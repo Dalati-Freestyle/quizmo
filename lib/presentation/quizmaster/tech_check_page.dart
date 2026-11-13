@@ -64,7 +64,7 @@ class _TechCheckPageState extends State<TechCheckPage> {
   bool _mediaRequired = true;
   final _acknowledged = <TechCheckId>{};
   late TechCheckThresholds _thresholds =
-      widget.thresholds ?? const TechCheckThresholds();
+      widget.thresholds ?? TechCheckThresholds.defaultsFor(internet: _internet);
 
   bool get _internet => kIsWeb;
 
@@ -74,7 +74,7 @@ class _TechCheckPageState extends State<TechCheckPage> {
     unawaited(_probe());
     if (widget.thresholds == null) {
       unawaited(
-        TechCheckSettingsStore.instance.load().then((value) {
+        TechCheckSettingsStore.instance.load(internet: _internet).then((value) {
           if (mounted) setState(() => _thresholds = value);
         }),
       );
@@ -163,6 +163,8 @@ class _TechCheckPageState extends State<TechCheckPage> {
         tvRequired: _tvRequired,
         mediaRequired: _mediaRequired,
         deviceTestConfirmed: widget.server.deviceCheck?.confirmedPlayerIds,
+        deviceTestScreens:
+            widget.server.deviceCheck?.confirmedScreenIds.length ?? 0,
       ),
       thresholds: _thresholds,
     );

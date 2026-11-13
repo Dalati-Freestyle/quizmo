@@ -1145,10 +1145,6 @@
   "Technikcheck: Tippe auf den Knopf, damit die Spielleitung sieht, dass dein Gerät funktioniert.": "Technikcheck: Tippe auf den Knopf, damit die Spielleitung sieht, dass dein Gerät funktioniert.",
   "Hier tippen": "Hier tippen",
   "Der Gerätetest wurde noch nicht gestartet.": "Der Gerätetest wurde noch nicht gestartet.",
-  "„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät.": "„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät.",
-  "Kein verbundener Spieler für den Gerätetest.": "Kein verbundener Spieler für den Gerätetest.",
-  "Alle {0} Spieler haben ihr Gerät bestätigt.": "Alle {0} Spieler haben ihr Gerät bestätigt.",
-  "{0} von {1} Spielern haben noch nicht getippt.": "{0} von {1} Spielern haben noch nicht getippt.",
   "Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.": "Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.",
   "Gerätetest (alle tippen)": "Gerätetest (alle tippen)",
   "Gerätetest starten": "Gerätetest starten",
@@ -1168,5 +1164,12 @@
   "Löschen": "Löschen",
   "Speichern unter …": "Speichern unter …",
   "Name des Layouts": "Name des Layouts",
-  "Die Layout-Bibliothek konnte nicht gespeichert werden.": "Die Layout-Bibliothek konnte nicht gespeichert werden."
+  "Die Layout-Bibliothek konnte nicht gespeichert werden.": "Die Layout-Bibliothek konnte nicht gespeichert werden.",
+  "Technikcheck: Dieser TV ist verbunden.": "Technikcheck: Dieser TV ist verbunden.",
+  "LAN-Server auf diesem Gerät": "LAN-Server auf diesem Gerät",
+  "Internet-Raum über das Relay": "Internet-Raum über das Relay",
+  "„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät, verbundene TVs zeigen den Test an.": "„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät, verbundene TVs zeigen den Test an.",
+  "Kein verbundener Spieler für den Gerätetest; {0} TV-Ansicht(en) zeigen den Test.": "Kein verbundener Spieler für den Gerätetest; {0} TV-Ansicht(en) zeigen den Test.",
+  "Alle {0} Spieler haben ihr Gerät bestätigt; {1} TV-Ansicht(en) zeigen den Test.": "Alle {0} Spieler haben ihr Gerät bestätigt; {1} TV-Ansicht(en) zeigen den Test.",
+  "{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test.": "{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test."
 }

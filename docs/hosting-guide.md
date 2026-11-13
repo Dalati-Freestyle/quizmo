@@ -9,11 +9,13 @@ reveal modes and recovery. Back to the [overview](../README.md).
 **Tech check** (dashboard app bar or the **Start quiz** section) checks the
 host server (a timed, cancellable request to its own LAN address), the
 reachability for guests, player connections, latency and clock sync against
-thresholds (default: good up to 300 ms round trip, error above 1000 ms;
-adjustable under **Settings > Hosting > Tech check thresholds**), the TV and
+thresholds (defaults: LAN good up to 150 ms round trip, error above 400 ms;
+internet good up to 300 ms, error above 1000 ms; both adjustable under
+**Settings > Hosting > Tech check thresholds**), the TV and
 the quiz media (checksums of uploads, online media). **Start device test**
 asks every player device to show a "Tap here" button; the check lists who
-has not tapped yet. The test never touches the game and ends when the check
+has not tapped yet; connected TVs show a notice and confirm automatically.
+The test never touches the game and ends when the check
 page is closed. Each finding is passed,
 warning, error, not checkable or not required, with a next step. Missing data
 is never shown as success, and a local server answer never counts as proof

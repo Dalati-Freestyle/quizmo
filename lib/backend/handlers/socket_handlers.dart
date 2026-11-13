@@ -122,8 +122,9 @@ class SocketHub {
   /// The running device check (technical check), or `null`.
   DeviceCheckStatus? get deviceCheck => _deviceCheck;
 
-  /// Asks every player device to confirm itself by a tap. Replaces a running
-  /// check; never touches the game state.
+  /// Asks every player device to confirm itself by a tap and every TV to
+  /// show (and confirm) the check. Replaces a running check; never touches
+  /// the game state.
   DeviceCheckStatus startDeviceCheck() {
     final check = DeviceCheckStatus(
       id: 'check-${++_deviceCheckCount}-${_now()}',
@@ -136,12 +137,12 @@ class SocketHub {
     return check;
   }
 
-  /// Ends the device check on every player device.
+  /// Ends the device check on every player device and TV.
   void stopDeviceCheck() {
     if (_deviceCheck == null) return;
     _deviceCheck = null;
     for (final connection in _connections.values) {
-      if (connection.playerId != null && !connection.isSpectator) {
+      if (connection.playerId != null || connection.isSpectator) {
         connection.send(const DeviceCheckMessage(null));
       }
     }
@@ -149,9 +150,13 @@ class SocketHub {
 
   void _sendDeviceCheck(_Connection connection) {
     final check = _deviceCheck;
-    if (check == null ||
-        connection.playerId == null ||
-        connection.isSpectator ||
+    if (check == null) return;
+    if (connection.isSpectator) {
+      // A TV keeps showing the check until it ends.
+      connection.send(DeviceCheckMessage(check.id));
+      return;
+    }
+    if (connection.playerId == null ||
         check.confirmedPlayerIds.contains(connection.playerId)) {
       return;
     }
@@ -602,6 +607,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendDeviceCheck(connection);
         if (_guestWifi case final guestWifi?) {
           // Also sent when empty, so a reconnecting TV drops a stale code.
           connection.send(GuestWifiMessage(guestWifi.state));
@@ -695,8 +701,12 @@ class SocketHub {
       case DeviceCheckReply(:final checkId):
         final playerId = connection.playerId;
         final check = _deviceCheck;
-        if (playerId == null || check == null || check.id != checkId) return;
-        _deviceCheck = check.confirm(playerId);
+        if (check == null || check.id != checkId) return;
+        if (connection.isSpectator) {
+          _deviceCheck = check.confirmScreen(connection.id);
+        } else if (playerId != null) {
+          _deviceCheck = check.confirm(playerId);
+        }
 
       case LeaveNotice():
         _onDisconnected(connection);

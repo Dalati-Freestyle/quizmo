@@ -322,6 +322,38 @@ void main() {
     expect(report, isNot(contains('• Anna')));
   });
 
+  test('LAN and internet games have their own default thresholds', () {
+    TechCheckStatus status(int ms, {required bool internet}) =>
+        evaluateTechCheck(
+          _input(
+            internet: internet,
+            players: [Player(id: 'a', name: 'A', roundTripMicros: ms * 1000)],
+          ),
+          thresholds: TechCheckThresholds.defaultsFor(internet: internet),
+        ).firstWhere((result) => result.id == TechCheckId.latency).status;
+    expect(status(250, internet: false), TechCheckStatus.warning);
+    expect(status(500, internet: false), TechCheckStatus.fail);
+    expect(status(250, internet: true), TechCheckStatus.pass);
+    expect(status(500, internet: true), TechCheckStatus.warning);
+  });
+
+  test('the device test reports the TVs that show it', () {
+    final result = evaluateTechCheck(
+      TechCheckInput(
+        serverRunning: true,
+        internet: false,
+        health: const HealthNotRun(),
+        players: const [Player(id: 'p', name: 'Anna')],
+        connections: const [],
+        questions: const [],
+        deviceTestConfirmed: const {'p'},
+        deviceTestScreens: 2,
+      ),
+    ).firstWhere((result) => result.id == TechCheckId.deviceTest);
+    expect(result.status, TechCheckStatus.pass);
+    expect(result.arguments, [1, 2]);
+  });
+
   group('device test', () {
     test('a test that was not started is not checkable', () {
       expect(

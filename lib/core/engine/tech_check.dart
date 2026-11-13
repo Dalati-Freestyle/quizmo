@@ -76,16 +76,37 @@ final class TechCheckResult {
 
 /// Thresholds the latency check uses; shown to the host with the result.
 ///
-/// The defaults are generous, because games through the internet relay
-/// often take a few hundred milliseconds; hosts can change them in the
-/// settings.
+/// LAN and internet games have their own defaults ([lan], [internet]):
+/// through the relay a few hundred milliseconds are normal. Hosts can change
+/// both in the settings.
 final class TechCheckThresholds {
-  /// Creates thresholds.
+  /// Creates thresholds (internet defaults unless given).
   const TechCheckThresholds({
     this.goodRoundTrip = const Duration(milliseconds: defaultGoodMs),
     this.maxRoundTrip = const Duration(milliseconds: defaultMaxMs),
     this.silentAfter = const Duration(seconds: 15),
   });
+
+  /// Defaults for games on the LAN server: good up to 150 ms, error above
+  /// 400 ms.
+  static const lan = TechCheckThresholds(
+    goodRoundTrip: Duration(milliseconds: lanGoodMs),
+    maxRoundTrip: Duration(milliseconds: lanMaxMs),
+  );
+
+  /// Defaults for games through the internet relay: good up to 300 ms,
+  /// error above 1000 ms.
+  static const internet = TechCheckThresholds();
+
+  /// Default for [goodRoundTrip] on the LAN in milliseconds.
+  static const lanGoodMs = 150;
+
+  /// Default for [maxRoundTrip] on the LAN in milliseconds.
+  static const lanMaxMs = 400;
+
+  /// Defaults of the given mode.
+  static TechCheckThresholds defaultsFor({required bool internet}) =>
+      internet ? TechCheckThresholds.internet : TechCheckThresholds.lan;
 
   /// Round trips up to this value are fine.
   final Duration goodRoundTrip;
@@ -174,6 +195,7 @@ final class TechCheckInput {
     this.tvRequired = true,
     this.mediaRequired = true,
     this.deviceTestConfirmed,
+    this.deviceTestScreens = 0,
   });
 
   /// Whether the host server (LAN) or relay room (internet) is up.
@@ -203,6 +225,9 @@ final class TechCheckInput {
   /// Players whose device confirmed the running device test (a tap on the
   /// device); `null` while no device test runs.
   final Set<String>? deviceTestConfirmed;
+
+  /// TV screens that show (and confirmed) the running device test.
+  final int deviceTestScreens;
 }
 
 /// Media of a quiz as seen by the media check.
@@ -403,15 +428,17 @@ TechCheckResult _deviceTest(TechCheckInput input) {
       id: TechCheckId.deviceTest,
       status: TechCheckStatus.notCheckable,
       summary: 'Der Gerätetest wurde noch nicht gestartet.',
-      nextStep: '„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät.',
+      nextStep: '„Gerätetest starten“ wählen: Alle Spieler tippen einmal auf ihrem Gerät, verbundene TVs zeigen den Test an.',
     );
   }
+  final screens = input.deviceTestScreens;
   final connected = input.players.where((p) => p.isConnected).toList();
   if (connected.isEmpty) {
-    return const TechCheckResult(
+    return TechCheckResult(
       id: TechCheckId.deviceTest,
       status: TechCheckStatus.notCheckable,
-      summary: 'Kein verbundener Spieler für den Gerätetest.',
+      summary: 'Kein verbundener Spieler für den Gerätetest; {0} TV-Ansicht(en) zeigen den Test.',
+      arguments: [screens],
       nextStep: 'Spieler über den QR-Code oder Link beitreten lassen.',
     );
   }
@@ -423,16 +450,16 @@ TechCheckResult _deviceTest(TechCheckInput input) {
     return TechCheckResult(
       id: TechCheckId.deviceTest,
       status: TechCheckStatus.pass,
-      summary: 'Alle {0} Spieler haben ihr Gerät bestätigt.',
-      arguments: [connected.length],
+      summary: 'Alle {0} Spieler haben ihr Gerät bestätigt; {1} TV-Ansicht(en) zeigen den Test.',
+      arguments: [connected.length, screens],
       nextStep: 'Nichts zu tun.',
     );
   }
   return TechCheckResult(
     id: TechCheckId.deviceTest,
     status: TechCheckStatus.warning,
-    summary: '{0} von {1} Spielern haben noch nicht getippt.',
-    arguments: [missing.length, connected.length],
+    summary: '{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test.',
+    arguments: [missing.length, connected.length, screens],
     nextStep: 'Betroffene Spieler bitten, auf „Hier tippen“ zu tippen. Erscheint der Knopf nicht, die Seite neu laden.',
     details: missing,
   );

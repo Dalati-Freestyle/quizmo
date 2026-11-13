@@ -329,6 +329,53 @@ class TvScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        _content(context),
+        if (state.deviceCheckActive)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: Center(
+              child: Container(
+                key: const ValueKey('tv-device-check'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 44,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      context.tr('Technikcheck: Dieser TV ist verbunden.'),
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onTertiaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final game = state.game;
     return Padding(
       padding: const EdgeInsets.fromLTRB(64, 40, 64, 48),

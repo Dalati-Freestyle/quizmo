@@ -77,6 +77,7 @@ final class DeviceCheckStatus extends Equatable {
     required this.id,
     required this.startedAtMicros,
     this.confirmedPlayerIds = const {},
+    this.confirmedScreenIds = const {},
   });
 
   /// Identifier sent to the devices.
@@ -88,15 +89,32 @@ final class DeviceCheckStatus extends Equatable {
   /// Players whose device confirmed the check.
   final Set<String> confirmedPlayerIds;
 
+  /// TV screens (socket ids, never addresses) that showed the check.
+  final Set<String> confirmedScreenIds;
+
   /// Returns a copy in which [playerId] confirmed.
   DeviceCheckStatus confirm(String playerId) => DeviceCheckStatus(
     id: id,
     startedAtMicros: startedAtMicros,
     confirmedPlayerIds: Set.unmodifiable({...confirmedPlayerIds, playerId}),
+    confirmedScreenIds: confirmedScreenIds,
+  );
+
+  /// Returns a copy in which the TV screen [screenId] confirmed.
+  DeviceCheckStatus confirmScreen(String screenId) => DeviceCheckStatus(
+    id: id,
+    startedAtMicros: startedAtMicros,
+    confirmedPlayerIds: confirmedPlayerIds,
+    confirmedScreenIds: Set.unmodifiable({...confirmedScreenIds, screenId}),
   );
 
   @override
-  List<Object?> get props => [id, startedAtMicros, confirmedPlayerIds];
+  List<Object?> get props => [
+    id,
+    startedAtMicros,
+    confirmedPlayerIds,
+    confirmedScreenIds,
+  ];
 }
 
 /// Where a running server can be reached.
