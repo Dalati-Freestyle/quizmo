@@ -5,6 +5,7 @@
 library;
 
 export 'answer.dart';
+export 'game_protocol.dart';
 export 'game_state.dart';
 export 'guest_wifi.dart';
 export 'jeopardy.dart';

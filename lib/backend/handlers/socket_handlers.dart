@@ -15,6 +15,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../core/engine/guest_wifi_cubit.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/engine/session_access.dart';
+import '../../core/data/game_protocol_builder.dart';
 import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../../core/protocol/messages.dart';
@@ -706,7 +707,7 @@ class SocketHub {
     }
     if (revision != _broadcastRevision || _connections.isEmpty) return;
     final game = _engine.publishedGame;
-    final redacted = game.redactedForPlayers();
+    final redacted = guestSnapshotOf(game, title: serverName);
     for (final connection in _connections.values.toList(growable: false)) {
       if (connection.playerId != null &&
           !game.players.containsKey(connection.playerId)) {
@@ -772,7 +773,7 @@ class SocketHub {
     final game = _engine.publishedGame;
     final id = connection.playerId;
     return GameSnapshotMessage(
-      redacted ?? game.redactedForPlayers(),
+      redacted ?? guestSnapshotOf(game, title: serverName),
       ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
     );
   }

@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'game_protocol.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 import 'manual_correction.dart';
@@ -111,10 +112,15 @@ final class GameState extends Equatable {
     this.recoveryPaused = false,
     this.corrections = const [],
     this.reportRounds = const [],
+    this.protocol,
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    protocol: switch (json.readObjectOrNull('protocol')) {
+      final value? => GameProtocol.fromJson(value),
+      null => null,
+    },
     reportRounds: json['reportRounds'] == null
         ? const []
         : json.readList('reportRounds', ReportRound.fromJson),
@@ -250,6 +256,10 @@ final class GameState extends Equatable {
   final bool recoveryPaused;
   final List<ManualCorrection> corrections;
   final List<ReportRound> reportRounds;
+
+  /// Protocol of the finished game; only set in guest snapshots once the
+  /// game is finished (see `guestSnapshotOf`). The host state never holds it.
+  final GameProtocol? protocol;
 
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
@@ -392,7 +402,11 @@ final class GameState extends Equatable {
     bool? recoveryPaused,
     List<ManualCorrection>? corrections,
     List<ReportRound>? reportRounds,
+    Object? protocol = _unset,
   }) => GameState(
+    protocol: identical(protocol, _unset)
+        ? this.protocol
+        : protocol as GameProtocol?,
     mode: mode ?? this.mode,
     players: players ?? this.players,
     playerOrder: playerOrder ?? this.playerOrder,
@@ -450,6 +464,7 @@ final class GameState extends Equatable {
     'recoveryPaused': recoveryPaused,
     'corrections': corrections.map((entry) => entry.toJson()).toList(),
     'reportRounds': reportRounds.map((entry) => entry.toJson()).toList(),
+    if (protocol != null) 'protocol': protocol!.toJson(),
   };
 
   @override
@@ -477,5 +492,6 @@ final class GameState extends Equatable {
     recoveryPaused,
     corrections,
     reportRounds,
+    protocol,
   ];
 }

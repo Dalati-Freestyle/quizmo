@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import '../data/game_protocol_builder.dart';
 import '../engine/quiz_engine_bloc.dart';
 import '../models/models.dart';
 import 'bot_decisions.dart';
@@ -91,7 +92,11 @@ final class PreviewSession {
 
   GameState _redact(GameState source) {
     if (!identical(source, _guestSource)) {
-      _guestSnapshot = source.redactedForPlayers(includeMediaData: true);
+      _guestSnapshot = guestSnapshotOf(
+        source,
+        title: quiz.name,
+        includeMediaData: true,
+      );
       _guestSource = source;
     }
     return _guestSnapshot!;
