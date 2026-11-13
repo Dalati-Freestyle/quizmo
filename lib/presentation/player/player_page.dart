@@ -23,6 +23,7 @@ import '../common/session_notifications.dart';
 import '../common/connection_status_view.dart';
 import 'submission_status_view.dart';
 import '../spectator/tv_page.dart';
+import 'player_final_page.dart';
 import 'player_session_cubit.dart';
 import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
@@ -163,7 +164,19 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
                         child: Text(context.tr(state.error!)),
                       ),
                     Expanded(
-                      child: state.playerId != null && state.game != null
+                      child:
+                          state.playerId != null &&
+                              state.game?.isFinished == true &&
+                              state.game?.protocol != null
+                          // Stays usable after the host closed the room.
+                          ? PlayerFinalPage(
+                              game: state.game!,
+                              playerId: state.playerId,
+                              mediaBaseUri: context
+                                  .read<PlayerSessionCubit>()
+                                  .mediaBaseUri,
+                            )
+                          : state.playerId != null && state.game != null
                           ? AbsorbPointer(
                               absorbing: !state.isConnected,
                               child: _GameBoard(state: state),

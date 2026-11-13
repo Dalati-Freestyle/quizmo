@@ -82,6 +82,9 @@ dependencies:
   image: ^4.12.0
   ffi: ^2.2.0
   package_info_plus: ^10.2.2
+  # Builds the human readable game protocol PDF in the web player. Only
+  # loaded through a deferred import, so guests still join instantly.
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:
@@ -116,6 +119,8 @@ flutter:
   assets:
     - assets/branding/logo.png
     - assets/web_client/
+    # Unicode fonts for the protocol PDF (Roboto, Apache 2.0, see LICENSE.txt).
+    - assets/fonts/protocol/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

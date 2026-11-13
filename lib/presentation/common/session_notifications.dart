@@ -69,6 +69,7 @@ class _SessionNotificationsState extends State<SessionNotifications> {
     final me = game.players[widget.playerId];
     final showPlacement =
         game.isFinished &&
+        game.protocol == null &&
         !game.showFinalReview &&
         me != null &&
         !_placementShown;

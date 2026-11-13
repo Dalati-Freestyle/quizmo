@@ -5,6 +5,7 @@ import 'package:web/web.dart' as web;
 import '../../core/data/browser_library_backup.dart';
 
 bool _hasQuizzes = false;
+bool _protocolOpen = false;
 bool _installed = false;
 
 void updateBrowserExitGuard(String? contents) {
@@ -25,10 +26,11 @@ void initializeBrowserExitGuard() {
   web.window.addEventListener(
     'beforeunload',
     ((web.BeforeUnloadEvent event) {
-      if (!_hasQuizzes) return;
+      if (!_hasQuizzes && !_protocolOpen) return;
       event.preventDefault();
-      event.returnValue =
-          'Export your quizzes from the quiz library before leaving.';
+      event.returnValue = _protocolOpen
+          ? 'The game protocol is gone after leaving. Save it first.'
+          : 'Export your quizzes from the quiz library before leaving.';
     }).toJS,
   );
   web.window.addEventListener(
@@ -43,7 +45,14 @@ void initializeBrowserExitGuard() {
   );
 }
 
+/// Asks before leaving while the final page with the game protocol is shown.
+void setProtocolExitGuard(bool active) {
+  _protocolOpen = active;
+  initializeBrowserExitGuard();
+}
+
 void leaveBrowserPage() {
   _hasQuizzes = false;
+  _protocolOpen = false;
   web.window.location.assign('about:blank');
 }
