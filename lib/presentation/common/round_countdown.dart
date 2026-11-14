@@ -95,37 +95,41 @@ class _RoundCountdownState extends State<RoundCountdown> {
         expired ? expiredText : label,
       ]),
       child: ExcludeSemantics(
-        child: Container(
-          key: const ValueKey('round-countdown'),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: urgent ? scheme.errorContainer : scheme.secondaryContainer,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.timer_outlined,
-                size: 16,
-                color: urgent
-                    ? scheme.onErrorContainer
-                    : scheme.onSecondaryContainer,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                  color: expired && compact
-                      ? deepRed
-                      : urgent
+        // Keeps the chip off the question below it (also on phones).
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Container(
+            key: const ValueKey('round-countdown'),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: urgent ? scheme.errorContainer : scheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.timer_outlined,
+                  size: 16,
+                  color: urgent
                       ? scheme.onErrorContainer
                       : scheme.onSecondaryContainer,
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    color: expired && compact
+                        ? deepRed
+                        : urgent
+                        ? scheme.onErrorContainer
+                        : scheme.onSecondaryContainer,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

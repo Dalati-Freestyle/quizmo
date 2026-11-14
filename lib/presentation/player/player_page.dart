@@ -760,6 +760,8 @@ class _QuestionStage extends StatelessWidget {
       children: [
         if (state.roundStatus == RoundStatus.revealed)
           Card(
+            // Keeps the verdict off the answer controls (e.g. the buzzer).
+            margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(

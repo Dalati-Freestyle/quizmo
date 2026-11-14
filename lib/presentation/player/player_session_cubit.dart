@@ -277,6 +277,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     }
     _retryTimer = Timer(const Duration(seconds: 2), () {
       _retryTimer = null;
+      // A retry must never tear down a connection that came back meanwhile.
+      if (_client?.status == QuizClientStatus.connected) return;
       unawaited(_reconnect());
     });
     emit(state.copyWith(status: QuizClientStatus.reconnecting));
@@ -316,7 +318,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       }
     } finally {
       _connecting = false;
-      if (!isClosed && !state.isConnected) _scheduleReconnect();
+      // The client status is synchronous; the cubit state only follows once
+      // the status stream delivered "connected", so checking it here would
+      // schedule a retry that drops the working connection again.
+      if (!isClosed && client.status != QuizClientStatus.connected) {
+        _scheduleReconnect();
+      }
     }
   }
 
@@ -426,6 +433,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
               : null,
         ),
       );
+      if (status == QuizClientStatus.connected) {
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      }
       if (status == QuizClientStatus.connected && client.playerId != null) {
         unawaited(_remember());
       }
@@ -502,7 +513,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       );
     } finally {
       _connecting = false;
-      if (!state.isConnected) _scheduleReconnect();
+      if (client.status != QuizClientStatus.connected) _scheduleReconnect();
     }
   }
 
