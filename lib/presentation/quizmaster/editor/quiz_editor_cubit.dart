@@ -148,6 +148,24 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     _replaceDraft(state.draft.copyWith(format: JeopardyFormat(board)));
   }
 
+  /// Plays the quiz as "Biggest Snowflake": the rarest answer wins.
+  ///
+  /// The format stores no solutions, so the questions lose theirs.
+  void useSnowflakeFormat({
+    SnowflakeScoring scoring = SnowflakeScoring.winnerOnly,
+  }) {
+    if (_board case final board?) _stashedBoard = board;
+    _replaceDraft(
+      state.draft.copyWith(
+        format: SnowflakeFormat(scoring: scoring),
+        questions: [
+          for (final question in state.draft.questions)
+            question.supportsUniqueness ? question.withoutSolution() : question,
+        ],
+      ),
+    );
+  }
+
   void usePokerFormat({int startingChips = 100}) {
     if (_board case final board?) _stashedBoard = board;
     _replaceDraft(
@@ -313,7 +331,7 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
 
   JeopardyBoard? get _board => switch (state.draft.format) {
     JeopardyFormat(:final board) => board,
-    StandardFormat() || PokerFormat() => null,
+    StandardFormat() || PokerFormat() || SnowflakeFormat() => null,
   };
 
   JeopardyBoard? _stashedBoard;

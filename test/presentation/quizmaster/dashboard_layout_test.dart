@@ -58,6 +58,68 @@ void main() {
       expect(layout[DashboardSection.liveRound].isVisible, isTrue);
     });
 
+    test('the recovery status is optional and hidden by default', () {
+      expect(DashboardSection.recovery.required, isFalse);
+      expect(
+        DashboardLayout.standard()[DashboardSection.recovery].isVisible,
+        isFalse,
+      );
+      // A stored layout that shows it keeps showing it.
+      final shown = DashboardLayout.standard().update(
+        DashboardLayout.standard()[DashboardSection.recovery].copyWith(
+          visible: true,
+        ),
+      );
+      expect(
+        DashboardLayout.decode(
+          shown.encode(),
+        )[DashboardSection.recovery].isVisible,
+        isTrue,
+      );
+    });
+
+    test('scoreboard and corrections are neighbours in a running game', () {
+      expect(
+        DashboardLayout.defaultOrder.toSet(),
+        DashboardSection.values.toSet(),
+      );
+      // Sections of a running game, on every platform and in every format.
+      const always = {
+        DashboardSection.sessionAccess,
+        DashboardSection.liveRound,
+        DashboardSection.questions,
+        DashboardSection.players,
+        DashboardSection.scoreboard,
+        DashboardSection.corrections,
+        DashboardSection.server,
+      };
+      const sometimes = [
+        DashboardSection.media,
+        DashboardSection.poker,
+        DashboardSection.guestWifi,
+        DashboardSection.report,
+      ];
+      for (var mask = 0; mask < 1 << sometimes.length; mask++) {
+        final present = {
+          ...always,
+          for (var i = 0; i < sometimes.length; i++)
+            if (mask & (1 << i) != 0) sometimes[i],
+        };
+        final visible = [
+          for (final entry in DashboardLayout.standard().sections)
+            if (entry.isVisible && present.contains(entry.section))
+              entry.section,
+        ];
+        final score = visible.indexOf(DashboardSection.scoreboard);
+        expect(visible[score + 1], DashboardSection.corrections);
+        // The grid deals the panels out to its columns in turn: both end up
+        // in the same row with two and with three columns.
+        for (final columns in [2, 3]) {
+          expect(score ~/ columns, (score + 1) ~/ columns, reason: '$present');
+        }
+      }
+    });
+
     test('missing or broken stored layouts fall back to the standard', () {
       for (final source in [null, '', 'nonsense', '{"sections": 3}', '[]']) {
         expect(DashboardLayout.decode(source), DashboardLayout.standard());
@@ -79,7 +141,7 @@ void main() {
       expect(restored, layout);
       expect(restored[DashboardSection.scoreboard].isVisible, isFalse);
       expect(restored[DashboardSection.scoreboard].colorIndex, 9);
-      expect(restored.sections[5].section, DashboardSection.sessionAccess);
+      expect(restored.sections[5].section, DashboardLayout.defaultOrder.first);
     });
 
     test('sections from a later version appear with their defaults', () {
@@ -232,7 +294,9 @@ void main() {
     expect(find.text('live panel'), findsNothing);
     expect(find.byKey(const ValueKey('edit-sessionAccess')), findsOneWidget);
     final handle = find.byKey(const ValueKey('edit-handle-scoreboard'));
-    final target = find.byKey(const ValueKey('edit-sessionAccess'));
+    final target = find.byKey(
+      ValueKey('edit-${DashboardLayout.defaultOrder.first.name}'),
+    );
     await tester.ensureVisible(handle);
     final gesture = await tester.startGesture(tester.getCenter(handle));
     await tester.pump(const Duration(milliseconds: 50));

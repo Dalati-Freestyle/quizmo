@@ -79,7 +79,34 @@ sealed class Question extends Equatable {
   bool get requiresManualGrading => false;
 
   String get solutionLabel;
-  List<String> get contentErrors => const [];
+
+  /// Violations of the content that do not concern the solution.
+  List<String> get structureErrors => const [];
+
+  /// Violations of the stored solution.
+  List<String> get solutionErrors => const [];
+
+  /// Every content violation of a question that is played with its solution.
+  List<String> get contentErrors => [...structureErrors, ...solutionErrors];
+
+  /// Canonical key of [answer]: two answers are the same answer exactly when
+  /// their keys are equal. `null` when the kind has no finite, deterministic
+  /// answer set (buzzer, free text, estimation) or [answer] is not accepted.
+  ///
+  /// Formats that compare answers with each other instead of with a solution
+  /// (`SnowflakeFormat`) rely on it.
+  String? uniquenessKey(AnswerSubmission answer) => null;
+
+  /// Whether answers of this kind can be compared through [uniquenessKey].
+  bool get supportsUniqueness => false;
+
+  /// Returns a copy without the stored solution that keeps host notes and
+  /// solution media, for formats that are played without a solution.
+  Question withoutSolution() => Question.fromJson({
+    ...redacted().toJson(),
+    'adminNotes': adminNotes,
+    'solutionMedia': solutionMedia.map((m) => m.toJson()).toList(),
+  });
 
   /// Whether this instance still carries the solution.
   ///
@@ -223,6 +250,15 @@ final class MultipleChoiceQuestion extends Question {
   @override
   String get solutionLabel =>
       options.where((o) => isCorrect(o.id)).map((o) => o.label).join(' / ');
+
+  @override
+  bool get supportsUniqueness => true;
+
+  @override
+  String? uniquenessKey(AnswerSubmission answer) =>
+      answer is MultipleChoiceAnswer && accepts(answer)
+      ? ([...answer.selectedOptionIds]..sort()).join(_keySeparator)
+      : null;
 
   @override
   MultipleChoiceQuestion redacted() => MultipleChoiceQuestion(
@@ -542,12 +578,23 @@ final class OrderingQuestion extends Question {
       .map((id) => items.where((i) => i.id == id).firstOrNull?.label ?? id)
       .join(' → ');
   @override
-  List<String> get contentErrors => [
-    ...optionErrors(items),
+  List<String> get structureErrors => optionErrors(items);
+
+  @override
+  List<String> get solutionErrors => [
     if (correctOrder == null ||
         !isPermutation(correctOrder!, items.map((i) => i.id).toList()))
       'Lösung muss jedes Element genau einmal enthalten.',
   ];
+
+  @override
+  bool get supportsUniqueness => true;
+
+  @override
+  String? uniquenessKey(AnswerSubmission answer) =>
+      answer is OrderingAnswer && accepts(answer)
+      ? answer.itemIds.join(_keySeparator)
+      : null;
   @override
   OrderingQuestion redacted() => OrderingQuestion(
     id: id,
@@ -639,13 +686,29 @@ final class MatchingQuestion extends Question {
       )
       .join('\n');
   @override
-  List<String> get contentErrors => [
+  List<String> get structureErrors => [
     ...optionErrors(leftItems),
     ...optionErrors(rightItems),
+  ];
+
+  @override
+  List<String> get solutionErrors => [
     if (correctPairs == null ||
         !validPairs(correctPairs!, leftItems, rightItems))
       'Vollständige eindeutige Zuordnung angeben.',
   ];
+
+  @override
+  bool get supportsUniqueness => true;
+
+  @override
+  String? uniquenessKey(AnswerSubmission answer) =>
+      answer is MatchingAnswer && accepts(answer)
+      ? ([
+          for (final pair in answer.pairs.entries)
+            '${pair.key}$_keySeparator${pair.value}',
+        ]..sort()).join('$_keySeparator$_keySeparator')
+      : null;
   @override
   MatchingQuestion redacted() => MatchingQuestion(
     id: id,
@@ -817,9 +880,16 @@ final class TrueFalseQuestion extends Question {
       ? 'Wahr'
       : 'Falsch';
   @override
-  List<String> get contentErrors => [
+  List<String> get solutionErrors => [
     if (correctAnswer == null) 'Wahr oder Falsch als Lösung wählen.',
   ];
+
+  @override
+  bool get supportsUniqueness => true;
+
+  @override
+  String? uniquenessKey(AnswerSubmission answer) =>
+      answer is TrueFalseAnswer ? '${answer.value}' : null;
   @override
   TrueFalseQuestion redacted() => TrueFalseQuestion(
     id: id,
@@ -849,6 +919,10 @@ final class TrueFalseQuestion extends Question {
     correctAnswer,
   ];
 }
+
+/// Separates the parts of a `Question.uniquenessKey`; never part of an ID a
+/// person types.
+const _keySeparator = '\u001f';
 
 bool sameOrder(List<String> a, List<String> b) =>
     a.length == b.length && a.indexed.every((e) => e.$2 == b[e.$1]);

@@ -14,6 +14,7 @@ import 'round.dart';
 import 'report_round.dart';
 import 'quiz_format.dart';
 import 'score.dart';
+import 'snowflake.dart';
 import 'team.dart';
 
 const Object _unset = Object();
@@ -100,6 +101,7 @@ final class GameState extends Equatable {
     this.completedQuestionIds = const {},
     this.jeopardy,
     this.poker,
+    this.snowflake,
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
@@ -158,6 +160,10 @@ final class GameState extends Equatable {
     },
     poker: switch (json.readObjectOrNull('poker')) {
       final JsonMap value => PokerState.fromJson(value),
+      null => null,
+    },
+    snowflake: switch (json.readStringOrNull('snowflake')) {
+      final name? => SnowflakeScoring.fromName(name),
       null => null,
     },
     hostTimeMicros: json.readInt('hostTimeMicros'),
@@ -235,6 +241,10 @@ final class GameState extends Equatable {
   final JeopardyState? jeopardy;
 
   final PokerState? poker;
+
+  /// Scoring of a "Biggest Snowflake" session, else `null`. A static rule of
+  /// the quiz, so it is the same for the host and the guests.
+  final SnowflakeScoring? snowflake;
 
   /// Host wall clock at the moment the snapshot was produced.
   ///
@@ -359,6 +369,8 @@ final class GameState extends Equatable {
   GameState redactedForPlayers({bool includeMediaData = false}) {
     final question = round.question;
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
+    // Poker and snowflake rounds must not leak what the others answered.
+    final hideAnswers = (poker != null || snowflake != null) && !keepSolution;
     return copyWith(
       corrections: const [],
       reportRounds: const [],
@@ -387,8 +399,9 @@ final class GameState extends Equatable {
           reveal: keepSolution,
           includeMediaData: includeMediaData,
         ),
-        answers: poker != null && !keepSolution ? const {} : round.answers,
-        acceptedElapsedMicros: poker != null && !keepSolution
+        answers: hideAnswers ? const {} : round.answers,
+        hiddenAnswerCount: hideAnswers ? round.answers.length : 0,
+        acceptedElapsedMicros: hideAnswers
             ? const {}
             : round.acceptedElapsedMicros,
         answerVerdicts: keepSolution ? round.answerVerdicts : const {},
@@ -425,6 +438,7 @@ final class GameState extends Equatable {
     List<ReportRound>? reportRounds,
     Object? protocol = _unset,
   }) => GameState(
+    snowflake: snowflake,
     protocol: identical(protocol, _unset)
         ? this.protocol
         : protocol as GameProtocol?,
@@ -473,6 +487,8 @@ final class GameState extends Equatable {
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
     'jeopardy': jeopardy?.toJson(),
     'poker': poker?.toJson(),
+    // Only written when set: saved games of older versions stay complete.
+    if (snowflake != null) 'snowflake': snowflake!.name,
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
@@ -501,6 +517,7 @@ final class GameState extends Equatable {
     completedQuestionIds,
     jeopardy,
     poker,
+    snowflake,
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,

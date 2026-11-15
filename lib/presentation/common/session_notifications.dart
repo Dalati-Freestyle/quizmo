@@ -223,13 +223,14 @@ String roundFeedback(GameState game, String playerId, {BuildContext? context}) {
                   ids.contains(event.playerId),
             )
             .fold<int>(0, (sum, event) => sum + event.points);
+  final snowflake = game.round.snowflake != null;
   final verdict = !answered
       ? 'Keine Antwort'
       : accuracy == 1
-      ? 'Richtig!'
+      ? (snowflake ? 'Seltenste Antwort!' : 'Richtig!')
       : accuracy > 0
-      ? 'Teilweise richtig'
-      : 'Leider falsch';
+      ? (snowflake ? 'Ziemlich selten' : 'Teilweise richtig')
+      : (snowflake ? 'Zu viele hatten dieselbe Antwort' : 'Leider falsch');
   final template = poker == null ? '{0} · {1} Punkte' : '{0} · {1} Chips';
   final arguments = [
     context?.tr(verdict) ?? verdict,

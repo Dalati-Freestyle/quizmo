@@ -21,7 +21,8 @@ void main() {
   JeopardyBoard board() => switch (cubit.state.draft.format) {
     JeopardyFormat(:final board) => board,
     StandardFormat() ||
-    PokerFormat() => throw StateError('Not a Jeopardy quiz.'),
+    PokerFormat() ||
+    SnowflakeFormat() => throw StateError('Not a Jeopardy quiz.'),
   };
 
   setUp(() {

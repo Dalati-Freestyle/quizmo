@@ -1182,5 +1182,22 @@
   "Im Internetbetrieb liefert der Server den Web-Player aus.": "In internet mode the server delivers the web player.",
   "Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.": "The built-in web player is outdated ({0}); player and TV browsers miss new features.",
   "„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.": "Run “dart run tool/bundle_web_client.dart”, then restart or rebuild the host.",
-  "Der Web-Player passt zur Version des Hosts.": "The web player matches the host version."
+  "Der Web-Player passt zur Version des Hosts.": "The web player matches the host version.",
+  "Biggest Snowflake": "Biggest Snowflake",
+  "Nur die seltenste Antwort": "Only the rarest answer",
+  "Abgestuft nach Seltenheit": "Graded by rarity",
+  "Es gibt keine richtige Lösung: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. Abgestuft: Mit jeder Stufe häufigerer Antworten sinkt der Anteil, die häufigste Antwort bekommt nichts. Geben alle dieselbe Antwort, punktet niemand. Möglich sind nur Multiple Choice, Wahr/Falsch, Reihenfolge und Zuordnung.": "There is no correct solution: points go to whoever gives the answer the fewest players chose. Graded: the share drops with every step of more common answers, and the most common answer earns nothing. If everyone gives the same answer, nobody scores. Only multiple choice, true/false, ordering and matching are possible.",
+  "In diesem Modus gibt es keine richtige Lösung: Es punktet die seltenste Antwort.": "This mode has no correct solution: the rarest answer scores.",
+  "Mehrere Antworten wählbar": "Several answers can be selected",
+  "Antwortmöglichkeiten": "Possible answers",
+  "Die Spieler wählen zwischen Wahr und Falsch.": "Players choose between true and false.",
+  "Elemente – eines pro Zeile": "Items — one per line",
+  "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)": "Items — per line: left = right (the pairing is not stored)",
+  "Die seltenste Antwort gewinnt": "The rarest answer wins",
+  "Noch keine Antworten.": "No answers yet.",
+  "Alle haben gleich geantwortet – niemand punktet.": "Everyone gave the same answer — nobody scores.",
+  "{0} · {1}× · {2} % der Punkte\n{3}": "{0} · {1}× · {2} % of the points\n{3}",
+  "Seltenste Antwort!": "Rarest answer!",
+  "Ziemlich selten": "Fairly rare",
+  "Zu viele hatten dieselbe Antwort": "Too many gave the same answer"
 }

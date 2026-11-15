@@ -815,7 +815,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     final receiptKnown =
         accepted != null ||
         _localSend != null ||
-        game.poker == null ||
+        // Poker and snowflake snapshots withhold the answers until the reveal.
+        (game.poker == null && game.snowflake == null) ||
         game.round.status == RoundStatus.revealed;
     final restored = _restoringSnapshot;
     _restoringSnapshot = false;

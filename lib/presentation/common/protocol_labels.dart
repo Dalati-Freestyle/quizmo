@@ -33,6 +33,7 @@ String protocolFormatKey(ProtocolFormat format) => switch (format) {
   ProtocolFormat.standard => 'Standard',
   ProtocolFormat.jeopardy => 'Jeopardy',
   ProtocolFormat.poker => 'Pokerchips',
+  ProtocolFormat.snowflake => 'Biggest Snowflake',
 };
 
 /// Unit of scores in [protocol] ("Punkte" or "Chips").

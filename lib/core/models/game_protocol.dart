@@ -430,7 +430,7 @@ final class GameProtocol extends Equatable {
 }
 
 /// Quiz format recorded in a protocol.
-enum ProtocolFormat { standard, jeopardy, poker }
+enum ProtocolFormat { standard, jeopardy, poker, snowflake }
 
 /// Assigns competition places (1, 1, 3, …) to [scores], best first.
 ///

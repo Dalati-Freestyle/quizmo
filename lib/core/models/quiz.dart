@@ -42,7 +42,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 9;
+  static const int currentSchemaVersion = 10;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -68,6 +68,7 @@ final class Quiz extends Equatable {
       7 => Quiz._fromJsonV7(json),
       8 => Quiz._fromJsonV8(json),
       9 => Quiz._fromJsonV9(json),
+      10 => Quiz._fromJsonV10(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -133,20 +134,36 @@ final class Quiz extends Equatable {
     ),
   });
 
+  /// Schema 9 has no "Biggest Snowflake" format; everything else is equal.
   factory Quiz._fromJsonV9(JsonMap json) {
+    if (json.readObjectOrNull('format')?['type'] == 'snowflake') {
+      throw const JsonContractException(
+        'The "snowflake" format needs schemaVersion 10.',
+      );
+    }
+    return Quiz._fromJsonV10(json);
+  }
+
+  factory Quiz._fromJsonV10(JsonMap json) {
+    // Files written before formats existed have no entry: plain quiz.
+    final format = switch (json.readObjectOrNull('format')) {
+      final JsonMap value => QuizFormat.fromJson(value),
+      null => const StandardFormat(),
+    };
     final quiz = Quiz(
       schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
       name: json.readString('name'),
       description: json.readString('description'),
       category: json.readString('category'),
-      questions: json.readList('questions', Question.fromJson),
+      questions: [
+        // A snowflake quiz is played without solutions; a file that still
+        // carries some (e.g. converted by hand) is normalised.
+        for (final question in json.readList('questions', Question.fromJson))
+          format is SnowflakeFormat ? question.withoutSolution() : question,
+      ],
       teams: json.readList('teams', _teamFromQuizJson),
-      // Files written before formats existed have no entry: plain quiz.
-      format: switch (json.readObjectOrNull('format')) {
-        final JsonMap value => QuizFormat.fromJson(value),
-        null => const StandardFormat(),
-      },
+      format: format,
       createdAt: DateTime.fromMicrosecondsSinceEpoch(
         json.readInt('createdAtMicros'),
         isUtc: true,
@@ -239,7 +256,12 @@ final class Quiz extends Equatable {
       );
     }
     for (final question in questions) {
-      errors.addAll(_questionValidationErrors(question));
+      errors.addAll(
+        _questionValidationErrors(
+          question,
+          needsSolution: format is! SnowflakeFormat,
+        ),
+      );
     }
     switch (format) {
       case PokerFormat(:final startingChips):
@@ -248,6 +270,21 @@ final class Quiz extends Equatable {
         }
       case StandardFormat():
         break;
+      case SnowflakeFormat():
+        for (final question in questions) {
+          if (!question.supportsUniqueness) {
+            errors.add(
+              'Biggest Snowflake unterstützt die Frage "${question.id}" '
+              'nicht: nur Multiple Choice, Wahr/Falsch, Reihenfolge und '
+              'Zuordnung sind möglich.',
+            );
+          } else if (question.hasSolution) {
+            errors.add(
+              'Biggest Snowflake speichert keine Lösung: Frage '
+              '"${question.id}" enthält eine.',
+            );
+          }
+        }
       case JeopardyFormat(:final board):
         errors.addAll(_jeopardyValidationErrors(board, questions));
     }
@@ -384,7 +421,10 @@ List<String> _jeopardyValidationErrors(
   return errors;
 }
 
-List<String> _questionValidationErrors(Question question) => [
+List<String> _questionValidationErrors(
+  Question question, {
+  required bool needsSolution,
+}) => [
   if (question.scoringRule is SpeedBonusRule && !question.hasTimeLimit)
     'Question "${question.id}" needs a time limit for the speed bonus.',
   if (question.media.length + question.solutionMedia.length > 10)
@@ -410,6 +450,7 @@ List<String> _questionValidationErrors(Question question) => [
         options: options,
         correctOptionIds: solutionOptionIds,
         allowMultipleAnswers: allowMultipleAnswers,
+        needsSolution: needsSolution,
       ),
     ShortAnswerQuestion() ||
     OrderingQuestion() ||
@@ -421,7 +462,8 @@ List<String> _questionValidationErrors(Question question) => [
         prompt: question.prompt,
         timeLimit: question.timeLimit,
       ),
-      ...question.contentErrors,
+      ...question.structureErrors,
+      if (needsSolution) ...question.solutionErrors,
     ],
     BuzzerQuestion(:final id, :final prompt, :final timeLimit) => [
       ..._baseQuestionValidationErrors(
@@ -441,6 +483,7 @@ List<String> _multipleChoiceValidationErrors({
   required List<AnswerOption> options,
   required List<String> correctOptionIds,
   required bool allowMultipleAnswers,
+  required bool needsSolution,
 }) {
   final errors = _baseQuestionValidationErrors(
     id: id,
@@ -459,12 +502,13 @@ List<String> _multipleChoiceValidationErrors({
       errors.add('Option "${option.id}" in question "$id" needs a label.');
     }
   }
-  if (correctOptionIds.isEmpty ||
-      correctOptionIds.toSet().length != correctOptionIds.length ||
-      (!allowMultipleAnswers && correctOptionIds.length != 1) ||
-      !correctOptionIds.every(
-        (id) => options.any((option) => option.id == id),
-      )) {
+  if (needsSolution &&
+      (correctOptionIds.isEmpty ||
+          correctOptionIds.toSet().length != correctOptionIds.length ||
+          (!allowMultipleAnswers && correctOptionIds.length != 1) ||
+          !correctOptionIds.every(
+            (id) => options.any((option) => option.id == id),
+          ))) {
     errors.add(
       'Multiple-choice question "$id" needs a correctOptionId from its options.',
     );

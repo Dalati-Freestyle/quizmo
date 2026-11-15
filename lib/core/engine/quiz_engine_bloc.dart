@@ -48,6 +48,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     GameMode mode = const SoloMode(),
     JeopardyBoard? jeopardyBoard,
     int? pokerStartingChips,
+    SnowflakeScoring? snowflakeScoring,
     SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
@@ -81,6 +82,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                  poker: pokerStartingChips == null
                      ? null
                      : PokerState.start(pokerStartingChips, teams.keys),
+                 snowflake: snowflakeScoring,
                  hostTimeMicros: now(),
                  revealMode: revealMode,
                ),
@@ -865,6 +867,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             question: question,
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
+            snowflake: game.snowflake,
           ),
         ),
         notice: 'Round started: ${question.prompt}',
@@ -1884,6 +1887,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             question: question,
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
+            snowflake: game.snowflake,
           ),
           jeopardy: jeopardy.copyWith(
             pendingDailyDoubleId: null,
@@ -1923,6 +1927,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         lockedOutPlayerIds: game.round.lockedOutPlayerIds,
         status: RoundStatus.acceptingAnswers,
         startedAtHostMicros: _now(),
+        snowflake: game.snowflake,
       ),
       jeopardy: game.jeopardy!.copyWith(isStealRound: true),
     );
@@ -2014,6 +2019,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         GameState(
           mode: game.mode,
           revealMode: game.revealMode,
+          snowflake: game.snowflake,
           poker: game.poker == null
               ? null
               : PokerState.start(game.poker!.startingChips, teams.keys),

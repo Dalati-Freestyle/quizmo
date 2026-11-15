@@ -19,6 +19,7 @@ export 'quiz_format.dart';
 export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
+export 'snowflake.dart';
 export 'team.dart';
 export 'team_color.dart';
 

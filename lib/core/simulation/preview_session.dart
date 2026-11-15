@@ -27,15 +27,20 @@ final class PreviewSession {
       revealMode: switch (quiz.format) {
         StandardFormat(:final revealMode) => revealMode,
         JeopardyFormat() ||
-        PokerFormat() => SolutionRevealMode.afterEachQuestion,
+        PokerFormat() ||
+        SnowflakeFormat() => SolutionRevealMode.afterEachQuestion,
       },
       jeopardyBoard: switch (quiz.format) {
         JeopardyFormat(:final board) => board,
-        StandardFormat() || PokerFormat() => null,
+        StandardFormat() || PokerFormat() || SnowflakeFormat() => null,
       },
       pokerStartingChips: switch (quiz.format) {
         PokerFormat(:final startingChips) => startingChips,
-        StandardFormat() || JeopardyFormat() => null,
+        StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
+      },
+      snowflakeScoring: switch (quiz.format) {
+        SnowflakeFormat(:final scoring) => scoring,
+        StandardFormat() || JeopardyFormat() || PokerFormat() => null,
       },
       now: () => clock.nowMicros,
       createTimer: clock.schedule,
@@ -328,6 +333,8 @@ final class PreviewSession {
             playerId: id,
             timestamp: clock.nowMicros,
             correct: question is BuzzerQuestion || settings.succeeds(_random),
+            // Skewed so that snowflake rounds get rare and common answers.
+            variant: _random.nextInt(3) * _random.nextInt(3),
           );
           send(
             answer is BuzzerPress

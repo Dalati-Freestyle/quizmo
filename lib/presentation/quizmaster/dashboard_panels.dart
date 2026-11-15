@@ -1207,16 +1207,17 @@ class LiveRoundPanel extends StatelessWidget {
                   commandRevision: game.tvMediaCommandRevision,
                 ),
                 switch (question) {
-                  MultipleChoiceQuestion() => _MultipleChoiceMonitor(
-                    question: question,
-                    game: game,
-                  ),
+                  // A snowflake round has no right option: the host follows
+                  // the answers by rarity like for every other kind.
+                  MultipleChoiceQuestion() when game.round.snowflake == null =>
+                    _MultipleChoiceMonitor(question: question, game: game),
                   ShortAnswerQuestion(manualGrading: true) =>
                     ManualAnswerMonitor(
                       question: question,
                       game: game,
                       onJudge: onJudgeAnswer,
                     ),
+                  MultipleChoiceQuestion() ||
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||

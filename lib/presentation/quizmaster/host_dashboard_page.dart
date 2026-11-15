@@ -68,15 +68,20 @@ class HostDashboardPage extends StatelessWidget {
             revealMode: switch (quiz.format) {
               StandardFormat(:final revealMode) => revealMode,
               JeopardyFormat() ||
-              PokerFormat() => SolutionRevealMode.afterEachQuestion,
+              PokerFormat() ||
+              SnowflakeFormat() => SolutionRevealMode.afterEachQuestion,
             },
             pokerStartingChips: switch (quiz.format) {
               PokerFormat(:final startingChips) => startingChips,
-              StandardFormat() || JeopardyFormat() => null,
+              StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
             },
             jeopardyBoard: switch (quiz.format) {
               JeopardyFormat(:final board) => board,
-              StandardFormat() || PokerFormat() => null,
+              StandardFormat() || PokerFormat() || SnowflakeFormat() => null,
+            },
+            snowflakeScoring: switch (quiz.format) {
+              SnowflakeFormat(:final scoring) => scoring,
+              StandardFormat() || JeopardyFormat() || PokerFormat() => null,
             },
           ),
         ),
@@ -349,6 +354,12 @@ class _HostDashboardView extends StatelessWidget {
                 body: SessionNotifications(
                   game: game,
                   child: DashboardSectionGrid(
+                    // The recovery status may be hidden; resuming a
+                    // recovered game and a failing save still need it.
+                    forceVisible: {
+                      if (game.recoveryPaused || recovery.lastError != null)
+                        DashboardSection.recovery,
+                    },
                     leading: [
                       if (serverState.outdatedWebClientVersion
                           case final version?)

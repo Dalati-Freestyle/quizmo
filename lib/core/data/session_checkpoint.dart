@@ -539,8 +539,16 @@ final class SessionCheckpoint {
         require(
           game.jeopardy == null &&
               game.poker == null &&
+              game.snowflake == null &&
               game.revealMode == revealMode,
           'standard format.',
+        );
+      case SnowflakeFormat(:final scoring):
+        require(
+          game.snowflake == scoring &&
+              game.jeopardy == null &&
+              game.poker == null,
+          'snowflake format.',
         );
       case JeopardyFormat(:final board):
         final j = game.jeopardy;

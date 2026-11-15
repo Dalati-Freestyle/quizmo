@@ -35,8 +35,8 @@ Map<String, Object?> _file({
 };
 
 void main() {
-  test('schema 9 is the current schema', () {
-    expect(Quiz.currentSchemaVersion, 9);
+  test('palette colour names exist since schema 9', () {
+    expect(Quiz.currentSchemaVersion, greaterThanOrEqualTo(9));
   });
 
   test('the palette matches the admin view and has unique names', () {
@@ -62,7 +62,7 @@ void main() {
         ),
       ),
     );
-    expect(quiz.schemaVersion, 9);
+    expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
     expect(quiz.teams.first.colorValue, TeamColor.red.argb);
     expect(quiz.teams.last.colorValue, TeamColor.blue.argb);
   });

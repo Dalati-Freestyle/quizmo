@@ -289,3 +289,38 @@ ScoreDelta evaluateAccuracy(
 // answer returns twice the stake; a miss or no answer returns nothing.
 int pokerChipPayout({required int wager, required bool isCorrect}) =>
     isCorrect ? wager * 2 : 0;
+
+/// Shares of the points in a "Biggest Snowflake" round.
+///
+/// [answerKeys] maps each participant to the canonical key of their answer;
+/// equal keys are the same answer. The rarest answer earns the full share.
+/// With [graded] the share falls linearly with every step of falling
+/// uniqueness until the most common answer earns nothing; otherwise only the
+/// rarest answer scores.
+///
+/// Answers that are equally rare share a step, so a tie for the rarest answer
+/// rewards everyone in it. When at least two participants answered and all of
+/// them gave the same answer, nobody is unique and nobody scores.
+Map<String, double> snowflakeShares(
+  Map<String, String> answerKeys, {
+  required bool graded,
+}) {
+  final sizes = <String, int>{};
+  for (final key in answerKeys.values) {
+    sizes[key] = (sizes[key] ?? 0) + 1;
+  }
+  if (sizes.length == 1 && answerKeys.length > 1) {
+    return {for (final id in answerKeys.keys) id: 0};
+  }
+  final steps = sizes.values.toSet().toList()..sort();
+  double shareOf(int size) {
+    final step = steps.indexOf(size);
+    if (step == 0) return 1;
+    return graded ? 1 - step / (steps.length - 1) : 0;
+  }
+
+  return {
+    for (final entry in answerKeys.entries)
+      entry.key: shareOf(sizes[entry.value]!),
+  };
+}

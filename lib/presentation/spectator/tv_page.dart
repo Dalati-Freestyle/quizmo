@@ -1560,10 +1560,12 @@ class _QuestionStage extends StatelessWidget {
                   ),
                 )
               : switch (current) {
-                  MultipleChoiceQuestion() => _ChoiceBoard(
-                    question: current,
-                    game: game,
-                  ),
+                  // A revealed snowflake round has no right option to mark;
+                  // it shows the answers by rarity like every other kind.
+                  MultipleChoiceQuestion()
+                      when !(isRevealed && round.snowflake != null) =>
+                    _ChoiceBoard(question: current, game: game),
+                  MultipleChoiceQuestion() ||
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||
@@ -1773,7 +1775,7 @@ class _ChoiceBoard extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             context.tr("{0} of {1} answered", [
-              round.answers.length,
+              round.answerCount,
               game.connectedPlayers.length,
             ]),
             style: theme.textTheme.headlineSmall?.copyWith(

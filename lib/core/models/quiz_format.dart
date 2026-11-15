@@ -9,6 +9,7 @@ import 'package:equatable/equatable.dart';
 
 import 'jeopardy.dart';
 import 'json.dart';
+import 'snowflake.dart';
 
 /// When standard quizzes publish solutions, verdicts and standings to guests.
 enum SolutionRevealMode {
@@ -48,6 +49,9 @@ sealed class QuizFormat extends Equatable {
     'poker' => PokerFormat(startingChips: json.readInt('startingChips')),
     JeopardyFormat._type => JeopardyFormat(
       JeopardyBoard.fromJson(json.readObject('board')),
+    ),
+    SnowflakeFormat._type => SnowflakeFormat(
+      scoring: SnowflakeScoring.fromName(json.readString('scoring')),
     ),
     final unknown => throw JsonContractException(
       'Unknown quiz format "$unknown".',
@@ -106,4 +110,28 @@ final class PokerFormat extends QuizFormat {
   JsonMap toJson() => {'type': 'poker', 'startingChips': startingChips};
   @override
   List<Object?> get props => [startingChips];
+}
+
+/// "Biggest Snowflake": no answer is stored as correct; the rarest answer of
+/// each round wins (supported from quiz schema 10 on).
+///
+/// Only question kinds with a finite, deterministic answer set can be played
+/// (`Question.supportsUniqueness`).
+final class SnowflakeFormat extends QuizFormat {
+  /// Creates the format with its [scoring] rule.
+  const SnowflakeFormat({this.scoring = SnowflakeScoring.winnerOnly});
+
+  static const String _type = 'snowflake';
+
+  /// Whether only the rarest answer scores or the points are graded.
+  final SnowflakeScoring scoring;
+
+  @override
+  String get label => 'Biggest Snowflake';
+
+  @override
+  JsonMap toJson() => {'type': _type, 'scoring': scoring.name};
+
+  @override
+  List<Object?> get props => [scoring];
 }

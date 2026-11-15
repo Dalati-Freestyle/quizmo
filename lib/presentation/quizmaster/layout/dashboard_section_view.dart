@@ -157,6 +157,7 @@ class DashboardSectionGrid extends StatefulWidget {
   const DashboardSectionGrid({
     required this.sections,
     this.leading = const [],
+    this.forceVisible = const {},
     this.editable = true,
     this.alwaysEditing = false,
     super.key,
@@ -164,6 +165,10 @@ class DashboardSectionGrid extends StatefulWidget {
 
   /// Panels per section that exist in the current game state.
   final Map<DashboardSection, Widget> sections;
+
+  /// Sections that currently need the host's attention: they are shown even
+  /// when the layout hides them, ahead of all others.
+  final Set<DashboardSection> forceVisible;
 
   /// Full-width widgets above the grid (e.g. warnings).
   final List<Widget> leading;
@@ -257,21 +262,28 @@ class _DashboardSectionGridState extends State<DashboardSectionGrid> {
                   ),
               ]
             : [
-                for (final entry in layout.sections)
-                  if (entry.isVisible)
-                    if (widget.sections[entry.section] case final panel?)
-                      DashboardSectionView(
-                        key: ValueKey(entry.section),
-                        settings: entry,
-                        onExpandedChanged: (expanded) => _store.remember(
-                          _store.layout.value.update(
-                            _store.layout.value[entry.section].copyWith(
-                              expanded: expanded,
-                            ),
+                for (final entry in [
+                  ...layout.sections.where(
+                    (e) => widget.forceVisible.contains(e.section),
+                  ),
+                  ...layout.sections.where(
+                    (e) =>
+                        e.isVisible && !widget.forceVisible.contains(e.section),
+                  ),
+                ])
+                  if (widget.sections[entry.section] case final panel?)
+                    DashboardSectionView(
+                      key: ValueKey(entry.section),
+                      settings: entry,
+                      onExpandedChanged: (expanded) => _store.remember(
+                        _store.layout.value.update(
+                          _store.layout.value[entry.section].copyWith(
+                            expanded: expanded,
                           ),
                         ),
-                        child: panel,
                       ),
+                      child: panel,
+                    ),
               ],
       );
       final toolbar = widget.editable && !widget.alwaysEditing;

@@ -4,12 +4,20 @@ import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
 
+/// Shown where a solution would be entered in a quiz without solutions.
+const kNoSolutionHint =
+    'In diesem Modus gibt es keine richtige Lösung: Es punktet die seltenste Antwort.';
+
 class NewQuestionFields extends StatefulWidget {
   const NewQuestionFields({
     required this.question,
     required this.onChanged,
+    this.showSolution = true,
     super.key,
   });
+
+  /// Whether the solution is edited; `false` in a quiz without solutions.
+  final bool showSolution;
   final Question question;
   final ValueChanged<Map<String, Object?>> onChanged;
   @override
@@ -41,12 +49,11 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         :final rightItems,
         :final correctPairs,
       ) =>
-        leftItems
-            .map(
-              (i) =>
-                  '${i.label} = ${rightItems.where((r) => r.id == correctPairs?[i.id]).firstOrNull?.label ?? ''}',
-            )
-            .join('\n'),
+        [
+          // Without a stored pairing the items are listed side by side.
+          for (final (index, i) in leftItems.indexed)
+            '${i.label} = ${(correctPairs == null ? rightItems.elementAtOrNull(index) : rightItems.where((r) => r.id == correctPairs[i.id]).firstOrNull)?.label ?? ''}',
+        ].join('\n'),
       EstimationQuestion(:final correctValue) => correctValue?.toString() ?? '',
       TrueFalseQuestion() || MultipleChoiceQuestion() || BuzzerQuestion() => '',
     };
@@ -76,7 +83,9 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         'unit': unit,
         'zeroScale': double.tryParse(scale.replaceAll(',', '.')),
       },
-      TrueFalseQuestion() => <String, Object?>{'correctAnswer': truth},
+      TrueFalseQuestion() => <String, Object?>{
+        if (widget.showSolution) 'correctAnswer': truth,
+      },
       MultipleChoiceQuestion() || BuzzerQuestion() => <String, Object?>{},
     };
     widget.onChanged(fields);
@@ -124,11 +133,19 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            context.tr("Lösung und Einstellungen"),
+            widget.showSolution
+                ? context.tr("Lösung und Einstellungen")
+                : context.tr("Antwortmöglichkeiten"),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
-          if (widget.question is TrueFalseQuestion)
+          if (!widget.showSolution) ...[
+            Text(context.tr(kNoSolutionHint)),
+            const SizedBox(height: 12),
+          ],
+          if (widget.question is TrueFalseQuestion && !widget.showSolution)
+            Text(context.tr("Die Spieler wählen zwischen Wahr und Falsch."))
+          else if (widget.question is TrueFalseQuestion)
             SwitchListTile(
               title: Text(
                 truth
@@ -151,12 +168,18 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                   ShortAnswerQuestion() => context.tr(
                     "Akzeptierte Antworten – eine pro Zeile",
                   ),
-                  OrderingQuestion() => context.tr(
-                    "Elemente in korrekter Reihenfolge – eines pro Zeile",
-                  ),
-                  MatchingQuestion() => context.tr(
-                    "Paare – pro Zeile: links = rechts",
-                  ),
+                  OrderingQuestion() =>
+                    widget.showSolution
+                        ? context.tr(
+                            "Elemente in korrekter Reihenfolge – eines pro Zeile",
+                          )
+                        : context.tr("Elemente – eines pro Zeile"),
+                  MatchingQuestion() =>
+                    widget.showSolution
+                        ? context.tr("Paare – pro Zeile: links = rechts")
+                        : context.tr(
+                            "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)",
+                          ),
                   EstimationQuestion() => context.tr("Korrekte Zahl"),
                   TrueFalseQuestion() ||
                   MultipleChoiceQuestion() ||

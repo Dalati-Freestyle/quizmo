@@ -30,6 +30,7 @@ import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
+import '../common/snowflake_result_view.dart';
 import '../common/quiz_review_view.dart';
 import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
@@ -814,7 +815,9 @@ class _QuestionStage extends StatelessWidget {
         ],
         if (state.roundStatus == RoundStatus.revealed) ...[
           const SizedBox(height: 24),
-          if (question is! MultipleChoiceQuestion &&
+          if (state.game case final game? when game.round.snowflake != null)
+            SnowflakeResultView(game: game, fontSize: 16)
+          else if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
             Text(
               context.tr("Lösung: {0}", [

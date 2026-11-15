@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **9**
+Quizmo schema version of this guide: **10**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -41,9 +41,10 @@ Explain in two or three sentences how it works, then ask **first**:
 First settle **everything that applies to the whole quiz**, before the first
 question is written. Ask actively and suggest sensible defaults:
 
-1. **Quiz format** – Standard, Jeopardy or Pokerchips (see section 3) with its
-   format rules (board layout, minus points, steal, starting chips, solutions
-   after every question or at the end).
+1. **Quiz format** – Standard, Jeopardy, Pokerchips or Biggest Snowflake (see
+   section 3) with its format rules (board layout, minus points, steal,
+   starting chips, solutions after every question or at the end, snowflake
+   scoring).
 2. **Teams or solo** – predefined teams (names, colours) or single players.
 3. **Time limits** – no time limit (the host ends the round) or a default time
    per question, hard or soft limit.
@@ -74,7 +75,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 9,               // always exactly 9
+  "schemaVersion": 10,              // always exactly 10
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -106,6 +107,22 @@ the host). Show each question briefly for confirmation before the next one.
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board of categories (columns) × rows. Points come from the row, not from the question. |
 | Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams bet chips before every question (1–1,000,000 starting chips). Correct = twice the stake back, wrong = stake lost. `teams` may be empty. |
 
+| Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | There is **no correct solution**: points go to whoever gives the answer the fewest players chose. `scoring`: `winnerOnly` (only the rarest answer scores) or `graded` (the share drops with every step of more common answers, the most common one earns nothing). Details below. |
+
+**Biggest Snowflake:**
+
+* Only the question types `multipleChoice`, `trueFalse`, `ordering` and
+  `matching` are allowed. `buzzer`, `shortAnswer` and `estimation` are not
+  possible.
+* The questions store **no solution**: set `correctOptionId`,
+  `correctOptionIds`, `correctAnswer`, `correctOrder` and `correctPairs` to
+  `null`. Write questions about opinions, preferences or judgement, not about
+  knowledge.
+* The points come from the question's `scoringRule` (preferably `fixed`); they
+  are multiplied by the share. Equally rare answers share a step. If everyone
+  gives the same answer, nobody scores.
+* Answers are counted per player; `teams` may be empty.
+
 **Jeopardy board:**
 
 ```text
@@ -126,7 +143,8 @@ the host). Show each question briefly for confirmation before the next one.
   question appears at most once on the board. A category has at most as many
   cells as `rowPoints` has entries.
 * Jeopardy is played with teams: create at least two teams.
-* Every question type works in every format.
+* Every question type works in every format; the only exception is Biggest
+  Snowflake (see above).
 
 ## 4. Fields of every question
 
@@ -189,12 +207,15 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 9` is at the very top.
+- [ ] `"schemaVersion": 10` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
       needs > 0) and a valid `scoringRule`.
-- [ ] Every question has a complete, valid solution (see section 5).
+- [ ] Every question has a complete, valid solution (see section 5) – except
+      in Biggest Snowflake: there every solution field is `null`.
+- [ ] Biggest Snowflake: only `multipleChoice`, `trueFalse`, `ordering` and
+      `matching`; `scoring` is `winnerOnly` or `graded`.
 - [ ] Jeopardy: every `questionId` exists, no question twice, row points > 0,
       every category has a name, at least two teams.
 - [ ] Poker: `startingChips` between 1 and 1,000,000.
@@ -212,7 +233,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -374,7 +395,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -444,7 +465,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -472,6 +493,71 @@ The following files are valid and import unchanged.
   ],
   "teams": [],
   "format": {"type": "poker", "startingChips": 100},
+  "createdAtMicros": 1767225600000000,
+  "updatedAtMicros": 1767225600000000
+}
+```
+
+### Biggest Snowflake (the rarest answer wins)
+
+```json quizmo-example
+{
+  "schemaVersion": 10,
+  "id": "quiz-ai-snowflake-example",
+  "name": "Biggest Snowflake: who thinks differently?",
+  "description": "No correct solution: whoever answers differently from the majority scores.",
+  "category": "Party",
+  "questions": [
+    {
+      "type": "trueFalse", "id": "s1", "prompt": "Pineapple belongs on pizza.",
+      "timeLimitMs": 20000, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "correctAnswer": null
+    },
+    {
+      "type": "multipleChoice", "id": "s2", "prompt": "Which season is the best?",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "options": [
+        {"id": "a", "label": "Spring"},
+        {"id": "b", "label": "Summer"},
+        {"id": "c", "label": "Autumn"},
+        {"id": "d", "label": "Winter"}
+      ],
+      "correctOptionId": null, "correctOptionIds": null, "allowMultipleAnswers": false
+    },
+    {
+      "type": "ordering", "id": "s3", "prompt": "Sort from most important to least important.",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "items": [
+        {"id": "a", "label": "Sleep"},
+        {"id": "b", "label": "Food"},
+        {"id": "c", "label": "Wi-Fi"}
+      ],
+      "correctOrder": null
+    },
+    {
+      "type": "matching", "id": "s4", "prompt": "Which drink goes with which time of day?",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "leftItems": [
+        {"id": "l1", "label": "Morning"},
+        {"id": "l2", "label": "Evening"}
+      ],
+      "rightItems": [
+        {"id": "r1", "label": "Coffee"},
+        {"id": "r2", "label": "Tea"}
+      ],
+      "correctPairs": null
+    }
+  ],
+  "teams": [],
+  "format": {"type": "snowflake", "scoring": "graded"},
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }

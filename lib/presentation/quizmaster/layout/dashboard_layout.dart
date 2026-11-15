@@ -13,10 +13,17 @@ import '../../../core/models/team_color.dart';
 /// Format dependent content shares one section: [questions] shows the
 /// Jeopardy board in a Jeopardy session and the question list otherwise, so
 /// both inherit the settings of that slot.
+///
+/// The declaration order only fixes the default colours; the default
+/// position comes from [DashboardLayout.defaultOrder].
 enum DashboardSection {
   sessionAccess('Sitzungszugang', required: true),
   guestWifi('Gäste-WLAN', required: false),
-  recovery('Spielstand-Sicherung', required: true),
+
+  /// Optional: the game is saved automatically whether or not the section is
+  /// shown. The dashboard shows it regardless while a recovered game waits
+  /// to be resumed or saving fails.
+  recovery('Spielstand-Sicherung', required: false),
   startQuiz('Quiz starten', required: true),
   liveRound('Laufende Runde', required: true),
   media('Medienwiedergabe', required: true),
@@ -105,10 +112,34 @@ final class DashboardLayout {
   DashboardLayout(List<DashboardSectionSettings> sections)
     : sections = List.unmodifiable(_complete(sections));
 
-  /// The default layout: every section in its own colour, server log hidden.
-  factory DashboardLayout.standard() => DashboardLayout([
-    for (final section in DashboardSection.values) _default(section),
-  ]);
+  /// The default layout: every section in its own colour; the server log and
+  /// the recovery status are hidden.
+  factory DashboardLayout.standard() =>
+      DashboardLayout([for (final section in defaultOrder) _default(section)]);
+
+  /// Default position of the sections.
+  ///
+  /// The grid deals the visible sections out to its columns in turn. In a
+  /// running game exactly four sections precede the scoreboard, whatever the
+  /// format or platform, so the scoreboard and the corrections sit side by
+  /// side with two and with three columns. Sections that only exist at times
+  /// (media, poker, guest Wi-Fi, report) therefore follow them.
+  static const defaultOrder = [
+    DashboardSection.startQuiz,
+    DashboardSection.sessionAccess,
+    DashboardSection.liveRound,
+    DashboardSection.questions,
+    DashboardSection.players,
+    DashboardSection.scoreboard,
+    DashboardSection.corrections,
+    DashboardSection.media,
+    DashboardSection.poker,
+    DashboardSection.server,
+    DashboardSection.guestWifi,
+    DashboardSection.recovery,
+    DashboardSection.report,
+    DashboardSection.serverLog,
+  ];
 
   /// Restores a stored layout.
   ///
@@ -230,7 +261,9 @@ final class DashboardLayout {
       DashboardSectionSettings(
         section: section,
         colorIndex: section.index % kDashboardPaletteSize,
-        visible: section != DashboardSection.serverLog,
+        visible:
+            section != DashboardSection.serverLog &&
+            section != DashboardSection.recovery,
         expanded: section != DashboardSection.serverLog,
       );
 
@@ -238,10 +271,10 @@ final class DashboardLayout {
     List<DashboardSectionSettings> stored,
   ) {
     final result = [...stored];
-    for (final section in DashboardSection.values) {
+    for (final section in defaultOrder) {
       if (result.any((entry) => entry.section == section)) continue;
       // Insert a new section after its default predecessor that is present.
-      final predecessors = DashboardSection.values.take(section.index);
+      final predecessors = defaultOrder.take(defaultOrder.indexOf(section));
       var index = 0;
       for (final previous in predecessors.toList().reversed) {
         final position = result.indexWhere((e) => e.section == previous);

@@ -178,6 +178,8 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
     generatedAtMicros: game.hostTimeMicros,
     format: poker
         ? ProtocolFormat.poker
+        : game.snowflake != null
+        ? ProtocolFormat.snowflake
         : game.jeopardy != null
         ? ProtocolFormat.jeopardy
         : ProtocolFormat.standard,

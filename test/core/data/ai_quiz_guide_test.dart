@@ -46,7 +46,7 @@ void main() {
       });
 
       test('every example imports without validation errors', () {
-        expect(examples, hasLength(greaterThanOrEqualTo(3)));
+        expect(examples, hasLength(greaterThanOrEqualTo(4)));
         for (final example in examples) {
           final quiz = parseQuizImport(example);
           expect(quiz.validationErrors(), isEmpty, reason: quiz.name);
@@ -60,6 +60,7 @@ void main() {
           StandardFormat,
           JeopardyFormat,
           PokerFormat,
+          SnowflakeFormat,
         });
         final kinds = {
           for (final quiz in quizzes)

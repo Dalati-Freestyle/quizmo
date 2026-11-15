@@ -18,7 +18,7 @@ import 'quiz_editor_cubit.dart';
 import 'selection_dropdown.dart';
 import '../preview/quiz_preview_page.dart';
 
-enum _QuizFormatKind { standard, jeopardy, poker }
+enum _QuizFormatKind { standard, jeopardy, poker, snowflake }
 
 /// Lets the host edit [quiz] and returns its saved replacement.
 class QuizEditorPage extends StatelessWidget {
@@ -87,6 +87,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
         StandardFormat() => _QuizFormatKind.standard,
         JeopardyFormat() => _QuizFormatKind.jeopardy,
         PokerFormat() => _QuizFormatKind.poker,
+        SnowflakeFormat() => _QuizFormatKind.snowflake,
       };
       return Scaffold(
         appBar: AppBar(
@@ -195,6 +196,16 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           ],
                         ),
                       ),
+                      DropdownMenuItem(
+                        value: _QuizFormatKind.snowflake,
+                        child: Row(
+                          children: [
+                            Icon(Icons.ac_unit),
+                            SizedBox(width: 8),
+                            Text(context.tr("Biggest Snowflake")),
+                          ],
+                        ),
+                      ),
                     ],
                     onChanged: (selection) {
                       if (selection == null || selection == formatKind) return;
@@ -205,6 +216,8 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           cubit.useJeopardyFormat();
                         case _QuizFormatKind.poker:
                           cubit.usePokerFormat();
+                        case _QuizFormatKind.snowflake:
+                          cubit.useSnowflakeFormat();
                       }
                     },
                   ),
@@ -235,6 +248,43 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     Text(
                       context.tr(
                         'Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.',
+                      ),
+                    ),
+                  ],
+                  if (state.draft.format case SnowflakeFormat(
+                    :final scoring,
+                  )) ...[
+                    const SizedBox(height: 16),
+                    SelectionDropdown<SnowflakeScoring>(
+                      key: const ValueKey('snowflake-scoring'),
+                      label: context.tr('Punkte'),
+                      value: scoring,
+                      items: [
+                        DropdownMenuItem(
+                          value: SnowflakeScoring.winnerOnly,
+                          child: Text(
+                            context.tr('Nur die seltenste Antwort'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: SnowflakeScoring.graded,
+                          child: Text(
+                            context.tr('Abgestuft nach Seltenheit'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          cubit.useSnowflakeFormat(scoring: value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        "Es gibt keine richtige Lösung: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. Abgestuft: Mit jeder Stufe häufigerer Antworten sinkt der Anteil, die häufigste Antwort bekommt nichts. Geben alle dieselbe Antwort, punktet niemand. Möglich sind nur Multiple Choice, Wahr/Falsch, Reihenfolge und Zuordnung.",
                       ),
                     ),
                   ],
@@ -277,7 +327,9 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                 cubit: cubit,
                 createId: widget.createId,
               ),
-              StandardFormat() || PokerFormat() => _QuestionsPanel(
+              StandardFormat() ||
+              PokerFormat() ||
+              SnowflakeFormat() => _QuestionsPanel(
                 questions: state.draft.questions,
                 format: state.draft.format,
                 onAddTemplate: (template) => _editQuestion(
@@ -435,6 +487,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
       children: [
         QuestionTemplateDropdown(
           value: _selectedTemplate,
+          templates: questionTemplatesFor(widget.format),
           onChanged: (template) => setState(() => _selectedTemplate = template),
         ),
         const SizedBox(height: 12),
@@ -483,7 +536,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                         ? "${question.timeLimit.inSeconds}s"
                         : context.tr("Ohne Zeitlimit"),
                     switch (widget.format) {
-                      StandardFormat() => context.tr(
+                      StandardFormat() || SnowflakeFormat() => context.tr(
                         question.scoringRule.label,
                       ),
                       PokerFormat() => context.tr(

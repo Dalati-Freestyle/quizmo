@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **9**
+Quizmo-Schema-Version dieser Anleitung: **10**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -41,9 +41,10 @@ Erkläre in zwei, drei Sätzen, wie es abläuft, und frage dann **zuerst**:
 Kläre **zuerst alles, was sich durch das ganze Quiz zieht**, bevor die erste
 Frage entsteht. Frage aktiv nach und schlage sinnvolle Standards vor:
 
-1. **Quizformat** – Standard, Jeopardy oder Pokerchips (siehe Abschnitt 3)
-   samt formatspezifischer Regeln (Board-Aufbau, Minuspunkte, Steal, Startchips,
-   Auflösung nach jeder Frage oder am Ende).
+1. **Quizformat** – Standard, Jeopardy, Pokerchips oder Biggest Snowflake
+   (siehe Abschnitt 3) samt formatspezifischer Regeln (Board-Aufbau,
+   Minuspunkte, Steal, Startchips, Auflösung nach jeder Frage oder am Ende,
+   Snowflake-Wertung).
 2. **Teams oder Solo** – vordefinierte Teams (Namen, Farben) oder Einzelspieler.
 3. **Zeitlimits** – kein Zeitlimit (Spielleitung beendet die Runde) oder eine
    Standard-Zeit pro Frage, hartes oder weiches Limit.
@@ -75,7 +76,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 9,               // immer genau 9
+  "schemaVersion": 10,              // immer genau 10
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -108,6 +109,21 @@ Bestätigung, bevor du zur nächsten gehst.
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board aus Kategorien (Spalten) × Zeilen. Punkte kommen aus der Zeile, nicht aus der Frage. |
 | Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams setzen vor jeder Frage Chips (1–1.000.000 Startchips). Richtig = doppelter Einsatz zurück, falsch = Einsatz weg. `teams` darf leer sein. |
 
+| Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | Es gibt **keine richtige Lösung**: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. `scoring`: `winnerOnly` (nur die seltenste Antwort punktet) oder `graded` (der Anteil sinkt mit jeder Stufe häufigerer Antworten, die häufigste bekommt nichts). Details unten. |
+
+**Biggest Snowflake:**
+
+* Erlaubt sind nur die Fragetypen `multipleChoice`, `trueFalse`, `ordering` und
+  `matching`. `buzzer`, `shortAnswer` und `estimation` sind nicht möglich.
+* Die Fragen speichern **keine Lösung**: setze `correctOptionId`,
+  `correctOptionIds`, `correctAnswer`, `correctOrder` und `correctPairs` auf
+  `null`. Schreibe Fragen, bei denen es um Meinungen, Vorlieben oder
+  Einschätzungen geht, nicht um Wissen.
+* Die Punkte kommen aus der `scoringRule` der Frage (am besten `fixed`); sie
+  werden mit dem Anteil multipliziert. Gleich seltene Antworten teilen sich
+  eine Stufe. Geben alle dieselbe Antwort, punktet niemand.
+* Gezählt wird pro Spieler; `teams` darf leer sein.
+
 **Jeopardy-Board:**
 
 ```text
@@ -128,7 +144,8 @@ Bestätigung, bevor du zur nächsten gehst.
   steht höchstens einmal auf dem Board. Eine Kategorie hat höchstens so viele
   Zellen wie `rowPoints` Einträge hat.
 * Jeopardy wird mit Teams gespielt: lege mindestens zwei Teams an.
-* Jeder Fragetyp funktioniert in jedem Format.
+* Jeder Fragetyp funktioniert in jedem Format; einzige Ausnahme ist Biggest
+  Snowflake (siehe oben).
 
 ## 4. Gemeinsame Felder jeder Frage
 
@@ -191,12 +208,15 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 9` steht ganz oben.
+- [ ] `"schemaVersion": 10` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
       Geschwindigkeitsbonus braucht > 0) und eine gültige `scoringRule`.
-- [ ] Jede Frage hat eine vollständige, gültige Lösung (siehe Abschnitt 5).
+- [ ] Jede Frage hat eine vollständige, gültige Lösung (siehe Abschnitt 5) –
+      außer bei Biggest Snowflake: dort sind alle Lösungsfelder `null`.
+- [ ] Biggest Snowflake: nur `multipleChoice`, `trueFalse`, `ordering` und
+      `matching`; `scoring` ist `winnerOnly` oder `graded`.
 - [ ] Jeopardy: Jede `questionId` existiert, keine Frage doppelt, Zeilenpunkte > 0,
       jede Kategorie hat einen Namen, mindestens zwei Teams.
 - [ ] Poker: `startingChips` zwischen 1 und 1.000.000.
@@ -214,7 +234,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -376,7 +396,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -446,7 +466,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 9,
+  "schemaVersion": 10,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -474,6 +494,71 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
   ],
   "teams": [],
   "format": {"type": "poker", "startingChips": 100},
+  "createdAtMicros": 1767225600000000,
+  "updatedAtMicros": 1767225600000000
+}
+```
+
+### Biggest Snowflake (die seltenste Antwort gewinnt)
+
+```json quizmo-example
+{
+  "schemaVersion": 10,
+  "id": "quiz-ki-snowflake-beispiel",
+  "name": "Biggest Snowflake: Wer tickt anders?",
+  "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",
+  "category": "Party",
+  "questions": [
+    {
+      "type": "trueFalse", "id": "s1", "prompt": "Ananas gehört auf Pizza.",
+      "timeLimitMs": 20000, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "correctAnswer": null
+    },
+    {
+      "type": "multipleChoice", "id": "s2", "prompt": "Welche Jahreszeit ist die beste?",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "options": [
+        {"id": "a", "label": "Frühling"},
+        {"id": "b", "label": "Sommer"},
+        {"id": "c", "label": "Herbst"},
+        {"id": "d", "label": "Winter"}
+      ],
+      "correctOptionId": null, "correctOptionIds": null, "allowMultipleAnswers": false
+    },
+    {
+      "type": "ordering", "id": "s3", "prompt": "Sortiere von „am wichtigsten“ nach „am unwichtigsten“.",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "items": [
+        {"id": "a", "label": "Schlaf"},
+        {"id": "b", "label": "Essen"},
+        {"id": "c", "label": "WLAN"}
+      ],
+      "correctOrder": null
+    },
+    {
+      "type": "matching", "id": "s4", "prompt": "Welches Getränk passt zu welcher Tageszeit?",
+      "timeLimitMs": 0, "softTimeLimit": false, "category": null, "adminNotes": "",
+      "media": [], "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
+      "leftItems": [
+        {"id": "l1", "label": "Morgens"},
+        {"id": "l2", "label": "Abends"}
+      ],
+      "rightItems": [
+        {"id": "r1", "label": "Kaffee"},
+        {"id": "r2", "label": "Tee"}
+      ],
+      "correctPairs": null
+    }
+  ],
+  "teams": [],
+  "format": {"type": "snowflake", "scoring": "graded"},
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }

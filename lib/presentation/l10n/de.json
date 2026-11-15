@@ -1182,5 +1182,22 @@
   "Im Internetbetrieb liefert der Server den Web-Player aus.": "Im Internetbetrieb liefert der Server den Web-Player aus.",
   "Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.": "Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.",
   "„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.": "„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.",
-  "Der Web-Player passt zur Version des Hosts.": "Der Web-Player passt zur Version des Hosts."
+  "Der Web-Player passt zur Version des Hosts.": "Der Web-Player passt zur Version des Hosts.",
+  "Biggest Snowflake": "Biggest Snowflake",
+  "Nur die seltenste Antwort": "Nur die seltenste Antwort",
+  "Abgestuft nach Seltenheit": "Abgestuft nach Seltenheit",
+  "Es gibt keine richtige Lösung: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. Abgestuft: Mit jeder Stufe häufigerer Antworten sinkt der Anteil, die häufigste Antwort bekommt nichts. Geben alle dieselbe Antwort, punktet niemand. Möglich sind nur Multiple Choice, Wahr/Falsch, Reihenfolge und Zuordnung.": "Es gibt keine richtige Lösung: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. Abgestuft: Mit jeder Stufe häufigerer Antworten sinkt der Anteil, die häufigste Antwort bekommt nichts. Geben alle dieselbe Antwort, punktet niemand. Möglich sind nur Multiple Choice, Wahr/Falsch, Reihenfolge und Zuordnung.",
+  "In diesem Modus gibt es keine richtige Lösung: Es punktet die seltenste Antwort.": "In diesem Modus gibt es keine richtige Lösung: Es punktet die seltenste Antwort.",
+  "Mehrere Antworten wählbar": "Mehrere Antworten wählbar",
+  "Antwortmöglichkeiten": "Antwortmöglichkeiten",
+  "Die Spieler wählen zwischen Wahr und Falsch.": "Die Spieler wählen zwischen Wahr und Falsch.",
+  "Elemente – eines pro Zeile": "Elemente – eines pro Zeile",
+  "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)": "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)",
+  "Die seltenste Antwort gewinnt": "Die seltenste Antwort gewinnt",
+  "Noch keine Antworten.": "Noch keine Antworten.",
+  "Alle haben gleich geantwortet – niemand punktet.": "Alle haben gleich geantwortet – niemand punktet.",
+  "{0} · {1}× · {2} % der Punkte\n{3}": "{0} · {1}× · {2} % der Punkte\n{3}",
+  "Seltenste Antwort!": "Seltenste Antwort!",
+  "Ziemlich selten": "Ziemlich selten",
+  "Zu viele hatten dieselbe Antwort": "Zu viele hatten dieselbe Antwort"
 }

@@ -129,17 +129,36 @@ final List<QuestionTemplate> kQuestionTemplates = [
   ),
 ];
 
+/// The templates that can be played in [format].
+///
+/// A snowflake quiz compares the answers with each other, which only kinds
+/// with a finite answer set support (`Question.supportsUniqueness`).
+List<QuestionTemplate> questionTemplatesFor(QuizFormat format) =>
+    switch (format) {
+      StandardFormat() ||
+      JeopardyFormat() ||
+      PokerFormat() => kQuestionTemplates,
+      SnowflakeFormat() => [
+        for (final template in kQuestionTemplates)
+          if (template.create('').supportsUniqueness) template,
+      ],
+    };
+
 /// Selects a question kind from the templates shared by every quiz format.
 class QuestionTemplateDropdown extends StatelessWidget {
   /// Creates a selector for [value] that reports changes to [onChanged].
   const QuestionTemplateDropdown({
     required this.value,
     required this.onChanged,
+    this.templates,
     super.key,
   });
 
   /// The selected template, or `null` before a kind is chosen.
   final QuestionTemplate? value;
+
+  /// The offered kinds; every kind when `null`.
+  final List<QuestionTemplate>? templates;
 
   /// Receives the selected template.
   final ValueChanged<QuestionTemplate?> onChanged;
@@ -147,9 +166,9 @@ class QuestionTemplateDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SelectionDropdown<QuestionTemplate>(
     label: context.tr("Fragenart"),
-    value: value,
+    value: (templates ?? kQuestionTemplates).contains(value) ? value : null,
     items: [
-      for (final template in kQuestionTemplates)
+      for (final template in templates ?? kQuestionTemplates)
         DropdownMenuItem(
           value: template,
           child: Row(
@@ -186,8 +205,14 @@ class QuestionEditorPage extends StatefulWidget {
   final QuizFormat format;
 
   bool get usesQuestionPoints => switch (format) {
-    StandardFormat() => true,
+    StandardFormat() || SnowflakeFormat() => true,
     JeopardyFormat() || PokerFormat() => false,
+  };
+
+  /// Whether the format is played without a stored solution.
+  bool get hidesSolution => switch (format) {
+    SnowflakeFormat() => true,
+    StandardFormat() || JeopardyFormat() || PokerFormat() => false,
   };
 
   @override
@@ -438,6 +463,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               EstimationQuestion() ||
               TrueFalseQuestion() => NewQuestionFields(
                 question: widget.question,
+                showSolution: !widget.hidesSolution,
                 onChanged: (fields) => _contentFields = fields,
               ),
             },
@@ -482,8 +508,17 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
             onRemove: _options.length <= 2 ? null : () => _removeOption(index),
           ),
         const SizedBox(height: 8),
+        if (widget.hidesSolution)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(context.tr(kNoSolutionHint)),
+          ),
         SwitchListTile(
-          title: Text(context.tr("Mehrere richtige Antworten")),
+          title: Text(
+            widget.hidesSolution
+                ? context.tr("Mehrere Antworten wählbar")
+                : context.tr("Mehrere richtige Antworten"),
+          ),
           value: _allowMultipleAnswers,
           onChanged: (value) => setState(() {
             _allowMultipleAnswers = value;
@@ -495,7 +530,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
             }
           }),
         ),
-        if (_allowMultipleAnswers)
+        if (_allowMultipleAnswers && !widget.hidesSolution)
           FormField<List<String>>(
             validator: (_) => _correctOptionIds.isEmpty
                 ? context.tr("Mindestens eine richtige Antwort wÃ¤hlen.")
@@ -525,7 +560,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               ],
             ),
           ),
-        if (!_allowMultipleAnswers)
+        if (!_allowMultipleAnswers && !widget.hidesSolution)
           DropdownButtonFormField<String>(
             initialValue:
                 _options.any((option) => option.id == _correctOptionId)
@@ -775,8 +810,10 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
       'adminNotes': _notesController.text,
     });
+    if (widget.hidesSolution) question = question.withoutSolution();
     final errors = [
-      ...question.contentErrors,
+      ...question.structureErrors,
+      if (!widget.hidesSolution) ...question.solutionErrors,
       for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
     ];
     if (errors.isNotEmpty) {
