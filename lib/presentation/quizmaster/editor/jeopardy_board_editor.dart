@@ -6,6 +6,7 @@
 /// attached) becomes available on the board as soon as it has a template.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -103,8 +104,7 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          _HorizontalBoardScroller(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -243,6 +243,56 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
       ),
     );
     return template?.create(createId());
+  }
+}
+
+/// Scrolls a board that is wider than the panel sideways.
+///
+/// Desktop mice usually have no horizontal wheel, so the scrollbar stays
+/// visible and the board can also be dragged with the mouse (or scrolled with
+/// Shift + wheel).
+class _HorizontalBoardScroller extends StatefulWidget {
+  const _HorizontalBoardScroller({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HorizontalBoardScroller> createState() =>
+      _HorizontalBoardScrollerState();
+}
+
+class _HorizontalBoardScrollerState extends State<_HorizontalBoardScroller> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final behavior = ScrollConfiguration.of(context).copyWith(
+      scrollbars: false,
+      dragDevices: {
+        ...ScrollConfiguration.of(context).dragDevices,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      child: ScrollConfiguration(
+        behavior: behavior,
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(bottom: 14),
+          child: widget.child,
+        ),
+      ),
+    );
   }
 }
 
