@@ -52,11 +52,19 @@ class AdaptivePanelGrid extends StatelessWidget {
     required this.panels,
     this.padding = const EdgeInsets.all(16),
     this.spacing = 16,
+    this.widePanelIndex,
     super.key,
   });
 
   /// The panels to lay out, in priority order.
   final List<Widget> panels;
+
+  /// Index of a panel in [panels] that needs room (for example a wide board).
+  ///
+  /// In the three column layout it gets the middle column on its own, twice as
+  /// wide as the outer columns, which share the remaining panels. One and two
+  /// column layouts are unaffected.
+  final int? widePanelIndex;
 
   /// Outer padding of the grid.
   final EdgeInsets padding;
@@ -84,8 +92,24 @@ class AdaptivePanelGrid extends StatelessWidget {
         }
 
         final columns = List.generate(columnCount, (_) => <Widget>[]);
-        for (var index = 0; index < panels.length; index++) {
-          columns[index % columnCount].add(panels[index]);
+        final flexes = List.filled(columnCount, 1);
+        final wide = widePanelIndex;
+        if (columnCount == 3 &&
+            wide != null &&
+            wide >= 0 &&
+            wide < panels.length) {
+          columns[1].add(panels[wide]);
+          flexes[1] = 2;
+          var outer = 0;
+          for (var index = 0; index < panels.length; index++) {
+            if (index == wide) continue;
+            columns[outer.isEven ? 0 : 2].add(panels[index]);
+            outer++;
+          }
+        } else {
+          for (var index = 0; index < panels.length; index++) {
+            columns[index % columnCount].add(panels[index]);
+          }
         }
 
         return SingleChildScrollView(
@@ -96,6 +120,7 @@ class AdaptivePanelGrid extends StatelessWidget {
               for (var index = 0; index < columns.length; index++) ...[
                 if (index > 0) SizedBox(width: spacing),
                 Expanded(
+                  flex: flexes[index],
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

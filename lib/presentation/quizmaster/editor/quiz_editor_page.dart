@@ -131,6 +131,9 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
           ],
         ),
         body: AdaptivePanelGrid(
+          // The board needs width: on wide screens it takes the middle column
+          // and details and teams move to the narrower outer columns.
+          widePanelIndex: state.draft.format is JeopardyFormat ? 2 : null,
           panels: [
             PanelCard(
               title: context.tr("Quiz details"),
