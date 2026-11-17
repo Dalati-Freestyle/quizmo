@@ -416,13 +416,36 @@ void main() {
     );
   });
 
-  test('enforces import and export size limits for text without media', () {
-    final source = quiz.copyWith(description: 'a' * maxQuizFileBytes);
-    expect(() => exportQuizJson(source), throwsA(isA<QuizImportException>()));
-    expect(
-      () => parseQuizImport(jsonEncode(source.toJson())),
-      throwsA(isA<QuizImportException>()),
+  test('media beyond the former 20 MiB / 90 MiB limits round trips', () {
+    // A valid PNG signature padded to just over the old per-file limit.
+    final bytes = Uint8List(maxMediaBytes + 1)
+      ..setAll(0, const [137, 80, 78, 71, 13, 10, 26, 10]);
+    final asset = MediaAsset.upload(bytes, 'png');
+    final media = [
+      for (var i = 0; i < 5; i++)
+        ImageAttachment(asset: asset, caption: 'large $i'),
+    ];
+    final source = quiz.copyWith(
+      questions: [
+        MultipleChoiceQuestion(
+          id: 'question-1',
+          prompt: 'Choose the valid option.',
+          options: const [
+            AnswerOption(id: 'a', label: 'A'),
+            AnswerOption(id: 'b', label: 'B'),
+          ],
+          correctOptionId: 'a',
+          scoringRule: const FixedPointsRule(),
+          media: media,
+        ),
+      ],
     );
+    expect(source.validationErrors(), isEmpty);
+    final contents = exportQuizJson(source);
+    expect(contents.length, greaterThan(100 * 1024 * 1024));
+    final restored = parseQuizImport(decodeQuizFile(utf8.encode(contents)));
+    expect(restored, source);
+    expect(restored.questions.first.media.first.asset!.bytes, bytes);
   });
 }
 

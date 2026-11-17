@@ -106,6 +106,10 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * If a quiz file requires a schema newer than the installed app supports, stop the import before touching persistence and explicitly prompt the user to update Quizmo and retry. Treat malformed versions and other invalid content as validation errors, not update requests. Compatibility means newer apps can read all older files; older apps must clearly request an update for newer files.
 * Cover compatibility with fixed fixtures from older releases and round-trip tests that include question and solution media. Invalid imports must leave the library untouched.
 * The portable format is a single `*.quizmo.json` document: quiz metadata, format rules, teams, questions, solutions, and uploaded media bytes (Base64, MIME type, SHA-256 ID). YouTube and map attachments retain their references; their remote content is not embedded.
+* Since schema 11 uploaded media have **no size limit** in the model, imports and downloads. The 20 MiB
+  `maxMediaBytes` is only the editor's default upload limit, lifted by the advanced setting
+  (`MediaUploadSettingsStore`). Players and TVs fetch media in `mediaChunkBytes` ranges and the relay host
+  caps every response to that size (`serveMedia(maxBodyBytes:)`); never reintroduce a whole-file transfer.
 * `docs/ai-quiz-guide.md` (German) and `docs/ai-quiz-guide.en.md` (English) describe the file format for AI assistants and ship in the app (settings → "Quiz mit KI erstellen", in the app language). Every schema bump MUST update both descriptions and examples; `test/core/data/ai_quiz_guide_test.dart` fails until both guides state the new `schemaVersion` and all their examples import cleanly. Team colours are palette names (`TeamColor`), never colour codes.
 
 ### Changing the Web Player

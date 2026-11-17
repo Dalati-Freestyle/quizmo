@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **10**
+Quizmo-Schema-Version dieser Anleitung: **11**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -76,7 +76,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 10,              // immer genau 10
+  "schemaVersion": 11,              // immer genau 11
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -191,6 +191,8 @@ eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 ## 6. Medien
 
 Eingebettete Dateien (Bilder, Audio, MP4) enthalten Base64-Daten mit SHA-256-ID.
+Seit Schema 11 gibt es dafür keine Größengrenze mehr (der Editor begrenzt
+Uploads standardmäßig auf 20 MiB, abschaltbar in den erweiterten Einstellungen).
 **Erzeuge solche Uploads nicht** – das kann ein Chat-Modell nicht zuverlässig.
 Lass `media`/`solutionMedia` leer oder verwende nur diese Referenzen ohne
 Dateiinhalt. Weise die Person darauf hin, dass sie eigene Bilder, Audio und
@@ -208,7 +210,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 10` steht ganz oben.
+- [ ] `"schemaVersion": 11` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -234,7 +236,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -396,7 +398,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -466,7 +468,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -503,7 +505,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

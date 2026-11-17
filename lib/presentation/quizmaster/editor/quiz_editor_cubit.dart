@@ -329,6 +329,26 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     dropQuestionsOf: (board) => [board.cellAt(category, row)],
   );
 
+  /// Moves the question of [fromCategory]/[fromRow] to
+  /// [toCategory]/[toRow] by dragging it on the board.
+  ///
+  /// An occupied target swaps the two questions, an empty one receives the
+  /// question and leaves the source empty. The Daily Double flag travels with
+  /// its question; the points always come from the row. No question is added
+  /// to or removed from the quiz. Dragging an empty cell does nothing.
+  void moveCell({
+    required int fromCategory,
+    required int fromRow,
+    required int toCategory,
+    required int toRow,
+  }) => _updateBoard((board) {
+    if (board.cellAt(fromCategory, fromRow).isEmpty) return board;
+    return board.swapCells(
+      (category: fromCategory, row: fromRow),
+      (category: toCategory, row: toRow),
+    );
+  });
+
   JeopardyBoard? get _board => switch (state.draft.format) {
     JeopardyFormat(:final board) => board,
     StandardFormat() || PokerFormat() || SnowflakeFormat() => null,

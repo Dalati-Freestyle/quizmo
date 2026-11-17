@@ -6,7 +6,16 @@ import 'package:equatable/equatable.dart';
 
 import 'json.dart';
 
+/// Default upload limit for one media file in the quiz editor.
+///
+/// Only the editor enforces it (see the "unlimited media" advanced setting);
+/// stored quizzes, imports and downloads accept assets of any size since quiz
+/// schema 11.
 const maxMediaBytes = 20 * 1024 * 1024;
+
+/// Largest slice of one asset a relay round trip carries (Base64 adds a third,
+/// staying below the relay's 28 MiB body limit).
+const mediaChunkBytes = 16 * 1024 * 1024;
 
 final class MediaAsset extends Equatable {
   const MediaAsset({required this.id, required this.mimeType, this.data});
@@ -17,10 +26,8 @@ final class MediaAsset extends Equatable {
   String get route => '/api/media/$id';
 
   factory MediaAsset.upload(Uint8List bytes, String extension) {
-    if (bytes.isEmpty || bytes.length > maxMediaBytes) {
-      throw const JsonContractException(
-        'Medien dürfen maximal 20 MiB groß sein.',
-      );
+    if (bytes.isEmpty) {
+      throw const JsonContractException('Leere Mediendatei.');
     }
     final mime = switch (extension.toLowerCase()) {
       'png' => 'image/png',
@@ -69,13 +76,8 @@ final class MediaAsset extends Equatable {
       throw const JsonContractException('Ungültiges Medien-Asset.');
     }
     if (data == null) return;
-    if (data!.length > (maxMediaBytes * 4 / 3).ceil() + 4) {
-      throw const JsonContractException('Medien-Asset zu groß.');
-    }
     final decoded = bytes!;
-    if (decoded.isEmpty ||
-        decoded.length > maxMediaBytes ||
-        sha256.convert(decoded).toString() != id) {
+    if (decoded.isEmpty || sha256.convert(decoded).toString() != id) {
       throw const JsonContractException('Beschädigtes Medien-Asset.');
     }
     bool starts(List<int> signature) =>

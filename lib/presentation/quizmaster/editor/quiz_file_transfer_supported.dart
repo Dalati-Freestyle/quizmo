@@ -18,11 +18,6 @@ Future<String?> pickQuizJson({
     allowedExtensions: const ['json'],
   );
   if (file == null) return null;
-  if ((await file.length() ?? 0) > maxQuizFileBytes) {
-    throw const QuizImportException(
-      'The selected file is larger than the 100 MiB quiz import limit.',
-    );
-  }
   return decodeQuizFile(await file.readAsBytes());
 }
 
