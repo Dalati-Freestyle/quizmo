@@ -194,6 +194,47 @@ final class JeopardyBoard extends Equatable {
         categories[position.category].cellAt(position.row).isDailyDouble;
   }
 
+  /// Returns a copy in which the cells at [from] and [to] trade places.
+  ///
+  /// The whole cell moves, i.e. the question reference *and* its Daily Double
+  /// flag; the points stay with the rows. Swapping with an empty cell moves
+  /// the question there. Categories touched are padded to [rowCount] so a
+  /// cell below the last stored one can be targeted. Returns this board
+  /// unchanged (identical) when both positions are equal or out of range.
+  JeopardyBoard swapCells(
+    ({int category, int row}) from,
+    ({int category, int row}) to,
+  ) {
+    bool valid(({int category, int row}) p) =>
+        p.category >= 0 &&
+        p.category < categories.length &&
+        p.row >= 0 &&
+        p.row < rowCount;
+    if (from == to || !valid(from) || !valid(to)) return this;
+    final source = cellAt(from.category, from.row);
+    final target = cellAt(to.category, to.row);
+    if (source == target) return this;
+    return copyWith(
+      categories: [
+        for (var c = 0; c < categories.length; c++)
+          if (c == from.category || c == to.category)
+            categories[c].copyWith(
+              cells: [
+                for (var r = 0; r < rowCount; r++)
+                  if (c == from.category && r == from.row)
+                    target
+                  else if (c == to.category && r == to.row)
+                    source
+                  else
+                    categories[c].cellAt(r),
+              ],
+            )
+          else
+            categories[c],
+      ],
+    );
+  }
+
   /// Returns a copy that does not reveal where the Daily Doubles are.
   JeopardyBoard redacted() => copyWith(
     categories: [

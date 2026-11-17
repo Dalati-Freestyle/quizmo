@@ -5,6 +5,7 @@
 library;
 
 export 'answer.dart';
+export 'game_protocol.dart';
 export 'game_state.dart';
 export 'guest_wifi.dart';
 export 'jeopardy.dart';
@@ -18,6 +19,8 @@ export 'quiz_format.dart';
 export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
+export 'snowflake.dart';
 export 'team.dart';
+export 'team_color.dart';
 
 export 'media_attachment.dart';

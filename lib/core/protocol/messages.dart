@@ -43,6 +43,7 @@ sealed class ClientMessage extends Equatable {
           wager: json.readInt('wager'),
         ),
         LeaveNotice._type => const LeaveNotice(),
+        DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
         final unknown => throw JsonContractException(
           'Unknown client message "$unknown".',
         ),
@@ -270,6 +271,9 @@ sealed class ServerMessage extends Equatable {
     ),
     GuestWifiMessage._type => GuestWifiMessage(
       json['wifi'] == null ? null : GuestWifi.fromJson(json.readObject('wifi')),
+    ),
+    DeviceCheckMessage._type => DeviceCheckMessage(
+      json.readStringOrNull('checkId'),
     ),
     SyncPong._type => SyncPong.fromJson(json),
     GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
@@ -591,4 +595,39 @@ final class DailyDoubleWagerMessage extends ClientMessage {
   };
   @override
   List<Object?> get props => [questionId, wager];
+}
+
+/// Asks every player device to confirm it by a tap (technical check), or
+/// ends the request when [checkId] is `null`. Never touches the game.
+final class DeviceCheckMessage extends ServerMessage {
+  /// Creates the request.
+  const DeviceCheckMessage(this.checkId);
+
+  static const String _type = 'deviceCheck';
+
+  /// Identifier of the running check, `null` when it ended.
+  final String? checkId;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'checkId': checkId};
+
+  @override
+  List<Object?> get props => [checkId];
+}
+
+/// A player confirms the device check [checkId] by a tap.
+final class DeviceCheckReply extends ClientMessage {
+  /// Creates the confirmation.
+  const DeviceCheckReply(this.checkId);
+
+  static const String _type = 'deviceCheckReply';
+
+  /// The check that is confirmed.
+  final String checkId;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'checkId': checkId};
+
+  @override
+  List<Object?> get props => [checkId];
 }

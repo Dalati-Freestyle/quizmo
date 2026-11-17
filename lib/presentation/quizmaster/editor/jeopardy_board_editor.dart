@@ -6,6 +6,7 @@
 /// attached) becomes available on the board as soon as it has a template.
 library;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -102,9 +103,17 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            context.tr(
+              "Drag a question by its handle (or long-press it) onto another cell to swap the two, or onto an empty cell to move it. A Daily Double moves with its question.",
+            ),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          _HorizontalBoardScroller(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -130,7 +139,14 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
                       ),
                       const SizedBox(width: _kGap),
                       for (var c = 0; c < board.categories.length; c++) ...[
-                        _CellTile(
+                        _MovableCell(
+                          position: (category: c, row: r),
+                          onMove: (from) => cubit.moveCell(
+                            fromCategory: from.category,
+                            fromRow: from.row,
+                            toCategory: c,
+                            toRow: r,
+                          ),
                           cell: board.cellAt(c, r),
                           question: questions[board.cellAt(c, r).questionId],
                           onTap: () => _editCell(context, c, r),
@@ -246,6 +262,56 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
   }
 }
 
+/// Scrolls a board that is wider than the panel sideways.
+///
+/// Desktop mice usually have no horizontal wheel, so the scrollbar stays
+/// visible and the board can also be dragged with the mouse (or scrolled with
+/// Shift + wheel).
+class _HorizontalBoardScroller extends StatefulWidget {
+  const _HorizontalBoardScroller({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HorizontalBoardScroller> createState() =>
+      _HorizontalBoardScrollerState();
+}
+
+class _HorizontalBoardScrollerState extends State<_HorizontalBoardScroller> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final behavior = ScrollConfiguration.of(context).copyWith(
+      scrollbars: false,
+      dragDevices: {
+        ...ScrollConfiguration.of(context).dragDevices,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      },
+    );
+    return Scrollbar(
+      controller: _controller,
+      thumbVisibility: true,
+      child: ScrollConfiguration(
+        behavior: behavior,
+        child: SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(bottom: 14),
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 class _CategoryHeader extends StatelessWidget {
   const _CategoryHeader({required this.name, required this.onTap});
 
@@ -323,8 +389,19 @@ class _RowLabel extends StatelessWidget {
   }
 }
 
-class _CellTile extends StatelessWidget {
-  const _CellTile({
+/// Position of a cell on the board; the payload of a cell drag.
+typedef _CellPosition = ({int category, int row});
+
+/// A board cell that can be dragged onto another cell and accepts drops.
+///
+/// An occupied cell starts a drag from its handle (immediately, also with a
+/// mouse) or from anywhere after a long press (touch screens, where a plain
+/// drag scrolls the board). Every cell is a drop target: an occupied target
+/// swaps the two questions, an empty one receives the question.
+class _MovableCell extends StatelessWidget {
+  const _MovableCell({
+    required this.position,
+    required this.onMove,
     required this.cell,
     required this.question,
     required this.onTap,
@@ -332,11 +409,108 @@ class _CellTile extends StatelessWidget {
     required this.onClear,
   });
 
+  final _CellPosition position;
+  final void Function(_CellPosition from) onMove;
   final JeopardyCell cell;
   final Question? question;
   final VoidCallback onTap;
   final VoidCallback onToggleDailyDouble;
   final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget tile({Widget? dragHandle}) => _CellTile(
+      cell: cell,
+      question: question,
+      onTap: onTap,
+      onToggleDailyDouble: onToggleDailyDouble,
+      onClear: onClear,
+      dragHandle: dragHandle,
+    );
+
+    final feedback = Material(
+      color: Colors.transparent,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(10),
+      child: Opacity(
+        opacity: 0.85,
+        child: _CellTile(
+          cell: cell,
+          question: question,
+          onTap: null,
+          onToggleDailyDouble: null,
+          onClear: null,
+        ),
+      ),
+    );
+    final placeholder = Opacity(opacity: 0.35, child: tile());
+
+    return DragTarget<_CellPosition>(
+      onWillAcceptWithDetails: (details) => details.data != position,
+      onAcceptWithDetails: (details) => onMove(details.data),
+      builder: (context, candidates, _) {
+        final content = question == null
+            ? tile()
+            : LongPressDraggable<_CellPosition>(
+                data: position,
+                feedback: feedback,
+                childWhenDragging: placeholder,
+                child: tile(
+                  dragHandle: Draggable<_CellPosition>(
+                    data: position,
+                    feedback: feedback,
+                    child: Tooltip(
+                      message: context.tr("Drag to swap or move"),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.drag_indicator,
+                            size: 18,
+                            color: scheme.outline,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+        return DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: candidates.isNotEmpty
+                ? Border.all(color: scheme.primary, width: 3)
+                : null,
+          ),
+          child: content,
+        );
+      },
+    );
+  }
+}
+
+class _CellTile extends StatelessWidget {
+  const _CellTile({
+    required this.cell,
+    required this.question,
+    required this.onTap,
+    required this.onToggleDailyDouble,
+    required this.onClear,
+    this.dragHandle,
+  });
+
+  final JeopardyCell cell;
+  final Question? question;
+  final VoidCallback? onTap;
+  final VoidCallback? onToggleDailyDouble;
+  final VoidCallback? onClear;
+
+  /// Starts dragging the question to another cell; shown on occupied cells.
+  final Widget? dragHandle;
 
   @override
   Widget build(BuildContext context) {
@@ -377,13 +551,21 @@ class _CellTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: Text(
-                          current.prompt.isEmpty
-                              ? context.tr("Untitled question")
-                              : current.prompt,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                current.prompt.isEmpty
+                                    ? context.tr("Untitled question")
+                                    : current.prompt,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            ?dragHandle,
+                          ],
                         ),
                       ),
                       Row(

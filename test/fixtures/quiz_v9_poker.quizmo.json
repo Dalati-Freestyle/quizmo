@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 9,
+  "id": "quiz-v9-fixture",
+  "name": "Schema 9 fixture",
+  "description": "Poker quiz written by schema 9.",
+  "category": "Fixtures",
+  "questions": [
+    {
+      "type": "multipleChoice",
+      "id": "q-mc",
+      "prompt": "Pick one",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "options": [
+        {
+          "id": "a",
+          "label": "A"
+        },
+        {
+          "id": "b",
+          "label": "B"
+        }
+      ],
+      "correctOptionId": "b",
+      "correctOptionIds": null,
+      "allowMultipleAnswers": false
+    },
+    {
+      "type": "trueFalse",
+      "id": "q-tf",
+      "prompt": "True?",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "correctAnswer": false
+    },
+    {
+      "type": "ordering",
+      "id": "q-order",
+      "prompt": "Order",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "items": [
+        {
+          "id": "x",
+          "label": "X"
+        },
+        {
+          "id": "y",
+          "label": "Y"
+        }
+      ],
+      "correctOrder": [
+        "y",
+        "x"
+      ]
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "Alpha",
+      "color": "blue"
+    }
+  ],
+  "format": {
+    "type": "poker",
+    "startingChips": 150
+  },
+  "createdAtMicros": 1793491200000000,
+  "updatedAtMicros": 1793491200000000
+}

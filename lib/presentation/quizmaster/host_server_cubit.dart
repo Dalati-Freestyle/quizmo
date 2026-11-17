@@ -168,6 +168,19 @@ class HostServerCubit extends Cubit<HostServerState> {
   Future<void> _lifecycle = Future.value();
   bool _closing = false;
 
+  /// Liveness of the open sockets, for the technical check.
+  List<ConnectionHealth> get connectionHealth =>
+      _server?.connectionHealth ?? const [];
+
+  /// The running device check of the technical check, or `null`.
+  DeviceCheckStatus? get deviceCheck => _server?.deviceCheck;
+
+  /// Asks every player device to confirm itself by a tap.
+  DeviceCheckStatus? startDeviceCheck() => _server?.startDeviceCheck();
+
+  /// Ends the device check on every player device.
+  void stopDeviceCheck() => _server?.stopDeviceCheck();
+
   /// Binds the server to [port].
   Future<void> start({int? port}) {
     if (_closing) return _lifecycle;

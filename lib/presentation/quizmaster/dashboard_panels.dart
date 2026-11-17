@@ -1013,6 +1013,8 @@ class LiveRoundPanel extends StatelessWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onFinish,
+    this.onFinishEarly,
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
@@ -1038,6 +1040,58 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Takes a revealed question off the stage and returns to the Jeopardy board.
   final VoidCallback onCloseRound;
+
+  /// Finishes the game once every question is played.
+  final VoidCallback? onFinish;
+
+  /// Ends the game before every question is played; asks for a
+  /// confirmation first.
+  final VoidCallback? onFinishEarly;
+
+  Future<void> _confirmEarlyFinish(BuildContext context, GameState game) async {
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    final open =
+        (game.jeopardy?.board.questionIds ?? game.questionBank.map((q) => q.id))
+            .where((id) => !game.completedQuestionIds.contains(id))
+            .length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.tr('Quiz vorzeitig beenden?')),
+        content: Text(
+          [
+            if (running)
+              context.tr(
+                'Die laufende Runde wird abgebrochen und nicht gewertet.',
+              ),
+            context.tr('{0} Fragen wurden noch nicht gespielt.', [open]),
+            context.tr(
+              'Spieler und TV sehen danach die Abschlussseite. Rückgängig geht das nur durch Zurücksetzen des Spiels.',
+            ),
+          ].join('\n\n'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.tr('Abbrechen')),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-finish-early'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.tr('Quiz beenden')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) onFinishEarly?.call();
+  }
+
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
@@ -1055,18 +1109,37 @@ class LiveRoundPanel extends StatelessWidget {
     return PanelCard(
       title: context.tr("Live round"),
       icon: Icons.sensors,
-      trailing: Chip(
-        visualDensity: VisualDensity.compact,
-        label: Text(
-          context.tr(round.status.name),
-          style: theme.textTheme.labelSmall,
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Chip(
+            visualDensity: VisualDensity.compact,
+            label: Text(
+              context.tr(round.status.name),
+              style: theme.textTheme.labelSmall,
+            ),
+          ),
+          if (game.canFinishEarly && !game.canFinish && onFinishEarly != null)
+            IconButton(
+              key: const ValueKey('finish-quiz-early'),
+              tooltip: context.tr('Quiz vorzeitig beenden'),
+              icon: const Icon(Icons.outlined_flag),
+              onPressed: () => _confirmEarlyFinish(context, game),
+            ),
+        ],
       ),
       child: question == null
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (jeopardy != null)
+                if (jeopardy != null && game.canFinish && onFinish != null)
+                  FilledButton.icon(
+                    key: const ValueKey('finish-quiz'),
+                    onPressed: onFinish,
+                    icon: const Icon(Icons.emoji_events_outlined),
+                    label: Text(context.tr('Quiz abschließen')),
+                  )
+                else if (jeopardy != null)
                   EmptyHint(
                     jeopardy.pendingDailyDoubleId != null
                         ? context.tr(
@@ -1083,11 +1156,19 @@ class LiveRoundPanel extends StatelessWidget {
                     icon: Icons.play_circle_outline,
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: game.isStarted ? onNext : null,
-                    icon: const Icon(Icons.skip_next),
-                    label: Text(context.tr("Start next pending question")),
-                  ),
+                  if (game.canFinish && onFinish != null)
+                    FilledButton.icon(
+                      key: const ValueKey('finish-quiz'),
+                      onPressed: onFinish,
+                      icon: const Icon(Icons.emoji_events_outlined),
+                      label: Text(context.tr('Quiz abschließen')),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: game.isStarted ? onNext : null,
+                      icon: const Icon(Icons.skip_next),
+                      label: Text(context.tr("Start next pending question")),
+                    ),
                 ],
               ],
             )
@@ -1126,16 +1207,17 @@ class LiveRoundPanel extends StatelessWidget {
                   commandRevision: game.tvMediaCommandRevision,
                 ),
                 switch (question) {
-                  MultipleChoiceQuestion() => _MultipleChoiceMonitor(
-                    question: question,
-                    game: game,
-                  ),
+                  // A snowflake round has no right option: the host follows
+                  // the answers by rarity like for every other kind.
+                  MultipleChoiceQuestion() when game.round.snowflake == null =>
+                    _MultipleChoiceMonitor(question: question, game: game),
                   ShortAnswerQuestion(manualGrading: true) =>
                     ManualAnswerMonitor(
                       question: question,
                       game: game,
                       onJudge: onJudgeAnswer,
                     ),
+                  MultipleChoiceQuestion() ||
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||
@@ -1170,6 +1252,7 @@ class LiveRoundPanel extends StatelessWidget {
                   onLock: onLock,
                   onNext: onNext,
                   onCloseRound: onCloseRound,
+                  onFinish: onFinish,
                   onReopenBuzzer: onReopenBuzzer,
                   onReopenBuzzerForAll: onReopenBuzzerForAll,
                   onEndRound: onEndRound,
@@ -1252,6 +1335,7 @@ class _RoundActions extends StatefulWidget {
     required this.onLock,
     required this.onNext,
     required this.onCloseRound,
+    this.onFinish,
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
@@ -1265,6 +1349,7 @@ class _RoundActions extends StatefulWidget {
   final VoidCallback onNext;
   final VoidCallback onCloseRound;
   final VoidCallback? onReopenBuzzer;
+  final VoidCallback? onFinish;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
   final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
@@ -1300,6 +1385,7 @@ class _RoundActionsState extends State<_RoundActions> {
     final onLock = widget.onLock;
     final onNext = widget.onNext;
     final onCloseRound = widget.onCloseRound;
+    final onFinish = widget.onFinish;
     final onReopenBuzzer = widget.onReopenBuzzer;
     final onReopenBuzzerForAll = widget.onReopenBuzzerForAll;
     final onEndRound = widget.onEndRound;
@@ -1411,7 +1497,14 @@ class _RoundActionsState extends State<_RoundActions> {
           runSpacing: 8,
           children: switch (round.status) {
             RoundStatus.idle => [
-              if (jeopardy == null)
+              if (game.canFinish && onFinish != null)
+                FilledButton.icon(
+                  key: const ValueKey('finish-quiz'),
+                  onPressed: onFinish,
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: Text(context.tr('Quiz abschließen')),
+                )
+              else if (jeopardy == null)
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),
@@ -1505,7 +1598,14 @@ class _RoundActionsState extends State<_RoundActions> {
                 ),
             ],
             RoundStatus.revealed => [
-              if (jeopardy == null)
+              if (game.canFinish && onFinish != null)
+                FilledButton.icon(
+                  key: const ValueKey('finish-quiz'),
+                  onPressed: onFinish,
+                  icon: const Icon(Icons.emoji_events_outlined),
+                  label: Text(context.tr('Quiz abschließen')),
+                )
+              else if (jeopardy == null)
                 FilledButton.icon(
                   onPressed: game.isStarted ? onNext : null,
                   icon: const Icon(Icons.skip_next),

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.0+20
+version: 1.3.1+36
 
 environment:
   sdk: ^3.13.4
@@ -82,6 +82,9 @@ dependencies:
   image: ^4.12.0
   ffi: ^2.2.0
   package_info_plus: ^10.2.2
+  # Builds the human readable game protocol PDF in the web player. Only
+  # loaded through a deferred import, so guests still join instantly.
+  pdf: ^3.13.1
 
 dev_dependencies:
   flutter_test:
@@ -116,6 +119,13 @@ flutter:
   assets:
     - assets/branding/logo.png
     - assets/web_client/
+    # Unicode fonts for the protocol PDF (Roboto, Apache 2.0, see LICENSE.txt;
+    # monochrome Noto Emoji, OFL 1.1, see NotoEmoji-OFL.txt).
+    - assets/fonts/protocol/
+    # Guide for AI assistants that write importable quiz files; the same file
+    # as in the repository (single source, see docs/ai-quiz-guide.md).
+    - docs/ai-quiz-guide.md
+    - docs/ai-quiz-guide.en.md
 
   # To add assets to your application, add an assets section, like this:
   # assets:

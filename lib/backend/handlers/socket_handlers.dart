@@ -15,6 +15,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../core/engine/guest_wifi_cubit.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/engine/session_access.dart';
+import '../../core/data/game_protocol_builder.dart';
 import '../../core/data/session_recovery.dart';
 import '../../core/models/models.dart';
 import '../../core/protocol/messages.dart';
@@ -114,6 +115,73 @@ class SocketHub {
 
   /// Number of open sockets.
   int get connectionCount => _connections.length;
+
+  DeviceCheckStatus? _deviceCheck;
+  var _deviceCheckCount = 0;
+
+  /// The running device check (technical check), or `null`.
+  DeviceCheckStatus? get deviceCheck => _deviceCheck;
+
+  /// Asks every player device to confirm itself by a tap and every TV to
+  /// show (and confirm) the check. Replaces a running check; never touches
+  /// the game state.
+  DeviceCheckStatus startDeviceCheck() {
+    final check = DeviceCheckStatus(
+      id: 'check-${++_deviceCheckCount}-${_now()}',
+      startedAtMicros: _now(),
+    );
+    _deviceCheck = check;
+    for (final connection in _connections.values) {
+      _sendDeviceCheck(connection);
+    }
+    return check;
+  }
+
+  /// Ends the device check on every player device and TV.
+  void stopDeviceCheck() {
+    if (_deviceCheck == null) return;
+    _deviceCheck = null;
+    for (final connection in _connections.values) {
+      if (connection.playerId != null || connection.isSpectator) {
+        connection.send(const DeviceCheckMessage(null));
+      }
+    }
+  }
+
+  void _sendDeviceCheck(_Connection connection) {
+    final check = _deviceCheck;
+    if (check == null) return;
+    if (connection.isSpectator) {
+      // A TV keeps showing the check until it ends.
+      connection.send(DeviceCheckMessage(check.id));
+      return;
+    }
+    if (connection.playerId == null ||
+        check.confirmedPlayerIds.contains(connection.playerId)) {
+      return;
+    }
+    connection.send(DeviceCheckMessage(check.id));
+  }
+
+  /// Liveness of every joined socket (players, TVs, lobby browsers).
+  List<ConnectionHealth> get connectionHealth {
+    final now = _now();
+    return [
+      for (final connection in _connections.values)
+        if (connection.playerId != null ||
+            connection.isSpectator ||
+            connection.isLobby)
+          ConnectionHealth(
+            role: connection.playerId != null
+                ? ConnectionRole.player
+                : connection.isSpectator
+                ? ConnectionRole.spectator
+                : ConnectionRole.lobby,
+            playerId: connection.playerId,
+            silentForMicros: now - connection.lastFrameAt,
+          ),
+    ];
+  }
 
   /// The shelf handler that performs the web socket upgrade.
   Handler get handler => createSocketUpgradeHandler(
@@ -380,7 +448,11 @@ class SocketHub {
         }
         final createdTeam = newTeamName == null
             ? null
-            : Team(id: newId('team'), name: newTeamName.trim());
+            : Team(
+                id: newId('team'),
+                name: newTeamName.trim(),
+                colorValue: TeamColor.forIndex(game.teams.length).argb,
+              );
         if (createdTeam != null &&
             resumePlayerId != null &&
             game.players.containsKey(resumePlayerId)) {
@@ -475,6 +547,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendDeviceCheck(connection);
         _log(ServerLogLevel.info, 'Participant $playerId joined.');
 
       case LobbyRequest():
@@ -534,6 +607,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendDeviceCheck(connection);
         if (_guestWifi case final guestWifi?) {
           // Also sent when empty, so a reconnecting TV drops a stale code.
           connection.send(GuestWifiMessage(guestWifi.state));
@@ -624,6 +698,16 @@ class SocketHub {
           ),
         );
 
+      case DeviceCheckReply(:final checkId):
+        final playerId = connection.playerId;
+        final check = _deviceCheck;
+        if (check == null || check.id != checkId) return;
+        if (connection.isSpectator) {
+          _deviceCheck = check.confirmScreen(connection.id);
+        } else if (playerId != null) {
+          _deviceCheck = check.confirm(playerId);
+        }
+
       case LeaveNotice():
         _onDisconnected(connection);
         connection.closeSocket();
@@ -706,7 +790,7 @@ class SocketHub {
     }
     if (revision != _broadcastRevision || _connections.isEmpty) return;
     final game = _engine.publishedGame;
-    final redacted = game.redactedForPlayers();
+    final redacted = guestSnapshotOf(game, title: serverName);
     for (final connection in _connections.values.toList(growable: false)) {
       if (connection.playerId != null &&
           !game.players.containsKey(connection.playerId)) {
@@ -747,6 +831,7 @@ class SocketHub {
         ),
       );
       connection.send(_snapshotFor(connection));
+      _sendDeviceCheck(connection);
     } on Object {
       connection.send(
         const ProtocolErrorMessage(
@@ -772,7 +857,7 @@ class SocketHub {
     final game = _engine.publishedGame;
     final id = connection.playerId;
     return GameSnapshotMessage(
-      redacted ?? game.redactedForPlayers(),
+      redacted ?? guestSnapshotOf(game, title: serverName),
       ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
     );
   }

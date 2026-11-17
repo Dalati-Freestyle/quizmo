@@ -32,6 +32,7 @@ AnswerSubmission botAnswer(
   required String playerId,
   required int timestamp,
   required bool correct,
+  int variant = 0,
 }) {
   AnswerSubmission answer(Map<String, Object?> payload) =>
       AnswerSubmission.fromJson({
@@ -42,6 +43,16 @@ AnswerSubmission botAnswer(
         // Local participants share the virtual host clock: exact offset zero.
         'clockOffsetMicros': 0,
       });
+
+  // Without a stored solution (snowflake quiz) nothing is right or wrong:
+  // the bot picks one of the possible answers by [variant].
+  if (!question.hasSolution && question.supportsUniqueness) {
+    final result = answer(_freeChoice(question, variant));
+    if (!question.accepts(result)) {
+      throw StateError('Cannot simulate a valid answer for ${question.id}.');
+    }
+    return result;
+  }
 
   final payload = switch (question) {
     MultipleChoiceQuestion() => {
@@ -94,6 +105,33 @@ List<String> _choice(MultipleChoiceQuestion question, bool correct) {
   if (wrong != null) return [wrong.id];
   // When every option is correct, a strict subset is still a valid wrong answer.
   return [question.solutionOptionIds.first];
+}
+
+Map<String, Object?> _freeChoice(Question question, int variant) {
+  List<String> turned(List<String> values) => [
+    ...values.skip(variant % values.length),
+    ...values.take(variant % values.length),
+  ];
+  return switch (question) {
+    MultipleChoiceQuestion(:final options) => {
+      'kind': 'multipleChoice',
+      'optionIds': [options[variant % options.length].id],
+    },
+    TrueFalseQuestion() => {'kind': 'trueFalse', 'value': variant.isEven},
+    OrderingQuestion(:final items) => {
+      'kind': 'ordering',
+      'itemIds': turned([for (final item in items) item.id]),
+    },
+    MatchingQuestion(:final leftItems, :final rightItems) => {
+      'kind': 'matching',
+      'pairs': Map.fromIterables(
+        leftItems.map((item) => item.id),
+        turned([for (final item in rightItems) item.id]),
+      ),
+    },
+    BuzzerQuestion() || ShortAnswerQuestion() || EstimationQuestion() =>
+      throw StateError('Cannot pick a free answer for ${question.id}.'),
+  };
 }
 
 List<String> _rotate(List<String> values) => [...values.skip(1), values.first];

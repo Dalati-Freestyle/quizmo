@@ -75,6 +75,39 @@ void main() {
     expect(attempts, 2);
   });
 
+  test('large assets arrive in ranges and are verified as a whole', () async {
+    final large = Uint8List.fromList(
+      utf8.encode('<svg>${' ' * (mediaChunkBytes * 2 + 100)}</svg>'),
+    );
+    final asset = MediaAsset.upload(large, 'svg');
+    final ranges = <String?>[];
+    final cache = SessionMediaCache(
+      baseUri: base,
+      createClient: () => MockClient((request) async {
+        final range = request.headers['range'];
+        ranges.add(range);
+        final match = RegExp(r'^bytes=(\d+)-(\d+)$').firstMatch(range!)!;
+        final start = int.parse(match[1]!);
+        final end = (int.parse(match[2]!)).clamp(0, large.length - 1);
+        return http.Response.bytes(
+          large.sublist(start, end + 1),
+          206,
+          headers: {'content-range': 'bytes $start-$end/${large.length}'},
+        );
+      }),
+    );
+    addTearDown(cache.dispose);
+    final loaded = await cache.load(
+      MediaAsset(id: asset.id, mimeType: asset.mimeType),
+    );
+    expect(loaded.bytes, large);
+    expect(ranges, [
+      'bytes=0-${mediaChunkBytes - 1}',
+      'bytes=$mediaChunkBytes-${mediaChunkBytes * 2 - 1}',
+      'bytes=${mediaChunkBytes * 2}-${mediaChunkBytes * 3 - 1}',
+    ]);
+  });
+
   test(
     'damaged, oversized and truncated downloads fail without caching',
     () async {

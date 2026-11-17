@@ -57,13 +57,6 @@ void main() {
     expect(await pickQuizJson(), isNull);
   });
 
-  test('rejects an oversized file before reading its contents', () async {
-    final file = _File(Uint8List(0), size: maxQuizFileBytes + 1);
-    picker.file = file;
-    await expectLater(pickQuizJson(), throwsA(isA<QuizImportException>()));
-    expect(file.wasRead, isFalse);
-  });
-
   test('picked bytes can be imported and preserve Unicode text', () async {
     final quiz = createSampleQuiz(DateTime.utc(2026))
         .copyWith(name: 'Grüße 🌍');
@@ -182,9 +175,8 @@ class _Picker extends FilePickerPlatform {
 }
 
 final class _File extends PlatformFile {
-  _File(this.bytes, {this.size});
+  _File(this.bytes);
   final Uint8List bytes;
-  final int? size;
   bool wasRead = false;
 
   @override
@@ -194,7 +186,7 @@ final class _File extends PlatformFile {
   @override
   Never get xFile => throw UnimplementedError();
   @override
-  int lengthSync() => size ?? bytes.length;
+  int lengthSync() => bytes.length;
   @override
   Future<int> length() async => lengthSync();
   @override

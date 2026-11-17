@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../common/palette_color_picker.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/settings_page.dart';
 
@@ -17,7 +18,7 @@ import 'quiz_editor_cubit.dart';
 import 'selection_dropdown.dart';
 import '../preview/quiz_preview_page.dart';
 
-enum _QuizFormatKind { standard, jeopardy, poker }
+enum _QuizFormatKind { standard, jeopardy, poker, snowflake }
 
 /// Lets the host edit [quiz] and returns its saved replacement.
 class QuizEditorPage extends StatelessWidget {
@@ -86,6 +87,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
         StandardFormat() => _QuizFormatKind.standard,
         JeopardyFormat() => _QuizFormatKind.jeopardy,
         PokerFormat() => _QuizFormatKind.poker,
+        SnowflakeFormat() => _QuizFormatKind.snowflake,
       };
       return Scaffold(
         appBar: AppBar(
@@ -129,6 +131,9 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
           ],
         ),
         body: AdaptivePanelGrid(
+          // The board needs width: on wide screens it takes the middle column
+          // and details and teams move to the narrower outer columns.
+          widePanelIndex: state.draft.format is JeopardyFormat ? 2 : null,
           panels: [
             PanelCard(
               title: context.tr("Quiz details"),
@@ -194,6 +199,16 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           ],
                         ),
                       ),
+                      DropdownMenuItem(
+                        value: _QuizFormatKind.snowflake,
+                        child: Row(
+                          children: [
+                            Icon(Icons.ac_unit),
+                            SizedBox(width: 8),
+                            Text(context.tr("Biggest Snowflake")),
+                          ],
+                        ),
+                      ),
                     ],
                     onChanged: (selection) {
                       if (selection == null || selection == formatKind) return;
@@ -204,6 +219,8 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                           cubit.useJeopardyFormat();
                         case _QuizFormatKind.poker:
                           cubit.usePokerFormat();
+                        case _QuizFormatKind.snowflake:
+                          cubit.useSnowflakeFormat();
                       }
                     },
                   ),
@@ -234,6 +251,43 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                     Text(
                       context.tr(
                         'Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.',
+                      ),
+                    ),
+                  ],
+                  if (state.draft.format case SnowflakeFormat(
+                    :final scoring,
+                  )) ...[
+                    const SizedBox(height: 16),
+                    SelectionDropdown<SnowflakeScoring>(
+                      key: const ValueKey('snowflake-scoring'),
+                      label: context.tr('Punkte'),
+                      value: scoring,
+                      items: [
+                        DropdownMenuItem(
+                          value: SnowflakeScoring.winnerOnly,
+                          child: Text(
+                            context.tr('Nur die seltenste Antwort'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: SnowflakeScoring.graded,
+                          child: Text(
+                            context.tr('Abgestuft nach Seltenheit'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          cubit.useSnowflakeFormat(scoring: value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        "Es gibt keine richtige Lösung: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. Abgestuft: Mit jeder Stufe häufigerer Antworten sinkt der Anteil, die häufigste Antwort bekommt nichts. Geben alle dieselbe Antwort, punktet niemand. Möglich sind nur Multiple Choice, Wahr/Falsch, Reihenfolge und Zuordnung.",
                       ),
                     ),
                   ],
@@ -276,7 +330,9 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                 cubit: cubit,
                 createId: widget.createId,
               ),
-              StandardFormat() || PokerFormat() => _QuestionsPanel(
+              StandardFormat() ||
+              PokerFormat() ||
+              SnowflakeFormat() => _QuestionsPanel(
                 questions: state.draft.questions,
                 format: state.draft.format,
                 onAddTemplate: (template) => _editQuestion(
@@ -340,7 +396,11 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
   Future<void> _editTeam(QuizEditorCubit cubit, [Team? team]) async {
     final edited = await showDialog<Team>(
       context: context,
-      builder: (_) => _TeamDialog(team: team, newId: widget.createId),
+      builder: (_) => _TeamDialog(
+        team: team,
+        newId: widget.createId,
+        teamCount: cubit.state.draft.teams.length,
+      ),
     );
     if (edited == null || !mounted) return;
     if (team == null) {
@@ -430,6 +490,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
       children: [
         QuestionTemplateDropdown(
           value: _selectedTemplate,
+          templates: questionTemplatesFor(widget.format),
           onChanged: (template) => setState(() => _selectedTemplate = template),
         ),
         const SizedBox(height: 12),
@@ -472,11 +533,13 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                       : question.prompt,
                 ),
                 subtitle: Text(
-                  context.tr("{0} · {1}s · {2}", [
+                  context.tr("{0} · {1} · {2}", [
                     context.tr(question.kindLabel),
-                    question.timeLimit.inSeconds,
+                    question.hasTimeLimit
+                        ? "${question.timeLimit.inSeconds}s"
+                        : context.tr("Ohne Zeitlimit"),
                     switch (widget.format) {
-                      StandardFormat() => context.tr(
+                      StandardFormat() || SnowflakeFormat() => context.tr(
                         question.scoringRule.label,
                       ),
                       PokerFormat() => context.tr(
@@ -507,10 +570,17 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
 }
 
 class _TeamDialog extends StatefulWidget {
-  const _TeamDialog({required this.team, required this.newId});
+  const _TeamDialog({
+    required this.team,
+    required this.newId,
+    required this.teamCount,
+  });
 
   final Team? team;
   final String Function() newId;
+
+  /// Number of existing teams; a new team gets the next palette colour.
+  final int teamCount;
 
   @override
   State<_TeamDialog> createState() => _TeamDialogState();
@@ -519,23 +589,20 @@ class _TeamDialog extends StatefulWidget {
 class _TeamDialogState extends State<_TeamDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _colorController;
+  late TeamColor _color;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.team?.name ?? '');
-    _colorController = TextEditingController(
-      text: (widget.team?.colorValue ?? 0xFF5E6AD2)
-          .toRadixString(16)
-          .padLeft(8, '0'),
-    );
+    _color = widget.team == null
+        ? TeamColor.forIndex(widget.teamCount)
+        : TeamColor.nearest(widget.team!.colorValue);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _colorController.dispose();
     super.dispose();
   }
 
@@ -557,14 +624,15 @@ class _TeamDialogState extends State<_TeamDialog> {
                 : null,
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            controller: _colorController,
-            decoration: InputDecoration(
-              labelText: context.tr("ARGB colour (for example FF5E6AD2)"),
-            ),
-            validator: (value) => _parseColor(value) == null
-                ? context.tr("Enter an 8-digit hexadecimal ARGB colour.")
-                : null,
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(context.tr('Teamfarbe')),
+          ),
+          const SizedBox(height: 8),
+          PaletteColorPicker(
+            selected: _color,
+            keyPrefix: 'team-color',
+            onSelected: (color) => setState(() => _color = color),
           ),
         ],
       ),
@@ -584,11 +652,8 @@ class _TeamDialogState extends State<_TeamDialog> {
       Team(
         id: widget.team?.id ?? widget.newId(),
         name: _nameController.text.trim(),
-        colorValue: _parseColor(_colorController.text)!,
+        colorValue: _color.argb,
       ),
     );
   }
-
-  int? _parseColor(String? value) =>
-      int.tryParse(value?.trim().replaceFirst('#', '') ?? '', radix: 16);
 }

@@ -11,8 +11,8 @@ final class ManualCorrection extends Equatable {
   const ManualCorrection({
     required this.id,
     required this.kind,
-    required this.questionId,
-    required this.roundStartedAt,
+    this.questionId,
+    this.roundStartedAt,
     required this.playerId,
     required this.participantName,
     required this.beforeValue,
@@ -23,6 +23,7 @@ final class ManualCorrection extends Equatable {
     this.reversesId,
     this.scoreDeltas = const {},
     this.chipDeltas = const {},
+    this.teamDeltas = const {},
     this.beforeRound,
     this.afterRound,
     this.beforeJeopardy,
@@ -43,8 +44,8 @@ final class ManualCorrection extends Equatable {
       'chips' => CorrectionKind.chips,
       _ => throw const JsonContractException('Unknown correction kind.'),
     },
-    questionId: json.readString('questionId'),
-    roundStartedAt: json.readInt('roundStartedAt'),
+    questionId: json.readStringOrNull('questionId'),
+    roundStartedAt: json.readIntOrNull('roundStartedAt'),
     playerId: json.readString('playerId'),
     teamId: json.readStringOrNull('teamId'),
     participantName: json.readString('participantName'),
@@ -55,6 +56,9 @@ final class ManualCorrection extends Equatable {
     reversesId: json.readStringOrNull('reversesId'),
     scoreDeltas: json.readIntMap('scoreDeltas'),
     chipDeltas: json.readIntMap('chipDeltas'),
+    teamDeltas: json['teamDeltas'] == null
+        ? const {}
+        : json.readIntMap('teamDeltas'),
     beforeRound: switch (json.readObjectOrNull('beforeRound')) {
       final value? => RoundState.fromJson(value),
       null => null,
@@ -86,8 +90,15 @@ final class ManualCorrection extends Equatable {
 
   final String id;
   final CorrectionKind kind;
-  final String questionId;
-  final int roundStartedAt;
+
+  /// Question the entry belongs to; `null` for a manual point change that
+  /// is not bound to a question.
+  final String? questionId;
+
+  /// Start of the round [questionId] was played in, or `null`.
+  final int? roundStartedAt;
+
+  /// Affected player; empty when a team was changed directly.
   final String playerId;
   final String? teamId;
   final String participantName;
@@ -98,6 +109,12 @@ final class ManualCorrection extends Equatable {
   final String? reversesId;
   final Map<String, int> scoreDeltas;
   final Map<String, int> chipDeltas;
+
+  /// Points booked directly on teams (no player), per team id.
+  final Map<String, int> teamDeltas;
+
+  /// Whether a team was changed directly instead of a single player.
+  bool get targetsTeam => playerId.isEmpty;
   final RoundState? beforeRound;
   final RoundState? afterRound;
   final JeopardyState? beforeJeopardy;
@@ -123,6 +140,7 @@ final class ManualCorrection extends Equatable {
     'reversesId': reversesId,
     'scoreDeltas': scoreDeltas,
     'chipDeltas': chipDeltas,
+    if (teamDeltas.isNotEmpty) 'teamDeltas': teamDeltas,
     'beforeRound': beforeRound?.toJson(),
     'afterRound': afterRound?.toJson(),
     'beforeJeopardy': beforeJeopardy?.toJson(),
@@ -150,6 +168,7 @@ final class ManualCorrection extends Equatable {
     reversesId,
     scoreDeltas,
     chipDeltas,
+    teamDeltas,
     beforeRound,
     afterRound,
     beforeJeopardy,

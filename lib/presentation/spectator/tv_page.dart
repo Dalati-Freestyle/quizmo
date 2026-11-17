@@ -45,6 +45,7 @@ import '../app.dart';
 import '../common/jeopardy_board_view.dart';
 import 'spectator_session_cubit.dart';
 import 'tv_launch.dart';
+import 'tv_final_stage.dart';
 import 'tv_standings.dart';
 import 'animated_score_value.dart';
 
@@ -255,7 +256,7 @@ class _TvViewState extends State<_TvView> {
               const Positioned(
                 top: 12,
                 left: 12,
-                child: SafeArea(child: SettingsButton()),
+                child: SafeArea(child: SettingsButton(hostSettings: false)),
               ),
               BlocBuilder<SpectatorSessionCubit, SpectatorSessionState>(
                 builder: (context, state) => state.isConnected
@@ -328,6 +329,53 @@ class TvScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        _content(context),
+        if (state.deviceCheckActive)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: Center(
+              child: Container(
+                key: const ValueKey('tv-device-check'),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: 44,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      context.tr('Technikcheck: Dieser TV ist verbunden.'),
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onTertiaryContainer,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final game = state.game;
     return Padding(
       padding: const EdgeInsets.fromLTRB(64, 40, 64, 48),
@@ -339,6 +387,21 @@ class TvScreen extends StatelessWidget {
           Expanded(
             child: game == null
                 ? _ConnectingStage(state: state, joinUri: joinUri)
+                : game.isFinished && game.protocol != null
+                ? TvFinalStage(
+                    protocol: game.protocol!,
+                    review: game.showFinalReview
+                        ? _TvPanel(
+                            child: _FinalReviewStage(
+                              key: ValueKey(
+                                game.roundHistory.first.startedAtHostMicros,
+                              ),
+                              game: game,
+                              state: state,
+                            ),
+                          )
+                        : null,
+                  )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -1450,6 +1513,7 @@ class _QuestionStage extends StatelessWidget {
           height: 56,
           child:
               round.status == RoundStatus.acceptingAnswers &&
+                  question.hasTimeLimit &&
                   !(game.poker?.betting ?? false)
               ? _CountdownBar(state: state, limit: question.timeLimit)
               : null,
@@ -1496,10 +1560,12 @@ class _QuestionStage extends StatelessWidget {
                   ),
                 )
               : switch (current) {
-                  MultipleChoiceQuestion() => _ChoiceBoard(
-                    question: current,
-                    game: game,
-                  ),
+                  // A revealed snowflake round has no right option to mark;
+                  // it shows the answers by rarity like every other kind.
+                  MultipleChoiceQuestion()
+                      when !(isRevealed && round.snowflake != null) =>
+                    _ChoiceBoard(question: current, game: game),
+                  MultipleChoiceQuestion() ||
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
                   MatchingQuestion() ||
@@ -1709,7 +1775,7 @@ class _ChoiceBoard extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             context.tr("{0} of {1} answered", [
-              round.answers.length,
+              round.answerCount,
               game.connectedPlayers.length,
             ]),
             style: theme.textTheme.headlineSmall?.copyWith(

@@ -28,6 +28,7 @@ final class SpectatorSessionState extends Equatable {
     this.extrapolateTime = true,
     this.mediaBaseUri,
     this.guestWifi,
+    this.deviceCheckActive = false,
   });
 
   /// Connection lifecycle.
@@ -54,6 +55,10 @@ final class SpectatorSessionState extends Equatable {
   /// Guest Wi-Fi announced by a LAN host, shown as a second QR code.
   final GuestWifi? guestWifi;
 
+  /// Whether the host's technical check currently runs a device test; the TV
+  /// confirms it automatically and shows a short notice.
+  final bool deviceCheckActive;
+
   /// Whether the socket is open and the host accepted the watch request.
   bool get isConnected => status == QuizClientStatus.connected;
 
@@ -73,6 +78,7 @@ final class SpectatorSessionState extends Equatable {
         receivedAt == null ||
         round == null ||
         question == null ||
+        !question.hasTimeLimit ||
         startedAt == null ||
         round.status != RoundStatus.acceptingAnswers) {
       return null;
@@ -99,7 +105,9 @@ final class SpectatorSessionState extends Equatable {
     Uri? mediaBaseUri,
     GuestWifi? guestWifi,
     bool clearGuestWifi = false,
+    bool? deviceCheckActive,
   }) => SpectatorSessionState(
+    deviceCheckActive: deviceCheckActive ?? this.deviceCheckActive,
     guestWifi: clearGuestWifi ? null : guestWifi ?? this.guestWifi,
     extrapolateTime: extrapolateTime ?? this.extrapolateTime,
     status: status ?? this.status,
@@ -122,6 +130,7 @@ final class SpectatorSessionState extends Equatable {
     extrapolateTime,
     mediaBaseUri,
     guestWifi,
+    deviceCheckActive,
   ];
 }
 
@@ -159,6 +168,7 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
   StreamSubscription<QuizClientStatus>? _statusSubscription;
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   StreamSubscription<GuestWifi?>? _guestWifiSubscription;
+  StreamSubscription<String?>? _deviceCheckSubscription;
   String? _joinCode;
 
   Future<void> setJoinCode(String code) {
@@ -207,6 +217,11 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     _guestWifiSubscription = client.guestWifi.listen((wifi) {
       if (isClosed || _client != client) return;
       emit(state.copyWith(guestWifi: wifi, clearGuestWifi: wifi == null));
+    });
+    _deviceCheckSubscription = client.deviceChecks.listen((checkId) {
+      if (isClosed || _client != client) return;
+      if (checkId != null) client.confirmDeviceCheck(checkId);
+      emit(state.copyWith(deviceCheckActive: checkId != null));
     });
     _statusSubscription = client.statuses.listen(
       (status) => _onStatus(client, status),
@@ -271,6 +286,8 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     await _statusSubscription?.cancel();
     await _errorSubscription?.cancel();
     await _guestWifiSubscription?.cancel();
+    await _deviceCheckSubscription?.cancel();
+    _deviceCheckSubscription = null;
     _guestWifiSubscription = null;
     _gameSubscription = null;
     _statusSubscription = null;

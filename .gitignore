@@ -57,3 +57,6 @@ app.*.map.json
 *.p12
 *.pfx
 github-secrets.json
+
+# Agent notes for review (not committed)
+/OFFENE_FRAGEN.md

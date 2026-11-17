@@ -97,27 +97,71 @@ final class SessionMediaCache {
     var active = true;
     try {
       final loaded = await (() async {
-        final response = await client.send(
-          http.Request('GET', sessionMediaUri(baseUri, asset)),
-        );
-        if (response.statusCode != 200) {
-          throw StateError('Media download: HTTP ${response.statusCode}.');
-        }
-        final total = response.contentLength;
-        if (total != null && (total <= 0 || total > maxMediaBytes)) {
-          throw const FormatException('Media exceeds the 20 MiB limit.');
-        }
+        // Assets have no size limit, so they arrive in ranges: the internet
+        // relay carries at most [mediaChunkBytes] per round trip. A server
+        // without range support answers 200 with the whole file instead.
         final builder = BytesBuilder(copy: false);
-        await for (final chunk in response.stream) {
-          if (_closed || !active) throw StateError('Media download cancelled.');
-          if (builder.length + chunk.length > maxMediaBytes) {
-            throw const FormatException('Media exceeds the 20 MiB limit.');
+        int? total;
+        // Every range has [timeout] to arrive, so a large asset may take
+        // longer as a whole while a stalled transfer still fails.
+        Future<bool> fetchRange() async {
+          final start = builder.length;
+          final response = await client.send(
+            http.Request(
+              'GET',
+              sessionMediaUri(baseUri, asset),
+            )..headers['range'] = 'bytes=$start-${start + mediaChunkBytes - 1}',
+          );
+          final bool partial;
+          if (response.statusCode == 206) {
+            final range = RegExp(r'^bytes (\d+)-(\d+)/(\d+)$')
+                .firstMatch(response.headers['content-range'] ?? '');
+            final size = range == null ? null : int.parse(range[3]!);
+            if (range == null ||
+                int.parse(range[1]!) != start ||
+                total != null && total != size ||
+                response.contentLength != null &&
+                    response.contentLength !=
+                        int.parse(range[2]!) - start + 1) {
+              throw const FormatException(
+                'Incomplete or damaged media download.',
+              );
+            }
+            total = size;
+            partial = true;
+          } else if (response.statusCode == 200 && start == 0) {
+            total = response.contentLength;
+            partial = false;
+          } else {
+            throw StateError('Media download: HTTP ${response.statusCode}.');
           }
-          builder.add(chunk);
-          _progress[asset.id] = MediaDownloadProgress(builder.length, total);
-          _updates.add(null);
+          if (total != null && total! <= 0) {
+            throw const FormatException('Empty media download.');
+          }
+          await for (final chunk in response.stream) {
+            if (_closed || !active) {
+              throw StateError('Media download cancelled.');
+            }
+            builder.add(chunk);
+            if (total != null && builder.length > total!) {
+              throw const FormatException(
+                'Incomplete or damaged media download.',
+              );
+            }
+            _progress[asset.id] = MediaDownloadProgress(builder.length, total);
+            _updates.add(null);
+          }
+          if (_closed || !active) throw StateError('Media download cancelled.');
+          if (!partial || builder.length == total) return false;
+          if (builder.length == start) {
+            throw const FormatException(
+              'Incomplete or damaged media download.',
+            );
+          }
+          return true;
         }
-        if (_closed || !active) throw StateError('Media download cancelled.');
+
+        while (await fetchRange().timeout(timeout)) {}
         final bytes = builder.takeBytes();
         if (bytes.isEmpty ||
             total != null && total != bytes.length ||
@@ -138,7 +182,7 @@ final class SessionMediaCache {
           _bytes += loaded.data!.length;
         }
         return loaded;
-      })().timeout(timeout);
+      })();
       if (_closed) throw StateError('Media session closed.');
       return loaded;
     } finally {

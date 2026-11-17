@@ -246,27 +246,43 @@ final class JudgeAnswerEvent extends QuizEngineEvent {
   ];
 }
 
+/// Reason stored by the "no reason" button of the point change dialog.
+const kNoReasonGiven = '🤷';
+
+/// Manually gives or takes points (chips in a poker session).
+///
+/// Exactly one of [playerId] and [teamId] names the target. A team target
+/// books the points on the team itself, without picking one of its players.
+/// [reason] is mandatory and must not be blank; use [kNoReasonGiven] when the
+/// quizmaster does not want to explain the change.
+///
+/// When [questionId] is given, the change is bound to that running round and
+/// rejected once the round changed; otherwise it is a free change that is
+/// allowed between questions as well.
 final class CorrectScoreEvent extends QuizEngineEvent {
   const CorrectScoreEvent({
     required this.requestId,
-    required this.playerId,
-    required this.questionId,
-    required this.roundStartedAt,
     required this.delta,
-    this.reason,
+    required this.reason,
+    this.playerId,
+    this.teamId,
+    this.questionId,
+    this.roundStartedAt,
   });
 
   final String requestId;
-  final String playerId;
-  final String questionId;
-  final int roundStartedAt;
+  final String? playerId;
+  final String? teamId;
+  final String? questionId;
+  final int? roundStartedAt;
   final int delta;
-  final String? reason;
+  final String reason;
 
   @override
   List<Object?> get props => [
     requestId,
     playerId,
+    teamId,
     questionId,
     roundStartedAt,
     delta,
@@ -287,6 +303,23 @@ final class UndoCorrectionEvent extends QuizEngineEvent {
 final class RevealRoundEvent extends QuizEngineEvent {
   /// Reveals the round.
   const RevealRoundEvent();
+}
+
+/// Finishes the game after the last question: guests then get the final
+/// page with standings and protocol, and deferred solutions are published.
+///
+/// With [early] the host ends the game before every question is played; a
+/// running round is then cancelled without scoring. The host UI asks for a
+/// confirmation first.
+final class FinishQuizEvent extends QuizEngineEvent {
+  /// Finishes the game.
+  const FinishQuizEvent({this.early = false});
+
+  /// Whether unplayed questions or a running round may be skipped.
+  final bool early;
+
+  @override
+  List<Object?> get props => [early];
 }
 
 /// Clears scores, history and round, keeping players and question bank.

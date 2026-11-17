@@ -32,6 +32,7 @@ final class PlayerSessionState extends Equatable {
     this.lobby,
     this.waitingForApproval = false,
     this.submissionStatus = SubmissionStatus.idle,
+    this.deviceCheckId,
   });
 
   /// Connection lifecycle.
@@ -63,6 +64,10 @@ final class PlayerSessionState extends Equatable {
   final LobbySnapshotMessage? lobby;
   final bool waitingForApproval;
   final SubmissionStatus submissionStatus;
+
+  /// Running device check of the host's technical check that this device
+  /// has not confirmed yet; `null` otherwise.
+  final String? deviceCheckId;
   bool get isChoosingTeam =>
       lobby != null &&
       playerId == null &&
@@ -85,10 +90,16 @@ final class PlayerSessionState extends Equatable {
     return id == null ? null : game?.players[id];
   }
 
-  /// Current score of this player.
-  int get myScore => game?.poker == null
-      ? (playerId == null ? 0 : game?.scores.scoreOf(playerId!) ?? 0)
-      : game!.poker!.chips[me?.teamId] ?? 0;
+  /// Current score of this player; with teams the score of the own team,
+  /// because points belong to the team.
+  int get myScore {
+    final game = this.game;
+    if (game == null || playerId == null) return 0;
+    if (game.poker case final poker?) return poker.chips[me?.teamId] ?? 0;
+    return game.mode is TeamMode
+        ? game.teamScores[me?.teamId] ?? 0
+        : game.scores.scoreOf(playerId!);
+  }
 
   bool get mayAnswerQuestion => game?.mayAnswerQuestion(playerId) ?? false;
 
@@ -124,6 +135,8 @@ final class PlayerSessionState extends Equatable {
     LobbySnapshotMessage? lobby,
     bool? waitingForApproval,
     SubmissionStatus? submissionStatus,
+    String? deviceCheckId,
+    bool clearDeviceCheck = false,
   }) => PlayerSessionState(
     status: status ?? this.status,
     game: game ?? this.game,
@@ -141,6 +154,9 @@ final class PlayerSessionState extends Equatable {
     submissionStatus:
         submissionStatus ??
         (clearSubmission ? SubmissionStatus.idle : this.submissionStatus),
+    deviceCheckId: clearDeviceCheck
+        ? null
+        : deviceCheckId ?? this.deviceCheckId,
   );
 
   @override
@@ -157,6 +173,7 @@ final class PlayerSessionState extends Equatable {
     lobby,
     waitingForApproval,
     submissionStatus,
+    deviceCheckId,
   ];
 }
 
@@ -260,6 +277,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     }
     _retryTimer = Timer(const Duration(seconds: 2), () {
       _retryTimer = null;
+      // A retry must never tear down a connection that came back meanwhile.
+      if (_client?.status == QuizClientStatus.connected) return;
       unawaited(_reconnect());
     });
     emit(state.copyWith(status: QuizClientStatus.reconnecting));
@@ -299,7 +318,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       }
     } finally {
       _connecting = false;
-      if (!isClosed && !state.isConnected) _scheduleReconnect();
+      // The client status is synchronous; the cubit state only follows once
+      // the status stream delivered "connected", so checking it here would
+      // schedule a retry that drops the working connection again.
+      if (!isClosed && client.status != QuizClientStatus.connected) {
+        _scheduleReconnect();
+      }
     }
   }
 
@@ -316,12 +340,17 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   QuizClient? _client;
   Uri? _baseUri;
   Uri? get mediaBaseUri => _client?.mediaBaseUri ?? _baseUri;
+
+  /// Current host time estimated through the clock synchronisation.
+  int hostNowMicros() =>
+      _localNow?.call() ?? systemNowMicros() - state.clockOffsetMicros;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<GameSnapshotMessage>? _snapshotSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
   StreamSubscription<ProtocolErrorMessage>? _errorSubscription;
   StreamSubscription<LobbySnapshotMessage>? _lobbySubscription;
   StreamSubscription<bool>? _admissionSubscription;
+  StreamSubscription<String?>? _deviceCheckSubscription;
   String _joiningName = '';
   String? _lastQuestionId;
   int? _lastRoundStart;
@@ -362,6 +391,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _admissionSubscription = client.admissions.listen((waiting) {
       if (!isClosed) emit(state.copyWith(waitingForApproval: waiting));
     });
+    _deviceCheckSubscription = client.deviceChecks.listen((checkId) {
+      if (isClosed) return;
+      emit(
+        checkId == null
+            ? state.copyWith(clearDeviceCheck: true)
+            : state.copyWith(deviceCheckId: checkId),
+      );
+    });
 
     _snapshotSubscription = client.snapshots.listen((snapshot) {
       _onSnapshot(snapshot.game, accepted: snapshot.ownSubmissionAccepted);
@@ -396,6 +433,10 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
               : null,
         ),
       );
+      if (status == QuizClientStatus.connected) {
+        _retryTimer?.cancel();
+        _retryTimer = null;
+      }
       if (status == QuizClientStatus.connected && client.playerId != null) {
         unawaited(_remember());
       }
@@ -472,7 +513,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       );
     } finally {
       _connecting = false;
-      if (!state.isConnected) _scheduleReconnect();
+      if (client.status != QuizClientStatus.connected) _scheduleReconnect();
     }
   }
 
@@ -551,6 +592,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         emit(state.copyWith(error: '$error'));
       }
     }
+  }
+
+  /// Confirms the host's device check with a tap on this device.
+  void confirmDeviceCheck() {
+    final checkId = state.deviceCheckId;
+    if (checkId == null || !state.isConnected) return;
+    _client?.confirmDeviceCheck(checkId);
+    emit(state.copyWith(clearDeviceCheck: true));
   }
 
   void renameTeam(String name) {
@@ -766,7 +815,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     final receiptKnown =
         accepted != null ||
         _localSend != null ||
-        game.poker == null ||
+        // Poker and snowflake snapshots withhold the answers until the reveal.
+        (game.poker == null && game.snowflake == null) ||
         game.round.status == RoundStatus.revealed;
     final restored = _restoringSnapshot;
     _restoringSnapshot = false;
@@ -815,12 +865,14 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     await _errorSubscription?.cancel();
     await _lobbySubscription?.cancel();
     await _admissionSubscription?.cancel();
+    await _deviceCheckSubscription?.cancel();
     _gameSubscription = null;
     _snapshotSubscription = null;
     _statusSubscription = null;
     _errorSubscription = null;
     _lobbySubscription = null;
     _admissionSubscription = null;
+    _deviceCheckSubscription = null;
     _lastQuestionId = null;
     await _client?.dispose();
     _client = null;

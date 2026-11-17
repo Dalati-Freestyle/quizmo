@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import '../data/game_protocol_builder.dart';
 import '../engine/quiz_engine_bloc.dart';
 import '../models/models.dart';
 import 'bot_decisions.dart';
@@ -26,15 +27,20 @@ final class PreviewSession {
       revealMode: switch (quiz.format) {
         StandardFormat(:final revealMode) => revealMode,
         JeopardyFormat() ||
-        PokerFormat() => SolutionRevealMode.afterEachQuestion,
+        PokerFormat() ||
+        SnowflakeFormat() => SolutionRevealMode.afterEachQuestion,
       },
       jeopardyBoard: switch (quiz.format) {
         JeopardyFormat(:final board) => board,
-        StandardFormat() || PokerFormat() => null,
+        StandardFormat() || PokerFormat() || SnowflakeFormat() => null,
       },
       pokerStartingChips: switch (quiz.format) {
         PokerFormat(:final startingChips) => startingChips,
-        StandardFormat() || JeopardyFormat() => null,
+        StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
+      },
+      snowflakeScoring: switch (quiz.format) {
+        SnowflakeFormat(:final scoring) => scoring,
+        StandardFormat() || JeopardyFormat() || PokerFormat() => null,
       },
       now: () => clock.nowMicros,
       createTimer: clock.schedule,
@@ -91,7 +97,11 @@ final class PreviewSession {
 
   GameState _redact(GameState source) {
     if (!identical(source, _guestSource)) {
-      _guestSnapshot = source.redactedForPlayers(includeMediaData: true);
+      _guestSnapshot = guestSnapshotOf(
+        source,
+        title: quiz.name,
+        includeMediaData: true,
+      );
       _guestSource = source;
     }
     return _guestSnapshot!;
@@ -121,7 +131,13 @@ final class PreviewSession {
     }
     final requiresTeam = game.mode is TeamMode || game.poker != null;
     final createTeam = ownTeam || (requiresTeam && teamId == null);
-    final team = createTeam ? Team(id: '$id-team', name: name.trim()) : null;
+    final team = createTeam
+        ? Team(
+            id: '$id-team',
+            name: name.trim(),
+            colorValue: TeamColor.forIndex(game.teams.length).argb,
+          )
+        : null;
     final player = Player(
       id: id,
       name: name.trim(),
@@ -317,6 +333,8 @@ final class PreviewSession {
             playerId: id,
             timestamp: clock.nowMicros,
             correct: question is BuzzerQuestion || settings.succeeds(_random),
+            // Skewed so that snowflake rounds get rare and common answers.
+            variant: _random.nextInt(3) * _random.nextInt(3),
           );
           send(
             answer is BuzzerPress

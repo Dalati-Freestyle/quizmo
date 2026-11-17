@@ -99,6 +99,7 @@ void main() {
         isEmpty,
       );
       await send(const RevealRoundEvent());
+      await send(const FinishQuizEvent());
       final public = GameState.fromJson(
         engine.state.game.redactedForPlayers().toJson(),
       );
@@ -113,6 +114,7 @@ void main() {
 
       await send(const RevealRoundEvent());
       expect(engine.state.game.roundHistory, hasLength(2));
+      await send(const FinishQuizEvent());
       await send(const CloseRoundEvent());
       expect(engine.state.game.redactedForPlayers().showFinalReview, isTrue);
     },

@@ -152,6 +152,10 @@ void main() {
       expect(find.text('1. First?'), findsOneWidget);
       expect(find.text('2. Second?'), findsOneWidget);
       expect(find.text('Dein Punktestand: 20'), findsOneWidget);
+      // The placement shows above the overview and fades out by itself.
+      expect(find.text('Quiz beendet'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 9));
+      await tester.pumpAndSettle();
       expect(find.byType(AlertDialog), findsNothing);
       await tester.tap(find.text('2. Second?'));
       await tester.pumpAndSettle();

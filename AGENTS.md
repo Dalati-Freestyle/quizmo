@@ -67,9 +67,9 @@ lib/
 4. Add a dedicated renderer in `lib/presentation/quizmaster/` if special host controls are needed.
 
 ### Questions are format independent (Jeopardy and future formats)
-A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFormat`, `JeopardyFormat`) only decides **how the question bank is presented and played**. It never owns question content.
+A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFormat`, `JeopardyFormat`, `PokerFormat`, `SnowflakeFormat`) only decides **how the question bank is presented and played**. It never owns question content.
 
-* **Every question kind must work in every format.** A Jeopardy cell references a `Question` by id and may hold *any* subtype — multiple choice, buzzer and every kind added later. Format code (`jeopardy.dart`, the Jeopardy parts of `QuizEngineBloc`, `JeopardyBoardView`, the editor board panel) must **never** `switch` on or special-case a concrete question type. Behaviour that differs per kind belongs to the `Question` hierarchy or to the existing exhaustive switches (round monitor, TV stage, player view).
+* **Every question kind must work in every format** (the one exception is Biggest Snowflake, which needs a finite answer set; it asks the question through `Question.supportsUniqueness` instead of naming kinds). A Jeopardy cell references a `Question` by id and may hold *any* subtype — multiple choice, buzzer and every kind added later. Format code (`jeopardy.dart`, the Jeopardy parts of `QuizEngineBloc`, `JeopardyBoardView`, the editor board panel) must **never** `switch` on or special-case a concrete question type. Behaviour that differs per kind belongs to the `Question` hierarchy or to the existing exhaustive switches (round monitor, TV stage, player view).
 * **Everything that hangs on a question belongs on `Question`, not on a format.** Future attachments such as audio, video or images (question *and* solution side) are fields of the `Question` base class, are serialized in `Question.toJson` / `baseJson` and must be redacted in `Question.redacted()` until the reveal. Because they sit on the question, every format gets them for free; do not add per-format media fields.
 * **Formats only override what is format specific.** On a board the points come from the *row* (or the Daily Double wager) and replace the question's own `ScoringRule` (`QuizEngineBloc._ruleFor`); everything else (time limit, solution, buzzer fairness, clock sync) stays the question's business.
 * A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
@@ -106,6 +106,11 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * If a quiz file requires a schema newer than the installed app supports, stop the import before touching persistence and explicitly prompt the user to update Quizmo and retry. Treat malformed versions and other invalid content as validation errors, not update requests. Compatibility means newer apps can read all older files; older apps must clearly request an update for newer files.
 * Cover compatibility with fixed fixtures from older releases and round-trip tests that include question and solution media. Invalid imports must leave the library untouched.
 * The portable format is a single `*.quizmo.json` document: quiz metadata, format rules, teams, questions, solutions, and uploaded media bytes (Base64, MIME type, SHA-256 ID). YouTube and map attachments retain their references; their remote content is not embedded.
+* Since schema 11 uploaded media have **no size limit** in the model, imports and downloads. The 20 MiB
+  `maxMediaBytes` is only the editor's default upload limit, lifted by the advanced setting
+  (`MediaUploadSettingsStore`). Players and TVs fetch media in `mediaChunkBytes` ranges and the relay host
+  caps every response to that size (`serveMedia(maxBodyBytes:)`); never reintroduce a whole-file transfer.
+* `docs/ai-quiz-guide.md` (German) and `docs/ai-quiz-guide.en.md` (English) describe the file format for AI assistants and ship in the app (settings → "Quiz mit KI erstellen", in the app language). Every schema bump MUST update both descriptions and examples; `test/core/data/ai_quiz_guide_test.dart` fails until both guides state the new `schemaVersion` and all their examples import cleanly. Team colours are palette names (`TeamColor`), never colour codes.
 
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs
@@ -120,6 +125,24 @@ the LAN address — no install, no second web server.
 4. **Never** list the nested Flutter Web output directories in `pubspec.yaml`.
    `pubspec.yaml` only bundles files directly inside a declared asset folder, so
    the single zip is what keeps that list from rotting.
+
+### Preview and real game must behave the same
+The quiz preview (editor → "Preview quiz") and the hosted game must show the same views. Differences between
+preview and real player/TV devices have been reported repeatedly, so every change to the host, player or TV
+views MUST be checked in both, and the views are shared structurally:
+
+1. **Host:** the game controls exist only in `buildGameSections` (`lib/presentation/quizmaster/game_sections.dart`)
+   plus `JeopardyPickConfirmation` and `GameModeMenu`. `HostDashboardPage` adds only host-only sections (server,
+   session access, guest Wi-Fi, recovery, server log); the preview adds only its simulation controls. Never build
+   game panels (`LiveRoundPanel`, `QuestionBankPanel`, …) directly in either screen.
+2. **Player:** joined players see `PlayerGameColumn` (status, device test, game, final page with protocol) inside
+   `SessionNotifications`, both in `PlayerPage` and in the preview's `LocalPlayerBoard`.
+3. **TV:** both render `TvScreen` from the redacted guest snapshot (`guestSnapshotOf`).
+4. `test/presentation/preview_parity_test.dart` guards this; extend it when adding views or sections.
+5. A host started with `flutter run` embeds whatever `assets/web_client/bundle.zip` is on disk. If it is stale,
+   browser players and TVs miss new features although host and preview have them. The dashboard shows a red
+   `OutdatedWebClientBanner` and the tech check fails ("Web-Player"); rebuild the bundle with
+   `dart run tool/bundle_web_client.dart` before testing a host on real devices.
 
 ### Changing the TV (Spectator) Screen
 `http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,
@@ -173,3 +196,14 @@ the release pipeline does this automatically.
 * Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.
 * Quiz templates may have no predefined teams. Teams created during joining receive the configured starting chips.
 * All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+
+### Biggest Snowflake format
+* `SnowflakeFormat` (quiz schema 10) stores **no solutions**: the rarest answer of a round wins. `scoring` is `winnerOnly` (only the rarest answer scores) or `graded` (the share falls linearly with every step of more common answers; the most common one earns nothing). The shares come from `snowflakeShares` in `scoring_rules.dart`: equally rare answers share a step, and when at least two participants answer and all agree nobody scores.
+* Only kinds with a finite, deterministic answer set can be played. A kind opts in through `Question.supportsUniqueness` / `Question.uniquenessKey` (multiple choice, true/false, ordering, matching); format code never names concrete kinds. A new kind with such an answer set overrides both.
+* Questions of a snowflake quiz have no solution: `Quiz.validationErrors()` rejects stored solutions and unsupported kinds, the importer and the editor strip solutions with `Question.withoutSolution()`, and a solution-less question is only valid in this format (`structureErrors` vs. `solutionErrors`).
+* The points are the question's own `ScoringRule` multiplied by the share. Answers are compared per player, also in team mode.
+* `GameState.snowflake` carries the rule; every `RoundState` of the session is stamped with it, and `RoundState.accuracyFor` / `snowflakeGroups` derive shares from the submitted answers. Guest snapshots withhold all answers until the reveal (`hiddenAnswerCount` keeps the count), so nobody can copy the minority. Views show `SnowflakeResultView` instead of a solution.
+
+### Admin view sections
+* `DashboardSection.required` marks sections the game cannot run without. The recovery status is optional and hidden by default: saving runs in `SessionRecovery` regardless of the section. `DashboardSectionGrid.forceVisible` still shows it first while a recovered game waits to be resumed or saving fails; never make resuming depend on a hidden section.
+* `DashboardLayout.defaultOrder` (not the enum order) is the default position. It keeps the scoreboard and the corrections side by side in a running game; sections that only exist at times follow them. `dashboard_layout_test.dart` guards this.

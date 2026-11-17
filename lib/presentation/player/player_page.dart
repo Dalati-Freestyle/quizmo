@@ -23,13 +23,16 @@ import '../common/session_notifications.dart';
 import '../common/connection_status_view.dart';
 import 'submission_status_view.dart';
 import '../spectator/tv_page.dart';
+import 'player_final_page.dart';
 import 'player_session_cubit.dart';
 import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
+import '../common/snowflake_result_view.dart';
 import '../common/quiz_review_view.dart';
+import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
 
 /// Player facing screen.
@@ -107,7 +110,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
               ],
             ),
             actions: [
-              const SettingsButton(),
+              const SettingsButton(hostSettings: false),
               if (state.game?.teams[state.me?.teamId] case final team?
                   when state.isConnected)
                 IconButton(
@@ -153,61 +156,53 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
               game: state.game,
               playerId: state.playerId,
               child: SafeArea(
-                child: Column(
-                  children: [
+                child: PlayerGameColumn(
+                  state: state,
+                  header: [
                     ConnectionStatusView(status: state.status),
-                    SubmissionStatusView(state: state),
                     if (!state.isConnected && state.error != null)
                       Padding(
                         padding: const EdgeInsets.all(12),
                         child: Text(context.tr(state.error!)),
                       ),
-                    Expanded(
-                      child: state.playerId != null && state.game != null
-                          ? AbsorbPointer(
-                              absorbing: !state.isConnected,
-                              child: _GameBoard(state: state),
-                            )
-                          : state.waitingForApproval
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    context.tr(
-                                      'Waiting for host approval. You are not in the game yet.',
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => context
-                                        .read<PlayerSessionCubit>()
-                                        .disconnect(),
-                                    child: Text(context.tr('Cancel')),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : state.isChoosingTeam
-                          ? TeamJoinView(
-                              lobby: state.lobby!,
-                              busy: state.status == QuizClientStatus.connecting,
-                              error: state.error,
-                              onJoin: (id, code) => context
-                                  .read<PlayerSessionCubit>()
-                                  .joinTeam(teamId: id, joinCode: code),
-                              onCreate: (name, code) => context
-                                  .read<PlayerSessionCubit>()
-                                  .joinTeam(newTeamName: name, joinCode: code),
-                              onBack: () => context
-                                  .read<PlayerSessionCubit>()
-                                  .disconnect(),
-                            )
-                          : _JoinForm(
-                              state: state,
-                              initialHostUri: widget.initialHostUri,
-                            ),
-                    ),
                   ],
+                  notJoined: state.waitingForApproval
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                context.tr(
+                                  'Waiting for host approval. You are not in the game yet.',
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => context
+                                    .read<PlayerSessionCubit>()
+                                    .disconnect(),
+                                child: Text(context.tr('Cancel')),
+                              ),
+                            ],
+                          ),
+                        )
+                      : state.isChoosingTeam
+                      ? TeamJoinView(
+                          lobby: state.lobby!,
+                          busy: state.status == QuizClientStatus.connecting,
+                          error: state.error,
+                          onJoin: (id, code) => context
+                              .read<PlayerSessionCubit>()
+                              .joinTeam(teamId: id, joinCode: code),
+                          onCreate: (name, code) => context
+                              .read<PlayerSessionCubit>()
+                              .joinTeam(newTeamName: name, joinCode: code),
+                          onBack: () =>
+                              context.read<PlayerSessionCubit>().disconnect(),
+                        )
+                      : _JoinForm(
+                          state: state,
+                          initialHostUri: widget.initialHostUri,
+                        ),
                 ),
               ),
             ),
@@ -427,7 +422,24 @@ class _GameBoard extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(child: _QuestionStage(state: state)),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (game != null)
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: RoundCountdown(
+                        game: game,
+                        hostNowMicros: context
+                            .read<PlayerSessionCubit>()
+                            .hostNowMicros,
+                      ),
+                    ),
+                  _QuestionStage(state: state),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -493,17 +505,68 @@ class _GameBoard extends StatelessWidget {
   }
 }
 
+/// Everything a joined player sees: submission status, the device test of
+/// the tech check, the running game and finally the final page with the
+/// protocol download.
+///
+/// The real [PlayerPage] and the quiz preview ([LocalPlayerBoard]) both use
+/// this widget, so the preview can never drift from what players get.
+/// Callers only add their own [header] rows and the [notJoined] screen.
+class PlayerGameColumn extends StatelessWidget {
+  /// Creates the column.
+  const PlayerGameColumn({
+    required this.state,
+    this.header = const [],
+    this.notJoined = const SizedBox.shrink(),
+    super.key,
+  });
+
+  /// The player session.
+  final PlayerSessionState state;
+
+  /// Rows above the shared content (e.g. the connection status).
+  final List<Widget> header;
+
+  /// Shown while the device has not joined a game yet.
+  final Widget notJoined;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      ...header,
+      SubmissionStatusView(state: state),
+      if (state.deviceCheckId != null && state.isConnected)
+        const DeviceCheckBanner(),
+      Expanded(
+        child:
+            state.playerId != null &&
+                state.game?.isFinished == true &&
+                state.game?.protocol != null
+            // Stays usable after the host closed the room.
+            ? PlayerFinalPage(game: state.game!, playerId: state.playerId)
+            : state.playerId != null && state.game != null
+            ? AbsorbPointer(
+                absorbing: !state.isConnected,
+                child: _GameBoard(state: state),
+              )
+            : notJoined,
+      ),
+    ],
+  );
+}
+
+/// The player view of the quiz preview: the same [PlayerGameColumn] and
+/// notifications as on a real player device.
 class LocalPlayerBoard extends StatelessWidget {
   const LocalPlayerBoard({super.key});
 
   @override
   Widget build(BuildContext context) =>
       BlocBuilder<PlayerSessionCubit, PlayerSessionState>(
-        builder: (context, state) => Column(
-          children: [
-            SubmissionStatusView(state: state),
-            Expanded(child: _GameBoard(state: state)),
-          ],
+        builder: (context, state) => SessionNotifications(
+          game: state.game,
+          playerId: state.playerId,
+          child: PlayerGameColumn(state: state),
         ),
       );
 }
@@ -698,6 +761,8 @@ class _QuestionStage extends StatelessWidget {
       children: [
         if (state.roundStatus == RoundStatus.revealed)
           Card(
+            // Keeps the verdict off the answer controls (e.g. the buzzer).
+            margin: const EdgeInsets.only(bottom: 16),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
@@ -750,7 +815,9 @@ class _QuestionStage extends StatelessWidget {
         ],
         if (state.roundStatus == RoundStatus.revealed) ...[
           const SizedBox(height: 24),
-          if (question is! MultipleChoiceQuestion &&
+          if (state.game case final game? when game.round.snowflake != null)
+            SnowflakeResultView(game: game, fontSize: 16)
+          else if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
             Text(
               context.tr("Lösung: {0}", [
@@ -1148,6 +1215,48 @@ class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
             child: Text(context.tr("Einsatz bestätigen & Frage öffnen")),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Asks the player to confirm the device for the host's technical check.
+///
+/// Bound to `Listener.onPointerDown` like the buzzer, so the tap also proves
+/// that touch input reaches the app without delay.
+class DeviceCheckBanner extends StatelessWidget {
+  /// Creates the banner.
+  const DeviceCheckBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.tertiaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.tr(
+                'Technikcheck: Tippe auf den Knopf, damit die Spielleitung sieht, dass dein Gerät funktioniert.',
+              ),
+              style: TextStyle(color: scheme.onTertiaryContainer),
+            ),
+            const SizedBox(height: 8),
+            Listener(
+              key: const ValueKey('device-check-tap'),
+              onPointerDown: (_) =>
+                  context.read<PlayerSessionCubit>().confirmDeviceCheck(),
+              child: FilledButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.touch_app),
+                label: Text(context.tr('Hier tippen')),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

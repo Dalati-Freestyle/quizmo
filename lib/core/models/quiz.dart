@@ -3,11 +3,13 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import '../engine/scoring_rules.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 import 'question.dart';
 import 'quiz_format.dart';
 import 'team.dart';
+import 'team_color.dart';
 
 /// Describes quiz content that cannot be saved or imported safely.
 final class QuizValidationException implements Exception {
@@ -40,7 +42,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 7;
+  static const int currentSchemaVersion = 11;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -64,6 +66,10 @@ final class Quiz extends Equatable {
       5 => Quiz._fromJsonV5(json),
       6 => Quiz._fromJsonV6(json),
       7 => Quiz._fromJsonV7(json),
+      8 => Quiz._fromJsonV8(json),
+      9 => Quiz._fromJsonV9(json),
+      10 => Quiz._fromJsonV10(json),
+      11 => Quiz._fromJsonV11(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -102,20 +108,68 @@ final class Quiz extends Equatable {
     });
   }
 
+  /// Schema 7 and older always had a positive time limit; 0 (no limit)
+  /// only exists from schema 8 on, so it stays invalid in older files.
   factory Quiz._fromJsonV7(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question.readInt('timeLimitMs') <= 0) {
+        throw JsonContractException(
+          'Question "${question['id']}" needs a positive time limit.',
+        );
+      }
+    }
+    return Quiz._fromJsonV8(json);
+  }
+
+  /// Schema 8 and older stored any ARGB team colour; schema 9 stores the name
+  /// of a palette colour, so older colours move to the nearest one.
+  factory Quiz._fromJsonV8(JsonMap json) => Quiz._fromJsonV9({
+    ...json,
+    'teams': json.readList(
+      'teams',
+      (team) => {
+        for (final entry in team.entries)
+          if (entry.key != 'colorValue') entry.key: entry.value,
+        'color': TeamColor.nearest(team.readInt('colorValue')).name,
+      },
+    ),
+  });
+
+  /// Schema 9 has no "Biggest Snowflake" format; everything else is equal.
+  factory Quiz._fromJsonV9(JsonMap json) {
+    if (json.readObjectOrNull('format')?['type'] == 'snowflake') {
+      throw const JsonContractException(
+        'The "snowflake" format needs schemaVersion 10.',
+      );
+    }
+    return Quiz._fromJsonV10(json);
+  }
+
+  /// Schema 10 limited each uploaded file to 20 MiB and all media of a quiz to
+  /// 90 MiB; schema 11 drops both limits. Files written by older apps always
+  /// respect them, so they import unchanged.
+  factory Quiz._fromJsonV10(JsonMap json) => Quiz._fromJsonV11(json);
+
+  factory Quiz._fromJsonV11(JsonMap json) {
+    // Files written before formats existed have no entry: plain quiz.
+    final format = switch (json.readObjectOrNull('format')) {
+      final JsonMap value => QuizFormat.fromJson(value),
+      null => const StandardFormat(),
+    };
     final quiz = Quiz(
       schemaVersion: currentSchemaVersion,
       id: json.readString('id'),
       name: json.readString('name'),
       description: json.readString('description'),
       category: json.readString('category'),
-      questions: json.readList('questions', Question.fromJson),
-      teams: json.readList('teams', Team.fromJson),
-      // Files written before formats existed have no entry: plain quiz.
-      format: switch (json.readObjectOrNull('format')) {
-        final JsonMap value => QuizFormat.fromJson(value),
-        null => const StandardFormat(),
-      },
+      questions: [
+        // A snowflake quiz is played without solutions; a file that still
+        // carries some (e.g. converted by hand) is normalised.
+        for (final question in json.readList('questions', Question.fromJson))
+          format is SnowflakeFormat ? question.withoutSolution() : question,
+      ],
+      teams: json.readList('teams', _teamFromQuizJson),
+      format: format,
       createdAt: DateTime.fromMicrosecondsSinceEpoch(
         json.readInt('createdAtMicros'),
         isUtc: true,
@@ -193,22 +247,13 @@ final class Quiz extends Equatable {
         errors.add('Team "${team.id}" needs a name.');
       }
     }
-    final encodedMediaSize = questions.fold<int>(
-      0,
-      (total, q) =>
-          total +
-          [
-            ...q.media,
-            ...q.solutionMedia,
-          ].fold<int>(0, (sum, m) => sum + (m.asset?.data?.length ?? 0)),
-    );
-    if (encodedMediaSize > 90 * 1024 * 1024) {
-      errors.add(
-        'Medien im Quiz dürfen zusammen maximal 90 MiB im Export belegen.',
-      );
-    }
     for (final question in questions) {
-      errors.addAll(_questionValidationErrors(question));
+      errors.addAll(
+        _questionValidationErrors(
+          question,
+          needsSolution: format is! SnowflakeFormat,
+        ),
+      );
     }
     switch (format) {
       case PokerFormat(:final startingChips):
@@ -217,6 +262,21 @@ final class Quiz extends Equatable {
         }
       case StandardFormat():
         break;
+      case SnowflakeFormat():
+        for (final question in questions) {
+          if (!question.supportsUniqueness) {
+            errors.add(
+              'Biggest Snowflake unterstützt die Frage "${question.id}" '
+              'nicht: nur Multiple Choice, Wahr/Falsch, Reihenfolge und '
+              'Zuordnung sind möglich.',
+            );
+          } else if (question.hasSolution) {
+            errors.add(
+              'Biggest Snowflake speichert keine Lösung: Frage '
+              '"${question.id}" enthält eine.',
+            );
+          }
+        }
       case JeopardyFormat(:final board):
         errors.addAll(_jeopardyValidationErrors(board, questions));
     }
@@ -264,7 +324,7 @@ final class Quiz extends Equatable {
     'questions': questions
         .map((question) => question.toJson())
         .toList(growable: false),
-    'teams': teams.map((team) => team.toJson()).toList(growable: false),
+    'teams': teams.map(_teamToQuizJson).toList(growable: false),
     'format': format.toJson(),
     'createdAtMicros': createdAt.toUtc().microsecondsSinceEpoch,
     'updatedAtMicros': updatedAt.toUtc().microsecondsSinceEpoch,
@@ -284,6 +344,30 @@ final class Quiz extends Equatable {
     updatedAt,
   ];
 }
+
+/// Reads a team of a quiz file: its colour is a palette name (schema 9).
+Team _teamFromQuizJson(JsonMap json) {
+  final name = json.readString('color');
+  final color = TeamColor.byName(name);
+  if (color == null) {
+    throw JsonContractException(
+      'Unknown team colour "$name". Use one of: '
+      '${TeamColor.values.map((c) => c.name).join(', ')}.',
+    );
+  }
+  return Team.fromJson({
+    for (final entry in json.entries)
+      if (entry.key != 'color') entry.key: entry.value,
+    'colorValue': color.argb,
+  });
+}
+
+/// Writes a team of a quiz file with the name of its palette colour.
+JsonMap _teamToQuizJson(Team team) => {
+  for (final entry in team.toJson().entries)
+    if (entry.key != 'colorValue') entry.key: entry.value,
+  'color': TeamColor.nearest(team.colorValue).name,
+};
 
 /// A quiz file that requires a newer version of Quizmo.
 final class QuizSchemaUpdateRequiredException extends JsonContractException {
@@ -329,7 +413,12 @@ List<String> _jeopardyValidationErrors(
   return errors;
 }
 
-List<String> _questionValidationErrors(Question question) => [
+List<String> _questionValidationErrors(
+  Question question, {
+  required bool needsSolution,
+}) => [
+  if (question.scoringRule is SpeedBonusRule && !question.hasTimeLimit)
+    'Question "${question.id}" needs a time limit for the speed bonus.',
   if (question.media.length + question.solutionMedia.length > 10)
     'Maximal zehn Medien pro Frage.',
   for (final media in [...question.media, ...question.solutionMedia]) ...[
@@ -353,6 +442,7 @@ List<String> _questionValidationErrors(Question question) => [
         options: options,
         correctOptionIds: solutionOptionIds,
         allowMultipleAnswers: allowMultipleAnswers,
+        needsSolution: needsSolution,
       ),
     ShortAnswerQuestion() ||
     OrderingQuestion() ||
@@ -364,7 +454,8 @@ List<String> _questionValidationErrors(Question question) => [
         prompt: question.prompt,
         timeLimit: question.timeLimit,
       ),
-      ...question.contentErrors,
+      ...question.structureErrors,
+      if (needsSolution) ...question.solutionErrors,
     ],
     BuzzerQuestion(:final id, :final prompt, :final timeLimit) => [
       ..._baseQuestionValidationErrors(
@@ -384,6 +475,7 @@ List<String> _multipleChoiceValidationErrors({
   required List<AnswerOption> options,
   required List<String> correctOptionIds,
   required bool allowMultipleAnswers,
+  required bool needsSolution,
 }) {
   final errors = _baseQuestionValidationErrors(
     id: id,
@@ -402,12 +494,13 @@ List<String> _multipleChoiceValidationErrors({
       errors.add('Option "${option.id}" in question "$id" needs a label.');
     }
   }
-  if (correctOptionIds.isEmpty ||
-      correctOptionIds.toSet().length != correctOptionIds.length ||
-      (!allowMultipleAnswers && correctOptionIds.length != 1) ||
-      !correctOptionIds.every(
-        (id) => options.any((option) => option.id == id),
-      )) {
+  if (needsSolution &&
+      (correctOptionIds.isEmpty ||
+          correctOptionIds.toSet().length != correctOptionIds.length ||
+          (!allowMultipleAnswers && correctOptionIds.length != 1) ||
+          !correctOptionIds.every(
+            (id) => options.any((option) => option.id == id),
+          ))) {
     errors.add(
       'Multiple-choice question "$id" needs a correctOptionId from its options.',
     );
@@ -423,8 +516,8 @@ List<String> _baseQuestionValidationErrors({
   final errors = <String>[];
   if (id.trim().isEmpty) errors.add('A question ID must not be empty.');
   if (prompt.trim().isEmpty) errors.add('Question "$id" needs a prompt.');
-  if (timeLimit <= Duration.zero) {
-    errors.add('Question "$id" needs a positive time limit.');
+  if (timeLimit < Duration.zero) {
+    errors.add('Question "$id" must not have a negative time limit.');
   }
   return errors;
 }

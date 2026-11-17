@@ -181,6 +181,34 @@ void main() {
     expect(engine.state.game.players, hasLength(2));
   });
   test(
+    'a resumed player stays connected instead of reconnecting in a loop',
+    () async {
+      final client = QuizClient(baseUri: host);
+      final session = PlayerSessionCubit(
+        store: MemorySessionStore(),
+        createClient: (_) => client,
+      );
+      addTearDown(session.close);
+      await session.connect(baseUri: host, name: 'Ada', teamId: 'a');
+      final id = session.state.playerId!;
+      await waitFor((g) => g.players[id]?.isConnected == true);
+      await client.disconnect();
+      await waitFor((g) => !g.players[id]!.isConnected);
+      await session.stream
+          .firstWhere((s) => s.isConnected)
+          .timeout(const Duration(seconds: 10));
+      // A stale retry used to drop the restored socket every two seconds.
+      final drops = <QuizClientStatus>[];
+      final watch = session.stream
+          .where((s) => !s.isConnected)
+          .listen((s) => drops.add(s.status));
+      await Future<void>.delayed(const Duration(seconds: 5));
+      await watch.cancel();
+      expect(drops, isEmpty);
+      expect(engine.state.game.players[id]!.isConnected, isTrue);
+    },
+  );
+  test(
     'disposing during the clock handshake cannot open a new socket',
     () async {
       final response = Completer<http.Response>();

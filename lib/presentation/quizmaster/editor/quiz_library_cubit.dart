@@ -111,8 +111,13 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
         createId: _createId,
         now: _now,
       );
+      // `isLoading` defaults to true: a finished import must clear it, or the
+      // library keeps showing its loading screen.
       emit(
-        QuizLibraryState(quizzes: await _repository.loadAll(), isBusy: false),
+        QuizLibraryState(
+          quizzes: await _repository.loadAll(),
+          isLoading: false,
+        ),
       );
       return imported;
     } on Object catch (error) {
@@ -138,7 +143,7 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
       if (quizzes.isEmpty) {
         quizzes = await _saveExamples();
       }
-      emit(QuizLibraryState(quizzes: quizzes, isBusy: false));
+      emit(QuizLibraryState(quizzes: quizzes, isLoading: false));
     } on Object catch (error) {
       emit(state.copyWith(isBusy: false, error: _errorMessage(error)));
     }

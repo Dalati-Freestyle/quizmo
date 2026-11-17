@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'game_protocol.dart';
 import 'jeopardy.dart';
 import 'json.dart';
 import 'manual_correction.dart';
@@ -13,6 +14,7 @@ import 'round.dart';
 import 'report_round.dart';
 import 'quiz_format.dart';
 import 'score.dart';
+import 'snowflake.dart';
 import 'team.dart';
 
 const Object _unset = Object();
@@ -99,6 +101,7 @@ final class GameState extends Equatable {
     this.completedQuestionIds = const {},
     this.jeopardy,
     this.poker,
+    this.snowflake,
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
@@ -111,10 +114,15 @@ final class GameState extends Equatable {
     this.recoveryPaused = false,
     this.corrections = const [],
     this.reportRounds = const [],
+    this.protocol,
   });
 
   /// Restores a snapshot from [json].
   factory GameState.fromJson(JsonMap json) => GameState(
+    protocol: switch (json.readObjectOrNull('protocol')) {
+      final value? => GameProtocol.fromJson(value),
+      null => null,
+    },
     reportRounds: json['reportRounds'] == null
         ? const []
         : json.readList('reportRounds', ReportRound.fromJson),
@@ -152,6 +160,10 @@ final class GameState extends Equatable {
     },
     poker: switch (json.readObjectOrNull('poker')) {
       final JsonMap value => PokerState.fromJson(value),
+      null => null,
+    },
+    snowflake: switch (json.readStringOrNull('snowflake')) {
+      final name? => SnowflakeScoring.fromName(name),
       null => null,
     },
     hostTimeMicros: json.readInt('hostTimeMicros'),
@@ -230,6 +242,10 @@ final class GameState extends Equatable {
 
   final PokerState? poker;
 
+  /// Scoring of a "Biggest Snowflake" session, else `null`. A static rule of
+  /// the quiz, so it is the same for the host and the guests.
+  final SnowflakeScoring? snowflake;
+
   /// Host wall clock at the moment the snapshot was produced.
   ///
   /// Clients use it as a coarse freshness check and as a fallback when their
@@ -250,6 +266,31 @@ final class GameState extends Equatable {
   final bool recoveryPaused;
   final List<ManualCorrection> corrections;
   final List<ReportRound> reportRounds;
+
+  /// Protocol of the finished game; only set in guest snapshots once the
+  /// game is finished (see `guestSnapshotOf`). The host state never holds it.
+  final GameProtocol? protocol;
+
+  /// Whether every question of the bank (or of the board) has been played.
+  /// The game then waits for the host to finish it (`FinishQuizEvent`).
+  bool get allQuestionsPlayed =>
+      questionBank.isNotEmpty &&
+      (jeopardy?.board.questionIds ?? questionBank.map((q) => q.id)).every(
+        completedQuestionIds.contains,
+      );
+
+  /// Whether the host can end the game before every question is played
+  /// (after a confirmation; a running round is cancelled without scoring).
+  bool get canFinishEarly => isStarted && !isFinished && !recoveryPaused;
+
+  /// Whether the host can finish the game now: every question is played and
+  /// no round is running.
+  bool get canFinish =>
+      !isFinished &&
+      !recoveryPaused &&
+      allQuestionsPlayed &&
+      (round.status == RoundStatus.idle ||
+          round.status == RoundStatus.revealed);
 
   /// Whether guests must not yet receive solutions, verdicts or standings.
   bool get resultsHidden =>
@@ -328,6 +369,8 @@ final class GameState extends Equatable {
   GameState redactedForPlayers({bool includeMediaData = false}) {
     final question = round.question;
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
+    // Poker and snowflake rounds must not leak what the others answered.
+    final hideAnswers = (poker != null || snowflake != null) && !keepSolution;
     return copyWith(
       corrections: const [],
       reportRounds: const [],
@@ -356,8 +399,9 @@ final class GameState extends Equatable {
           reveal: keepSolution,
           includeMediaData: includeMediaData,
         ),
-        answers: poker != null && !keepSolution ? const {} : round.answers,
-        acceptedElapsedMicros: poker != null && !keepSolution
+        answers: hideAnswers ? const {} : round.answers,
+        hiddenAnswerCount: hideAnswers ? round.answers.length : 0,
+        acceptedElapsedMicros: hideAnswers
             ? const {}
             : round.acceptedElapsedMicros,
         answerVerdicts: keepSolution ? round.answerVerdicts : const {},
@@ -392,7 +436,12 @@ final class GameState extends Equatable {
     bool? recoveryPaused,
     List<ManualCorrection>? corrections,
     List<ReportRound>? reportRounds,
+    Object? protocol = _unset,
   }) => GameState(
+    snowflake: snowflake,
+    protocol: identical(protocol, _unset)
+        ? this.protocol
+        : protocol as GameProtocol?,
     mode: mode ?? this.mode,
     players: players ?? this.players,
     playerOrder: playerOrder ?? this.playerOrder,
@@ -438,6 +487,8 @@ final class GameState extends Equatable {
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
     'jeopardy': jeopardy?.toJson(),
     'poker': poker?.toJson(),
+    // Only written when set: saved games of older versions stay complete.
+    if (snowflake != null) 'snowflake': snowflake!.name,
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
@@ -450,6 +501,7 @@ final class GameState extends Equatable {
     'recoveryPaused': recoveryPaused,
     'corrections': corrections.map((entry) => entry.toJson()).toList(),
     'reportRounds': reportRounds.map((entry) => entry.toJson()).toList(),
+    if (protocol != null) 'protocol': protocol!.toJson(),
   };
 
   @override
@@ -465,6 +517,7 @@ final class GameState extends Equatable {
     completedQuestionIds,
     jeopardy,
     poker,
+    snowflake,
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,
@@ -477,5 +530,6 @@ final class GameState extends Equatable {
     recoveryPaused,
     corrections,
     reportRounds,
+    protocol,
   ];
 }

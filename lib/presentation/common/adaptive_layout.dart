@@ -52,11 +52,19 @@ class AdaptivePanelGrid extends StatelessWidget {
     required this.panels,
     this.padding = const EdgeInsets.all(16),
     this.spacing = 16,
+    this.widePanelIndex,
     super.key,
   });
 
   /// The panels to lay out, in priority order.
   final List<Widget> panels;
+
+  /// Index of a panel in [panels] that needs room (for example a wide board).
+  ///
+  /// In the three column layout it gets the middle column on its own, twice as
+  /// wide as the outer columns, which share the remaining panels. One and two
+  /// column layouts are unaffected.
+  final int? widePanelIndex;
 
   /// Outer padding of the grid.
   final EdgeInsets padding;
@@ -84,8 +92,24 @@ class AdaptivePanelGrid extends StatelessWidget {
         }
 
         final columns = List.generate(columnCount, (_) => <Widget>[]);
-        for (var index = 0; index < panels.length; index++) {
-          columns[index % columnCount].add(panels[index]);
+        final flexes = List.filled(columnCount, 1);
+        final wide = widePanelIndex;
+        if (columnCount == 3 &&
+            wide != null &&
+            wide >= 0 &&
+            wide < panels.length) {
+          columns[1].add(panels[wide]);
+          flexes[1] = 2;
+          var outer = 0;
+          for (var index = 0; index < panels.length; index++) {
+            if (index == wide) continue;
+            columns[outer.isEven ? 0 : 2].add(panels[index]);
+            outer++;
+          }
+        } else {
+          for (var index = 0; index < panels.length; index++) {
+            columns[index % columnCount].add(panels[index]);
+          }
         }
 
         return SingleChildScrollView(
@@ -96,6 +120,7 @@ class AdaptivePanelGrid extends StatelessWidget {
               for (var index = 0; index < columns.length; index++) ...[
                 if (index > 0) SizedBox(width: spacing),
                 Expanded(
+                  flex: flexes[index],
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -116,6 +141,21 @@ class AdaptivePanelGrid extends StatelessWidget {
 }
 
 /// A titled surface used for every dashboard section.
+/// Marks content that sits inside a titled dashboard section frame.
+///
+/// Panels inside it drop their own title, which the frame already shows.
+class InSectionFrame extends InheritedWidget {
+  /// Marks [child] as framed.
+  const InSectionFrame({required super.child, super.key});
+
+  /// Whether [context] is inside a section frame.
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<InSectionFrame>() != null;
+
+  @override
+  bool updateShouldNotify(InSectionFrame oldWidget) => false;
+}
+
 class PanelCard extends StatelessWidget {
   /// Creates a titled panel.
   const PanelCard({
@@ -141,6 +181,7 @@ class PanelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final framed = InSectionFrame.of(context);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -149,24 +190,34 @@ class PanelCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, size: 18, color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+            if (framed) ...[
+              if (trailing != null) ...[
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: trailing,
+                ),
+                const SizedBox(height: 8),
+              ],
+            ] else ...[
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 18, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                if (trailing != null) ?trailing,
-              ],
-            ),
-            const SizedBox(height: 12),
+                  if (trailing != null) ?trailing,
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             child,
           ],
         ),

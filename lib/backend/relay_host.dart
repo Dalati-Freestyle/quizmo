@@ -5,6 +5,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:shelf/shelf.dart';
 
 import '../core/engine/quiz_engine_bloc.dart';
+import '../core/models/media_attachment.dart';
 import '../core/net/session_uri.dart';
 import 'handlers/socket_handlers.dart';
 import 'handlers/media_handlers.dart';
@@ -40,6 +41,19 @@ final class RelayHost implements EmbeddedQuizServer {
   ServerEndpoint? get endpoint => _endpoint;
   @override
   int get connectionCount => _hub?.connectionCount ?? 0;
+
+  @override
+  List<ConnectionHealth> get connectionHealth =>
+      _hub?.connectionHealth ?? const [];
+
+  @override
+  DeviceCheckStatus? get deviceCheck => _hub?.deviceCheck;
+
+  @override
+  DeviceCheckStatus? startDeviceCheck() => _hub?.startDeviceCheck();
+
+  @override
+  void stopDeviceCheck() => _hub?.stopDeviceCheck();
   @override
   bool get servesWebClient => isRunning;
   @override
@@ -184,6 +198,7 @@ final class RelayHost implements EmbeddedQuizServer {
         ),
         asset,
         _engine,
+        maxBodyBytes: mediaChunkBytes,
       );
       final bytes = await response.read().expand((chunk) => chunk).toList();
       _send({

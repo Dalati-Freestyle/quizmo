@@ -21,7 +21,8 @@ void main() {
   JeopardyBoard board() => switch (cubit.state.draft.format) {
     JeopardyFormat(:final board) => board,
     StandardFormat() ||
-    PokerFormat() => throw StateError('Not a Jeopardy quiz.'),
+    PokerFormat() ||
+    SnowflakeFormat() => throw StateError('Not a Jeopardy quiz.'),
   };
 
   setUp(() {
@@ -133,4 +134,70 @@ void main() {
       expect(cubit.state.error, contains('positive point value'));
     },
   );
+
+  group('moving cells', () {
+    const one = BuzzerQuestion(id: 'q1', prompt: 'One');
+    const three = BuzzerQuestion(id: 'q3', prompt: 'Three');
+
+    setUp(() {
+      // Category 1 / 100 points and category 1 / 300 points.
+      cubit.saveCellQuestion(category: 0, row: 0, question: one);
+      cubit.saveCellQuestion(category: 0, row: 2, question: three);
+      cubit.toggleDailyDouble(0, 0);
+    });
+
+    test('swaps two questions within a category', () {
+      cubit.moveCell(fromCategory: 0, fromRow: 0, toCategory: 0, toRow: 2);
+
+      expect(board().cellAt(0, 0).questionId, 'q3');
+      expect(board().cellAt(0, 2).questionId, 'q1');
+      expect(board().pointsFor('q1'), 300);
+      expect(board().pointsFor('q3'), 100);
+    });
+
+    test('the Daily Double travels with its question', () {
+      cubit.moveCell(fromCategory: 0, fromRow: 0, toCategory: 0, toRow: 2);
+
+      expect(board().cellAt(0, 0).isDailyDouble, isFalse);
+      expect(board().isDailyDouble('q1'), isTrue);
+    });
+
+    test('swaps questions across categories', () {
+      cubit.saveCellQuestion(
+        category: 2,
+        row: 3,
+        question: const BuzzerQuestion(id: 'q4', prompt: 'Four'),
+      );
+      cubit.moveCell(fromCategory: 0, fromRow: 0, toCategory: 2, toRow: 3);
+
+      expect(board().cellAt(0, 0).questionId, 'q4');
+      expect(board().cellAt(2, 3).questionId, 'q1');
+      expect(board().categoryNameOf('q1'), 'Category 3');
+      expect(board().pointsFor('q1'), 400);
+    });
+
+    test('dropping on an empty cell moves the question there', () {
+      cubit.moveCell(fromCategory: 0, fromRow: 2, toCategory: 4, toRow: 4);
+
+      expect(board().cellAt(0, 2).isEmpty, isTrue);
+      expect(board().cellAt(4, 4).questionId, 'q3');
+      expect(board().pointsFor('q3'), 500);
+    });
+
+    test('keeps the questions of the quiz untouched', () {
+      final before = cubit.state.draft.questions;
+      cubit.moveCell(fromCategory: 0, fromRow: 0, toCategory: 3, toRow: 1);
+
+      expect(cubit.state.draft.questions, before);
+      expect(cubit.state.draft.validationErrors(), isEmpty);
+    });
+
+    test('dragging an empty cell or onto itself changes nothing', () {
+      final before = cubit.state;
+      cubit.moveCell(fromCategory: 1, fromRow: 1, toCategory: 0, toRow: 0);
+      cubit.moveCell(fromCategory: 0, fromRow: 0, toCategory: 0, toRow: 0);
+
+      expect(cubit.state, same(before));
+    });
+  });
 }

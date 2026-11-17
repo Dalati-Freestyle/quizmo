@@ -48,6 +48,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     GameMode mode = const SoloMode(),
     JeopardyBoard? jeopardyBoard,
     int? pokerStartingChips,
+    SnowflakeScoring? snowflakeScoring,
     SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
@@ -81,6 +82,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                  poker: pokerStartingChips == null
                      ? null
                      : PokerState.start(pokerStartingChips, teams.keys),
+                 snowflake: snowflakeScoring,
                  hostTimeMicros: now(),
                  revealMode: revealMode,
                ),
@@ -252,11 +254,25 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<PlacePokerWagerEvent>(_onPlacePokerWager);
     on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
     on<ResetGameEvent>(_onResetGame);
+    on<FinishQuizEvent>((event, emit) {
+      var game = state.game;
+      if (!(event.early ? game.canFinishEarly : game.canFinish)) {
+        emit(
+          state.copyWith(notice: 'Das Quiz kann noch nicht beendet werden.'),
+        );
+        return;
+      }
+      _graceTimer?.cancel();
+      _roundTimer?.cancel();
+      if (event.early) game = _cancelRunningRound(game);
+      emit(_publish(game.copyWith(isFinished: true)));
+    });
     on<ExpireRoundEvent>((event, emit) {
       final game = state.game;
       final round = game.round;
       if (round.question?.id != event.questionId ||
           round.startedAtHostMicros != event.startedAt ||
+          round.question?.hasTimeLimit != true ||
           round.hasSoftTimer ||
           !round.status.acceptsInput ||
           (game.poker?.betting ?? false)) {
@@ -395,7 +411,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (!state.game.players.containsKey(event.playerId)) return;
     resumeTokenHashes.remove(event.playerId);
     if (event.ban) access.ban(event.playerId);
-    emit(_publish(_removePlayer(state.game, event.playerId)));
+    emit(
+      _publish(
+        _removePlayer(
+          _handOverPoints(state.game, event.playerId),
+          event.playerId,
+        ),
+      ),
+    );
     if (state.game.round.status.acceptsInput &&
         state.game.round.buzzerQueue.isNotEmpty) {
       add(const LockBuzzerEvent());
@@ -461,7 +484,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         cleaned.copyWith(
-          scores: ScoreState(byPlayer: totals, history: history),
+          scores: game.scores.copyWith(byPlayer: totals, history: history),
           round: cleaned.round.copyWith(
             answers: answers,
             acceptedElapsedMicros: acceptedElapsed,
@@ -503,7 +526,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             ? null
             : game.jeopardy?.pendingPickPlayerId,
       ),
-      scores: ScoreState(
+      scores: game.scores.copyWith(
         byPlayer: totals,
         history: game.scores.history.where((e) => e.playerId != id).toList(),
       ),
@@ -713,14 +736,70 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    // Points earned so far stay with the team they were earned for.
+    final handedOver = player.teamId == event.teamId
+        ? game
+        : _handOverPoints(game, player.id);
     emit(
       _publish(
-        game.copyWith(
+        handedOver.copyWith(
           players: {
             ...game.players,
             player.id: player.copyWith(teamId: event.teamId),
           },
         ),
+      ),
+    );
+  }
+
+  /// Cancels a round that is not revealed yet, for an early end of the game:
+  /// nothing is scored, the question stays unplayed, reserved poker stakes go
+  /// back to the teams and pending board picks are dropped.
+  GameState _cancelRunningRound(GameState game) {
+    final poker = game.poker;
+    final jeopardy = game.jeopardy;
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    return game.copyWith(
+      round: running ? RoundState.idle : game.round,
+      poker: poker == null || game.round.status == RoundStatus.revealed
+          ? poker
+          : poker.copyWith(
+              chips: {
+                for (final entry in poker.chips.entries)
+                  entry.key: poker.settledTeamIds.contains(entry.key)
+                      ? entry.value
+                      : entry.value + (poker.wagers[entry.key] ?? 0),
+              },
+              wagers: const {},
+              betting: false,
+            ),
+      jeopardy: jeopardy?.copyWith(
+        pendingDailyDoubleId: null,
+        pendingPickQuestionId: null,
+        pendingPickPlayerId: null,
+        activePoints: running ? null : jeopardy.activePoints,
+        isStealRound: running ? false : jeopardy.isStealRound,
+      ),
+    );
+  }
+
+  /// With teams, the points of [playerId] stay with their current team
+  /// before they leave it (team change or removal).
+  GameState _handOverPoints(GameState game, String playerId) {
+    final teamId = game.players[playerId]?.teamId;
+    if (game.mode is! TeamMode ||
+        game.poker != null ||
+        teamId == null ||
+        !game.teams.containsKey(teamId)) {
+      return game;
+    }
+    return game.copyWith(
+      scores: game.scores.handOverToTeam(
+        playerId: playerId,
+        teamId: teamId,
+        atHostMicros: _now(),
       ),
     );
   }
@@ -788,6 +867,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             question: question,
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
+            snowflake: game.snowflake,
           ),
         ),
         notice: 'Round started: ${question.prompt}',
@@ -970,15 +1050,37 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   void _onCorrectScore(CorrectScoreEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
-    final player = game.players[event.playerId];
+    final poker = game.poker;
+    final bound = event.questionId != null || event.roundStartedAt != null;
+    var player = event.playerId == null ? null : game.players[event.playerId];
+    var team = event.teamId == null ? null : game.teams[event.teamId];
+    // With teams, players have no points of their own: a free change for a
+    // player is booked on the player's team.
+    final playerTeam = game.teams[player?.teamId];
+    if (!bound &&
+        event.teamId == null &&
+        (game.mode is TeamMode || poker != null) &&
+        playerTeam != null) {
+      team = playerTeam;
+      player = null;
+    }
     if (game.recoveryPaused ||
-        player == null ||
         event.requestId.isEmpty ||
         event.delta == 0 ||
-        game.round.question?.id != event.questionId ||
-        game.round.startedAtHostMicros != event.roundStartedAt ||
-        (game.poker != null && !game.poker!.chips.containsKey(player.teamId))) {
+        (event.playerId == null) == (event.teamId == null) ||
+        (player == null && team == null) ||
+        (team != null && game.mode is! TeamMode && poker == null) ||
+        (bound &&
+            (game.round.question?.id != event.questionId ||
+                game.round.startedAtHostMicros != event.roundStartedAt)) ||
+        (poker != null &&
+            !poker.chips.containsKey(team?.id ?? player?.teamId))) {
       emit(state.copyWith(notice: 'Diese Korrektur ist nicht zulässig.'));
+      return;
+    }
+    final reason = event.reason.trim();
+    if (reason.isEmpty) {
+      emit(state.copyWith(notice: 'Bitte eine Begründung angeben.'));
       return;
     }
     final id = 'score-${event.requestId}';
@@ -986,10 +1088,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'Diese Korrektur wurde bereits angewendet.'));
       return;
     }
-    final poker = game.poker;
-    final previous = poker == null
-        ? game.scores.scoreOf(player.id)
-        : poker.chips[player.teamId]!;
+    final teamId = team?.id ?? (game.mode is TeamMode ? player!.teamId : null);
+    final previous = poker != null
+        ? poker.chips[team?.id ?? player!.teamId]!
+        : team != null
+        ? game.teamScores[team.id] ?? 0
+        : game.scores.scoreOf(player!.id);
     final next = previous + event.delta;
     if (poker != null && next < 0) {
       emit(
@@ -1002,17 +1106,26 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       kind: poker == null ? CorrectionKind.points : CorrectionKind.chips,
       questionId: event.questionId,
       roundStartedAt: event.roundStartedAt,
-      playerId: player.id,
-      teamId: game.mode is TeamMode ? player.teamId : null,
-      participantName: game.mode is TeamMode
-          ? '${game.teams[player.teamId]?.name ?? player.teamId} / ${player.name}'
-          : player.name,
+      playerId: player?.id ?? '',
+      teamId: poker != null ? team?.id ?? player!.teamId : teamId,
+      participantName: team != null
+          ? team.name
+          : game.mode is TeamMode
+          ? '${game.teams[player!.teamId]?.name ?? player.teamId} / ${player.name}'
+          : player!.name,
       beforeValue: previous,
       afterValue: next,
       atHostMicros: _now(),
-      reason: event.reason,
-      scoreDeltas: poker == null ? {player.id: event.delta} : const {},
-      chipDeltas: poker == null ? const {} : {player.teamId!: event.delta},
+      reason: reason,
+      scoreDeltas: poker == null && player != null
+          ? {player.id: event.delta}
+          : const {},
+      teamDeltas: poker == null && team != null
+          ? {team.id: event.delta}
+          : const {},
+      chipDeltas: poker == null
+          ? const {}
+          : {(team?.id ?? player!.teamId)!: event.delta},
     );
     emit(
       _publish(
@@ -1034,11 +1147,19 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (game.corrections.any((e) => e.reversesId == entry.id)) {
       return 'Diese Korrektur wurde bereits zurückgenommen.';
     }
-    final player = game.players[entry.playerId];
-    if (player == null ||
-        (game.mode is TeamMode ? player.teamId : null) != entry.teamId ||
-        entry.scoreDeltas.keys.any((id) => !game.players.containsKey(id))) {
-      return 'Die betroffenen Teilnehmer oder Teams wurden verändert.';
+    if (entry.targetsTeam) {
+      if (entry.teamId == null ||
+          !game.teams.containsKey(entry.teamId) ||
+          entry.teamDeltas.keys.any((id) => !game.teams.containsKey(id))) {
+        return 'Die betroffenen Teilnehmer oder Teams wurden verändert.';
+      }
+    } else {
+      final player = game.players[entry.playerId];
+      if (player == null ||
+          (game.mode is TeamMode ? player.teamId : null) != entry.teamId ||
+          entry.scoreDeltas.keys.any((id) => !game.players.containsKey(id))) {
+        return 'Die betroffenen Teilnehmer oder Teams wurden verändert.';
+      }
     }
     for (final delta in entry.chipDeltas.entries) {
       final chips = game.poker?.chips[delta.key];
@@ -1111,11 +1232,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       teamId: original.teamId,
       participantName: original.participantName,
       beforeValue: switch (original.kind) {
+        CorrectionKind.points when original.targetsTeam =>
+          game.teamScores[original.teamId] ?? 0,
         CorrectionKind.points => game.scores.scoreOf(original.playerId),
         CorrectionKind.chips => game.poker!.chips[original.teamId]!,
         _ => original.afterValue,
       },
       afterValue: switch (original.kind) {
+        CorrectionKind.points when original.targetsTeam =>
+          (game.teamScores[original.teamId] ?? 0) -
+              original.teamDeltas[original.teamId]!,
         CorrectionKind.points =>
           game.scores.scoreOf(original.playerId) -
               original.scoreDeltas[original.playerId]!,
@@ -1131,6 +1257,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         (id, delta) => MapEntry(id, -delta),
       ),
       chipDeltas: original.chipDeltas.map((id, delta) => MapEntry(id, -delta)),
+      teamDeltas: original.teamDeltas.map((id, delta) => MapEntry(id, -delta)),
     );
     var updated = _applyCorrectionDeltas(game, inverse);
     if (original.kind == CorrectionKind.answer) {
@@ -1183,7 +1310,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     for (final delta in entry.scoreDeltas.entries) {
       scores = scores.apply(
         playerId: delta.key,
-        questionId: entry.questionId,
+        questionId: entry.questionId ?? '',
+        delta: ScoreDelta(delta.value, reason: 'Manual correction'),
+        atHostMicros: entry.atHostMicros,
+      );
+    }
+    for (final delta in entry.teamDeltas.entries) {
+      scores = scores.applyToTeam(
+        teamId: delta.key,
+        questionId: entry.questionId ?? '',
         delta: ScoreDelta(delta.value, reason: 'Manual correction'),
         atHostMicros: entry.atHostMicros,
       );
@@ -1752,6 +1887,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             question: question,
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
+            snowflake: game.snowflake,
           ),
           jeopardy: jeopardy.copyWith(
             pendingDailyDoubleId: null,
@@ -1791,6 +1927,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         lockedOutPlayerIds: game.round.lockedOutPlayerIds,
         status: RoundStatus.acceptingAnswers,
         startedAtHostMicros: _now(),
+        snowflake: game.snowflake,
       ),
       jeopardy: game.jeopardy!.copyWith(isStealRound: true),
     );
@@ -1882,6 +2019,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         GameState(
           mode: game.mode,
           revealMode: game.revealMode,
+          snowflake: game.snowflake,
           poker: game.poker == null
               ? null
               : PokerState.start(game.poker!.startingChips, teams.keys),
@@ -1917,6 +2055,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     final start = round.startedAtHostMicros;
     if (question != null &&
+        question.hasTimeLimit &&
         start != null &&
         !game.recoveryPaused &&
         !round.hasSoftTimer &&
@@ -2074,16 +2213,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     final question = game.round.question;
     final jeopardy = game.jeopardy;
+    // The last reveal does not finish the game: guests keep seeing the
+    // solution until the host finishes it (`FinishQuizEvent`).
     return game.copyWith(
-      isFinished:
-          game.questionBank.isNotEmpty &&
-          (game.jeopardy?.board.questionIds ??
-                  game.questionBank.map((q) => q.id))
-              .every(
-                (id) =>
-                    game.completedQuestionIds.contains(id) ||
-                    id == question?.id,
-              ),
       round: game.round.copyWith(status: RoundStatus.revealed),
       roundHistory: game.revealMode == SolutionRevealMode.atEnd
           ? [
@@ -2113,7 +2245,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final question = round.question;
     if (question == null) return 'No question on stage.';
     if (question.id != questionId) return 'Submission targets a stale round.';
-    if (!round.hasSoftTimer &&
+    if (question.hasTimeLimit &&
+        !round.hasSoftTimer &&
         !(state.game.poker?.betting ?? false) &&
         round.timerElapsedAt(_now()) >= question.timeLimit) {
       return 'Zeit abgelaufen. Antworten sind geschlossen.';

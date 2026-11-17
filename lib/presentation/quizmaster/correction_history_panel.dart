@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
+import '../common/adaptive_layout.dart';
 import '../l10n/app_localizations.dart';
 
 class CorrectionHistoryPanel extends StatelessWidget {
@@ -16,57 +17,77 @@ class CorrectionHistoryPanel extends StatelessWidget {
   final QuizEngineBloc engine;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: ExpansionTile(
-      leading: const Icon(Icons.history),
-      title: Text(context.tr('Korrekturverlauf')),
-      subtitle: Text(
-        context.tr('Nur für den Host · {0} Einträge', [
-          game.corrections.length,
-        ]),
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: FilledButton.tonalIcon(
-            icon: const Icon(Icons.edit_outlined),
-            label: Text(
-              context.tr(
-                game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
-              ),
+  Widget build(BuildContext context) {
+    final subtitle = Text(
+      context.tr('Nur für den Host · {0} Einträge', [game.corrections.length]),
+    );
+    final children = _children(context);
+    // In a dashboard section the frame is the title and the expander.
+    if (InSectionFrame.of(context)) {
+      return Card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: subtitle,
             ),
-            onPressed:
-                !game.recoveryPaused &&
-                    game.players.isNotEmpty &&
-                    game.round.question != null
-                ? () async {
-                    final event = await showDialog<CorrectScoreEvent>(
-                      context: context,
-                      builder: (_) => _ScoreCorrectionDialog(game: game),
-                    );
-                    if (event != null && !engine.isClosed) engine.add(event);
-                  }
-                : null,
+            ...children,
+          ],
+        ),
+      );
+    }
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.history),
+        title: Text(context.tr('Korrekturverlauf')),
+        subtitle: subtitle,
+        children: children,
+      ),
+    );
+  }
+
+  List<Widget> _children(BuildContext context) => [
+    Padding(
+      padding: const EdgeInsets.all(12),
+      child: FilledButton.tonalIcon(
+        icon: const Icon(Icons.edit_outlined),
+        label: Text(
+          context.tr(
+            game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
           ),
         ),
-        if (game.corrections.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(context.tr('Noch keine manuellen Korrekturen.')),
-          )
-        else
-          SizedBox(
-            height: 360,
-            child: ListView(
-              children: [
-                for (final entry in game.corrections.reversed)
-                  _entry(context, entry),
-              ],
-            ),
-          ),
-      ],
+        onPressed:
+            !game.recoveryPaused &&
+                (game.mode is TeamMode || game.poker != null
+                    ? game.teams.isNotEmpty
+                    : game.players.isNotEmpty)
+            ? () async {
+                final event = await showDialog<CorrectScoreEvent>(
+                  context: context,
+                  builder: (_) => _ScoreCorrectionDialog(game: game),
+                );
+                if (event != null && !engine.isClosed) engine.add(event);
+              }
+            : null,
+      ),
     ),
-  );
+    if (game.corrections.isEmpty)
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(context.tr('Noch keine manuellen Korrekturen.')),
+      )
+    else
+      SizedBox(
+        height: 360,
+        child: ListView(
+          children: [
+            for (final entry in game.corrections.reversed)
+              _entry(context, entry),
+          ],
+        ),
+      ),
+  ];
 
   Widget _entry(BuildContext context, ManualCorrection entry) {
     final error = engine.correctionUndoError(entry);
@@ -98,11 +119,16 @@ class CorrectionHistoryPanel extends StatelessWidget {
       subtitle: Text(
         [
           '$label · ${entry.id}',
-          '${context.tr('Runde')}: ${entry.questionId} · ${entry.roundStartedAt}',
+          entry.questionId == null
+              ? context.tr('Ohne Bezug zu einer Frage')
+              : '${context.tr('Runde')}: ${entry.questionId} · ${entry.roundStartedAt}',
           '$timestamp',
-          if (entry.scoreDeltas.isNotEmpty)
+          if (entry.scoreDeltas.isNotEmpty || entry.teamDeltas.isNotEmpty)
             context.tr('Punkteänderung: {0}', [
-              entry.scoreDeltas.values.fold<int>(0, (a, b) => a + b),
+              [
+                ...entry.scoreDeltas.values,
+                ...entry.teamDeltas.values,
+              ].fold<int>(0, (a, b) => a + b),
             ]),
           if (entry.chipDeltas.isNotEmpty)
             context.tr('Chipänderung: {0}', [
@@ -141,12 +167,46 @@ class _ScoreCorrectionDialog extends StatefulWidget {
   State<_ScoreCorrectionDialog> createState() => _ScoreCorrectionDialogState();
 }
 
+/// Target of a manual point change: a single player or a whole team.
+typedef _Target = ({String? playerId, String? teamId});
+
 class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
   final _form = GlobalKey<FormState>();
   final _delta = TextEditingController();
   final _reason = TextEditingController();
-  late String _playerId = widget.game.players.keys.first;
   final _requestId = newId('correction');
+  late _Target _target = _targets.first;
+
+  GameState get _game => widget.game;
+
+  bool get _teamTargets => _game.mode is TeamMode || _game.poker != null;
+
+  /// With teams, players have no points of their own, so only teams can be
+  /// chosen; solo games list the players.
+  List<_Target> get _targets => [
+    if (_teamTargets)
+      for (final team in _game.teams.values) (playerId: null, teamId: team.id)
+    else
+      for (final player in _game.players.values)
+        (playerId: player.id, teamId: null),
+  ];
+
+  String _label(_Target target) {
+    if (target.teamId case final teamId?) {
+      return '${context.tr('Team')}: ${_game.teams[teamId]?.name ?? teamId}';
+    }
+    final player = _game.players[target.playerId]!;
+    return _game.mode is TeamMode
+        ? '${_game.teams[player.teamId]?.name ?? "-"} / ${player.name}'
+        : player.name;
+  }
+
+  int? get _currentChips {
+    final poker = _game.poker;
+    if (poker == null) return null;
+    return poker.chips[_target.teamId ??
+        _game.players[_target.playerId]?.teamId];
+  }
 
   @override
   void dispose() {
@@ -155,11 +215,26 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
     super.dispose();
   }
 
+  void _apply({bool withoutReason = false}) {
+    if (withoutReason) _reason.text = kNoReasonGiven;
+    if (!_form.currentState!.validate()) return;
+    Navigator.pop(
+      context,
+      CorrectScoreEvent(
+        requestId: _requestId,
+        playerId: _target.playerId,
+        teamId: _target.teamId,
+        delta: int.parse(_delta.text.trim()),
+        reason: _reason.text.trim(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
       context.tr(
-        widget.game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
+        _game.poker == null ? 'Punkte korrigieren' : 'Chips korrigieren',
       ),
     ),
     content: SizedBox(
@@ -169,29 +244,37 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _playerId,
+              DropdownButtonFormField<_Target>(
+                key: const ValueKey('score-change-target'),
+                initialValue: _target,
                 isExpanded: true,
+                decoration: InputDecoration(labelText: context.tr('Ziel')),
                 items: [
-                  for (final player in widget.game.players.values)
+                  for (final target in _targets)
                     DropdownMenuItem(
-                      value: player.id,
+                      value: target,
                       child: Text(
-                        widget.game.mode is TeamMode
-                            ? '${widget.game.teams[player.teamId]?.name ?? "-"} / ${player.name}'
-                            : player.name,
+                        _label(target),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                 ],
-                onChanged: (id) {
-                  if (id != null) setState(() => _playerId = id);
+                onChanged: (target) {
+                  if (target != null) setState(() => _target = target);
                 },
               ),
               TextFormField(
+                key: const ValueKey('score-change-delta'),
                 controller: _delta,
                 decoration: InputDecoration(
                   labelText: context.tr('Änderung (+/-)'),
+                  helperText: _currentChips == null
+                      ? null
+                      : context.tr('Aktueller Stand: {0} Chips', [
+                          _currentChips!,
+                        ]),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(
                   signed: true,
@@ -201,12 +284,7 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
                   if (delta == null || delta == 0) {
                     return context.tr('Eine ganze Zahl ungleich 0 eingeben.');
                   }
-                  final poker = widget.game.poker;
-                  if (poker != null &&
-                      (poker.chips[widget.game.players[_playerId]?.teamId] ??
-                                  0) +
-                              delta <
-                          0) {
+                  if (_currentChips case final chips? when chips + delta < 0) {
                     return context.tr(
                       'Die Korrektur würde negative Chips erzeugen.',
                     );
@@ -214,10 +292,26 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
                   return null;
                 },
               ),
-              TextField(
+              TextFormField(
+                key: const ValueKey('score-change-reason'),
                 controller: _reason,
+                maxLength: 200,
                 decoration: InputDecoration(
-                  labelText: context.tr('Grund (optional)'),
+                  labelText: context.tr('Begründung (Pflicht)'),
+                ),
+                validator: (text) => (text?.trim().isEmpty ?? true)
+                    ? context.tr(
+                        'Bitte eine Begründung angeben oder „Ohne Begründung anwenden“ wählen.',
+                      )
+                    : null,
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  key: const ValueKey('score-change-no-reason'),
+                  icon: const Text(kNoReasonGiven),
+                  label: Text(context.tr('Ohne Begründung anwenden')),
+                  onPressed: () => _apply(withoutReason: true),
                 ),
               ),
             ],
@@ -231,20 +325,7 @@ class _ScoreCorrectionDialogState extends State<_ScoreCorrectionDialog> {
         child: Text(context.tr('Abbrechen')),
       ),
       FilledButton(
-        onPressed: () {
-          if (!_form.currentState!.validate()) return;
-          Navigator.pop(
-            context,
-            CorrectScoreEvent(
-              requestId: _requestId,
-              playerId: _playerId,
-              questionId: widget.game.round.question!.id,
-              roundStartedAt: widget.game.round.startedAtHostMicros!,
-              delta: int.parse(_delta.text.trim()),
-              reason: _reason.text.trim(),
-            ),
-          );
-        },
+        onPressed: _apply,
         child: Text(context.tr('Korrektur anwenden')),
       ),
     ],
@@ -260,6 +341,7 @@ class _UndoDialog extends StatefulWidget {
 }
 
 class _UndoDialogState extends State<_UndoDialog> {
+  final _form = GlobalKey<FormState>();
   final _reason = TextEditingController();
 
   @override
@@ -268,25 +350,51 @@ class _UndoDialogState extends State<_UndoDialog> {
     super.dispose();
   }
 
+  void _confirm({bool withoutReason = false}) {
+    if (withoutReason) _reason.text = kNoReasonGiven;
+    if (!_form.currentState!.validate()) return;
+    Navigator.pop(context, _reason.text.trim());
+  }
+
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(context.tr('Korrektur zurücknehmen?')),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.tr(
-            'Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.',
-            [widget.entry.participantName],
+    content: Form(
+      key: _form,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr(
+              'Die Änderung für {0} wird als neue Gegenkorrektur protokolliert. Spätere Änderungen bleiben erhalten.',
+              [widget.entry.participantName],
+            ),
           ),
-        ),
-        TextField(
-          controller: _reason,
-          decoration: InputDecoration(
-            labelText: context.tr('Grund (optional)'),
+          TextFormField(
+            key: const ValueKey('undo-reason'),
+            controller: _reason,
+            maxLength: 200,
+            decoration: InputDecoration(
+              labelText: context.tr('Begründung (Pflicht)'),
+            ),
+            validator: (text) => (text?.trim().isEmpty ?? true)
+                ? context.tr(
+                    'Bitte eine Begründung angeben oder „Ohne Begründung zurücknehmen“ wählen.',
+                  )
+                : null,
           ),
-        ),
-      ],
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: const ValueKey('undo-no-reason'),
+              icon: const Text(kNoReasonGiven),
+              label: Text(context.tr('Ohne Begründung zurücknehmen')),
+              onPressed: () => _confirm(withoutReason: true),
+            ),
+          ),
+        ],
+      ),
     ),
     actions: [
       TextButton(
@@ -294,7 +402,7 @@ class _UndoDialogState extends State<_UndoDialog> {
         child: Text(context.tr('Abbrechen')),
       ),
       FilledButton(
-        onPressed: () => Navigator.pop(context, _reason.text.trim()),
+        onPressed: _confirm,
         child: Text(context.tr('Rücknahme bestätigen')),
       ),
     ],

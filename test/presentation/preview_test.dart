@@ -184,7 +184,12 @@ void main() {
       await tester.tap(next);
       await tester.pumpAndSettle();
       expect(find.text('Private notes'), findsOneWidget);
-      await tester.tap(find.text('Player'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SegmentedButton<int>),
+          matching: find.text('Player'),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(LocalPlayerBoard), findsOneWidget);
       expect(find.text('Private notes'), findsNothing);
@@ -202,7 +207,12 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(local.state.roundStatus, RoundStatus.revealed);
-      await tester.tap(find.text('TV'));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(SegmentedButton<int>),
+          matching: find.text('TV'),
+        ),
+      );
       await tester.pumpAndSettle();
       final tv = tester.widget<TvScreen>(find.byType(TvScreen));
       expect(tv.state.game!.questionBank, isEmpty);

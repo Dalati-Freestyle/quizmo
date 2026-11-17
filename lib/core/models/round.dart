@@ -5,7 +5,9 @@ import 'package:equatable/equatable.dart';
 
 import 'answer.dart';
 import 'json.dart';
+import '../engine/scoring_rules.dart';
 import 'question.dart';
+import 'snowflake.dart';
 
 const Object _unset = Object();
 
@@ -52,10 +54,17 @@ final class RoundState extends Equatable {
     this.recoverySoftTimer = false,
     this.timerRestartedAtHostMicros,
     this.acceptedElapsedMicros = const {},
+    this.snowflake,
+    this.hiddenAnswerCount = 0,
   });
 
   /// Restores a round from [json].
   factory RoundState.fromJson(JsonMap json) => RoundState(
+    hiddenAnswerCount: json.readIntOrNull('hiddenAnswerCount') ?? 0,
+    snowflake: switch (json.readStringOrNull('snowflake')) {
+      final name? => SnowflakeScoring.fromName(name),
+      null => null,
+    },
     recoverySoftTimer: json.readBool('recoverySoftTimer'),
     timerRestartedAtHostMicros: json.readIntOrNull(
       'timerRestartedAtHostMicros',
@@ -126,6 +135,49 @@ final class RoundState extends Equatable {
   final int? timerRestartedAtHostMicros;
   // Later timer restarts must not change the scoring time of accepted input.
   final Map<String, int> acceptedElapsedMicros;
+
+  /// Set in a "Biggest Snowflake" round: answers are not compared with a
+  /// solution but with each other, and the rarest one wins.
+  final SnowflakeScoring? snowflake;
+
+  /// Number of answers withheld from a guest snapshot until the reveal
+  /// (poker and snowflake rounds); `0` on the host.
+  final int hiddenAnswerCount;
+
+  /// Number of submitted answers, including withheld ones.
+  int get answerCount => answers.length + hiddenAnswerCount;
+
+  /// The distinct answers of a snowflake round, rarest first; empty in every
+  /// other round.
+  List<SnowflakeGroup> get snowflakeGroups {
+    final current = question;
+    final scoring = snowflake;
+    if (current == null || scoring == null) return const [];
+    final keys = <String, String>{
+      for (final answer in answers.values)
+        answer.playerId: ?current.uniquenessKey(answer),
+    };
+    final shares = snowflakeShares(
+      keys,
+      graded: scoring == SnowflakeScoring.graded,
+    );
+    final members = <String, List<String>>{};
+    for (final entry in keys.entries) {
+      (members[entry.value] ??= []).add(entry.key);
+    }
+    return [
+      for (final entry in members.entries)
+        SnowflakeGroup(
+          key: entry.key,
+          playerIds: entry.value,
+          share: shares[entry.value.first]!,
+        ),
+    ]..sort((a, b) {
+      final bySize = a.playerIds.length.compareTo(b.playerIds.length);
+      return bySize != 0 ? bySize : a.key.compareTo(b.key);
+    });
+  }
+
   int? get timerStartedAtHostMicros =>
       timerRestartedAtHostMicros ?? startedAtHostMicros;
   bool get hasSoftTimer => recoverySoftTimer || question?.softTimeLimit == true;
@@ -139,6 +191,13 @@ final class RoundState extends Equatable {
   double? accuracyFor(AnswerSubmission answer) {
     final current = question;
     if (current == null) return null;
+    if (snowflake != null) {
+      // Guests only receive the answers of the others with the reveal.
+      for (final group in snowflakeGroups) {
+        if (group.playerIds.contains(answer.playerId)) return group.share;
+      }
+      return null;
+    }
     return current.requiresManualGrading
         ? answerVerdicts[answer.playerId]?.toDouble()
         : current.accuracy(answer);
@@ -203,7 +262,10 @@ final class RoundState extends Equatable {
     bool? recoverySoftTimer,
     Object? timerRestartedAtHostMicros = _unset,
     Map<String, int>? acceptedElapsedMicros,
+    int? hiddenAnswerCount,
   }) => RoundState(
+    snowflake: snowflake,
+    hiddenAnswerCount: hiddenAnswerCount ?? this.hiddenAnswerCount,
     question: identical(question, _unset)
         ? this.question
         : question as Question?,
@@ -248,6 +310,9 @@ final class RoundState extends Equatable {
     'recoverySoftTimer': recoverySoftTimer,
     'timerRestartedAtHostMicros': timerRestartedAtHostMicros,
     'acceptedElapsedMicros': acceptedElapsedMicros,
+    // Only written when set: saved games of older versions stay complete.
+    if (snowflake != null) 'snowflake': snowflake!.name,
+    if (hiddenAnswerCount != 0) 'hiddenAnswerCount': hiddenAnswerCount,
   };
 
   @override
@@ -267,5 +332,7 @@ final class RoundState extends Equatable {
     recoverySoftTimer,
     timerRestartedAtHostMicros,
     acceptedElapsedMicros,
+    snowflake,
+    hiddenAnswerCount,
   ];
 }

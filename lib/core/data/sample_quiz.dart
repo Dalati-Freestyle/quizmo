@@ -10,11 +10,15 @@ import '../models/models.dart';
 
 /// Two coloured teams, enough to exercise team scoring end to end.
 const Map<String, Team> sampleTeams = {
-  'team-red': Team(id: 'team-red', name: 'Red Foxes', colorValue: 0xFFE5484D),
+  'team-red': Team(
+    id: 'team-red',
+    name: 'Red Foxes',
+    colorValue: 0xFFC0392B,
+  ), // TeamColor.red
   'team-blue': Team(
     id: 'team-blue',
     name: 'Blue Whales',
-    colorValue: 0xFF3E63DD,
+    colorValue: 0xFF3F6FD8, // TeamColor.blue
   ),
 };
 

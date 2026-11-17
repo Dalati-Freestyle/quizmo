@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 import '../../core/models/models.dart';
+import 'snowflake_result_view.dart';
 
 class QuestionResultView extends StatelessWidget {
   const QuestionResultView({
@@ -49,7 +50,10 @@ class QuestionResultView extends StatelessWidget {
               '${leftItems[i].label}    |    ${i < rightItems.length ? rightItems[i].label : ''}',
               style: const TextStyle(fontSize: 24),
             ),
-        if (host || revealed) ...[
+        if ((host || revealed) && game.round.snowflake != null) ...[
+          const SizedBox(height: 12),
+          SnowflakeResultView(game: game, maxGroups: host ? 50 : 8),
+        ] else if (host || revealed) ...[
           const SizedBox(height: 12),
           Text(
             context.tr("Lösung: {0}", [
@@ -80,7 +84,7 @@ class QuestionResultView extends StatelessWidget {
         const SizedBox(height: 12),
         Text(
           context.tr("{0} / {1} Antworten", [
-            game.round.answers.length,
+            game.round.answerCount,
             game.connectedPlayers.length,
           ]),
           style: const TextStyle(fontSize: 22),
