@@ -670,6 +670,8 @@
   "The local quiz library is unavailable on this platform.": "The local quiz library is unavailable on this platform.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.",
   "The points of a cell come from its row; the scoring rule of the question itself is ignored on the board. Tap a category or a row label to rename it, a cell to edit its question, the star to make it a Daily Double.": "Cell points come from their row; the question's scoring rule is ignored on the board. Tap a category or row label to rename it, a cell to edit its question, or the star to make it a Daily Double.",
+  "Drag to swap or move": "Drag to swap or move",
+  "Drag a question by its handle (or long-press it) onto another cell to swap the two, or onto an empty cell to move it. A Daily Double moves with its question.": "Drag a question by its handle (or long-press it) onto another cell to swap the two, or onto an empty cell to move it. A Daily Double moves with its question.",
   "This device": "This device",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.",
   "Time limit in seconds": "Time limit in seconds",

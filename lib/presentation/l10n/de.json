@@ -670,6 +670,8 @@
   "The local quiz library is unavailable on this platform.": "Die lokale Quizbibliothek ist auf dieser Plattform nicht verfügbar.",
   "The picking team answers first; after a miss the other teams may answer. Off: the question ends after the first miss.": "Das auswählende Team antwortet zuerst. Nach einer falschen Antwort dürfen die anderen Teams antworten. Ausgeschaltet: keine automatische Abstaubrunde.",
   "The points of a cell come from its row; the scoring rule of the question itself is ignored on the board. Tap a category or a row label to rename it, a cell to edit its question, the star to make it a Daily Double.": "Die Punkte eines Feldes kommen aus seiner Zeile; die eigene Bewertungsregel der Frage gilt auf dem Spielfeld nicht. Tippe auf eine Kategorie oder Zeilenbeschriftung zum Umbenennen, ein Feld zum Bearbeiten der Frage oder den Stern für ein Daily Double.",
+  "Drag to swap or move": "Ziehen zum Tauschen oder Verschieben",
+  "Drag a question by its handle (or long-press it) onto another cell to swap the two, or onto an empty cell to move it. A Daily Double moves with its question.": "Ziehe eine Frage am Griff (oder halte sie gedrückt) auf ein anderes Feld, um beide zu tauschen, oder auf ein leeres Feld, um sie zu verschieben. Ein Daily Double wandert mit seiner Frage.",
   "This device": "Dieses Gerät",
   "This quiz requires a newer version of Quizmo. Update the app, then import this file again. Your quiz library has not been changed.": "Dieses Quiz benötigt eine neuere Quizmo-Version. Aktualisiere die App und importiere die Datei erneut. Deine Quizbibliothek wurde nicht verändert.",
   "Time limit in seconds": "Zeitlimit in Sekunden",
