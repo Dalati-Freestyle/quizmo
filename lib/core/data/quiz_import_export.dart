@@ -7,9 +7,6 @@ import 'dart:typed_data';
 import '../models/models.dart';
 import 'quiz_repository.dart';
 
-/// The maximum size of a complete quiz file, including encoded media.
-const maxQuizFileBytes = 100 * 1024 * 1024;
-
 /// Describes a quiz file that cannot be imported safely.
 class QuizImportException implements Exception {
   /// Creates an exception with an actionable [message].
@@ -39,18 +36,11 @@ final class QuizImportUpdateRequiredException extends QuizImportException {
 /// Includes the schema version, solutions, and uploaded media as Base64.
 String exportQuizJson(Quiz quiz) {
   quiz.validate();
-  final contents = const JsonEncoder.withIndent('  ').convert(quiz.toJson());
-  _checkFileSize(contents);
-  return contents;
+  return const JsonEncoder.withIndent('  ').convert(quiz.toJson());
 }
 
 /// Decodes a picked file before parsing its versioned quiz document.
 String decodeQuizFile(Uint8List bytes) {
-  if (bytes.length > maxQuizFileBytes) {
-    throw const QuizImportException(
-      'The selected file is larger than the 100 MiB quiz import limit.',
-    );
-  }
   try {
     return utf8.decode(bytes);
   } on FormatException {
@@ -62,7 +52,6 @@ String decodeQuizFile(Uint8List bytes) {
 
 /// Parses and validates one standalone quiz document.
 Quiz parseQuizImport(String contents) {
-  _checkFileSize(contents);
   final Object? decoded;
   try {
     decoded = jsonDecode(contents);
@@ -94,15 +83,6 @@ Quiz parseQuizImport(String contents) {
   } on QuizValidationException catch (error) {
     throw QuizImportException(
       'The quiz file is invalid: ${error.messages.join(' ')}',
-    );
-  }
-}
-
-void _checkFileSize(String contents) {
-  if (contents.length > maxQuizFileBytes ||
-      utf8.encode(contents).length > maxQuizFileBytes) {
-    throw const QuizImportException(
-      'Quiz files must not exceed 100 MiB, including media.',
     );
   }
 }

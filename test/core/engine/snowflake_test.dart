@@ -392,7 +392,7 @@ void main() {
         expect(quiz.validationErrors(), isEmpty);
         final contents = exportQuizJson(quiz);
         final json = jsonDecode(contents) as Map<String, dynamic>;
-        expect(json['schemaVersion'], 10);
+        expect(json['schemaVersion'], Quiz.currentSchemaVersion);
         expect(json['format'], {'type': 'snowflake', 'scoring': scoring.name});
         expect(parseQuizImport(contents), quiz);
       }
@@ -460,7 +460,7 @@ void main() {
       expect(await repository.loadAll(), isEmpty);
     });
 
-    test('a schema 9 file still imports and is saved as schema 10', () {
+    test('a schema 9 file still imports and is saved as the latest schema', () {
       final contents = File.fromUri(
         Directory.current.uri.resolve(
           'test/fixtures/quiz_v9_poker.quizmo.json',

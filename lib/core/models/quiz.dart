@@ -42,7 +42,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 10;
+  static const int currentSchemaVersion = 11;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -69,6 +69,7 @@ final class Quiz extends Equatable {
       8 => Quiz._fromJsonV8(json),
       9 => Quiz._fromJsonV9(json),
       10 => Quiz._fromJsonV10(json),
+      11 => Quiz._fromJsonV11(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -144,7 +145,12 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV10(json);
   }
 
-  factory Quiz._fromJsonV10(JsonMap json) {
+  /// Schema 10 limited each uploaded file to 20 MiB and all media of a quiz to
+  /// 90 MiB; schema 11 drops both limits. Files written by older apps always
+  /// respect them, so they import unchanged.
+  factory Quiz._fromJsonV10(JsonMap json) => Quiz._fromJsonV11(json);
+
+  factory Quiz._fromJsonV11(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -240,20 +246,6 @@ final class Quiz extends Equatable {
       if (team.name.trim().isEmpty) {
         errors.add('Team "${team.id}" needs a name.');
       }
-    }
-    final encodedMediaSize = questions.fold<int>(
-      0,
-      (total, q) =>
-          total +
-          [
-            ...q.media,
-            ...q.solutionMedia,
-          ].fold<int>(0, (sum, m) => sum + (m.asset?.data?.length ?? 0)),
-    );
-    if (encodedMediaSize > 90 * 1024 * 1024) {
-      errors.add(
-        'Medien im Quiz dürfen zusammen maximal 90 MiB im Export belegen.',
-      );
     }
     for (final question in questions) {
       errors.addAll(

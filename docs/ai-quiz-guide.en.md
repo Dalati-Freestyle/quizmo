@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **10**
+Quizmo schema version of this guide: **11**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -75,7 +75,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 10,              // always exactly 10
+  "schemaVersion": 11,              // always exactly 11
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -190,6 +190,8 @@ give a valid `scoringRule` (e.g. `fixed` with 10/0).
 ## 6. Media
 
 Embedded files (images, audio, MP4) contain Base64 data with a SHA-256 ID.
+Since schema 11 they have no size limit (the editor limits uploads to 20 MiB by
+default, which can be switched off in the advanced settings).
 **Do not create such uploads** – a chat model cannot do that reliably. Leave
 `media`/`solutionMedia` empty or use only these references without file
 content. Tell the person that they have to add their own images, audio and
@@ -207,7 +209,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 10` is at the very top.
+- [ ] `"schemaVersion": 11` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -233,7 +235,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -395,7 +397,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -465,7 +467,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -502,7 +504,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 10,
+  "schemaVersion": 11,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

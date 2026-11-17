@@ -75,6 +75,7 @@ void main() {
       String method = 'GET',
       String? range,
       String? access,
+      int? maxBodyBytes,
     }) => serveMedia(
       Request(
         method,
@@ -85,6 +86,7 @@ void main() {
       ),
       a.id,
       engine,
+      maxBodyBytes: maxBodyBytes,
     );
     expect(get(image).statusCode, 404);
     engine.add(const StartRoundEvent('q'));
@@ -104,6 +106,15 @@ void main() {
     expect(get(image, range: 'bytes=-4').statusCode, 206);
     expect(get(image, range: 'bytes=9999-').statusCode, 416);
     expect(get(image, range: 'bytes=0-1,3-4').statusCode, 416);
+    // Relay: a plain GET of a large asset and any long range are shortened.
+    final size = image.bytes!.length;
+    final plain = get(image, maxBodyBytes: 10);
+    expect(plain.statusCode, 206);
+    expect(plain.headers['content-range'], 'bytes 0-9/$size');
+    expect(await plain.read().expand((c) => c).toList(), image.bytes!.take(10));
+    final tail = get(image, range: 'bytes=10-', maxBodyBytes: 10);
+    expect(tail.headers['content-range'], 'bytes 10-19/$size');
+    expect(get(image, maxBodyBytes: size).statusCode, 200);
     expect(await get(image, method: 'HEAD').readAsString(), '');
     expect(get(image, method: 'POST').statusCode, 405);
     engine.add(const RevealRoundEvent());

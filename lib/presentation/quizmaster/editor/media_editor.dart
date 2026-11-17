@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
 import '../../common/question_media_view.dart';
+import '../../settings/media_upload_settings.dart';
 import 'image_optimization_dialog.dart';
 import 'media_upload.dart';
 
@@ -27,10 +28,14 @@ class MediaEditor extends StatefulWidget {
 class _MediaEditorState extends State<MediaEditor> {
   late List<MediaAttachment> media;
   bool loading = false;
+  bool unlimitedUploads = false;
   @override
   void initState() {
     super.initState();
     media = [...widget.media];
+    MediaUploadSettingsStore.instance.loadUnlimited().then((value) {
+      if (mounted) setState(() => unlimitedUploads = value);
+    });
   }
 
   void publish() => widget.onChanged([...media]);
@@ -58,7 +63,10 @@ class _MediaEditorState extends State<MediaEditor> {
         );
         if (result == null || !mounted) return;
         final file = result;
-        var asset = await readMediaUpload(file);
+        var asset = await readMediaUpload(
+          file,
+          maxBytes: await MediaUploadSettingsStore.instance.uploadLimit(),
+        );
         if (!mounted) return;
         if (kind == _MediaKind.image && asset.mimeType != 'image/svg+xml') {
           final selected = await showDialog<MediaAsset>(
@@ -256,7 +264,9 @@ class _MediaEditorState extends State<MediaEditor> {
             ),
           Text(
             context.tr(
-              "Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.",
+              unlimitedUploads
+                  ? "Dateien: keine Größengrenze (erweiterte Einstellungen). Karten und YouTube benötigen Internet."
+                  : "Dateien: maximal 20 MiB. Karten und YouTube benötigen Internet.",
             ),
           ),
         ],

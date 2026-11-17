@@ -13,7 +13,16 @@ bool mayReadSession(Request request, QuizEngineBloc engine) {
 
 /// Serves only attachments currently visible to guests. Uploads happen locally
 /// through the host editor, never through an unauthenticated LAN endpoint.
-Response serveMedia(Request request, String id, QuizEngineBloc engine) {
+///
+/// With [maxBodyBytes] (internet relay) no response carries more than that:
+/// ranges are shortened and a plain GET of a larger asset is answered like
+/// `Range: bytes=0-`, so the client continues with further ranges.
+Response serveMedia(
+  Request request,
+  String id,
+  QuizEngineBloc engine, {
+  int? maxBodyBytes,
+}) {
   if (!mayReadSession(request, engine)) {
     return Response.forbidden('Admission required');
   }
@@ -54,7 +63,9 @@ Response serveMedia(Request request, String id, QuizEngineBloc engine) {
   };
   // HEAD ignores Range, matching GET metadata without allocating a body.
   if (request.method == 'HEAD') return Response.ok(null, headers: headers);
-  final range = request.headers['range'];
+  final range =
+      request.headers['range'] ??
+      (maxBodyBytes != null && bytes.length > maxBodyBytes ? 'bytes=0-' : null);
   if (range == null) return Response.ok(bytes, headers: headers);
   final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(range);
   Response invalid() => Response(
@@ -67,7 +78,7 @@ Response serveMedia(Request request, String id, QuizEngineBloc engine) {
   );
   if (match == null || match[1]!.isEmpty && match[2]!.isEmpty) return invalid();
   final int start;
-  final int end;
+  int end;
   if (match[1]!.isEmpty) {
     final suffix = int.tryParse(match[2]!);
     if (suffix == null || suffix <= 0) return invalid();
@@ -81,6 +92,9 @@ Response serveMedia(Request request, String id, QuizEngineBloc engine) {
     if (parsedStart == null || parsedEnd == null) return invalid();
     start = parsedStart;
     end = parsedEnd.clamp(0, bytes.length - 1);
+  }
+  if (maxBodyBytes != null && end - start + 1 > maxBodyBytes) {
+    end = start + maxBodyBytes - 1;
   }
   if (start >= bytes.length || end < start) return invalid();
   return Response(

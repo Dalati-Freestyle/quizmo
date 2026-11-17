@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 10,
+  "id": "quiz-v10-fixture",
+  "name": "Schema 10 fixture",
+  "description": "Quiz with question and solution media written by schema 10.",
+  "category": "Fixtures",
+  "questions": [
+    {
+      "type": "trueFalse",
+      "id": "q-tf",
+      "prompt": "Is the square red?",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "",
+      "media": [
+        {
+          "type": "image",
+          "caption": "Square",
+          "hideDetails": false,
+          "zoom": true,
+          "asset": {
+            "id": "13131fc4dea9e926fed51a97ade386dad81903ba6a6b24fc676549ca7cfb2f54",
+            "mimeType": "image/svg+xml",
+            "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgZmlsbD0icmVkIi8+PC9zdmc+"
+          }
+        }
+      ],
+      "solutionMedia": [
+        {
+          "type": "image",
+          "caption": "Answer",
+          "hideDetails": false,
+          "zoom": true,
+          "asset": {
+            "id": "526cee4faee675a206f4a92bfc145ae542ef43898c8141e3f9198c2c5db83106",
+            "mimeType": "image/svg+xml",
+            "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgZmlsbD0iYmx1ZSIvPjwvc3ZnPg=="
+          }
+        }
+      ],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "correctAnswer": true
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "Alpha",
+      "color": "blue"
+    }
+  ],
+  "format": {
+    "type": "standard",
+    "revealMode": "afterEachQuestion"
+  },
+  "createdAtMicros": 1793491200000000,
+  "updatedAtMicros": 1793491200000000
+}

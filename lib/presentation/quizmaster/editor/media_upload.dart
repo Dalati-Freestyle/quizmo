@@ -5,21 +5,36 @@ import 'package:file_picker/file_picker.dart';
 
 import '../../../core/models/models.dart';
 
-Future<MediaAsset> readMediaUpload(PlatformFile file) async {
-  // length() may fall back to reading the entire file. Only trust metadata here.
-  final length = file.lengthSync();
+/// Reads a picked media file; [maxBytes] `null` accepts any size (advanced
+/// setting "Allow media files of any size").
+Future<MediaAsset> readMediaUpload(
+  PlatformFile file, {
+  int? maxBytes = maxMediaBytes,
+}) async {
+  // Check the size before reading the bytes. Some pickers (Windows) return a
+  // path without a size, so lengthSync() is null there; length() then asks the
+  // file system (a stat, not a read) for local files.
+  final length = file.lengthSync() ?? await file.length();
   if (length == null) {
     throw const JsonContractException(
       'The picker could not determine the file size. Choose a local file whose size is available.',
     );
   }
-  if (length <= 0 || length > maxMediaBytes) {
+  if (length <= 0) {
+    throw const JsonContractException('Die Datei ist leer oder nicht lesbar.');
+  }
+  if (maxBytes != null && length > maxBytes) {
     throw const JsonContractException(
-      'Datei zu groß oder nicht lesbar (maximal 20 MiB).',
+      'Datei zu groß (maximal 20 MiB). Größere Dateien lassen sich unter Einstellungen → Erweiterte Einstellungen erlauben.',
     );
   }
   // Validate again after reading: a file may change after the picker returns.
   final bytes = await file.readAsBytes();
+  if (maxBytes != null && bytes.length > maxBytes) {
+    throw const JsonContractException(
+      'Datei zu groß (maximal 20 MiB). Größere Dateien lassen sich unter Einstellungen → Erweiterte Einstellungen erlauben.',
+    );
+  }
   final asset = MediaAsset.upload(bytes, file.extension ?? '');
   if (asset.mimeType.startsWith('image/') &&
       asset.mimeType != 'image/svg+xml') {

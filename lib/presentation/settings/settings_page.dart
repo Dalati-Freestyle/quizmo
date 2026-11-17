@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import 'app_version_label.dart';
 import 'locale_cubit.dart';
 import 'example_quiz_settings.dart' deferred as advanced;
+import 'media_upload_settings.dart';
 import '../quizmaster/layout/dashboard_layout_settings_page.dart'
     deferred as admin_layout;
 import '../quizmaster/wifi/guest_wifi_settings_page.dart'
@@ -208,6 +209,8 @@ class _SettingsPageState extends State<SettingsPage> {
             context.tr('Advanced settings'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
+          const SizedBox(height: 12),
+          const MediaUploadSettings(),
           const SizedBox(height: 12),
           FutureBuilder<void>(
             future: _advancedLoad,
