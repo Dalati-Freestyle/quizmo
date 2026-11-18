@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/data/quiz_repository.dart';
 import 'package:quizmo/core/data/sample_quiz.dart';
@@ -32,6 +34,36 @@ void main() {
       addTearDown(reopened.close);
       await reopened.load();
       expect(reopened.state.quizzes, cubit.state.quizzes);
+    },
+  );
+
+  test(
+    'quizzes of a newer Quizmo are hidden with a notice, not seeded over',
+    () async {
+      final future = {
+        ...createSampleQuiz(timestamp).copyWith(id: 'future').toJson(),
+        'schemaVersion': Quiz.currentSchemaVersion + 1,
+      };
+      final store = _MemoryStore()
+        ..contents = jsonEncode({
+          'schemaVersion': 1,
+          'quizzes': [future],
+        });
+      final cubit = QuizLibraryCubit(
+        repository: PersistentQuizRepository(store: store),
+        now: () => timestamp,
+      );
+      addTearDown(cubit.close);
+
+      await cubit.load();
+      expect(cubit.state.isLoading, isFalse);
+      expect(cubit.state.quizzes, isEmpty);
+      expect(cubit.state.requiredSchemaVersion, isNull);
+      expect(
+        cubit.state.error,
+        contains('schemaVersion ${Quiz.currentSchemaVersion + 1}'),
+      );
+      expect(store.contents, contains('"future"'));
     },
   );
 
@@ -108,6 +140,9 @@ class _FailingRepository implements QuizRepository {
   @override
   Future<List<Quiz>> loadAll() async =>
       throw const QuizRepositoryException('Lesefehler');
+
+  @override
+  Future<int?> newerSchemaVersion() async => null;
   @override
   Future<void> save(Quiz quiz) async =>
       fail('Must not overwrite an unreadable library');

@@ -143,6 +143,70 @@ void main() {
     },
   );
 
+  group('quizzes saved by a newer Quizmo', () {
+    Map<String, Object?> newerQuiz(String id) => {
+      ...quiz(id: id, name: 'From the future').toJson(),
+      'schemaVersion': Quiz.currentSchemaVersion + 1,
+      'futureField': {'kept': true},
+    };
+
+    test('older quizzes are migrated while newer ones are kept', () async {
+      final legacy = {...quiz(id: 'legacy').toJson(), 'schemaVersion': 10};
+      final future = newerQuiz('future');
+      final store = _MemoryStore()
+        ..contents = jsonEncode({
+          'schemaVersion': 1,
+          'quizzes': [legacy, future],
+        });
+      final repository = PersistentQuizRepository(store: store);
+
+      final loaded = await repository.loadAll();
+      expect(loaded.map((quiz) => quiz.id), ['legacy']);
+      expect(loaded.single.schemaVersion, Quiz.currentSchemaVersion);
+      expect(
+        await repository.newerSchemaVersion(),
+        Quiz.currentSchemaVersion + 1,
+      );
+
+      await repository.save(quiz(id: 'new'));
+      await repository.delete('legacy');
+      await repository.recreateExamples(DateTime.utc(2026, 11, 18));
+
+      final stored =
+          (jsonDecode(store.contents!) as Map<String, Object?>)['quizzes']!
+              as List<Object?>;
+      expect(stored, anyElement(equals(future)));
+      expect(
+        (await repository.loadAll()).map((quiz) => quiz.id),
+        isNot(contains('legacy')),
+      );
+    });
+
+    test('examples never reuse the ID of a hidden quiz', () async {
+      final store = _MemoryStore()
+        ..contents = jsonEncode({
+          'schemaVersion': 1,
+          'quizzes': [newerQuiz('quiz-sample')],
+        });
+      final repository = PersistentQuizRepository(store: store);
+      await repository.recreateExamples(DateTime.utc(2026, 11, 18));
+      expect(
+        (await repository.loadAll()).map((quiz) => quiz.id),
+        isNot(contains('quiz-sample')),
+      );
+      await expectLater(
+        repository.save(quiz(id: 'quiz-sample')),
+        throwsA(isA<QuizRepositoryException>()),
+      );
+    });
+
+    test('a fully readable library reports no newer schema', () async {
+      final repository = PersistentQuizRepository(store: _MemoryStore());
+      await repository.save(quiz());
+      expect(await repository.newerSchemaVersion(), isNull);
+    });
+  });
+
   test('malformed libraries are never overwritten by recreation', () async {
     final store = _MemoryStore()..contents = 'not JSON';
     final repository = PersistentQuizRepository(store: store);

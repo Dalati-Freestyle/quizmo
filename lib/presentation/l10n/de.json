@@ -1202,5 +1202,7 @@
   "Dateien: keine Größengrenze (erweiterte Einstellungen). Karten und YouTube benötigen Internet.": "Dateien: keine Größengrenze (erweiterte Einstellungen). Karten und YouTube benötigen Internet.",
   "Die Datei ist leer oder nicht lesbar.": "Die Datei ist leer oder nicht lesbar.",
   "Datei zu groß (maximal 20 MiB). Größere Dateien lassen sich unter Einstellungen → Erweiterte Einstellungen erlauben.": "Datei zu groß (maximal 20 MiB). Größere Dateien lassen sich unter Einstellungen → Erweiterte Einstellungen erlauben.",
-  "Leere Mediendatei.": "Leere Mediendatei."
+  "Leere Mediendatei.": "Leere Mediendatei.",
+  "Some quizzes were saved by a newer version of Quizmo (quiz schemaVersion {0}) and are hidden. Update Quizmo to see them; they are kept unchanged.": "Einige Quizze wurden mit einer neueren Quizmo-Version gespeichert (Quizversion {0}) und sind ausgeblendet. Aktualisiere Quizmo, um sie zu sehen; sie bleiben unverändert erhalten.",
+  "A newer version of Quizmo saved a quiz with the ID \"{0}\". Update Quizmo to edit it.": "Eine neuere Quizmo-Version hat ein Quiz mit der ID \"{0}\" gespeichert. Aktualisiere Quizmo, um es zu bearbeiten."
 }

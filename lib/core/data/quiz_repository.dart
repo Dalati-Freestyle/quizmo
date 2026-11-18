@@ -30,7 +30,18 @@ abstract interface class QuizLibraryStore {
 /// Stores and retrieves reusable quiz definitions.
 abstract interface class QuizRepository {
   /// Loads every quiz in the local library in its saved order.
+  ///
+  /// Quizzes saved by a newer Quizmo version are not part of the result; see
+  /// [newerSchemaVersion].
   Future<List<Quiz>> loadAll();
+
+  /// The newest quiz schema in the library that this app cannot read, or
+  /// `null` when every stored quiz is readable.
+  ///
+  /// Such quizzes were saved by a newer Quizmo version (e.g. a development
+  /// build sharing the same storage). They are kept verbatim on every write
+  /// so that the newer version still finds them.
+  Future<int?> newerSchemaVersion();
 
   /// Creates or replaces [quiz] by its stable ID.
   Future<void> save(Quiz quiz);
@@ -56,10 +67,21 @@ final class PersistentQuizRepository implements QuizRepository {
     return (await _read()).quizzes;
   }
 
-  Future<({List<Quiz> quizzes, Set<String> defaultIds})> _read() async {
+  @override
+  Future<int?> newerSchemaVersion() async {
+    final newer = (await _read()).newer;
+    if (newer.isEmpty) return null;
+    return newer.map((entry) => entry.version).reduce((a, b) => a > b ? a : b);
+  }
+
+  Future<_Library> _read() async {
     final contents = await _store.read();
     if (contents == null || contents.trim().isEmpty) {
-      return (quizzes: <Quiz>[], defaultIds: <String>{});
+      return (
+        quizzes: <Quiz>[],
+        defaultIds: <String>{},
+        newer: const <_NewerQuiz>[],
+      );
     }
 
     try {
@@ -77,13 +99,24 @@ final class PersistentQuizRepository implements QuizRepository {
           'Expected $_schemaVersion.',
         );
       }
-      final quizzes = json.readList('quizzes', Quiz.fromJson);
+      final quizzes = <Quiz>[];
+      final newer = <_NewerQuiz>[];
+      for (final entry in json.readList('quizzes', (quiz) => quiz)) {
+        try {
+          quizzes.add(Quiz.fromJson(entry));
+        } on QuizSchemaUpdateRequiredException catch (error) {
+          // Written by a newer Quizmo: keep it untouched instead of rejecting
+          // the whole library (older schemas are migrated by Quiz.fromJson).
+          newer.add((version: error.requiredVersion, json: entry));
+        }
+      }
       final defaultIds = json.containsKey('defaultQuizIds')
           ? json.readStringList('defaultQuizIds').toSet()
           : _legacyDefaultIds(quizzes);
       return (
         quizzes: List<Quiz>.unmodifiable(quizzes),
         defaultIds: defaultIds,
+        newer: newer,
       );
     } on QuizRepositoryException {
       rethrow;
@@ -106,6 +139,12 @@ final class PersistentQuizRepository implements QuizRepository {
   Future<void> save(Quiz quiz) async {
     quiz.validate();
     final library = await _read();
+    if (library.newer.any((entry) => _idOf(entry.json) == quiz.id)) {
+      throw QuizRepositoryException(
+        'A newer version of Quizmo saved a quiz with the ID "${quiz.id}". '
+        'Update Quizmo to edit it.',
+      );
+    }
     final quizzes = [...library.quizzes];
     final existingIndex = quizzes.indexWhere((item) => item.id == quiz.id);
     if (existingIndex < 0) {
@@ -113,7 +152,7 @@ final class PersistentQuizRepository implements QuizRepository {
     } else {
       quizzes[existingIndex] = quiz;
     }
-    await _write(quizzes, library.defaultIds..remove(quiz.id));
+    await _write(quizzes, library.defaultIds..remove(quiz.id), library.newer);
   }
 
   @override
@@ -122,6 +161,7 @@ final class PersistentQuizRepository implements QuizRepository {
     await _write(
       library.quizzes.where((quiz) => quiz.id != quizId).toList(),
       library.defaultIds..remove(quizId),
+      library.newer,
     );
   }
 
@@ -132,20 +172,28 @@ final class PersistentQuizRepository implements QuizRepository {
       library.quizzes,
       library.defaultIds,
       timestamp,
+      reservedIds: {
+        for (final entry in library.newer)
+          if (_idOf(entry.json) case final String id) id,
+      },
     );
-    await _write(replacement.quizzes, replacement.defaultIds);
+    await _write(replacement.quizzes, replacement.defaultIds, library.newer);
   }
 
-  Future<void> _write(List<Quiz> quizzes, Set<String> defaultIds) =>
-      _store.write(
-        const JsonEncoder.withIndent('  ').convert({
-          'schemaVersion': _schemaVersion,
-          'quizzes': quizzes
-              .map((quiz) => quiz.toJson())
-              .toList(growable: false),
-          'defaultQuizIds': defaultIds.toList(),
-        }),
-      );
+  Future<void> _write(
+    List<Quiz> quizzes,
+    Set<String> defaultIds,
+    List<_NewerQuiz> newer,
+  ) => _store.write(
+    const JsonEncoder.withIndent('  ').convert({
+      'schemaVersion': _schemaVersion,
+      'quizzes': [
+        ...quizzes.map((quiz) => quiz.toJson()),
+        ...newer.map((entry) => entry.json),
+      ],
+      'defaultQuizIds': defaultIds.toList(),
+    }),
+  );
 }
 
 /// Keeps quizzes in memory for tests and ephemeral previews.
@@ -160,6 +208,9 @@ final class InMemoryQuizRepository implements QuizRepository {
 
   @override
   Future<List<Quiz>> loadAll() async => List.unmodifiable(_quizzes);
+
+  @override
+  Future<int?> newerSchemaVersion() async => null;
 
   @override
   Future<void> save(Quiz quiz) async {
@@ -191,6 +242,19 @@ final class InMemoryQuizRepository implements QuizRepository {
   }
 }
 
+String? _idOf(Object? json) => switch (json) {
+  {'id': final String id} => id,
+  _ => null,
+};
+
+typedef _NewerQuiz = ({int version, Object? json});
+
+typedef _Library = ({
+  List<Quiz> quizzes,
+  Set<String> defaultIds,
+  List<_NewerQuiz> newer,
+});
+
 Set<String> _legacyDefaultIds(Iterable<Quiz> quizzes) => {
   for (final quiz in quizzes)
     if (const {
@@ -205,12 +269,13 @@ Set<String> _legacyDefaultIds(Iterable<Quiz> quizzes) => {
 ({List<Quiz> quizzes, Set<String> defaultIds}) _recreateExamples(
   List<Quiz> quizzes,
   Set<String> defaultIds,
-  DateTime timestamp,
-) {
+  DateTime timestamp, {
+  Set<String> reservedIds = const {},
+}) {
   final retained = quizzes
       .where((quiz) => !defaultIds.contains(quiz.id))
       .toList();
-  final usedIds = retained.map((quiz) => quiz.id).toSet();
+  final usedIds = {...retained.map((quiz) => quiz.id), ...reservedIds};
   final examples = <Quiz>[];
   for (final example in createSampleQuizzes(timestamp)) {
     var id = example.id;
