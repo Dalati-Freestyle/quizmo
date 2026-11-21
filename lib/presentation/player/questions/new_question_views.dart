@@ -7,16 +7,53 @@ import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
 
+/// Submit button that stays coloured once the answer was sent, so the
+/// player keeps seeing that the press counted.
+class AnswerSubmitButton extends StatelessWidget {
+  const AnswerSubmitButton({
+    required this.label,
+    required this.sent,
+    required this.onPressed,
+    super.key,
+  });
+
+  final String label;
+  final bool sent;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (!sent) {
+      return FilledButton(onPressed: onPressed, child: Text(label));
+    }
+    return FilledButton.icon(
+      key: const ValueKey('answer-sent'),
+      onPressed: null,
+      style: FilledButton.styleFrom(
+        disabledBackgroundColor: scheme.tertiary,
+        disabledForegroundColor: scheme.onTertiary,
+      ),
+      icon: const Icon(Icons.check_circle),
+      label: Text(context.tr('Gesendet')),
+    );
+  }
+}
+
 class ShortAnswerQuestionView extends StatefulWidget {
   const ShortAnswerQuestionView({
     required this.question,
     required this.enabled,
     required this.onSubmit,
+    this.submitted = false,
     super.key,
   });
   final ShortAnswerQuestion question;
   final bool enabled;
   final ValueChanged<String> onSubmit;
+
+  /// Whether this player's answer was sent in the running round.
+  final bool submitted;
   @override
   State<ShortAnswerQuestionView> createState() =>
       _ShortAnswerQuestionViewState();
@@ -43,11 +80,12 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
         onSubmitted: (_) => submit(),
       ),
       const SizedBox(height: 16),
-      FilledButton(
+      AnswerSubmitButton(
+        sent: widget.submitted,
         onPressed: widget.enabled && controller.text.trim().isNotEmpty
             ? submit
             : null,
-        child: Text(context.tr("Antwort senden")),
+        label: context.tr("Antwort senden"),
       ),
     ],
   );
@@ -63,11 +101,13 @@ class OrderingQuestionView extends StatefulWidget {
     required this.question,
     required this.enabled,
     required this.onSubmit,
+    this.submitted = false,
     super.key,
   });
   final OrderingQuestion question;
   final bool enabled;
   final ValueChanged<List<String>> onSubmit;
+  final bool submitted;
   @override
   State<OrderingQuestionView> createState() => _OrderingQuestionViewState();
 }
@@ -114,11 +154,12 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
           ),
         ),
       const SizedBox(height: 16),
-      FilledButton(
+      AnswerSubmitButton(
+        sent: widget.submitted,
         onPressed: widget.enabled
             ? () => widget.onSubmit(items.map((i) => i.id).toList())
             : null,
-        child: Text(context.tr("Reihenfolge senden")),
+        label: context.tr("Reihenfolge senden"),
       ),
     ],
   );
@@ -129,11 +170,13 @@ class MatchingQuestionView extends StatefulWidget {
     required this.question,
     required this.enabled,
     required this.onSubmit,
+    this.submitted = false,
     super.key,
   });
   final MatchingQuestion question;
   final bool enabled;
   final ValueChanged<Map<String, String>> onSubmit;
+  final bool submitted;
   @override
   State<MatchingQuestionView> createState() => _MatchingQuestionViewState();
 }
@@ -238,14 +281,15 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
               ),
             ),
           const SizedBox(height: 16),
-          FilledButton(
+          AnswerSubmitButton(
+            sent: widget.submitted,
             onPressed:
                 widget.enabled &&
                     pairs.length == widget.question.leftItems.length &&
                     pairs.values.toSet().length == pairs.length
                 ? () => widget.onSubmit({...pairs})
                 : null,
-            child: Text(context.tr("Zuordnung senden")),
+            label: context.tr("Zuordnung senden"),
           ),
         ],
       );
@@ -258,11 +302,13 @@ class EstimationQuestionView extends StatefulWidget {
     required this.question,
     required this.enabled,
     required this.onSubmit,
+    this.submitted = false,
     super.key,
   });
   final EstimationQuestion question;
   final bool enabled;
   final ValueChanged<double> onSubmit;
+  final bool submitted;
   @override
   State<EstimationQuestionView> createState() => _EstimationQuestionViewState();
 }
@@ -291,41 +337,81 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
         onChanged: (v) => setState(() => text = v),
       ),
       const SizedBox(height: 16),
-      FilledButton(
+      AnswerSubmitButton(
+        sent: widget.submitted,
         onPressed: widget.enabled && value != null
             ? () => widget.onSubmit(value!)
             : null,
-        child: Text(context.tr("Schätzung senden")),
+        label: context.tr("Schätzung senden"),
       ),
     ],
   );
 }
 
-class TrueFalseQuestionView extends StatelessWidget {
+class TrueFalseQuestionView extends StatefulWidget {
   const TrueFalseQuestionView({
     required this.question,
     required this.enabled,
     required this.onSubmit,
+    this.submitted = false,
+    this.chosen,
     super.key,
   });
   final TrueFalseQuestion question;
   final bool enabled;
   final ValueChanged<bool> onSubmit;
+  final bool submitted;
+
+  /// The answer of this player from the snapshot, when it is known.
+  final bool? chosen;
+
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 16,
-    runSpacing: 16,
-    children: [
-      FilledButton.icon(
-        onPressed: enabled ? () => onSubmit(true) : null,
-        icon: const Icon(Icons.check),
-        label: Text(context.tr("Wahr")),
-      ),
-      FilledButton.icon(
-        onPressed: enabled ? () => onSubmit(false) : null,
-        icon: const Icon(Icons.close),
-        label: Text(context.tr("Falsch")),
-      ),
-    ],
-  );
+  State<TrueFalseQuestionView> createState() => _TrueFalseQuestionViewState();
+}
+
+class _TrueFalseQuestionViewState extends State<TrueFalseQuestionView> {
+  bool? _pressed;
+
+  @override
+  void didUpdateWidget(TrueFalseQuestionView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A rejected answer unlocks the buttons again: forget the old press.
+    if (oldWidget.submitted && !widget.submitted) _pressed = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final chosen = widget.chosen ?? (widget.submitted ? _pressed : null);
+    Widget option(bool value, IconData icon, String label) {
+      final selected = chosen == value;
+      return FilledButton.icon(
+        key: ValueKey('true-false-$value'),
+        onPressed: widget.enabled && chosen == null
+            ? () {
+                setState(() => _pressed = value);
+                widget.onSubmit(value);
+              }
+            : null,
+        style: selected
+            ? FilledButton.styleFrom(
+                disabledBackgroundColor: scheme.tertiary,
+                disabledForegroundColor: scheme.onTertiary,
+                side: BorderSide(color: scheme.onTertiaryContainer, width: 2),
+              )
+            : null,
+        icon: Icon(selected ? Icons.check_circle : icon),
+        label: Text(context.tr(label)),
+      );
+    }
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: [
+        option(true, Icons.check, "Wahr"),
+        option(false, Icons.close, "Falsch"),
+      ],
+    );
+  }
 }

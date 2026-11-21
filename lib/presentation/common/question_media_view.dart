@@ -343,31 +343,36 @@ class _ReadyMediaView extends QuestionMediaView {
           TextButton.icon(
             icon: const Icon(Icons.zoom_in),
             label: Text(context.tr('Vergrößern')),
+            // Uses (almost) the whole screen: on a phone every pixel counts
+            // for reading details of the picture.
             onPressed: () => showDialog<void>(
               context: context,
-              builder: (context) => Dialog(
-                child: SizedBox(
-                  width: 1000,
-                  height: 650,
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: InteractiveViewer(
-                          minScale: .5,
-                          maxScale: 8,
-                          child: picture(),
-                        ),
+              barrierColor: Colors.black87,
+              useSafeArea: false,
+              builder: (context) => Dialog.fullscreen(
+                key: const ValueKey('media-zoom-dialog'),
+                backgroundColor: Colors.black,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: InteractiveViewer(
+                        minScale: .5,
+                        maxScale: 8,
+                        child: picture(),
                       ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: IconButton(
+                    ),
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: SafeArea(
+                        child: IconButton.filledTonal(
+                          tooltip: context.tr('Schließen'),
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(Icons.close),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -830,6 +835,11 @@ class _YoutubeViewState extends State<_YoutubeView> {
   }
 
   YoutubePlayerController? controller;
+  StreamSubscription<YoutubePlayerValue>? _errors;
+
+  /// Latched: the package clears `error` on the next state change, and YouTube
+  /// follows an error with "unstarted", which would hide the reason again.
+  YoutubeError _error = YoutubeError.none;
   bool get _openInBrowser =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
@@ -839,7 +849,7 @@ class _YoutubeViewState extends State<_YoutubeView> {
   void initState() {
     super.initState();
     if (_openInBrowser) return;
-    controller = YoutubePlayerController.fromVideoId(
+    final player = controller = YoutubePlayerController.fromVideoId(
       videoId: widget.id,
       autoPlay: widget.playing == true,
       params: YoutubePlayerParams(
@@ -847,22 +857,28 @@ class _YoutubeViewState extends State<_YoutubeView> {
         showFullscreenButton: true,
       ),
     );
+    _errors = player.stream.listen((value) {
+      if (value.hasError && value.error != _error && mounted) {
+        setState(() => _error = value.error);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _errors?.cancel();
     controller?.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => _openInBrowser
-      ? TextButton.icon(
-          onPressed: () => launchUrl(
-            Uri.https('www.youtube.com', '/watch', {'v': widget.id}),
-          ),
-          icon: const Icon(Icons.open_in_new),
-          label: Text(context.tr("YouTube-Video öffnen")),
+      ? YoutubeOpenButton(id: widget.id)
+      : _error != YoutubeError.none
+      ? YoutubeUnavailableView(
+          id: widget.id,
+          error: _error,
+          hideDetails: widget.hideDetails,
         )
       : Center(
           child: ConstrainedBox(
@@ -873,4 +889,77 @@ class _YoutubeViewState extends State<_YoutubeView> {
             ),
           ),
         );
+}
+
+/// Opens the video on youtube.com (desktop hosts and refused embeds).
+class YoutubeOpenButton extends StatelessWidget {
+  const YoutubeOpenButton({required this.id, super.key});
+  final String id;
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+    onPressed: () =>
+        launchUrl(Uri.https('www.youtube.com', '/watch', {'v': id})),
+    icon: const Icon(Icons.open_in_new),
+    label: Text(context.tr("YouTube-Video öffnen")),
+  );
+}
+
+/// Replaces the player when YouTube refuses the video, instead of leaving an
+/// empty box (the player's loading layer covers YouTube's own message).
+@visibleForTesting
+class YoutubeUnavailableView extends StatelessWidget {
+  const YoutubeUnavailableView({
+    required this.id,
+    required this.error,
+    this.hideDetails = false,
+    super.key,
+  });
+  final String id;
+  final YoutubeError error;
+
+  /// Opening youtube.com would reveal the hidden title, so no link then.
+  final bool hideDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final (message, canOpen) = switch (error) {
+      YoutubeError.notEmbeddable ||
+      YoutubeError.sameAsNotEmbeddable ||
+      YoutubeError.sameAsNotEmbeddable2 => (
+        context.tr(
+          "Dieses YouTube-Video darf nicht eingebettet werden. Der Besitzer "
+          "erlaubt das Abspielen nur auf YouTube.",
+        ),
+        true,
+      ),
+      YoutubeError.videoNotFound || YoutubeError.cannotFindVideo => (
+        context.tr("YouTube-Video nicht gefunden (entfernt oder privat)."),
+        false,
+      ),
+      YoutubeError.none ||
+      YoutubeError.invalidParam ||
+      YoutubeError.html5Error ||
+      YoutubeError.unknown => (
+        context.tr("YouTube-Video kann nicht abgespielt werden."),
+        true,
+      ),
+    };
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.videocam_off_outlined, size: 48),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22),
+          ),
+          if (canOpen && !hideDetails) YoutubeOpenButton(id: id),
+        ],
+      ),
+    );
+  }
 }

@@ -895,6 +895,7 @@ class _JeopardyBoardStage extends StatelessWidget {
             board: jeopardy.board,
             completedQuestionIds: game.completedQuestionIds,
             winners: game.questionWinners,
+            pendingQuestionId: jeopardy.pendingPickQuestionId,
             style: JeopardyBoardStyle.tv,
           ),
         ),
@@ -1436,6 +1437,11 @@ class _QuestionStage extends StatelessWidget {
                     ),
                   if (boardCategory ?? question.category case final category?)
                     _Pill(label: category, color: scheme.tertiaryContainer),
+                  if (round.verbal && !isRevealed)
+                    _Pill(
+                      label: context.tr("MÜNDLICH ANTWORTEN"),
+                      color: scheme.secondaryContainer,
+                    ),
                   if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
                     _Pill(
                       label: context.tr("{0} pts", [jeopardy.activePoints]),
@@ -1519,6 +1525,15 @@ class _QuestionStage extends StatelessWidget {
               : null,
         ),
         const SizedBox(height: 28),
+        if (!isRevealed && game.onTurnAnswers.isNotEmpty) ...[
+          _OnTurnAnswerBanner(
+            game: game,
+            question: question,
+            name: pickerName,
+            color: Color(picker?.colorValue ?? 0xff1565c0),
+          ),
+          const SizedBox(height: 20),
+        ],
         Expanded(
           // Exhaustive over the sealed hierarchy: a new question type does not
           // compile until the TV knows how to render it.
@@ -1564,7 +1579,11 @@ class _QuestionStage extends StatelessWidget {
                   // it shows the answers by rarity like every other kind.
                   MultipleChoiceQuestion()
                       when !(isRevealed && round.snowflake != null) =>
-                    _ChoiceBoard(question: current, game: game),
+                    _ChoiceBoard(
+                      question: current,
+                      game: game,
+                      chosenColor: Color(picker?.colorValue ?? 0xff1565c0),
+                    ),
                   MultipleChoiceQuestion() ||
                   ShortAnswerQuestion() ||
                   OrderingQuestion() ||
@@ -1713,10 +1732,17 @@ class _CountdownBarState extends State<_CountdownBar> {
 // ------------------------------------------------------- multiple choice ---
 
 class _ChoiceBoard extends StatelessWidget {
-  const _ChoiceBoard({required this.question, required this.game});
+  const _ChoiceBoard({
+    required this.question,
+    required this.game,
+    required this.chosenColor,
+  });
 
   final MultipleChoiceQuestion question;
   final GameState game;
+
+  /// Colour of the team whose pick is shown on the options.
+  final Color chosenColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1733,9 +1759,16 @@ class _ChoiceBoard extends StatelessWidget {
       }
     }
 
+    // The pick of the participant on turn is public right away.
+    final chosen = {
+      for (final answer in game.onTurnAnswers.whereType<MultipleChoiceAnswer>())
+        ...answer.selectedOptionIds,
+    };
+
     Widget tile(int index) => _ChoiceTile(
       letter: String.fromCharCode(0x41 + index),
       label: options[index].label,
+      chosenColor: chosen.contains(options[index].id) ? chosenColor : null,
       // Per-option counts would let late players copy the crowd, so they are
       // only shown once the solution is public.
       votes: isRevealed ? tally[options[index].id] ?? 0 : null,
@@ -1791,18 +1824,91 @@ class _ChoiceBoard extends StatelessWidget {
 
 enum _ChoiceVerdict { neutral, correct, wrong }
 
+/// "Team X chose: …" while the round is open, so the room can follow the
+/// participant on turn.
+class _OnTurnAnswerBanner extends StatelessWidget {
+  const _OnTurnAnswerBanner({
+    required this.game,
+    required this.question,
+    required this.name,
+    required this.color,
+  });
+
+  final GameState game;
+  final Question question;
+  final String? name;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final answers = game.onTurnAnswers;
+    final current = question;
+    final label = current is MultipleChoiceQuestion
+        ? _optionLetters(current, answers)
+        : [
+            for (final answer in answers)
+              answerLabel(answer, current, context: context),
+          ].join(' / ');
+    return Container(
+      key: const ValueKey('tv-on-turn-answer'),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color, width: 4),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.touch_app, size: 52, color: color),
+          const SizedBox(width: 24),
+          Expanded(
+            child: Text(
+              context.tr('{0} hat gewählt: {1}', [
+                name ?? context.tr('Der Teilnehmer'),
+                label,
+              ]),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontSize: 40,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _optionLetters(
+    MultipleChoiceQuestion question,
+    List<AnswerSubmission> answers,
+  ) => [
+    for (final answer in answers.whereType<MultipleChoiceAnswer>())
+      for (final id in answer.selectedOptionIds)
+        if (question.options.indexWhere((o) => o.id == id) case final i
+            when i >= 0)
+          '${String.fromCharCode(0x41 + i)} · ${question.options[i].label}',
+  ].join(', ');
+}
+
 class _ChoiceTile extends StatelessWidget {
   const _ChoiceTile({
     required this.letter,
     required this.label,
     required this.verdict,
     this.votes,
+    this.chosenColor,
   });
 
   final String letter;
   final String label;
   final _ChoiceVerdict verdict;
   final int? votes;
+
+  /// Set when the participant on turn picked this option.
+  final Color? chosenColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1830,11 +1936,15 @@ class _ChoiceTile extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.symmetric(horizontal: 32),
       decoration: BoxDecoration(
-        color: background,
+        color: chosenColor != null && verdict == _ChoiceVerdict.neutral
+            ? chosenColor!.withValues(alpha: 0.35)
+            : background,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: border,
-          width: verdict == _ChoiceVerdict.correct ? 6 : 2,
+          color: chosenColor ?? border,
+          width: verdict == _ChoiceVerdict.correct || chosenColor != null
+              ? 6
+              : 2,
         ),
       ),
       child: Row(
@@ -1870,6 +1980,11 @@ class _ChoiceTile extends StatelessWidget {
               ),
             ),
           ),
+          if (chosenColor != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Icon(Icons.touch_app, size: 56, color: chosenColor),
+            ),
           if (votes case final count?)
             Text(
               '×$count',

@@ -75,6 +75,8 @@ Map<DashboardSection, Widget> buildGameSections(
       ),
       onJudgeAnswer: engine.add,
       onJudgeBuzzer: engine.add,
+      onSetVerbalAnswers: (enabled) =>
+          engine.add(SetVerbalAnswersEvent(enabled)),
       onReveal: () => engine.add(const RevealRoundEvent()),
       onLock: () => engine.add(const LockBuzzerEvent()),
       onReopenBuzzer: () => engine.add(const ReopenBuzzerEvent()),

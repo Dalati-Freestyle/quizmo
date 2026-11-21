@@ -56,11 +56,13 @@ final class RoundState extends Equatable {
     this.acceptedElapsedMicros = const {},
     this.snowflake,
     this.hiddenAnswerCount = 0,
+    this.verbal = false,
   });
 
   /// Restores a round from [json].
   factory RoundState.fromJson(JsonMap json) => RoundState(
     hiddenAnswerCount: json.readIntOrNull('hiddenAnswerCount') ?? 0,
+    verbal: json.readBool('verbal', orElse: false),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -144,6 +146,20 @@ final class RoundState extends Equatable {
   /// (poker and snowflake rounds); `0` on the host.
   final int hiddenAnswerCount;
 
+  /// Answers are given aloud and judged by the host (verbal answer mode).
+  ///
+  /// Players may still type an answer, but every answer is graded manually
+  /// and the host may also judge players that did not submit anything.
+  final bool verbal;
+
+  /// Whether the host judges the answers of this round instead of the
+  /// question's own evaluation. Buzzer rounds are always judged live.
+  bool get manualGrading {
+    final current = question;
+    if (current == null || current is BuzzerQuestion) return false;
+    return verbal || current.requiresManualGrading;
+  }
+
   /// Number of submitted answers, including withheld ones.
   int get answerCount => answers.length + hiddenAnswerCount;
 
@@ -183,7 +199,7 @@ final class RoundState extends Equatable {
   bool get hasSoftTimer => recoverySoftTimer || question?.softTimeLimit == true;
 
   /// Number of submitted answers still awaiting a host decision.
-  int get pendingGradeCount => question?.requiresManualGrading == true
+  int get pendingGradeCount => manualGrading
       ? answers.keys.where((id) => !answerVerdicts.containsKey(id)).length
       : 0;
 
@@ -198,7 +214,7 @@ final class RoundState extends Equatable {
       }
       return null;
     }
-    return current.requiresManualGrading
+    return manualGrading
         ? answerVerdicts[answer.playerId]?.toDouble()
         : current.accuracy(answer);
   }
@@ -263,8 +279,10 @@ final class RoundState extends Equatable {
     Object? timerRestartedAtHostMicros = _unset,
     Map<String, int>? acceptedElapsedMicros,
     int? hiddenAnswerCount,
+    bool? verbal,
   }) => RoundState(
     snowflake: snowflake,
+    verbal: verbal ?? this.verbal,
     hiddenAnswerCount: hiddenAnswerCount ?? this.hiddenAnswerCount,
     question: identical(question, _unset)
         ? this.question
@@ -313,6 +331,7 @@ final class RoundState extends Equatable {
     // Only written when set: saved games of older versions stay complete.
     if (snowflake != null) 'snowflake': snowflake!.name,
     if (hiddenAnswerCount != 0) 'hiddenAnswerCount': hiddenAnswerCount,
+    if (verbal) 'verbal': true,
   };
 
   @override
@@ -334,5 +353,6 @@ final class RoundState extends Equatable {
     acceptedElapsedMicros,
     snowflake,
     hiddenAnswerCount,
+    verbal,
   ];
 }

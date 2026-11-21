@@ -117,4 +117,38 @@ void main() {
       orderedEquals(bytes),
     );
   });
+
+  testWidgets('YouTube warns that players may have to watch on youtube.com', (
+    tester,
+  ) async {
+    Future<void> pump(List<MediaAttachment> media) => tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [AppLocalizations.delegate],
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: MediaEditor(media: media, onChanged: (_) {}, title: 'Media'),
+          ),
+        ),
+      ),
+    );
+
+    await pump(const []);
+    expect(find.byType(YoutubeEmbedWarning), findsNothing);
+    await tester.tap(find.text('Add attachment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('YouTube link'));
+    // The focused link field blinks its cursor, so the dialog never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(YoutubeEmbedWarning), findsOneWidget);
+    expect(find.textContaining('upload an MP4 instead'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await tester.pumpWidget(const SizedBox()); // fresh editor state
+    await pump(const [VideoAttachment(youtubeId: 'C0ArgVsoSsg')]);
+    expect(find.byType(YoutubeEmbedWarning), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

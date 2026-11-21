@@ -246,6 +246,20 @@ final class JudgeAnswerEvent extends QuizEngineEvent {
   ];
 }
 
+/// Switches the verbal answer mode: players answer aloud and the host
+/// judges every participant, whether or not they typed an answer.
+///
+/// Applies to the round on stage as long as nothing was judged in it yet,
+/// otherwise from the next round on.
+final class SetVerbalAnswersEvent extends QuizEngineEvent {
+  const SetVerbalAnswersEvent(this.enabled);
+
+  final bool enabled;
+
+  @override
+  List<Object?> get props => [enabled];
+}
+
 /// Reason stored by the "no reason" button of the point change dialog.
 const kNoReasonGiven = '🤷';
 

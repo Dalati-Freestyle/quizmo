@@ -2,7 +2,8 @@
 ///
 /// One widget serves three audiences, only the [JeopardyBoardStyle] differs:
 /// the quizmaster (tappable cells, Daily Doubles marked), the players' phones
-/// (read-only, scrolls sideways when the board is wider than the screen) and
+/// (shrinks to the screen width, scrolls sideways only below
+/// [JeopardyBoardStyle.minScale]) and
 /// the TV (read-only, fills the whole stage with large type).
 library;
 
@@ -23,6 +24,7 @@ final class JeopardyBoardStyle {
     this.cellHeight,
     this.minColumnWidth = 0,
     this.radius = 10,
+    this.minScale = 0.6,
   });
 
   /// Phones and the host dashboard.
@@ -64,6 +66,10 @@ final class JeopardyBoardStyle {
 
   /// Corner radius of headers and cells.
   final double radius;
+
+  /// A board wider than the screen is scaled down to fit, text included,
+  /// but not below this factor; beyond it the board scrolls sideways.
+  final double minScale;
 }
 
 /// Renders [board] and marks which cells were already played.
@@ -80,6 +86,7 @@ class JeopardyBoardView extends StatelessWidget {
     this.winners = const {},
     this.showDailyDoubles = false,
     this.highlightQuestionId,
+    this.pendingQuestionId,
     this.style = JeopardyBoardStyle.compact,
     super.key,
   });
@@ -99,6 +106,9 @@ class JeopardyBoardView extends StatelessWidget {
 
   /// Cell to emphasise, for example a Daily Double waiting for its wager.
   final String? highlightQuestionId;
+
+  /// Cell a player picked that waits for the host's confirmation.
+  final String? pendingQuestionId;
 
   /// Sizing.
   final JeopardyBoardStyle style;
@@ -124,13 +134,34 @@ class JeopardyBoardView extends StatelessWidget {
 
     if (style.cellHeight == null) return grid;
 
+    final height =
+        style.headerHeight +
+        board.rowCount * (style.gap + (style.cellHeight ?? 0));
     return LayoutBuilder(
       builder: (context, constraints) {
         final needed = board.categories.length * style.minColumnWidth;
-        if (constraints.maxWidth >= needed) return grid;
+        if (!constraints.hasBoundedWidth || constraints.maxWidth >= needed) {
+          return grid;
+        }
+        // Shrink the whole board (text included) so every column stays on
+        // screen; only a board that would become unreadable scrolls.
+        final scale = (constraints.maxWidth / needed).clamp(
+          style.minScale,
+          1.0,
+        );
+        final scaled = SizedBox(
+          key: const ValueKey('jeopardy-board-scaled'),
+          width: needed * scale,
+          height: height * scale,
+          child: FittedBox(
+            fit: BoxFit.fill,
+            child: SizedBox(width: needed, height: height, child: grid),
+          ),
+        );
+        if (needed * scale <= constraints.maxWidth + 0.5) return scaled;
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: SizedBox(width: needed, child: grid),
+          child: scaled,
         );
       },
     );
@@ -196,6 +227,7 @@ class JeopardyBoardView extends StatelessWidget {
 
     final completed = completedQuestionIds.contains(id);
     final isHighlighted = id == highlightQuestionId;
+    final isPending = !completed && id == pendingQuestionId;
     final points = row < board.rowPoints.length ? board.rowPoints[row] : 0;
     final label = Text(
       '$points',
@@ -207,6 +239,8 @@ class JeopardyBoardView extends StatelessWidget {
             ? scheme.outline
             : isHighlighted
             ? scheme.onTertiaryContainer
+            : isPending
+            ? scheme.onSecondary
             : scheme.onPrimaryContainer,
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
@@ -217,8 +251,16 @@ class JeopardyBoardView extends StatelessWidget {
           ? scheme.surfaceContainerHighest
           : isHighlighted
           ? scheme.tertiaryContainer
+          : isPending
+          ? scheme.secondary
           : scheme.primaryContainer,
-      borderRadius: shape,
+      shape: isPending
+          ? RoundedRectangleBorder(
+              borderRadius: shape,
+              side: BorderSide(color: scheme.onSecondaryContainer, width: 3),
+            )
+          : null,
+      borderRadius: isPending ? null : shape,
       child: InkWell(
         borderRadius: shape,
         onTap: completed || onSelect == null ? null : () => onSelect!(id),
@@ -242,7 +284,17 @@ class JeopardyBoardView extends StatelessWidget {
                   ),
               ],
             ),
-            if (!completed &&
+            if (isPending)
+              Positioned(
+                top: 2,
+                right: 4,
+                child: Icon(
+                  Icons.hourglass_top,
+                  size: style.pointsFontSize * 0.6,
+                  color: scheme.onSecondary,
+                ),
+              )
+            else if (!completed &&
                 ((showDailyDoubles && cell.isDailyDouble) || isHighlighted))
               Positioned(
                 top: 2,

@@ -131,4 +131,6 @@ String answerLabel(
     ', ',
   ),
   BuzzerPress() => context?.tr("Buzzer") ?? 'Buzzer',
+  VerbalAnswer() =>
+    context?.tr("Mündlich beantwortet") ?? 'Mündlich beantwortet',
 };

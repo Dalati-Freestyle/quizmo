@@ -57,6 +57,7 @@ sealed class AnswerSubmission extends Equatable {
         'matching' => MatchingAnswer.fromJson(json),
         'estimation' => EstimationAnswer.fromJson(json),
         'trueFalse' => TrueFalseAnswer.fromJson(json),
+        VerbalAnswer._kind => VerbalAnswer.fromJson(json),
         final unknown => throw JsonContractException(
           'Unknown submission kind "$unknown".',
         ),
@@ -353,5 +354,47 @@ final class TrueFalseAnswer extends AnswerSubmission {
     clientTimestampMicros,
     clockOffsetMicros,
     value,
+  ];
+}
+
+/// An answer the player gave aloud; the host recorded it while judging.
+///
+/// Only the engine creates it (verbal answer mode, see `RoundState.verbal`):
+/// no question accepts it as a client submission, so a player can never send
+/// one. It carries no content, the host's verdict decides the points.
+final class VerbalAnswer extends AnswerSubmission {
+  const VerbalAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    super.clockOffsetMicros = 0,
+  });
+
+  factory VerbalAnswer.fromJson(JsonMap json) => VerbalAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+  );
+
+  static const String _kind = 'verbal';
+
+  @override
+  VerbalAnswer withPlayerId(String id) => VerbalAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+  );
+
+  @override
+  JsonMap toJson() => baseJson(_kind);
+
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
   ];
 }

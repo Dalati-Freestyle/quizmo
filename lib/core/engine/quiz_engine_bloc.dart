@@ -174,6 +174,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
     on<JudgeAnswerEvent>(_onJudgeAnswer);
+    on<SetVerbalAnswersEvent>(_onSetVerbalAnswers);
     on<CorrectScoreEvent>(_onCorrectScore);
     on<UndoCorrectionEvent>(_onUndoCorrection);
     on<RevealRoundEvent>(_onRevealRound);
@@ -831,8 +832,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   // ---------------------------------------------------------------- round ---
 
   void _onStartRound(StartRoundEvent event, Emitter<QuizEngineState> emit) {
-    if (state.game.round.question?.requiresManualGrading == true &&
-        !state.canStartRound) {
+    if (state.game.round.manualGrading && !state.canStartRound) {
       emit(state.copyWith(notice: 'Finish the current question first.'));
       return;
     }
@@ -868,6 +868,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
             snowflake: game.snowflake,
+            verbal: _verbalFor(game, question),
           ),
         ),
         notice: 'Round started: ${question.prompt}',
@@ -929,7 +930,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
 
     final allAnswered = _everyoneAnswered(updated);
-    if (allAnswered && round.question!.requiresManualGrading) {
+    if (allAnswered && round.manualGrading) {
       updated = updated.copyWith(
         round: updated.round.copyWith(status: RoundStatus.locked),
       );
@@ -941,9 +942,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       ),
     );
-    if (allAnswered &&
-        !round.question!.requiresManualGrading &&
-        !round.hasSoftTimer) {
+    if (allAnswered && !round.manualGrading && !round.hasSoftTimer) {
       add(const RevealRoundEvent());
     }
   }
@@ -951,20 +950,39 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   void _onJudgeAnswer(JudgeAnswerEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
     final round = game.round;
-    if (round.question?.requiresManualGrading != true ||
+    final answered = round.answers.containsKey(event.playerId);
+    if (!round.manualGrading ||
         round.question?.id != event.questionId ||
         round.startedAtHostMicros != event.startedAtHostMicros ||
         (round.status != RoundStatus.acceptingAnswers &&
             round.status != RoundStatus.locked) ||
-        !round.answers.containsKey(event.playerId) ||
+        !(answered || game.mayJudgeVerbally(event.playerId)) ||
         (game.poker?.betting ?? false)) {
       emit(state.copyWith(notice: 'Diese Antwort kann nicht bewertet werden.'));
       return;
     }
     final value = event.wasCorrect ? 1 : 0;
     if (round.answerVerdicts[event.playerId] == value) return;
+    final now = _now();
     final updated = game.copyWith(
       round: round.copyWith(
+        // A verbal verdict without a typed answer records the spoken one.
+        answers: answered
+            ? null
+            : {
+                ...round.answers,
+                event.playerId: VerbalAnswer(
+                  playerId: event.playerId,
+                  questionId: event.questionId,
+                  clientTimestampMicros: now,
+                ),
+              },
+        acceptedElapsedMicros: answered
+            ? null
+            : {
+                ...round.acceptedElapsedMicros,
+                event.playerId: round.timerElapsedAt(now).inMicroseconds,
+              },
         answerVerdicts: {...round.answerVerdicts, event.playerId: value},
       ),
     );
@@ -982,6 +1000,53 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
     );
   }
+
+  void _onSetVerbalAnswers(
+    SetVerbalAnswersEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    if (game.snowflake != null) {
+      emit(
+        state.copyWith(
+          notice: 'Biggest Snowflake vergleicht die Antworten, mündliche Antworten sind nicht möglich.',
+        ),
+      );
+      return;
+    }
+    if (game.verbalAnswers == event.enabled) return;
+    final round = game.round;
+    final question = round.question;
+    // A round that was already judged keeps its rules; the setting then
+    // applies from the next round on.
+    final adjustable =
+        question != null &&
+        question is! BuzzerQuestion &&
+        round.status != RoundStatus.revealed &&
+        round.answerVerdicts.isEmpty &&
+        !round.answers.values.any((answer) => answer is VerbalAnswer);
+    emit(
+      _publish(
+        game.copyWith(
+          verbalAnswers: event.enabled,
+          round: adjustable
+              ? round.copyWith(
+                  verbal: _verbalFor(game, question, enabled: event.enabled),
+                )
+              : null,
+        ),
+        notice: event.enabled
+            ? 'Mündliche Antworten aktiv: du bewertest jede Antwort selbst.'
+            : 'Mündliche Antworten aus.',
+      ),
+    );
+  }
+
+  /// Whether a round of [question] takes its answers aloud.
+  bool _verbalFor(GameState game, Question question, {bool? enabled}) =>
+      (enabled ?? game.verbalAnswers) &&
+      game.snowflake == null &&
+      question is! BuzzerQuestion;
 
   bool _awaitManualGrades(GameState game, Emitter<QuizEngineState> emit) {
     if (game.round.pendingGradeCount == 0) return false;
@@ -1266,8 +1331,21 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       if (original.beforeValue != null) {
         verdicts[original.playerId] = original.beforeValue!;
       }
+      // A spoken answer exists only through its verdict.
+      final dropSpoken =
+          original.beforeValue == null &&
+          game.round.answers[original.playerId] is VerbalAnswer;
       updated = updated.copyWith(
-        round: game.round.copyWith(answerVerdicts: verdicts),
+        round: game.round.copyWith(
+          answerVerdicts: verdicts,
+          answers: dropSpoken
+              ? ({...game.round.answers}..remove(original.playerId))
+              : null,
+          acceptedElapsedMicros: dropSpoken
+              ? ({...game.round.acceptedElapsedMicros}
+                  ..remove(original.playerId))
+              : null,
+        ),
       );
     } else if (original.kind == CorrectionKind.buzzer) {
       _graceTimer?.cancel();
@@ -1888,6 +1966,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             status: RoundStatus.acceptingAnswers,
             startedAtHostMicros: _now(),
             snowflake: game.snowflake,
+            verbal: _verbalFor(game, question),
           ),
           jeopardy: jeopardy.copyWith(
             pendingDailyDoubleId: null,
@@ -1928,6 +2007,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         status: RoundStatus.acceptingAnswers,
         startedAtHostMicros: _now(),
         snowflake: game.snowflake,
+        verbal: game.round.verbal,
       ),
       jeopardy: game.jeopardy!.copyWith(isStealRound: true),
     );
