@@ -35,7 +35,10 @@ void initializeBrowserExitGuard() {
   try {
     final storage = web.window.localStorage;
     // Libraries of older versions stay in localStorage until the first save.
-    final legacy = _legacyLibraryKeys.map(storage.getItem).nonNulls;
+    // JS interop members cannot be torn off; wrap the call in a closure.
+    final legacy = _legacyLibraryKeys
+        .map((key) => storage.getItem(key))
+        .nonNulls;
     _hasQuizzes =
         storage.getItem(_backupFlagKey) == '1' ||
         legacy.any(browserLibraryNeedsBackup);
