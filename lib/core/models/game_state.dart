@@ -9,6 +9,8 @@ import 'jeopardy.dart';
 import 'json.dart';
 import 'manual_correction.dart';
 import 'player.dart';
+import 'info_slide.dart';
+import 'joker.dart';
 import 'poker.dart';
 import 'question.dart';
 import 'round.dart';
@@ -102,6 +104,10 @@ final class GameState extends Equatable {
     this.completedQuestionIds = const {},
     this.jeopardy,
     this.poker,
+    this.jokers,
+    this.slides = const [],
+    this.activeSlide,
+    this.shownSlideIds = const {},
     this.snowflake,
     this.verbalAnswers = false,
     this.hostTimeMicros = 0,
@@ -164,6 +170,20 @@ final class GameState extends Equatable {
       final JsonMap value => PokerState.fromJson(value),
       null => null,
     },
+    jokers: switch (json.readObjectOrNull('jokers')) {
+      final JsonMap value => JokerState.fromJson(value),
+      null => null,
+    },
+    slides: json['slides'] == null
+        ? const []
+        : json.readList('slides', InfoSlide.fromJson),
+    activeSlide: switch (json.readObjectOrNull('activeSlide')) {
+      final JsonMap value => InfoSlide.fromJson(value),
+      null => null,
+    },
+    shownSlideIds: json['shownSlideIds'] == null
+        ? const {}
+        : json.readStringList('shownSlideIds').toSet(),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -244,6 +264,25 @@ final class GameState extends Equatable {
   final JeopardyState? jeopardy;
 
   final PokerState? poker;
+
+  /// Jokers of the session, `null` when the quiz has none. Public: every
+  /// guest may see which jokers are left and who played one.
+  final JokerState? jokers;
+
+  /// Interstitial slides of the quiz (host only, like [questionBank]).
+  final List<InfoSlide> slides;
+
+  /// The slide on the TV and the player devices, `null` when none is shown.
+  /// It is shown while no question is running (or one is revealed).
+  final InfoSlide? activeSlide;
+
+  /// Slides the host already showed.
+  final Set<String> shownSlideIds;
+
+  /// Whether guests see [activeSlide] instead of the round on stage.
+  bool get showsSlide =>
+      activeSlide != null &&
+      (round.question == null || round.status == RoundStatus.revealed);
 
   /// Scoring of a "Biggest Snowflake" session, else `null`. A static rule of
   /// the quiz, so it is the same for the host and the guests.
@@ -441,6 +480,8 @@ final class GameState extends Equatable {
       corrections: const [],
       reportRounds: const [],
       questionBank: const [],
+      slides: const [],
+      activeSlide: activeSlide?.forWire(includeMediaData: includeMediaData),
       totalQuestionCount: questionBank.isEmpty
           ? totalQuestionCount
           : questionBank.length,
@@ -461,10 +502,14 @@ final class GameState extends Equatable {
         status: resultsHidden && round.status == RoundStatus.revealed
             ? RoundStatus.locked
             : round.status,
-        question: question?.forWire(
-          reveal: keepSolution,
-          includeMediaData: includeMediaData,
-        ),
+        // In the category phase of a poker question guests only learn the
+        // category (`PokerState.category`), not the question itself.
+        question: (poker?.questionHidden ?? false)
+            ? null
+            : question?.forWire(
+                reveal: keepSolution,
+                includeMediaData: includeMediaData,
+              ),
         answers: hideAnswers ? const {} : round.answers,
         hiddenAnswerCount: hideAnswers ? round.answers.length : 0,
         acceptedElapsedMicros: hideAnswers
@@ -490,6 +535,10 @@ final class GameState extends Equatable {
     Set<String>? completedQuestionIds,
     Object? jeopardy = _unset,
     Object? poker = _unset,
+    Object? jokers = _unset,
+    List<InfoSlide>? slides,
+    Object? activeSlide = _unset,
+    Set<String>? shownSlideIds,
     Object? hostTimeMicros = _unset,
     bool? tvMediaPaused,
     int? tvMediaRevision,
@@ -523,6 +572,12 @@ final class GameState extends Equatable {
         ? this.jeopardy
         : jeopardy as JeopardyState?,
     poker: identical(poker, _unset) ? this.poker : poker as PokerState?,
+    jokers: identical(jokers, _unset) ? this.jokers : jokers as JokerState?,
+    slides: slides ?? this.slides,
+    activeSlide: identical(activeSlide, _unset)
+        ? this.activeSlide
+        : activeSlide as InfoSlide?,
+    shownSlideIds: shownSlideIds ?? this.shownSlideIds,
     tvMediaPaused: tvMediaPaused ?? this.tvMediaPaused,
     tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
     tvMediaCommandRevision:
@@ -555,6 +610,11 @@ final class GameState extends Equatable {
     'completedQuestionIds': completedQuestionIds.toList(growable: false),
     'jeopardy': jeopardy?.toJson(),
     'poker': poker?.toJson(),
+    if (jokers != null) 'jokers': jokers!.toJson(),
+    if (slides.isNotEmpty)
+      'slides': slides.map((slide) => slide.toJson()).toList(growable: false),
+    if (activeSlide != null) 'activeSlide': activeSlide!.toJson(),
+    if (shownSlideIds.isNotEmpty) 'shownSlideIds': shownSlideIds.toList(),
     // Only written when set: saved games of older versions stay complete.
     if (snowflake != null) 'snowflake': snowflake!.name,
     if (verbalAnswers) 'verbalAnswers': true,
@@ -586,6 +646,10 @@ final class GameState extends Equatable {
     completedQuestionIds,
     jeopardy,
     poker,
+    jokers,
+    slides,
+    activeSlide,
+    shownSlideIds,
     snowflake,
     verbalAnswers,
     hostTimeMicros,

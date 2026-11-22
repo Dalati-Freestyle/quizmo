@@ -48,6 +48,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     GameMode mode = const SoloMode(),
     JeopardyBoard? jeopardyBoard,
     int? pokerStartingChips,
+    int pokerMinStake = 0,
+    int? pokerMaxStake,
+    List<Joker> jokers = const [],
+    List<InfoSlide> slides = const [],
     SnowflakeScoring? snowflakeScoring,
     SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
@@ -81,8 +85,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                      : JeopardyState.start(jeopardyBoard, teams.keys),
                  poker: pokerStartingChips == null
                      ? null
-                     : PokerState.start(pokerStartingChips, teams.keys),
+                     : PokerState.start(
+                         pokerStartingChips,
+                         teams.keys,
+                         minStake: pokerMinStake,
+                         maxStake: pokerMaxStake,
+                       ),
                  snowflake: snowflakeScoring,
+                 jokers: jokers.isEmpty ? null : JokerState(jokers: jokers),
+                 slides: slides,
                  hostTimeMicros: now(),
                  revealMode: revealMode,
                ),
@@ -249,11 +260,66 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (pokerStartingChips != null &&
         (pokerStartingChips < 1 ||
             pokerStartingChips > 1000000 ||
+            pokerMinStake < 0 ||
+            pokerMinStake > pokerStartingChips ||
+            (pokerMaxStake != null &&
+                (pokerMaxStake < 1 || pokerMaxStake < pokerMinStake)) ||
             jeopardyBoard != null)) {
       throw ArgumentError('Invalid poker configuration.');
     }
     on<PlacePokerWagerEvent>(_onPlacePokerWager);
     on<OpenPokerAnswersEvent>(_onOpenPokerAnswers);
+    if (jokers.any(
+      (joker) => switch (joker) {
+        CreditJoker() || ForcedStakeJoker() => pokerStartingChips == null,
+      },
+    )) {
+      throw ArgumentError('Poker jokers need a poker session.');
+    }
+    on<UseJokerEvent>(_onUseJoker);
+    on<ShowSlideEvent>((event, emit) {
+      final game = state.game;
+      final slide = game.slides
+          .where((slide) => slide.id == event.slideId)
+          .firstOrNull;
+      final running =
+          game.round.question != null &&
+          game.round.status != RoundStatus.revealed;
+      if (slide == null || running || game.recoveryPaused) {
+        emit(
+          state.copyWith(
+            notice: 'Zwischenfolien gehen nur zwischen den Fragen.',
+          ),
+        );
+        return;
+      }
+      emit(
+        _publish(
+          game.copyWith(
+            activeSlide: slide,
+            shownSlideIds: {...game.shownSlideIds, slide.id},
+          ),
+        ),
+      );
+    });
+    on<HideSlideEvent>((event, emit) {
+      if (state.game.activeSlide == null) return;
+      emit(_publish(state.game.copyWith(activeSlide: null)));
+    });
+    on<RevealPokerQuestionEvent>((event, emit) {
+      final game = state.game;
+      final poker = game.poker;
+      if (poker == null || !poker.betting || !poker.questionHidden) return;
+      emit(
+        _publish(
+          game.copyWith(
+            poker: poker.copyWith(questionHidden: false, category: null),
+          ),
+          notice: 'Frage aufgedeckt. Jetzt setzen.',
+        ),
+      );
+    });
+    on<RevokeJokerEvent>(_onRevokeJoker);
     on<ResetGameEvent>(_onResetGame);
     on<FinishQuizEvent>((event, emit) {
       var game = state.game;
@@ -762,16 +828,30 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final running =
         game.round.question != null &&
         game.round.status != RoundStatus.revealed;
+    // Jokers of a cancelled question are given back, including their price.
+    var jokers = game.jokers;
+    final refunds = <String, int>{};
+    if (running && jokers != null) {
+      for (final play in jokers.plays) {
+        jokers = jokers!.withoutPlay(play);
+        refunds[play.teamId] = (refunds[play.teamId] ?? 0) + play.paidChips;
+      }
+    }
     return game.copyWith(
       round: running ? RoundState.idle : game.round,
+      jokers: jokers,
       poker: poker == null || game.round.status == RoundStatus.revealed
           ? poker
           : poker.copyWith(
+              questionHidden: false,
+              category: null,
               chips: {
                 for (final entry in poker.chips.entries)
-                  entry.key: poker.settledTeamIds.contains(entry.key)
-                      ? entry.value
-                      : entry.value + (poker.wagers[entry.key] ?? 0),
+                  entry.key:
+                      (poker.settledTeamIds.contains(entry.key)
+                          ? entry.value
+                          : entry.value + (poker.wagers[entry.key] ?? 0)) +
+                      (refunds[entry.key] ?? 0),
               },
               wagers: const {},
               betting: false,
@@ -862,7 +942,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             wagers: const {},
             settledTeamIds: const {},
             betting: true,
+            questionHidden: _announcesCategory(game),
+            category: _announcesCategory(game) ? question.category : null,
           ),
+          jokers: game.jokers?.copyWith(plays: const []),
+          activeSlide: null,
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -1960,7 +2044,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             wagers: const {},
             settledTeamIds: const {},
             betting: true,
+            questionHidden: _announcesCategory(game),
+            category: _announcesCategory(game) ? question.category : null,
           ),
+          jokers: game.jokers?.copyWith(plays: const []),
+          activeSlide: null,
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -2102,7 +2190,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           snowflake: game.snowflake,
           poker: game.poker == null
               ? null
-              : PokerState.start(game.poker!.startingChips, teams.keys),
+              : PokerState.start(
+                  game.poker!.startingChips,
+                  teams.keys,
+                  minStake: game.poker!.minStake,
+                  maxStake: game.poker!.maxStake,
+                ),
+          jokers: game.jokers == null
+              ? null
+              : JokerState(jokers: game.jokers!.jokers),
+          slides: game.slides,
           players: game.players,
           playerOrder: game.playerOrder,
           teams: teams,
@@ -2437,9 +2534,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         teamId == null ||
         !game.teams.containsKey(teamId) ||
         game.round.question?.id != event.questionId ||
-        event.wager < 0 ||
-        event.wager >
-            (poker.chips[teamId] ?? 0) + (poker.wagers[teamId] ?? 0)) {
+        poker.questionHidden ||
+        !poker.allowsStake(event.wager, poker.availableFor(teamId)) ||
+        game.jokers?.playAimedAt(teamId) != null) {
       return;
     }
     emit(
@@ -2466,11 +2563,29 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   ) {
     final game = state.game;
     final poker = game.poker;
-    if (poker == null || !poker.betting || game.round.question == null) return;
+    if (poker == null ||
+        !poker.betting ||
+        poker.questionHidden ||
+        game.round.question == null) {
+      return;
+    }
+    // With a minimum stake nobody may sit out: teams that bet too little (or
+    // nothing) are raised to the minimum, or all-in when they have less.
+    final wagers = {...poker.wagers};
+    final chips = {...poker.chips};
+    for (final teamId in game.teams.keys) {
+      final available = poker.availableFor(teamId);
+      final lowest = poker.lowestStakeFor(available);
+      if ((wagers[teamId] ?? 0) < lowest &&
+          game.jokers?.playAimedAt(teamId) == null) {
+        wagers[teamId] = lowest;
+        chips[teamId] = available - lowest;
+      }
+    }
     emit(
       _publish(
         game.copyWith(
-          poker: poker.copyWith(betting: false),
+          poker: poker.copyWith(betting: false, wagers: wagers, chips: chips),
           round: game.round.copyWith(
             startedAtHostMicros: _now(),
             timerRestartedAtHostMicros: null,
@@ -2481,16 +2596,152 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
   }
 
+  void _onUseJoker(UseJokerEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final jokers = game.jokers;
+    final joker = jokers?.jokerById(event.jokerId);
+    final teamId = event.teamId ?? game.players[event.playerId]?.teamId;
+    void reject(String notice) => emit(state.copyWith(notice: notice));
+    if (jokers == null ||
+        joker == null ||
+        teamId == null ||
+        !game.teams.containsKey(teamId) ||
+        game.recoveryPaused ||
+        game.round.question == null ||
+        game.round.status == RoundStatus.revealed ||
+        (event.questionId != null &&
+            event.questionId != game.round.question!.id) ||
+        (event.roundStartedAt != null &&
+            event.roundStartedAt != game.round.startedAtHostMicros)) {
+      return reject('Dieser Joker kann gerade nicht gespielt werden.');
+    }
+    if (jokers.remainingFor(teamId, joker) < 1) {
+      return reject('Dieser Joker ist für das Team schon verbraucht.');
+    }
+    if (jokers.involves(teamId)) {
+      return reject(
+        'Das Team ist in dieser Frage schon von einem Joker belegt.',
+      );
+    }
+    final target = event.targetTeamId;
+    if (joker.needsTarget &&
+        (target == null ||
+            target == teamId ||
+            !game.teams.containsKey(target) ||
+            jokers.involves(target))) {
+      return reject('Dieses Team kann nicht angegriffen werden.');
+    }
+    final poker = game.poker;
+    // Jokers played before the reveal belong to the category phase, all
+    // others to the betting once the question is known.
+    if (poker != null && poker.questionHidden != joker.beforeReveal) {
+      return reject(
+        joker.beforeReveal
+            ? 'Dieser Joker muss vor dem Aufdecken der Frage gespielt werden.'
+            : 'Dieser Joker geht erst, wenn die Frage aufgedeckt ist.',
+      );
+    }
+    switch (joker) {
+      case CreditJoker():
+        if (poker == null || !poker.betting || poker.availableFor(teamId) < 1) {
+          return reject('Der Kredit-Joker geht nur während der Einsatzphase.');
+        }
+        emit(
+          _publish(
+            game.copyWith(
+              jokers: jokers.withPlay(
+                JokerPlay(jokerId: joker.id, teamId: teamId),
+              ),
+            ),
+            notice: 'Joker gespielt.',
+          ),
+        );
+      case ForcedStakeJoker(:final stake, :final cost):
+        if (poker == null ||
+            !poker.betting ||
+            target == null ||
+            poker.availableFor(target) < 1 ||
+            (poker.chips[teamId] ?? 0) < cost) {
+          return reject(
+            'Der Angriffs-Joker geht nur während der Einsatzphase, gegen ein '
+            'Team mit Chips und wenn der Angreifer ihn bezahlen kann.',
+          );
+        }
+        final available = poker.availableFor(target);
+        final forced = stake < available ? stake : available;
+        emit(
+          _publish(
+            game.copyWith(
+              jokers: jokers.withPlay(
+                JokerPlay(
+                  jokerId: joker.id,
+                  teamId: teamId,
+                  targetTeamId: target,
+                  paidChips: cost,
+                ),
+              ),
+              poker: poker.copyWith(
+                chips: {
+                  ...poker.chips,
+                  teamId: poker.chips[teamId]! - cost,
+                  target: available - forced,
+                },
+                wagers: {...poker.wagers, target: forced},
+              ),
+            ),
+            notice: 'Joker gespielt.',
+          ),
+        );
+    }
+  }
+
+  /// Whether new poker questions start with the category phase: only when
+  /// the quiz has a joker that is played before the reveal.
+  bool _announcesCategory(GameState game) =>
+      game.poker != null &&
+      (game.jokers?.jokers.any((joker) => joker.beforeReveal) ?? false);
+
+  void _onRevokeJoker(RevokeJokerEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final jokers = game.jokers;
+    final play = jokers?.plays
+        .where(
+          (play) =>
+              play.teamId == event.teamId && play.jokerId == event.jokerId,
+        )
+        .firstOrNull;
+    final poker = game.poker;
+    if (jokers == null || play == null || !(poker?.betting ?? true)) return;
+    final chips = {...?poker?.chips};
+    final wagers = {...?poker?.wagers};
+    chips[play.teamId] = (chips[play.teamId] ?? 0) + play.paidChips;
+    if (play.targetTeamId case final target?) {
+      // The forced stake goes back; the target bets again freely.
+      chips[target] = (chips[target] ?? 0) + (wagers.remove(target) ?? 0);
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          jokers: jokers.withoutPlay(play),
+          poker: poker?.copyWith(chips: chips, wagers: wagers),
+        ),
+        notice: 'Joker zurückgenommen.',
+      ),
+    );
+  }
+
   GameState _settlePoker(GameState game, String teamId, bool correct) {
     final poker = game.poker!;
     if (poker.settledTeamIds.contains(teamId)) return game;
-    final payout = pokerChipPayout(
+    final payout = pokerSettlement(
       wager: poker.wagers[teamId] ?? 0,
       isCorrect: correct,
+      covering: game.jokers?.coveringJoker(teamId),
     );
+    final balance = (poker.chips[teamId] ?? 0) + payout;
     return game.copyWith(
       poker: poker.copyWith(
-        chips: {...poker.chips, teamId: (poker.chips[teamId] ?? 0) + payout},
+        chips: {...poker.chips, teamId: balance < 0 ? 0 : balance},
         settledTeamIds: {...poker.settledTeamIds, teamId},
       ),
     );

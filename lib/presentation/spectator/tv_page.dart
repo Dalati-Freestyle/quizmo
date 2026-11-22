@@ -21,6 +21,9 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/info_slide_view.dart';
+import '../common/joker_texts.dart';
+import 'tv_category_stage.dart';
 import '../common/question_media_view.dart';
 import '../common/quizmo_logo.dart';
 import '../common/question_result_view.dart';
@@ -704,6 +707,27 @@ class _MainStage extends StatelessWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
         child: switch ((question, jeopardy)) {
+          _ when game.showsSlide => Center(
+            key: ValueKey('slide-${game.activeSlide!.id}'),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: 1600,
+                child: InfoSlideView(
+                  slide: game.activeSlide!,
+                  large: true,
+                  playing: !game.tvMediaPaused,
+                  playbackRevision: game.tvMediaRevision,
+                  commandRevision: game.tvMediaCommandRevision,
+                  maxVideoHeight: 560,
+                ),
+              ),
+            ),
+          ),
+          _ when game.poker?.questionHidden ?? false => TvCategoryStage(
+            key: ValueKey('category-${game.round.startedAtHostMicros}'),
+            game: game,
+          ),
           (final Question current, _) => _QuestionStage(
             key: ValueKey(current.id),
             game: game,
@@ -1513,6 +1537,18 @@ class _QuestionStage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+        for (final line in jokerPlayLines(context, game).take(4))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              line,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: scheme.tertiary,
+              ),
+            ),
+          ),
         // The slot is always reserved so the answers do not jump when the
         // clock disappears after the reveal.
         SizedBox(

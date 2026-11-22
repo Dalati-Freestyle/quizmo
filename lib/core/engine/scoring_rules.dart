@@ -8,6 +8,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import '../models/joker.dart';
 import '../models/json.dart';
 
 /// The immutable outcome of applying a [ScoringRule] to one submission.
@@ -289,6 +290,29 @@ ScoreDelta evaluateAccuracy(
 // answer returns twice the stake; a miss or no answer returns nothing.
 int pokerChipPayout({required int wager, required bool isCorrect}) =>
     isCorrect ? wager * 2 : 0;
+
+/// Chips a poker team gets back when its answer is settled, given the joker
+/// [covering] it in this question (see `JokerState.coveringJoker`).
+///
+/// The stake has already been deducted, so the result is added to the
+/// balance; a negative result costs chips beyond the stake (the caller keeps
+/// the balance at 0 or above).
+/// * no joker: [pokerChipPayout],
+/// * [CreditJoker]: a miss only costs `maxLoss` chips of the stake,
+/// * [ForcedStakeJoker]: a miss costs `lossFactor` times the stake.
+int pokerSettlement({
+  required int wager,
+  required bool isCorrect,
+  Joker? covering,
+}) {
+  final payout = pokerChipPayout(wager: wager, isCorrect: isCorrect);
+  if (isCorrect) return payout;
+  return switch (covering) {
+    CreditJoker(:final maxLoss) => wager - (maxLoss < wager ? maxLoss : wager),
+    ForcedStakeJoker(:final lossFactor) => -wager * (lossFactor - 1),
+    null => payout,
+  };
+}
 
 /// Shares of the points in a "Biggest Snowflake" round.
 ///

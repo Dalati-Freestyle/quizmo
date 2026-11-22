@@ -610,8 +610,16 @@ class QuestionBankPanel extends StatelessWidget {
     required this.game,
     required this.canStart,
     required this.onStart,
+    this.onShowSlide,
+    this.onHideSlide,
     super.key,
   });
+
+  /// Shows an interstitial slide on the TV and the player devices.
+  final ValueChanged<String>? onShowSlide;
+
+  /// Hides the slide on stage.
+  final VoidCallback? onHideSlide;
 
   /// Current session snapshot.
   final GameState game;
@@ -630,60 +638,148 @@ class QuestionBankPanel extends StatelessWidget {
       icon: Icons.library_books_outlined,
       child: Column(
         children: [
-          for (final question in game.questionBank)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Icon(
-                    switch (question) {
-                      MultipleChoiceQuestion() => Icons.checklist,
-                      BuzzerQuestion() => Icons.bolt,
-                      ShortAnswerQuestion() => Icons.text_fields,
-                      OrderingQuestion() => Icons.sort,
-                      MatchingQuestion() => Icons.compare_arrows,
-                      EstimationQuestion() => Icons.numbers,
-                      TrueFalseQuestion() => Icons.rule,
-                    },
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          question.prompt,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            decoration:
-                                game.completedQuestionIds.contains(question.id)
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        Text(
-                          game.poker == null
-                              ? '${context.tr(question.kindLabel)} · ${context.tr(question.scoringRule.label)}'
-                              : context.tr("{0} · Teameinsatz in Chips", [
-                                  context.tr(question.kindLabel),
-                                ]),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.outline,
-                          ),
-                        ),
-                      ],
+          for (final item in interleaveSlides(
+            game.questionBank,
+            game.slides,
+            (question) => question.id,
+          ))
+            if (item case final InfoSlide slide)
+              SlideControlRow(
+                game: game,
+                slide: slide,
+                onShow: onShowSlide,
+                onHide: onHideSlide,
+              )
+            else if (item case final Question question)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      switch (question) {
+                        MultipleChoiceQuestion() => Icons.checklist,
+                        BuzzerQuestion() => Icons.bolt,
+                        ShortAnswerQuestion() => Icons.text_fields,
+                        OrderingQuestion() => Icons.sort,
+                        MatchingQuestion() => Icons.compare_arrows,
+                        EstimationQuestion() => Icons.numbers,
+                        TrueFalseQuestion() => Icons.rule,
+                      },
+                      size: 16,
+                      color: theme.colorScheme.primary,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: canStart ? () => onStart(question.id) : null,
-                    child: Text(context.tr("Start")),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            question.prompt,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              decoration:
+                                  game.completedQuestionIds.contains(
+                                    question.id,
+                                  )
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                          Text(
+                            game.poker == null
+                                ? '${context.tr(question.kindLabel)} · ${context.tr(question.scoringRule.label)}'
+                                : context.tr("{0} · Teameinsatz in Chips", [
+                                    context.tr(question.kindLabel),
+                                  ]),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: canStart ? () => onStart(question.id) : null,
+                      child: Text(context.tr("Start")),
+                    ),
+                  ],
+                ),
               ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One interstitial slide in the host's list, with show/hide controls.
+class SlideControlRow extends StatelessWidget {
+  /// Creates the row for [slide].
+  const SlideControlRow({
+    required this.game,
+    required this.slide,
+    this.onShow,
+    this.onHide,
+    super.key,
+  });
+
+  final GameState game;
+  final InfoSlide slide;
+  final ValueChanged<String>? onShow;
+  final VoidCallback? onHide;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final active = game.activeSlide?.id == slide.id;
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.slideshow_outlined,
+            size: 16,
+            color: theme.colorScheme.tertiary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  slide.title.trim().isEmpty ? slide.text : slide.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  active
+                      ? context.tr("Zwischenfolie · wird gezeigt")
+                      : game.shownSlideIds.contains(slide.id)
+                      ? context.tr("Zwischenfolie · schon gezeigt")
+                      : context.tr("Zwischenfolie"),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (active)
+            TextButton(onPressed: onHide, child: Text(context.tr("Ausblenden")))
+          else
+            TextButton(
+              onPressed: running || onShow == null
+                  ? null
+                  : () => onShow!(slide.id),
+              child: Text(context.tr("Zeigen")),
             ),
         ],
       ),

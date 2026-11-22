@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **11**
+Quizmo-Schema-Version dieser Anleitung: **12**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -76,7 +76,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 11,              // immer genau 11
+  "schemaVersion": 12,              // immer genau 12
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -84,6 +84,8 @@ Bestätigung, bevor du zur nächsten gehst.
   "questions": [ … ],               // siehe Abschnitt 4
   "teams": [ … ],                   // leer = Solo (bei Poker: Teams entstehen beim Beitritt)
   "format": { … },                  // siehe Abschnitt 3
+  "jokers": [ … ],                  // optional, siehe „Joker“; leer = keine Joker
+  "slides": [ … ],                  // optional, Zwischenfolien, siehe unten
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -107,9 +109,33 @@ Bestätigung, bevor du zur nächsten gehst.
 | --- | --- | --- |
 | Standard | `{"type": "standard", "revealMode": "afterEachQuestion"}` | Fragen der Reihe nach. `revealMode`: `afterEachQuestion` (Lösung nach jeder Frage) oder `atEnd` (alle Lösungen und Punkte erst am Ende). |
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board aus Kategorien (Spalten) × Zeilen. Punkte kommen aus der Zeile, nicht aus der Frage. |
-| Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams setzen vor jeder Frage Chips (1–1.000.000 Startchips). Richtig = doppelter Einsatz zurück, falsch = Einsatz weg. `teams` darf leer sein. |
+| Pokerchips | `{"type": "poker", "startingChips": 100, "minStake": 0, "maxStake": 50}` | Teams setzen vor jeder Frage Chips (1–1.000.000 Startchips). Richtig = doppelter Einsatz zurück, falsch = Einsatz weg. Optional: `minStake` (Mindesteinsatz, Standard 0 = Aussetzen erlaubt; wer weniger Chips hat, geht all-in) und `maxStake` (Höchsteinsatz, weglassen = kein Limit). `teams` darf leer sein. |
 
 | Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | Es gibt **keine richtige Lösung**: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. `scoring`: `winnerOnly` (nur die seltenste Antwort punktet) oder `graded` (der Anteil sinkt mit jeder Stufe häufigerer Antworten, die häufigste bekommt nichts). Details unten. |
+
+**Joker** (`jokers`, optional): Ein Quiz hat nur dann Joker, wenn sie hier
+stehen. Jede Art höchstens einmal; `usesPerTeam` sagt, wie oft jedes Team sie
+spielen darf (1–99). Ein Team kann pro Frage nur von einem Joker betroffen
+sein. Beide Joker gibt es nur im Format Pokerchips und werden in der
+Einsatzphase gespielt:
+
+| Joker | Eintrag | Wirkung |
+| --- | --- | --- |
+| Kredit (defensiv) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | Geht der Einsatz verloren, verliert das Team nur `maxLoss` Chips davon. |
+| 50/50 Chance (Angriff) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Zwingt ein anderes Team, `stake` Chips zu setzen (all-in, wenn es weniger hat). Richtig = übliche Auszahlung, falsch = `lossFactor` × Einsatz weg. Kostet den Angreifer `cost` Chips. |
+
+Ist ein Joker dabei, der **vor dem Aufdecken** gespielt wird (`forcedStake`),
+beginnt jede Poker-Frage mit einer Kategorie-Phase: Spieler und TV sehen nur
+das Feld `category` der Frage, Angriffs-Joker werden gespielt, dann deckt der
+Spielleiter die Frage auf; danach Kredit-Joker und Einsätze, dann Antworten.
+Gib Poker-Fragen deshalb eine aussagekräftige `category`.
+
+**Zwischenfolien** (`slides`, optional): Bildschirme ohne Wertung zwischen den
+Fragen (Pause, Kategorie-Titel, „Das Ergebnis ist unterwegs“), in jedem Format.
+`{"id": "folie-pause", "title": "Trinkpause", "text": "", "media": [],
+"beforeQuestionId": "q3"}` – `beforeQuestionId` ist die ID der Frage, vor der
+die Folie steht, weglassen = nach der letzten Frage. Titel, Text oder ein
+Medium ist Pflicht; `media` wie bei Fragen (höchstens zehn).
 
 **Biggest Snowflake:**
 
@@ -210,7 +236,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 11` steht ganz oben.
+- [ ] `"schemaVersion": 12` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -221,7 +247,8 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
       `matching`; `scoring` ist `winnerOnly` oder `graded`.
 - [ ] Jeopardy: Jede `questionId` existiert, keine Frage doppelt, Zeilenpunkte > 0,
       jede Kategorie hat einen Namen, mindestens zwei Teams.
-- [ ] Poker: `startingChips` zwischen 1 und 1.000.000.
+- [ ] Joker nur im Format Pokerchips, jede Art höchstens einmal.
+- [ ] Poker: `startingChips` zwischen 1 und 1.000.000; `minStake` zwischen 0 und `startingChips`; `maxStake` (falls angegeben) zwischen `minStake` (mindestens 1) und `startingChips`.
 - [ ] Teams haben `id`, `name` und `color` (ein Palettenname aus Abschnitt 2).
 - [ ] Keine Upload-Medien (`asset` mit Daten); nur YouTube, Karte, Code. Eigene
       Bilder, Audio und Videos fügt die Person danach im Quiz-Editor ein.
@@ -236,7 +263,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -398,7 +425,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -468,7 +495,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -495,7 +522,15 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     }
   ],
   "teams": [],
-  "format": {"type": "poker", "startingChips": 100},
+  "format": {"type": "poker", "startingChips": 100, "minStake": 5, "maxStake": 50},
+  "jokers": [
+    {"type": "credit", "usesPerTeam": 1, "maxLoss": 1},
+    {"type": "forcedStake", "usesPerTeam": 1, "stake": 30, "cost": 10, "lossFactor": 2}
+  ],
+  "slides": [
+    {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
+  ],
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -505,7 +540,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

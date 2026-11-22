@@ -107,11 +107,48 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
   );
 
   /// Removes the question identified by [questionId].
-  void removeQuestion(String questionId) => _replaceDraft(
+  ///
+  /// Slides placed before it move on to the question that followed it.
+  void removeQuestion(String questionId) {
+    final questions = state.draft.questions;
+    final index = questions.indexWhere((question) => question.id == questionId);
+    final next = index >= 0 && index + 1 < questions.length
+        ? questions[index + 1].id
+        : null;
+    _replaceDraft(
+      state.draft.copyWith(
+        questions: questions
+            .where((question) => question.id != questionId)
+            .toList(growable: false),
+        slides: [
+          for (final slide in state.draft.slides)
+            slide.beforeQuestionId == questionId
+                ? slide.copyWith(beforeQuestionId: next)
+                : slide,
+        ],
+      ),
+    );
+  }
+
+  /// Adds an interstitial slide or replaces the one with the same id.
+  void saveSlide(InfoSlide slide) {
+    final slides = [...state.draft.slides];
+    final index = slides.indexWhere((existing) => existing.id == slide.id);
+    if (index < 0) {
+      slides.add(slide);
+    } else {
+      slides[index] = slide;
+    }
+    _replaceDraft(state.draft.copyWith(slides: slides));
+  }
+
+  /// Removes the interstitial slide [slideId].
+  void removeSlide(String slideId) => _replaceDraft(
     state.draft.copyWith(
-      questions: state.draft.questions
-          .where((question) => question.id != questionId)
-          .toList(growable: false),
+      slides: [
+        for (final slide in state.draft.slides)
+          if (slide.id != slideId) slide,
+      ],
     ),
   );
 
@@ -166,10 +203,31 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     );
   }
 
-  void usePokerFormat({int startingChips = 100}) {
+  /// Switches to the poker format or changes its settings.
+  ///
+  /// Settings left out keep their current value; [clearMaxStake] removes the
+  /// upper stake limit.
+  void usePokerFormat({
+    int? startingChips,
+    int? minStake,
+    int? maxStake,
+    bool clearMaxStake = false,
+  }) {
     if (_board case final board?) _stashedBoard = board;
+    final current = switch (state.draft.format) {
+      final PokerFormat poker => poker,
+      StandardFormat() ||
+      JeopardyFormat() ||
+      SnowflakeFormat() => const PokerFormat(),
+    };
     _replaceDraft(
-      state.draft.copyWith(format: PokerFormat(startingChips: startingChips)),
+      state.draft.copyWith(
+        format: PokerFormat(
+          startingChips: startingChips ?? current.startingChips,
+          minStake: minStake ?? current.minStake,
+          maxStake: clearMaxStake ? null : maxStake ?? current.maxStake,
+        ),
+      ),
     );
   }
 
@@ -427,8 +485,43 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     }
   }
 
-  void _replaceDraft(Quiz draft) =>
-      emit(state.copyWith(draft: draft, clearError: true));
+  /// Switches a joker on or replaces the configured joker of its kind.
+  void setJoker(Joker joker) {
+    final jokers = [...state.draft.jokers];
+    final index = jokers.indexWhere((existing) => existing.id == joker.id);
+    if (index < 0) {
+      jokers.add(joker);
+    } else {
+      jokers[index] = joker;
+    }
+    _replaceDraft(state.draft.copyWith(jokers: jokers));
+  }
+
+  /// Switches the joker [jokerId] off.
+  void removeJoker(String jokerId) => _replaceDraft(
+    state.draft.copyWith(
+      jokers: [
+        for (final joker in state.draft.jokers)
+          if (joker.id != jokerId) joker,
+      ],
+    ),
+  );
+
+  // Jokers the new format cannot play are dropped, e.g. when switching from
+  // poker to a standard quiz.
+  void _replaceDraft(Quiz draft) => emit(
+    state.copyWith(
+      draft: draft.jokers.every((joker) => joker.isSupportedBy(draft.format))
+          ? draft
+          : draft.copyWith(
+              jokers: [
+                for (final joker in draft.jokers)
+                  if (joker.isSupportedBy(draft.format)) joker,
+              ],
+            ),
+      clearError: true,
+    ),
+  );
 
   static String _errorMessage(Object error) => switch (error) {
     QuizValidationException(:final messages) => messages.join('\n'),

@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **11**
+Quizmo schema version of this guide: **12**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -75,7 +75,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 11,              // always exactly 11
+  "schemaVersion": 12,              // always exactly 12
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -83,6 +83,8 @@ the host). Show each question briefly for confirmation before the next one.
   "questions": [ … ],               // see section 4
   "teams": [ … ],                   // empty = solo (poker: teams are created when joining)
   "format": { … },                  // see section 3
+  "jokers": [ … ],                  // optional, see "Jokers"; empty = no jokers
+  "slides": [ … ],                  // optional, interstitial slides, see below
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -105,9 +107,32 @@ the host). Show each question briefly for confirmation before the next one.
 | --- | --- | --- |
 | Standard | `{"type": "standard", "revealMode": "afterEachQuestion"}` | Questions one after another. `revealMode`: `afterEachQuestion` (solution after every question) or `atEnd` (all solutions and points only at the end). |
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board of categories (columns) × rows. Points come from the row, not from the question. |
-| Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams bet chips before every question (1–1,000,000 starting chips). Correct = twice the stake back, wrong = stake lost. `teams` may be empty. |
+| Pokerchips | `{"type": "poker", "startingChips": 100, "minStake": 0, "maxStake": 50}` | Teams bet chips before every question (1–1,000,000 starting chips). Correct = twice the stake back, wrong = stake lost. Optional: `minStake` (minimum stake, default 0 = sitting out allowed; a team with fewer chips goes all-in) and `maxStake` (maximum stake, omit = no limit). `teams` may be empty. |
 
 | Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | There is **no correct solution**: points go to whoever gives the answer the fewest players chose. `scoring`: `winnerOnly` (only the rarest answer scores) or `graded` (the share drops with every step of more common answers, the most common one earns nothing). Details below. |
+
+**Jokers** (`jokers`, optional): a quiz only has jokers if they are listed
+here. Each kind at most once; `usesPerTeam` says how often every team may play
+it (1–99). A team can be covered by only one joker per question. Both jokers
+exist in the Pokerchips format only and are played while betting:
+
+| Joker | Entry | Effect |
+| --- | --- | --- |
+| Credit (defensive) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | If the stake is lost, the team only loses `maxLoss` chips of it. |
+| 50/50 chance (attack) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Forces another team to bet `stake` chips (all-in if it has fewer). Correct = the usual payout, wrong = `lossFactor` × the stake lost. Costs the attacker `cost` chips. |
+
+With a joker that is played **before the reveal** (`forcedStake`), every poker
+question starts with a category phase: players and TV only see the question's
+`category`, attack jokers are played, then the host reveals the question;
+afterwards credit jokers and stakes, then answers. So give poker questions a
+meaningful `category`.
+
+**Interstitial slides** (`slides`, optional): unscored screens between the
+questions (a break, a category title, "the results are coming"), in every
+format. `{"id": "slide-break", "title": "Drinks break", "text": "", "media": [],
+"beforeQuestionId": "q3"}` – `beforeQuestionId` is the ID of the question the
+slide comes before, omit it = after the last question. A title, a text or a
+medium is required; `media` as for questions (at most ten).
 
 **Biggest Snowflake:**
 
@@ -209,7 +234,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 11` is at the very top.
+- [ ] `"schemaVersion": 12` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -220,7 +245,8 @@ attachments per question (question and solution together).
       `matching`; `scoring` is `winnerOnly` or `graded`.
 - [ ] Jeopardy: every `questionId` exists, no question twice, row points > 0,
       every category has a name, at least two teams.
-- [ ] Poker: `startingChips` between 1 and 1,000,000.
+- [ ] Jokers only in the Pokerchips format, each kind at most once.
+- [ ] Poker: `startingChips` between 1 and 1,000,000; `minStake` between 0 and `startingChips`; `maxStake` (if given) between `minStake` (at least 1) and `startingChips`.
 - [ ] Teams have `id`, `name` and `color` (a palette name from section 2).
 - [ ] No uploaded media (`asset` with data); only YouTube, map, code. The
       person adds their own images, audio and videos afterwards in the quiz
@@ -235,7 +261,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -397,7 +423,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -467,7 +493,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -494,7 +520,15 @@ The following files are valid and import unchanged.
     }
   ],
   "teams": [],
-  "format": {"type": "poker", "startingChips": 100},
+  "format": {"type": "poker", "startingChips": 100, "minStake": 5, "maxStake": 50},
+  "jokers": [
+    {"type": "credit", "usesPerTeam": 1, "maxLoss": 1},
+    {"type": "forcedStake", "usesPerTeam": 1, "stake": 30, "cost": 10, "lossFactor": 2}
+  ],
+  "slides": [
+    {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
+  ],
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -504,7 +538,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

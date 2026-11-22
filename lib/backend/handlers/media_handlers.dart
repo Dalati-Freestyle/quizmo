@@ -34,6 +34,7 @@ Response serveMedia(
   final round = game.round;
   final question = round.question;
   final media = [
+    ...?game.activeSlide?.media,
     if (question != null) ...[
       ...question.media,
       if (round.status == RoundStatus.revealed && !game.resultsHidden)

@@ -46,7 +46,11 @@ sealed class QuizFormat extends Equatable {
         json.readStringOrNull('revealMode') ?? 'afterEachQuestion',
       ),
     ),
-    'poker' => PokerFormat(startingChips: json.readInt('startingChips')),
+    PokerFormat._type => PokerFormat(
+      startingChips: json.readInt('startingChips'),
+      minStake: json.readIntOrNull('minStake') ?? 0,
+      maxStake: json.readIntOrNull('maxStake'),
+    ),
     JeopardyFormat._type => JeopardyFormat(
       JeopardyBoard.fromJson(json.readObject('board')),
     ),
@@ -101,15 +105,40 @@ final class JeopardyFormat extends QuizFormat {
   List<Object?> get props => [board];
 }
 
+/// Every team bets chips on each question; a correct answer doubles them.
 final class PokerFormat extends QuizFormat {
-  const PokerFormat({this.startingChips = 100});
+  /// Creates the poker format.
+  const PokerFormat({
+    this.startingChips = 100,
+    this.minStake = 0,
+    this.maxStake,
+  });
+
+  static const String _type = 'poker';
+
+  /// Chips every team starts with.
   final int startingChips;
+
+  /// Smallest stake per question (schema 12). 0 lets teams sit out; a team
+  /// with fewer chips than this has to go all-in.
+  final int minStake;
+
+  /// Largest stake per question (schema 12), `null` for no limit.
+  final int? maxStake;
+
   @override
   String get label => 'Pokerchips';
+
   @override
-  JsonMap toJson() => {'type': 'poker', 'startingChips': startingChips};
+  JsonMap toJson() => {
+    'type': _type,
+    'startingChips': startingChips,
+    'minStake': minStake,
+    if (maxStake != null) 'maxStake': maxStake,
+  };
+
   @override
-  List<Object?> get props => [startingChips];
+  List<Object?> get props => [startingChips, minStake, maxStake];
 }
 
 /// "Biggest Snowflake": no answer is stored as correct; the rarest answer of

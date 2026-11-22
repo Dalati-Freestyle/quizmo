@@ -75,6 +75,16 @@ class HostDashboardPage extends StatelessWidget {
               PokerFormat(:final startingChips) => startingChips,
               StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
             },
+            pokerMinStake: switch (quiz.format) {
+              PokerFormat(:final minStake) => minStake,
+              StandardFormat() || JeopardyFormat() || SnowflakeFormat() => 0,
+            },
+            jokers: quiz.jokers,
+            slides: quiz.slides,
+            pokerMaxStake: switch (quiz.format) {
+              PokerFormat(:final maxStake) => maxStake,
+              StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
+            },
             jeopardyBoard: switch (quiz.format) {
               JeopardyFormat(:final board) => board,
               StandardFormat() || PokerFormat() || SnowflakeFormat() => null,

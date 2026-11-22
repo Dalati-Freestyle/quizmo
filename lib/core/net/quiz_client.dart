@@ -351,6 +351,21 @@ class QuizClient {
   void placeDailyDoubleWager(String questionId, int wager) =>
       _send(DailyDoubleWagerMessage(questionId: questionId, wager: wager));
 
+  void useJoker({
+    required int roundStartedAt,
+    required String jokerId,
+    String? targetTeamId,
+  }) {
+    if (_playerId == null) return;
+    _send(
+      UseJokerMessage(
+        roundStartedAt: roundStartedAt,
+        jokerId: jokerId,
+        targetTeamId: targetTeamId,
+      ),
+    );
+  }
+
   void placePokerWager({required String questionId, required int wager}) {
     if (_playerId == null) return;
     _send(PokerWagerMessage(questionId: questionId, wager: wager));
