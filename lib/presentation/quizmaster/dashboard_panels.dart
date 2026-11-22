@@ -1679,6 +1679,17 @@ class _RoundActionsState extends State<_RoundActions> {
                   icon: const Icon(Icons.groups),
                   label: Text(context.tr("Buzzer für alle freigeben")),
                 ),
+              // After the clock ran out the picking team missed: the others
+              // may still steal. "End round" would skip that.
+              if (passesToOthers &&
+                  round.activePlayerId == null &&
+                  !answeredCorrectly)
+                FilledButton.icon(
+                  key: const ValueKey('pass-to-other-teams'),
+                  onPressed: onReveal,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: Text(context.tr("Close & pass to other teams")),
+                ),
               if (onEndRound != null)
                 OutlinedButton.icon(
                   onPressed: onEndRound,

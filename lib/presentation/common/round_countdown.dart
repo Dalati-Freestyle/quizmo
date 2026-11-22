@@ -42,8 +42,16 @@ class RoundCountdown extends StatefulWidget {
   const RoundCountdown({
     required this.game,
     required this.hostNowMicros,
+    this.floating = false,
     super.key,
   });
+
+  /// Space a floating countdown covers at the top of the content below it.
+  static const floatingHeight = 40.0;
+
+  /// Drawn above scrolling content (with a shadow and no bottom gap), so it
+  /// stays visible wherever the player scrolls.
+  final bool floating;
 
   /// Latest snapshot.
   final GameState game;
@@ -97,13 +105,24 @@ class _RoundCountdownState extends State<RoundCountdown> {
       child: ExcludeSemantics(
         // Keeps the chip off the question below it (also on phones).
         child: Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: widget.floating ? 0 : 12),
           child: Container(
             key: const ValueKey('round-countdown'),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: widget.floating
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+                : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: urgent ? scheme.errorContainer : scheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: widget.floating
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x40000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

@@ -73,6 +73,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * **Everything that hangs on a question belongs on `Question`, not on a format.** Future attachments such as audio, video or images (question *and* solution side) are fields of the `Question` base class, are serialized in `Question.toJson` / `baseJson` and must be redacted in `Question.redacted()` until the reveal. Because they sit on the question, every format gets them for free; do not add per-format media fields.
 * **Formats only override what is format specific.** On a board the points come from the *row* (or the Daily Double wager) and replace the question's own `ScoringRule` (`QuizEngineBloc._ruleFor`); everything else (time limit, solution, buzzer fairness, clock sync) stays the question's business.
 * A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
+* Bulk editing (`QuestionBulkEdit`, editor → "Fragen gemeinsam bearbeiten") only touches the framing of a question (time limit, soft/hard, category, scoring, media details, kind specific options), never its text, answers or solution. A new kind decides in the exhaustive switch of `QuestionBulkEdit.apply` which kind specific options it takes.
 
 ### Adding a New Quiz Format
 1. Add a case to the sealed `QuizFormat` (plus its `fromJson` tag) and increase the quiz `schemaVersion`. A file without a `format` entry stays a standard quiz when imported by the corresponding older-schema importer.

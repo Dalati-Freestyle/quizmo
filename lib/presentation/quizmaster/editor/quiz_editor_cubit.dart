@@ -130,6 +130,20 @@ final class QuizEditorCubit extends Cubit<QuizEditorState> {
     );
   }
 
+  /// Applies [edit] to every question matching [where]; all other settings
+  /// of those questions stay as they are.
+  void bulkEditQuestions(
+    QuestionBulkEdit edit,
+    bool Function(Question question) where,
+  ) => _replaceDraft(
+    state.draft.copyWith(
+      questions: [
+        for (final question in state.draft.questions)
+          where(question) ? edit.apply(question) : question,
+      ],
+    ),
+  );
+
   /// Adds an interstitial slide or replaces the one with the same id.
   void saveSlide(InfoSlide slide) {
     final slides = [...state.draft.slides];

@@ -415,6 +415,13 @@ class _GameBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = state.game;
     final isWide = formFactorOf(context).isWide;
+    final timed =
+        game != null &&
+        remainingAnswerTime(
+              game,
+              context.read<PlayerSessionCubit>().hostNowMicros(),
+            ) !=
+            null;
 
     final stage = LayoutBuilder(
       builder: (context, constraints) => Padding(
@@ -426,23 +433,31 @@ class _GameBoard extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (game != null)
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: RoundCountdown(
-                        game: game,
-                        hostNowMicros: context
-                            .read<PlayerSessionCubit>()
-                            .hostNowMicros,
-                      ),
+            // The countdown floats above the question: on a phone the answers
+            // often need scrolling, and the clock must stay in sight.
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: timed ? RoundCountdown.floatingHeight : 0,
                     ),
-                  _QuestionStage(state: state),
-                ],
-              ),
+                    child: _QuestionStage(state: state),
+                  ),
+                ),
+                if (game != null)
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: RoundCountdown(
+                      game: game,
+                      floating: true,
+                      hostNowMicros: context
+                          .read<PlayerSessionCubit>()
+                          .hostNowMicros,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),

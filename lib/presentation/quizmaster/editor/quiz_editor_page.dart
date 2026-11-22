@@ -13,6 +13,7 @@ import '../../../core/data/quiz_repository.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'jeopardy_board_editor.dart';
+import 'bulk_edit_dialog.dart';
 import 'joker_editor_panel.dart';
 import 'slides_editor_panel.dart';
 import 'question_editor.dart';
@@ -365,6 +366,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
               onEdit: (team) => _editTeam(cubit, team),
               onRemove: cubit.removeTeam,
             ),
+            BulkEditPanel(quiz: state.draft, onApply: cubit.bulkEditQuestions),
             SlidesEditorPanel(
               quiz: state.draft,
               createId: widget.createId,

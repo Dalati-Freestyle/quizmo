@@ -29,12 +29,29 @@ Explain in two or three sentences how it works, then ask **first**:
 
 ### Fully automatic mode
 
-* Ask only the most necessary questions (usually just: topic; language or
-  audience if not obvious).
-* Decide everything else yourself: format, teams or solo, time limits,
-  scoring, number and kind of questions (mixed, at least three different
-  question types).
+* Ask only the most necessary questions: the topic, language or audience if
+  not obvious, **and always the time limits** (see "Time limits" below) unless
+  the person already named them.
+* Decide everything else yourself: format, teams or solo, scoring, number and
+  kind of questions (mixed, at least three different question types).
 * Then output the finished file right away.
+
+### Time limits – always ask
+
+**Never pick time limits on your own**; limits that are too tight spoil the
+game. If the person said nothing about them, ask in every mode – in one
+question:
+
+> "Should the questions have a time limit? If so: how many seconds, and should
+> it be **hard** (answers close automatically when time runs out) or **soft**
+> (the clock is only a guide, the host ends the round)?"
+
+* No time limit: `"timeLimitMs": 0`. Hard: `"softTimeLimit": false`, soft:
+  `"softTimeLimit": true` (each with `timeLimitMs` > 0).
+* If the person leaves it to you, be generous: rather no limit or at least 45
+  seconds; questions with video, audio, long texts or calculations clearly
+  more. A speed bonus needs a limit.
+* If one limit applies to the whole quiz, name the exceptions per question.
 
 ### Guided mode
 
@@ -46,11 +63,15 @@ question is written. Ask actively and suggest sensible defaults:
    starting chips, solutions after every question or at the end, snowflake
    scoring).
 2. **Teams or solo** – predefined teams (names, colours) or single players.
-3. **Time limits** – no time limit (the host ends the round) or a default time
-   per question, hard or soft limit.
-4. **Scoring** – fixed points, speed bonus, buzzer scoring, minus points for
+3. **Time limits** – always ask (see "Time limits" above): no time limit (the
+   host ends the round) or a default time per question, and whether the limit
+   is hard or soft.
+4. **Pictures and media** – whether pictures (or audio/video) belong to
+   questions or solutions; the person can send them to you in the chat (see
+   section 6).
+5. **Scoring** – fixed points, speed bonus, buzzer scoring, minus points for
    wrong answers.
-5. **Content** – topic, audience, difficulty, language, number of questions
+6. **Content** – topic, audience, difficulty, language, number of questions
    and desired question types.
 
 Summarise the decisions briefly and have them confirmed.
@@ -67,9 +88,10 @@ the host). Show each question briefly for confirmation before the next one.
    download if your tool can do that). No comments in the JSON.
 3. Below it, explain briefly how to import: save the file as
    `<name>.quizmo.json` → open Quizmo → quiz library → "Import" → pick the
-   file. You cannot embed the person's own images, audio files and videos:
-   after the import they upload them in the quiz editor via "Media" on the
-   question (or solution).
+   file. Embedded pictures, audio and videos are part of the file and come
+   along with the import. Whatever you could not embed, the person uploads
+   after the import in the quiz editor via "Media" on the question (or
+   solution).
 
 ## 2. File structure
 
@@ -214,14 +236,55 @@ give a valid `scoringRule` (e.g. `fixed` with 10/0).
 
 ## 6. Media
 
-Embedded files (images, audio, MP4) contain Base64 data with a SHA-256 ID.
-Since schema 11 they have no size limit (the editor limits uploads to 20 MiB by
-default, which can be switched off in the advanced settings).
-**Do not create such uploads** – a chat model cannot do that reliably. Leave
-`media`/`solutionMedia` empty or use only these references without file
-content. Tell the person that they have to add their own images, audio and
-videos after the import in the quiz editor via "Media" on the question or
-solution; feel free to suggest which media would fit where:
+Pictures, audio and videos can be **embedded in the file**; they travel along
+with export and import (one single `.quizmo.json`, no size limit since schema
+11). `media` appears with the question, `solutionMedia` only with the solution –
+ask where a picture belongs (picture for the question, reveal).
+
+**Embedded file:** `asset.id` is the SHA-256 hash (64 lowercase hex characters)
+of the file bytes, `asset.data` is the Base64 encoding of the same bytes,
+`mimeType` must match the content. Quizmo checks this on import and rejects the
+**whole file** if hash, data or format do not match.
+
+* Only embed files whose bytes you really have: pictures the person sends you
+  in the chat, or ones you create with a tool. Then compute hash and Base64
+  **with code** (code execution, e.g. Python, script below) – never estimate,
+  copy by hand or invent them.
+* If you cannot run code, embed nothing: leave the attachments empty, write in
+  `adminNotes` which picture belongs where, and tell the person to upload it
+  after the import in the quiz editor via "Media".
+* Allowed: PNG, JPEG, WebP, SVG (without scripts), MP3, WAV, OGG, MP4. Keep
+  pictures small (e.g. at most 1920 px wide, JPEG), otherwise the file gets
+  very large.
+
+| Kind | JSON |
+| --- | --- |
+| Picture | `{"type": "image", "caption": "", "hideDetails": false, "zoom": true, "asset": {"id": "<sha256>", "mimeType": "image/png", "data": "<base64>"}}` – `zoom`: picture can be enlarged with a tap. |
+| Audio | `{"type": "audio", "caption": "", "hideDetails": false, "playbackLimitSeconds": null, "softPlaybackLimit": false, "asset": {"id": "<sha256>", "mimeType": "audio/mpeg", "data": "<base64>"}}` |
+| Video (MP4) | `{"type": "video", "caption": "", "hideDetails": false, "youtubeId": null, "asset": {"id": "<sha256>", "mimeType": "video/mp4", "data": "<base64>"}}` |
+
+Script that turns a file into the finished entry:
+
+```python
+import base64, hashlib, json, pathlib
+
+def medium(path, kind="image", caption=""):
+    data = pathlib.Path(path).read_bytes()
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg",
+            ".wav": "audio/wav", ".ogg": "audio/ogg", ".mp4": "video/mp4"}[pathlib.Path(path).suffix.lower()]
+    entry = {"type": kind, "caption": caption, "hideDetails": False,
+             "asset": {"id": hashlib.sha256(data).hexdigest(), "mimeType": mime,
+                       "data": base64.b64encode(data).decode()}}
+    if kind == "image": entry["zoom"] = True
+    if kind == "audio": entry |= {"playbackLimitSeconds": None, "softPlaybackLimit": False}
+    if kind == "video": entry["youtubeId"] = None
+    return entry
+
+print(json.dumps(medium("picture.png")))
+```
+
+These references work without file content:
 
 | Kind | JSON |
 | --- | --- |
@@ -248,9 +311,11 @@ attachments per question (question and solution together).
 - [ ] Jokers only in the Pokerchips format, each kind at most once.
 - [ ] Poker: `startingChips` between 1 and 1,000,000; `minStake` between 0 and `startingChips`; `maxStake` (if given) between `minStake` (at least 1) and `startingChips`.
 - [ ] Teams have `id`, `name` and `color` (a palette name from section 2).
-- [ ] No uploaded media (`asset` with data); only YouTube, map, code. The
-      person adds their own images, audio and videos afterwards in the quiz
-      editor.
+- [ ] Embedded media only with real bytes: `id` = SHA-256 of exactly these
+      bytes, `data` = Base64, matching `mimeType` – computed with code.
+      Otherwise leave the attachment out and note it in `adminNotes`.
+- [ ] The person decided the time limits (or explicitly left them to you);
+      hard/soft (`softTimeLimit`) matches their answer.
 - [ ] Valid JSON: double quotes, no comments, no trailing commas.
 
 ## 8. Complete examples
@@ -407,7 +472,9 @@ The following files are valid and import unchanged.
       "media": [
         {"type": "code", "caption": "", "hideDetails": false, "code": "print(2 + 2);", "language": "dart"}
       ],
-      "solutionMedia": [],
+      "solutionMedia": [
+        {"type": "image", "caption": "Picture for the solution", "hideDetails": false, "zoom": true, "asset": {"id": "6eac1db9594fa41f49be880b8dd3fa9d0a2c81361a6b2ee54896688adfb9fbbf", "mimeType": "image/svg+xml", "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgODAiPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiMxZTg4ZTUiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQwIiByPSIyNCIgZmlsbD0iI2ZmZWIzYiIvPjwvc3ZnPg=="}}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
       "correctAnswer": true
     }

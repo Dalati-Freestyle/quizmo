@@ -350,9 +350,28 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         _onLockBuzzer(const LockBuzzerEvent(), emit);
         return;
       }
+      final locked = game.copyWith(
+        round: round.copyWith(status: RoundStatus.locked),
+      );
+      // On a board, running out of time is a miss of the picking team: the
+      // other teams may steal right away, as after a wrong answer. Answers
+      // that still need the host's verdict keep the round locked.
+      if (locked.jeopardy?.isStealRound == false &&
+          locked.round.pendingGradeCount == 0) {
+        final scored = _scoreRound(locked, round.question!);
+        if (_canOpenSteal(scored)) {
+          emit(
+            _publish(
+              _openStealRound(scored),
+              notice: 'Zeit abgelaufen. Die anderen Teams dürfen stehlen.',
+            ),
+          );
+          return;
+        }
+      }
       emit(
         _publish(
-          game.copyWith(round: round.copyWith(status: RoundStatus.locked)),
+          locked,
           notice: 'Zeit abgelaufen. Antworten sind geschlossen.',
         ),
       );
@@ -1797,17 +1816,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     if (_awaitManualGrades(game, emit)) return;
 
-    // Points are resolved per question kind — polymorphism, not a type switch
-    // on a string identifier.
-    final scored = switch (question) {
-      MultipleChoiceQuestion() ||
-      ShortAnswerQuestion() ||
-      OrderingQuestion() ||
-      MatchingQuestion() ||
-      EstimationQuestion() ||
-      TrueFalseQuestion() => _scoreAnswers(game, question),
-      BuzzerQuestion() => game,
-    };
+    final scored = _scoreRound(game, question);
 
     // Nobody of the picking team got it right: the others may try.
     if (_canOpenSteal(scored)) {
@@ -1822,6 +1831,21 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
     emit(_publish(_reveal(scored), notice: 'Round revealed.'));
   }
+
+  /// Books the submitted answers of the round on stage. Buzzer rounds are
+  /// scored while judging, so there is nothing left to book.
+  GameState _scoreRound(GameState game, Question question) =>
+      // Points are resolved per question kind — polymorphism, not a type
+      // switch on a string identifier.
+      switch (question) {
+        MultipleChoiceQuestion() ||
+        ShortAnswerQuestion() ||
+        OrderingQuestion() ||
+        MatchingQuestion() ||
+        EstimationQuestion() ||
+        TrueFalseQuestion() => _scoreAnswers(game, question),
+        BuzzerQuestion() => game,
+      };
 
   void _onCloseRound(CloseRoundEvent event, Emitter<QuizEngineState> emit) {
     final game = state.game;
