@@ -1,0 +1,683 @@
+/// The three information cards of the live round on the host: the private
+/// host note, the solution and what the players answered.
+///
+/// They used to be lines of plain text in the round panel, and in a real game
+/// it was not clear which line was the note, which the solution and which an
+/// answer. Each card has its own colour, icon and title now.
+library;
+
+import 'package:flutter/material.dart';
+
+import '../../core/engine/answer_evaluation.dart';
+import '../../core/engine/quiz_engine_event.dart';
+import '../../core/models/models.dart';
+import '../../core/sync/clock.dart';
+import '../common/question_result_view.dart';
+import '../common/snowflake_result_view.dart';
+import '../l10n/app_localizations.dart';
+
+/// The kinds of round information, each with its own look.
+enum RoundInfoKind {
+  note(Icons.sticky_note_2_outlined, Color(0xFFF2A900)),
+  solution(Icons.verified_outlined, Color(0xFF2E9D57)),
+  answers(Icons.forum_outlined, Color(0xFF2F6FDB));
+
+  const RoundInfoKind(this.icon, this.accent);
+
+  final IconData icon;
+  final Color accent;
+}
+
+/// A tinted card with a coloured header line.
+class RoundInfoCard extends StatelessWidget {
+  const RoundInfoCard({
+    required this.kind,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.trailing,
+    super.key,
+  });
+
+  final RoundInfoKind kind;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = kind.accent;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: accent, width: 5)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(kind.icon, size: 18, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              ?trailing,
+            ],
+          ),
+          if (subtitle case final text?)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                text,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          DefaultTextStyle.merge(
+            style: theme.textTheme.bodyMedium,
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The host's private note of the question; never sent to players.
+class HostNoteCard extends StatelessWidget {
+  const HostNoteCard({required this.note, super.key});
+
+  final String note;
+
+  @override
+  Widget build(BuildContext context) => RoundInfoCard(
+    key: const ValueKey('round-card-note'),
+    kind: RoundInfoKind.note,
+    title: context.tr('Admin-Notiz'),
+    subtitle: context.tr('Nur für dich sichtbar'),
+    child: SelectableText(note),
+  );
+}
+
+/// The stored solution of the question on stage.
+class SolutionCard extends StatelessWidget {
+  const SolutionCard({required this.question, required this.game, super.key});
+
+  final Question question;
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final revealed = game.round.status == RoundStatus.revealed;
+    final label = question is TrueFalseQuestion
+        ? context.tr(question.solutionLabel)
+        : question.solutionLabel;
+    return RoundInfoCard(
+      key: const ValueKey('round-card-solution'),
+      kind: RoundInfoKind.solution,
+      title: context.tr('Lösung'),
+      subtitle: revealed
+          ? context.tr('Aufgelöst: Spieler sehen die Lösung.')
+          : context.tr(
+              'Noch geheim: Spieler sehen sie erst bei der Auflösung.',
+            ),
+      child: game.round.snowflake != null
+          ? Text(context.tr('Keine Lösung: Die seltenste Antwort gewinnt.'))
+          : label.trim().isEmpty
+          ? Text(
+              context.tr('Keine Lösung hinterlegt.'),
+              style: TextStyle(color: theme.colorScheme.outline),
+            )
+          : SelectableText(
+              label,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+    );
+  }
+}
+
+/// What the players answered: "no question", "waiting for answers" or the
+/// answers themselves, including the verdict controls of judged rounds.
+class AnswersCard extends StatelessWidget {
+  const AnswersCard({required this.game, this.onJudge, super.key});
+
+  final GameState game;
+  final ValueChanged<JudgeAnswerEvent>? onJudge;
+
+  @override
+  Widget build(BuildContext context) {
+    final round = game.round;
+    final question = round.question;
+    final theme = Theme.of(context);
+    final muted = TextStyle(color: theme.colorScheme.outline);
+
+    Widget body;
+    String? subtitle;
+    if (question == null) {
+      body = Text(context.tr('Keine Frage aktiv.'), style: muted);
+    } else if (game.poker?.betting ?? false) {
+      body = Text(
+        context.tr('Einsatzphase läuft. Die Antworten folgen danach.'),
+        style: muted,
+      );
+    } else if (round.manualGrading) {
+      subtitle = round.verbal
+          ? context.tr(
+              'Mündlich: Bewerte, was gesagt wurde. Auch ohne getippte Antwort.',
+            )
+          : context.tr('Du bewertest jede eingegangene Antwort.');
+      body = ManualAnswerMonitor(
+        question: question,
+        game: game,
+        onJudge: onJudge,
+      );
+    } else if (question is BuzzerQuestion) {
+      body = _BuzzerAnswers(game: game);
+    } else if (round.snowflake != null) {
+      body = round.answers.isEmpty
+          ? _waiting(context)
+          : SnowflakeResultView(game: game, maxGroups: 50);
+    } else {
+      body = round.answers.isEmpty
+          ? _waiting(context)
+          : _WrittenAnswers(question: question, game: game);
+    }
+    return RoundInfoCard(
+      key: const ValueKey('round-card-answers'),
+      kind: RoundInfoKind.answers,
+      title: context.tr('Antworten der Spieler'),
+      subtitle: subtitle,
+      trailing: question == null || question is BuzzerQuestion
+          ? null
+          : Text(
+              '${round.answerCount} / ${game.connectedPlayers.length}',
+              style: theme.textTheme.labelLarge,
+            ),
+      child: body,
+    );
+  }
+
+  Widget _waiting(BuildContext context) => Row(
+    children: [
+      // Static on purpose: an endless spinner would keep the frame busy.
+      const Icon(Icons.hourglass_empty, size: 18),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(
+          game.round.status.acceptsInput
+              ? context.tr('Warte auf Antworten der Spieler…')
+              : context.tr('Keine Antworten eingegangen.'),
+        ),
+      ),
+    ],
+  );
+}
+
+String _nameOf(GameState game, String playerId) {
+  final player = game.players[playerId];
+  final name = player?.name ?? playerId;
+  if (game.mode is TeamMode) {
+    final team = game.teams[player?.teamId]?.name;
+    if (team != null) return '$team · $name';
+  }
+  return name;
+}
+
+/// Automatically scored answers, with their verdict after the reveal.
+class _WrittenAnswers extends StatelessWidget {
+  const _WrittenAnswers({required this.question, required this.game});
+
+  final Question question;
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final round = game.round;
+    final revealed = round.status == RoundStatus.revealed;
+    final ordered = round.answers.values.toList()
+      ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (question case final MultipleChoiceQuestion choice)
+          _ChoiceTally(question: choice, game: game),
+        for (final answer in ordered)
+          Padding(
+            key: ValueKey('host-answer-${answer.playerId}'),
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (revealed)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6, top: 1),
+                    child: _verdictIcon(round.accuracyFor(answer)),
+                  ),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${_nameOf(game, answer.playerId)}: ',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        TextSpan(
+                          text: answerLabel(answer, question, context: context),
+                        ),
+                      ],
+                    ),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+Widget _verdictIcon(double? accuracy) => switch (accuracy) {
+  null => const Icon(Icons.help_outline, size: 18),
+  1 => const Icon(Icons.check_circle, size: 18, color: Color(0xFF2E9D57)),
+  0 => const Icon(Icons.cancel, size: 18, color: Color(0xFFD64545)),
+  _ => const Icon(Icons.timelapse, size: 18, color: Color(0xFFF2A900)),
+};
+
+class _ChoiceTally extends StatelessWidget {
+  const _ChoiceTally({required this.question, required this.game});
+
+  final MultipleChoiceQuestion question;
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final round = game.round;
+    final tally = <String, int>{
+      for (final option in question.options) option.id: 0,
+    };
+    for (final answer
+        in round.answers.values.whereType<MultipleChoiceAnswer>()) {
+      for (final id in answer.selectedOptionIds) {
+        tally[id] = (tally[id] ?? 0) + 1;
+      }
+    }
+    final total = round.answers.length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        children: [
+          for (final option in question.options)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      option.label,
+                      style: theme.textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: LinearProgressIndicator(
+                      value: total == 0 ? 0 : (tally[option.id] ?? 0) / total,
+                      minHeight: 6,
+                      color: RoundInfoKind.answers.accent,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${tally[option.id]}',
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The buzzer race: who pressed, in which latency adjusted order and who
+/// currently has the floor.
+class _BuzzerAnswers extends StatelessWidget {
+  const _BuzzerAnswers({required this.game});
+
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final round = game.round;
+    if (round.buzzerQueue.isEmpty) {
+      return Row(
+        children: [
+          const Icon(Icons.bolt, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(context.tr("Buzzer armed — nobody pressed yet.")),
+          ),
+        ],
+      );
+    }
+    final active = round.activePlayerId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (active != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              context.tr('{0} antwortet jetzt mündlich.', [
+                _nameOf(game, active),
+              ]),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        Text(
+          context.tr("Latency adjusted ranking"),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 4),
+        for (final (index, press) in round.buzzerQueue.indexed)
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: round.activePlayerId == press.playerId
+                  ? RoundInfoKind.answers.accent.withValues(alpha: 0.22)
+                  : theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
+            ),
+            child: Row(
+              children: [
+                Text('${index + 1}.', style: theme.textTheme.labelMedium),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _nameOf(game, press.playerId),
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      decoration:
+                          round.lockedOutPlayerIds.contains(press.playerId)
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
+                ),
+                Text(
+                  index == 0
+                      ? context.tr('schnellster')
+                      : '+${formatMicrosAsMillis(round.gapToFastest(press).inMicroseconds)}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: index == 0
+                        ? const Color(0xFF2E9D57)
+                        : theme.colorScheme.outline,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Verdict controls for a judged round: written answers of a manually
+/// graded question, or every participant in verbal answer mode, including
+/// those who typed nothing.
+class ManualAnswerMonitor extends StatefulWidget {
+  const ManualAnswerMonitor({
+    required this.question,
+    required this.game,
+    required this.onJudge,
+    super.key,
+  });
+
+  final Question question;
+  final GameState game;
+  final ValueChanged<JudgeAnswerEvent>? onJudge;
+
+  @override
+  State<ManualAnswerMonitor> createState() => _ManualAnswerMonitorState();
+}
+
+class _ManualAnswerMonitorState extends State<ManualAnswerMonitor> {
+  final _reason = TextEditingController();
+
+  @override
+  void didUpdateWidget(ManualAnswerMonitor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.game.round.startedAtHostMicros !=
+            widget.game.round.startedAtHostMicros ||
+        oldWidget.question.id != widget.question.id) {
+      _reason.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  /// Players that get a verdict row, in roster order.
+  List<String> _rows(GameState game) {
+    final round = game.round;
+    final ids = [
+      for (final id in game.orderedPlayerIds)
+        if (round.answers.containsKey(id) ||
+            (round.verbal &&
+                game.players[id]!.isConnected &&
+                game.mayJudgeVerbally(id)))
+          id,
+    ];
+    // On a board and in poker a team answers once: one row per team, the
+    // team mate who typed something first.
+    final onePerTeam =
+        game.mode is TeamMode && (game.jeopardy != null || game.poker != null);
+    if (!onePerTeam) return ids;
+    final byTeam = <String, String>{};
+    final result = <String>[];
+    for (final id in ids) {
+      final teamId = game.players[id]?.teamId;
+      if (teamId == null) {
+        result.add(id);
+        continue;
+      }
+      final existing = byTeam[teamId];
+      if (existing == null) {
+        byTeam[teamId] = id;
+        result.add(id);
+      } else if (!round.answers.containsKey(existing) &&
+          round.answers.containsKey(id)) {
+        result[result.indexOf(existing)] = id;
+        byTeam[teamId] = id;
+      }
+    }
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final game = widget.game;
+    final question = widget.question;
+    final onJudge = widget.onJudge;
+    final round = game.round;
+    final theme = Theme.of(context);
+    final revealed = round.status == RoundStatus.revealed;
+    final startedAt = round.startedAtHostMicros;
+    final canJudge = !revealed && startedAt != null && onJudge != null;
+    final rows = _rows(game);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!revealed) ...[
+          TextField(
+            controller: _reason,
+            decoration: InputDecoration(
+              labelText: context.tr('Grund (optional)'),
+              isDense: true,
+            ),
+            enabled: canJudge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.tr(
+              'Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.',
+            ),
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.tr('Noch {0} Antworten zu bewerten', [
+              round.pendingGradeCount,
+            ]),
+            style: theme.textTheme.labelLarge,
+          ),
+        ],
+        if (rows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              context.tr('Warte auf Antworten der Spieler…'),
+              style: TextStyle(color: theme.colorScheme.outline),
+            ),
+          ),
+        for (final id in rows)
+          _verdictRow(context, game, question, id, canJudge, startedAt),
+      ],
+    );
+  }
+
+  Widget _verdictRow(
+    BuildContext context,
+    GameState game,
+    Question question,
+    String playerId,
+    bool canJudge,
+    int? startedAt,
+  ) {
+    final theme = Theme.of(context);
+    final round = game.round;
+    final answer = round.answers[playerId];
+    final typed = answer != null && answer is! VerbalAnswer;
+    final verdict = round.answerVerdicts[playerId];
+    final hint = switch ((question, answer)) {
+      _ when round.status == RoundStatus.revealed || !typed => null,
+      (
+        ShortAnswerQuestion(:final acceptedAnswers, :final maxEdits),
+        ShortAnswer(:final text),
+      )
+          when acceptedAnswers != null =>
+        context.tr(switch (recommendTextAnswer(
+          text,
+          acceptedAnswers,
+          maxEdits,
+        )) {
+          TextAnswerRecommendation.exactMatch =>
+            'Empfehlung: Passt zur Lösung.',
+          TextAnswerRecommendation.possibleTypo =>
+            'Empfehlung: Fast richtig, vermutlich ein Tippfehler.',
+          TextAnswerRecommendation.different =>
+            'Empfehlung: Weicht von den hinterlegten Lösungen ab.',
+        }),
+      (ShortAnswerQuestion(), _) => null,
+      (_, final AnswerSubmission submitted) when question.hasSolution =>
+        context.tr(
+          question.accuracy(submitted) == 1
+              ? 'Automatische Prüfung: richtig.'
+              : 'Automatische Prüfung: nicht ganz richtig.',
+        ),
+      _ => null,
+    };
+    return Card(
+      key: ValueKey('manual-answer-$playerId'),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(_nameOf(game, playerId), style: theme.textTheme.titleMedium),
+            if (typed)
+              SelectableText(answerLabel(answer, question, context: context))
+            else
+              Text(
+                context.tr(
+                  answer is VerbalAnswer
+                      ? 'Mündlich beantwortet'
+                      : 'Nichts eingetippt (mündliche Antwort)',
+                ),
+                style: TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            if (hint != null) ...[
+              const SizedBox(height: 4),
+              Text(hint, style: theme.textTheme.bodySmall),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final correct in [true, false])
+                  ChoiceChip(
+                    label: Text(context.tr(correct ? 'Richtig' : 'Wrong')),
+                    selected: verdict == (correct ? 1 : 0),
+                    onSelected: canJudge
+                        ? (_) {
+                            widget.onJudge!(
+                              JudgeAnswerEvent(
+                                playerId: playerId,
+                                questionId: question.id,
+                                startedAtHostMicros: startedAt!,
+                                wasCorrect: correct,
+                                reason: _reason.text.trim(),
+                              ),
+                            );
+                            _reason.clear();
+                          }
+                        : null,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

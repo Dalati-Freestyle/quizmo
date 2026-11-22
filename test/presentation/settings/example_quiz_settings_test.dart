@@ -72,6 +72,9 @@ class _FailingRepository implements QuizRepository {
   Future<List<Quiz>> loadAll() async => [];
 
   @override
+  Future<int?> newerSchemaVersion() async => null;
+
+  @override
   Future<void> save(Quiz quiz) async => fail('Unexpected save');
 
   @override

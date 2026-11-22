@@ -647,6 +647,8 @@ class _QuestionStage extends StatelessWidget {
         state.roundStatus.acceptsInput &&
         state.lastSubmittedOptionId == null &&
         state.mayAnswerQuestion;
+    final submitted = state.lastSubmittedOptionId != null;
+    final myAnswer = state.game?.round.answers[state.playerId];
     final input = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
         key: ValueKey(
@@ -670,6 +672,7 @@ class _QuestionStage extends StatelessWidget {
         ),
         question: question,
         enabled: enabled,
+        submitted: submitted,
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => ShortAnswer(
             playerId: id,
@@ -686,6 +689,7 @@ class _QuestionStage extends StatelessWidget {
         ),
         question: question,
         enabled: enabled,
+        submitted: submitted,
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => OrderingAnswer(
             playerId: id,
@@ -702,6 +706,7 @@ class _QuestionStage extends StatelessWidget {
         ),
         question: question,
         enabled: enabled,
+        submitted: submitted,
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => MatchingAnswer(
             playerId: id,
@@ -718,6 +723,7 @@ class _QuestionStage extends StatelessWidget {
         ),
         question: question,
         enabled: enabled,
+        submitted: submitted,
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => EstimationAnswer(
             playerId: id,
@@ -732,8 +738,13 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        chosen: switch (myAnswer) {
+          TrueFalseAnswer(:final value) => value,
+          _ => null,
+        },
         question: question,
         enabled: enabled,
+        submitted: submitted,
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => TrueFalseAnswer(
             playerId: id,
@@ -787,6 +798,9 @@ class _QuestionStage extends StatelessWidget {
             ),
           ),
         input,
+        if (state.roundStatus != RoundStatus.revealed &&
+            question is! BuzzerQuestion)
+          AwaitingHostCard(state: state),
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
@@ -794,7 +808,7 @@ class _QuestionStage extends StatelessWidget {
             question.prompt,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          if (question.requiresManualGrading &&
+          if ((state.game?.round.manualGrading ?? false) &&
               state.roundStatus != RoundStatus.revealed)
             Text(context.tr('Der Spielleiter bewertet die Antworten.')),
           const SizedBox(height: 24),
@@ -886,6 +900,88 @@ class _QuestionStage extends StatelessWidget {
   }
 }
 
+/// Tells the player that their input arrived and what happens next, so a
+/// press never looks as if nothing happened. In a verbal round it also
+/// explains that the answer is spoken.
+class AwaitingHostCard extends StatelessWidget {
+  const AwaitingHostCard({required this.state, super.key});
+
+  final PlayerSessionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final round = state.game?.round;
+    if (round == null || !state.mayAnswerQuestion) {
+      return const SizedBox.shrink();
+    }
+    final submitted = state.lastSubmittedOptionId != null;
+    final sending =
+        state.submissionStatus == SubmissionStatus.sending ||
+        state.submissionStatus == SubmissionStatus.uncertain;
+    final (IconData icon, String title, String body) = switch (submitted) {
+      true when sending => (
+        Icons.schedule,
+        context.tr('Antwort wird gesendet…'),
+        context.tr('Warte auf die Bestätigung.'),
+      ),
+      true => (
+        Icons.hourglass_top,
+        context.tr('Antwort eingeloggt'),
+        round.manualGrading
+            ? context.tr('Warte auf die Bewertung durch den Spielleiter…')
+            : round.status.acceptsInput
+            ? context.tr('Warte, bis der Spielleiter die Frage auflöst…')
+            : context.tr(
+                'Antworten sind geschlossen. Warte auf die Auflösung durch den Spielleiter…',
+              ),
+      ),
+      false when round.verbal && round.status.acceptsInput => (
+        Icons.record_voice_over_outlined,
+        context.tr('Mündliche Antwort'),
+        context.tr(
+          'Sag deine Antwort laut. Tippen ist freiwillig, der Spielleiter bewertet.',
+        ),
+      ),
+      false => (Icons.edit_outlined, '', ''),
+    };
+    if (title.isEmpty) return const SizedBox.shrink();
+    return Card(
+      key: const ValueKey('awaiting-host'),
+      color: submitted ? scheme.tertiaryContainer : scheme.secondaryContainer,
+      margin: const EdgeInsets.only(top: 16),
+      child: Semantics(
+        liveRegion: true,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, size: 32),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(body),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// The board between two questions, as seen on a player's phone.
 class _PlayerBoard extends StatelessWidget {
   const _PlayerBoard({required this.state, required this.jeopardy});
@@ -957,6 +1053,7 @@ class _PlayerBoard extends StatelessWidget {
           completedQuestionIds: game.completedQuestionIds,
           winners: game.questionWinners,
           highlightQuestionId: jeopardy.pendingDailyDoubleId,
+          pendingQuestionId: jeopardy.pendingPickQuestionId,
           onSelect:
               mayPick &&
                   !isDailyDouble &&
@@ -1171,6 +1268,7 @@ class DailyDoubleWagerView extends StatefulWidget {
 
 class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
   late final controller = TextEditingController(text: '${widget.maxWager}');
+  bool _sent = false;
   @override
   void didUpdateWidget(DailyDoubleWagerView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1208,12 +1306,24 @@ class _DailyDoubleWagerViewState extends State<DailyDoubleWagerView> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 16),
-          FilledButton(
+          AnswerSubmitButton(
+            sent: _sent,
             onPressed: wager != null && wager >= 1 && wager <= widget.maxWager
-                ? () => widget.onWager(wager)
+                ? () {
+                    setState(() => _sent = true);
+                    widget.onWager(wager);
+                  }
                 : null,
-            child: Text(context.tr("Einsatz bestätigen & Frage öffnen")),
+            label: context.tr("Einsatz bestätigen & Frage öffnen"),
           ),
+          if (_sent)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                context.tr('Einsatz gesendet. Warte auf den Spielleiter…'),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );

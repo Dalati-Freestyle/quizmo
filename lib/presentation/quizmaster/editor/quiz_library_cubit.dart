@@ -86,10 +86,22 @@ final class QuizLibraryCubit extends Cubit<QuizLibraryState> {
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       var quizzes = await _repository.loadAll();
-      if (quizzes.isEmpty) {
+      final newerVersion = await _repository.newerSchemaVersion();
+      // Hidden quizzes of a newer Quizmo still count: no examples over them.
+      if (quizzes.isEmpty && newerVersion == null) {
         quizzes = await _saveExamples();
       }
-      emit(QuizLibraryState(quizzes: quizzes, isLoading: false));
+      emit(
+        QuizLibraryState(
+          quizzes: quizzes,
+          isLoading: false,
+          error: newerVersion == null
+              ? null
+              : 'Some quizzes were saved by a newer version of Quizmo '
+                    '(quiz schemaVersion $newerVersion) and are hidden. '
+                    'Update Quizmo to see them; they are kept unchanged.',
+        ),
+      );
     } on Object catch (error) {
       emit(
         QuizLibraryState(

@@ -2,7 +2,6 @@
 library;
 
 import '../common/question_media_view.dart';
-import '../common/question_result_view.dart';
 
 import 'package:flutter/material.dart';
 
@@ -18,7 +17,7 @@ import '../../core/sync/clock.dart';
 import '../common/adaptive_layout.dart';
 import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
-import 'manual_answer_monitor.dart';
+import 'round_info_cards.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -1020,8 +1019,12 @@ class LiveRoundPanel extends StatelessWidget {
     this.onEndRound,
     this.onJudgeAnswer,
     this.onJudgeBuzzer,
+    this.onSetVerbalAnswers,
     super.key,
   });
+
+  /// Switches the verbal answer mode; `null` hides the switch.
+  final ValueChanged<bool>? onSetVerbalAnswers;
 
   /// Current engine state.
   final QuizEngineState state;
@@ -1098,6 +1101,36 @@ class LiveRoundPanel extends StatelessWidget {
   final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
   final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
 
+  /// The host switch for answers given aloud.
+  Widget? _verbalSwitch(BuildContext context, GameState game) {
+    final onChanged = onSetVerbalAnswers;
+    if (onChanged == null || game.snowflake != null || game.isFinished) {
+      return null;
+    }
+    final round = game.round;
+    final pending =
+        round.question != null &&
+        round.question is! BuzzerQuestion &&
+        round.status != RoundStatus.revealed &&
+        round.verbal != game.verbalAnswers;
+    return SwitchListTile(
+      key: const ValueKey('verbal-answers-switch'),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      value: game.verbalAnswers,
+      onChanged: onChanged,
+      secondary: const Icon(Icons.record_voice_over_outlined),
+      title: Text(context.tr('Antworten mündlich')),
+      subtitle: Text(
+        pending
+            ? context.tr('Gilt ab der nächsten Frage.')
+            : context.tr(
+                'Spieler sagen ihre Antwort laut, du bewertest jeden Teilnehmer, auch ohne getippte Antwort. Buzzerfragen bleiben unverändert.',
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1170,6 +1203,9 @@ class LiveRoundPanel extends StatelessWidget {
                       label: Text(context.tr("Start next pending question")),
                     ),
                 ],
+                const SizedBox(height: 8),
+                AnswersCard(game: game),
+                ?_verbalSwitch(context, game),
               ],
             )
           : Column(
@@ -1186,16 +1222,7 @@ class LiveRoundPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Polymorphic host controls: the analyzer enforces that every
-                // question kind has a renderer here.
-                if (question.adminNotes.trim().isNotEmpty) ...[
-                  Text(
-                    context.tr("Admin-Notizen"),
-                    style: theme.textTheme.labelLarge,
-                  ),
-                  SelectableText(question.adminNotes),
-                  const SizedBox(height: 12),
-                ],
+                _QuestionContent(question: question),
                 QuestionMediaView(
                   media: question.media,
                   playing: game.tvMediaPaused
@@ -1206,32 +1233,12 @@ class LiveRoundPanel extends StatelessWidget {
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
                 ),
-                switch (question) {
-                  // A snowflake round has no right option: the host follows
-                  // the answers by rarity like for every other kind.
-                  MultipleChoiceQuestion() when game.round.snowflake == null =>
-                    _MultipleChoiceMonitor(question: question, game: game),
-                  ShortAnswerQuestion(manualGrading: true) =>
-                    ManualAnswerMonitor(
-                      question: question,
-                      game: game,
-                      onJudge: onJudgeAnswer,
-                    ),
-                  MultipleChoiceQuestion() ||
-                  ShortAnswerQuestion() ||
-                  OrderingQuestion() ||
-                  MatchingQuestion() ||
-                  EstimationQuestion() ||
-                  TrueFalseQuestion() => QuestionResultView(
-                    question: question,
-                    game: game,
-                    host: true,
-                  ),
-                  BuzzerQuestion() => _BuzzerMonitor(
-                    question: question,
-                    game: game,
-                  ),
-                },
+                const SizedBox(height: 6),
+                // Note, solution and answers each get their own card so they
+                // cannot be mistaken for one another during a game.
+                if (question.adminNotes.trim().isNotEmpty)
+                  HostNoteCard(note: question.adminNotes),
+                SolutionCard(question: question, game: game),
                 if (game.round.status == RoundStatus.revealed)
                   QuestionMediaView(
                     media: question.solutionMedia,
@@ -1243,6 +1250,8 @@ class LiveRoundPanel extends StatelessWidget {
                     playbackRevision: game.tvMediaRevision,
                     commandRevision: game.tvMediaCommandRevision,
                   ),
+                AnswersCard(game: game, onJudge: onJudgeAnswer),
+                ?_verbalSwitch(context, game),
                 const SizedBox(height: 12),
                 _RoundActions(
                   state: state,
@@ -1625,167 +1634,49 @@ class _RoundActionsState extends State<_RoundActions> {
   }
 }
 
-class _MultipleChoiceMonitor extends StatelessWidget {
-  const _MultipleChoiceMonitor({required this.question, required this.game});
+/// What the players see besides the prompt, without marking the solution.
+class _QuestionContent extends StatelessWidget {
+  const _QuestionContent({required this.question});
 
-  final MultipleChoiceQuestion question;
-  final GameState game;
+  final Question question;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final round = game.round;
-    final tally = <String, int>{
-      for (final option in question.options) option.id: 0,
+    // Exhaustive over the sealed hierarchy: a new kind needs a host renderer.
+    final List<String> lines = switch (question) {
+      MultipleChoiceQuestion(:final options) => [
+        for (final (index, option) in options.indexed)
+          '${String.fromCharCode(0x41 + index)}  ${option.label}',
+      ],
+      OrderingQuestion(:final items) => [for (final item in items) item.label],
+      MatchingQuestion(:final leftItems, :final rightItems) => [
+        for (var i = 0; i < leftItems.length; i++)
+          '${leftItems[i].label}  ·  ${i < rightItems.length ? rightItems[i].label : ''}',
+      ],
+      ShortAnswerQuestion() ||
+      EstimationQuestion() ||
+      TrueFalseQuestion() ||
+      BuzzerQuestion() => const [],
     };
-    for (final answer
-        in round.answers.values.whereType<MultipleChoiceAnswer>()) {
-      for (final id in answer.selectedOptionIds) {
-        tally[id] = (tally[id] ?? 0) + 1;
-      }
-    }
-    final total = round.answers.length;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final option in question.options)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              children: [
-                Icon(
-                  question.isCorrect(option.id)
-                      ? Icons.check_circle
-                      : Icons.radio_button_unchecked,
-                  size: 15,
-                  color: question.isCorrect(option.id)
-                      ? Colors.green
-                      : theme.colorScheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    option.label,
-                    style: theme.textTheme.bodySmall,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: LinearProgressIndicator(
-                    value: total == 0 ? 0 : (tally[option.id] ?? 0) / total,
-                    minHeight: 6,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('${tally[option.id]}', style: theme.textTheme.labelSmall),
-              ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            context.tr(question.kindLabel),
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.outline,
             ),
           ),
-        const SizedBox(height: 6),
-        InfoRow(
-          label: context.tr("Answers received"),
-          value: '$total / ${game.connectedPlayers.length}',
-        ),
-      ],
-    );
-  }
-}
-
-class _BuzzerMonitor extends StatelessWidget {
-  const _BuzzerMonitor({required this.question, required this.game});
-
-  final BuzzerQuestion question;
-  final GameState game;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final round = game.round;
-
-    if (round.buzzerQueue.isEmpty) {
-      return EmptyHint(
-        context.tr("Buzzer armed — nobody pressed yet."),
-        icon: Icons.bolt,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          context.tr("Latency adjusted ranking"),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.outline,
-          ),
-        ),
-        const SizedBox(height: 6),
-        for (var index = 0; index < round.buzzerQueue.length; index++)
-          Builder(
-            builder: (context) {
-              final press = round.buzzerQueue[index];
-              final player = game.players[press.playerId];
-              final gap = round.gapToFastest(press);
-              final isActive = round.activePlayerId == press.playerId;
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: isActive
-                      ? theme.colorScheme.tertiaryContainer.withValues(
-                          alpha: 0.6,
-                        )
-                      : theme.colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.4,
-                        ),
-                ),
-                child: Row(
-                  children: [
-                    Text('${index + 1}.', style: theme.textTheme.labelMedium),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        player?.name ?? press.playerId,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      index == 0
-                          ? 'fastest'
-                          : '+${formatMicrosAsMillis(gap.inMicroseconds)}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: index == 0
-                            ? Colors.green
-                            : theme.colorScheme.outline,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        const SizedBox(height: 8),
-        if (round.status == RoundStatus.revealed &&
-            question.expectedAnswer != null)
-          InfoRow(
-            label: context.tr("Expected"),
-            value: question.expectedAnswer!,
-          )
-        else if (question.expectedAnswer != null)
-          InfoRow(
-            label: context.tr("Host note"),
-            value: question.expectedAnswer!,
-          ),
-      ],
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(line, style: theme.textTheme.bodySmall),
+            ),
+        ],
+      ),
     );
   }
 }

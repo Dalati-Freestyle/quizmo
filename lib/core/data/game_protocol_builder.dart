@@ -235,6 +235,7 @@ String protocolAnswerLabel(AnswerSubmission answer, Question question) {
             : '${entry.key} → ${entry.value}',
     ].join('; '),
     BuzzerPress() => 'Buzzer',
+    VerbalAnswer() => 'Mündlich beantwortet',
   };
 }
 

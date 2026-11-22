@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import 'answer.dart';
 import 'game_protocol.dart';
 import 'jeopardy.dart';
 import 'json.dart';
@@ -102,6 +103,7 @@ final class GameState extends Equatable {
     this.jeopardy,
     this.poker,
     this.snowflake,
+    this.verbalAnswers = false,
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
@@ -166,6 +168,7 @@ final class GameState extends Equatable {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
     },
+    verbalAnswers: json.readBool('verbalAnswers', orElse: false),
     hostTimeMicros: json.readInt('hostTimeMicros'),
     tvMediaPaused: json.readBool('tvMediaPaused', orElse: false),
     tvMediaRevision: json['tvMediaRevision'] == null
@@ -245,6 +248,69 @@ final class GameState extends Equatable {
   /// Scoring of a "Biggest Snowflake" session, else `null`. A static rule of
   /// the quiz, so it is the same for the host and the guests.
   final SnowflakeScoring? snowflake;
+
+  /// Host setting: new rounds take their answers aloud (`RoundState.verbal`).
+  /// Not part of the quiz, the host toggles it while playing.
+  final bool verbalAnswers;
+
+  /// Whether the host may record a verbal verdict for [playerId] in the
+  /// round on stage, also when the player did not submit anything.
+  bool mayJudgeVerbally(String playerId) {
+    final player = players[playerId];
+    if (player == null || !round.verbal || !round.manualGrading) return false;
+    if (round.status != RoundStatus.acceptingAnswers &&
+        round.status != RoundStatus.locked) {
+      return false;
+    }
+    if (round.answers.containsKey(playerId)) return true;
+    if (jeopardy case final board?
+        when !round.buzzerOpenForAll &&
+            !board.mayAnswer(participantId(player))) {
+      return false;
+    }
+    if (poker case final poker?) {
+      final teamId = player.teamId;
+      if (poker.betting || teamId == null) return false;
+      if ((poker.wagers[teamId] ?? 0) < 1 && (poker.chips[teamId] ?? 0) > 0) {
+        return false;
+      }
+      if (poker.settledTeamIds.contains(teamId)) return false;
+    }
+    // On a board and in poker a team answers once: one team mate at most.
+    if (mode is TeamMode &&
+        (jeopardy != null || poker != null) &&
+        player.teamId != null &&
+        round.answers.keys.any((id) => players[id]?.teamId == player.teamId)) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Answers of the participant whose turn it is, e.g. the picking team on
+  /// a Jeopardy board. Everybody may see them as soon as they are given.
+  ///
+  /// Empty when everybody answers at the same time (that would let the
+  /// others copy), in a steal round, and in formats that keep the answers
+  /// secret until the end (Biggest Snowflake, poker).
+  List<AnswerSubmission> get onTurnAnswers {
+    final board = jeopardy;
+    final turn = board?.currentTeamId;
+    if (board == null ||
+        turn == null ||
+        !board.hasActiveQuestion ||
+        board.isStealRound ||
+        // The turn passes on with the reveal.
+        round.status == RoundStatus.revealed ||
+        round.buzzerOpenForAll ||
+        snowflake != null ||
+        poker != null) {
+      return const [];
+    }
+    return [
+      for (final answer in round.answers.values)
+        if (participantId(players[answer.playerId]) == turn) answer,
+    ];
+  }
 
   /// Host wall clock at the moment the snapshot was produced.
   ///
@@ -437,8 +503,10 @@ final class GameState extends Equatable {
     List<ManualCorrection>? corrections,
     List<ReportRound>? reportRounds,
     Object? protocol = _unset,
+    bool? verbalAnswers,
   }) => GameState(
     snowflake: snowflake,
+    verbalAnswers: verbalAnswers ?? this.verbalAnswers,
     protocol: identical(protocol, _unset)
         ? this.protocol
         : protocol as GameProtocol?,
@@ -489,6 +557,7 @@ final class GameState extends Equatable {
     'poker': poker?.toJson(),
     // Only written when set: saved games of older versions stay complete.
     if (snowflake != null) 'snowflake': snowflake!.name,
+    if (verbalAnswers) 'verbalAnswers': true,
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
@@ -518,6 +587,7 @@ final class GameState extends Equatable {
     jeopardy,
     poker,
     snowflake,
+    verbalAnswers,
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,

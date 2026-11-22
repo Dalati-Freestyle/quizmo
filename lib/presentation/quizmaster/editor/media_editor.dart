@@ -186,6 +186,8 @@ class _MediaEditorState extends State<MediaEditor> {
                         publish();
                       },
                     ),
+                    if (attachment case VideoAttachment(youtubeId: _?))
+                      const YoutubeEmbedWarning(),
                     QuestionMediaView(media: [attachment]),
                     if (attachment is AudioAttachment ||
                         attachment is VideoAttachment &&
@@ -275,6 +277,40 @@ class _MediaEditorState extends State<MediaEditor> {
   );
 }
 
+/// YouTube often refuses embedding; players then have to open the video on
+/// youtube.com, where title, comments and suggestions may give the answer away.
+class YoutubeEmbedWarning extends StatelessWidget {
+  const YoutubeEmbedWarning({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: colors.onErrorContainer),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.tr(
+                "YouTube ist unzuverlässig: Viele Videos dürfen nicht eingebettet werden oder werden blockiert. Spieler müssen sie dann direkt auf YouTube ansehen und sehen dort Titel, Kommentare und Vorschläge – das verrät oft die Antwort. Für Quizfragen besser ein MP4 hochladen. Test: youtube.com/embed/<ID> im Browser öffnen.",
+              ),
+              style: TextStyle(color: colors.onErrorContainer),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AttachmentDialog extends StatefulWidget {
   const _AttachmentDialog({required this.kind});
   final _MediaKind kind;
@@ -361,6 +397,7 @@ class _AttachmentDialogState extends State<_AttachmentDialog> {
               ),
             ),
             const SizedBox(height: 20),
+            if (widget.kind == _MediaKind.youtube) const YoutubeEmbedWarning(),
             if (widget.kind != _MediaKind.youtube)
               TextField(
                 controller: second,

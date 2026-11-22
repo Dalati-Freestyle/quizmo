@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/presentation/common/question_media_view.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart'
+    show YoutubeError;
 
 void main() {
   testWidgets('preload errors remain interactive; retry and room cache work', (
@@ -184,4 +186,35 @@ void main() {
       TargetPlatform.linux,
     }),
   );
+
+  testWidgets('refused YouTube embeds explain why instead of a blank box', (
+    tester,
+  ) async {
+    Future<void> show(YoutubeError error, {bool hideDetails = false}) =>
+        tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: YoutubeUnavailableView(
+                id: 'C0ArgVsoSsg',
+                error: error,
+                hideDetails: hideDetails,
+              ),
+            ),
+          ),
+        );
+
+    await show(YoutubeError.sameAsNotEmbeddable);
+    expect(find.textContaining('nicht eingebettet'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsOneWidget);
+
+    // A hidden video must not leak its title through a youtube.com link.
+    await show(YoutubeError.notEmbeddable, hideDetails: true);
+    expect(find.textContaining('nicht eingebettet'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsNothing);
+
+    await show(YoutubeError.videoNotFound);
+    expect(find.textContaining('nicht gefunden'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

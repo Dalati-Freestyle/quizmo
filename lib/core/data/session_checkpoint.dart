@@ -338,7 +338,8 @@ final class SessionCheckpoint {
               e.key == e.value.playerId &&
               (archived || game.players.containsKey(e.key)) &&
               e.value.questionId == q?.id &&
-              (q?.accepts(e.value) ?? false),
+              ((q?.accepts(e.value) ?? false) ||
+                  (e.value is VerbalAnswer && round.verbal)),
         ),
         'accepted answers.',
       );

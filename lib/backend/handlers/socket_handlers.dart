@@ -671,6 +671,9 @@ class SocketHub {
             _engine.add(SubmitAnswerEvent(trusted));
           case BuzzerPress():
             _engine.add(BuzzerPressEvent(trusted));
+          case VerbalAnswer():
+            // Only the host records spoken answers; clients cannot send one.
+            return;
         }
 
       case JeopardyPickMessage(:final questionId):

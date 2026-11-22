@@ -593,4 +593,5 @@ String reportAnswerLabel(
       },
   ]),
   BuzzerPress() => 'buzzer (spoken answer not recorded)',
+  VerbalAnswer() => 'verbal (spoken answer not recorded)',
 };
