@@ -567,6 +567,9 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            // Our own handle only: the default one would sit on top of the
+            // delete button on desktop.
+            buildDefaultDragHandles: false,
             itemCount: widget.questions.length,
             onReorderItem: widget.onReorder,
             itemBuilder: (context, index) {
@@ -609,7 +612,16 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.drag_handle),
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.drag_handle),
+                        ),
+                      ),
+                    ),
                     IconButton(
                       tooltip: context.tr("Delete question"),
                       onPressed: () => widget.onRemove(question.id),

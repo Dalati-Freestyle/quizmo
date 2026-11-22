@@ -133,6 +133,7 @@ class _SlideEditorDialogState extends State<SlideEditorDialog> {
                 onChanged: (value) =>
                     setState(() => _slide = _slide.copyWith(title: value)),
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 key: const ValueKey('slide-text'),
                 initialValue: _slide.text,
