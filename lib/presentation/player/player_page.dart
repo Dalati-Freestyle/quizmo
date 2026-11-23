@@ -15,6 +15,7 @@ import '../../core/net/quiz_client.dart';
 import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
+import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_play_form.dart';
 import 'poker_category_view.dart';
@@ -836,6 +837,13 @@ class _QuestionStage extends StatelessWidget {
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)
           AwaitingHostCard(state: state),
+        // Below the answers: a new hint must not move them under a finger.
+        if (state.game case final game?)
+          PlayerHintsView(
+            key: ValueKey('hints-${question.id}'),
+            game: game,
+            baseUri: cubit.mediaBaseUri,
+          ),
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
@@ -852,7 +860,9 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.media,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true
+            playing:
+                state.game?.tvMediaPaused == true ||
+                    latestHintPlays(state.game?.round ?? RoundState.idle)
                 ? false
                 : (state.game?.tvMediaCommandRevision ?? 0) > 0
                 ? true

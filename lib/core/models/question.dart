@@ -11,6 +11,7 @@ import '../engine/scoring_rules.dart';
 import 'json.dart';
 import 'answer.dart';
 import 'media_attachment.dart';
+import 'question_hint.dart';
 import '../engine/answer_evaluation.dart';
 
 /// A single selectable option of a [MultipleChoiceQuestion].
@@ -48,6 +49,7 @@ sealed class Question extends Equatable {
     this.media = const [],
     this.solutionMedia = const [],
     this.adminNotes = '',
+    this.hints = const [],
   });
 
   /// Stable identifier used by [StartRoundEvent] and the wire protocol.
@@ -72,6 +74,17 @@ sealed class Question extends Equatable {
   final List<MediaAttachment> media;
   final List<MediaAttachment> solutionMedia;
   final String adminNotes;
+
+  /// Hints the host may show one after another while the question runs
+  /// (quiz schema 13). Guests only receive the hints that are already shown;
+  /// the others are concealed (`QuestionHint.concealed`).
+  final List<QuestionHint> hints;
+
+  /// [hints] without their content: only how many there are and their cost.
+  List<QuestionHint> get concealedHints => [
+    for (final hint in hints) hint.concealed(),
+  ];
+
   bool accepts(AnswerSubmission answer);
   double accuracy(AnswerSubmission answer);
 
@@ -100,12 +113,13 @@ sealed class Question extends Equatable {
   /// Whether answers of this kind can be compared through [uniquenessKey].
   bool get supportsUniqueness => false;
 
-  /// Returns a copy without the stored solution that keeps host notes and
-  /// solution media, for formats that are played without a solution.
+  /// Returns a copy without the stored solution that keeps host notes, hints
+  /// and solution media, for formats that are played without a solution.
   Question withoutSolution() => Question.fromJson({
     ...redacted().toJson(),
     'adminNotes': adminNotes,
     'solutionMedia': solutionMedia.map((m) => m.toJson()).toList(),
+    'hints': hints.map((hint) => hint.toJson()).toList(),
   });
 
   /// Whether this instance still carries the solution.
@@ -123,7 +137,13 @@ sealed class Question extends Equatable {
   /// Serializes the question **including** its solution.
   JsonMap toJson();
 
-  Question forWire({required bool reveal, bool includeMediaData = false}) {
+  /// The copy that is sent to guests, with the solution only on [reveal] and
+  /// the content of the first [visibleHints] hints.
+  Question forWire({
+    required bool reveal,
+    bool includeMediaData = false,
+    int visibleHints = 0,
+  }) {
     final visible = reveal ? this : redacted();
     return Question.fromJson({
       ...visible.toJson(),
@@ -134,6 +154,12 @@ sealed class Question extends Equatable {
       'solutionMedia': visible.solutionMedia
           .map((m) => m.forWire(includeData: includeMediaData))
           .toList(),
+      'hints': [
+        for (final (index, hint) in hints.indexed)
+          index < visibleHints
+              ? hint.forWire(includeMediaData: includeMediaData)
+              : hint.concealed().toJson(),
+      ],
     });
   }
 
@@ -166,6 +192,8 @@ sealed class Question extends Equatable {
     'media': media.map((m) => m.toJson()).toList(),
     'solutionMedia': solutionMedia.map((m) => m.toJson()).toList(),
     'scoringRule': scoringRule.toJson(),
+    // Only written when set: files and saved games without hints stay equal.
+    if (hints.isNotEmpty) 'hints': hints.map((hint) => hint.toJson()).toList(),
   };
 }
 
@@ -186,6 +214,7 @@ final class MultipleChoiceQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
   });
 
   /// Restores the question from [json].
@@ -209,6 +238,7 @@ final class MultipleChoiceQuestion extends Question {
         adminNotes: json.readStringOrNull('adminNotes') ?? '',
         media: readMedia(json, 'media'),
         solutionMedia: readMedia(json, 'solutionMedia'),
+        hints: readHints(json),
       );
 
   static const String _type = 'multipleChoice';
@@ -271,6 +301,7 @@ final class MultipleChoiceQuestion extends Question {
     softTimeLimit: softTimeLimit,
     category: category,
     media: media,
+    hints: concealedHints,
   );
 
   @override
@@ -297,6 +328,7 @@ final class MultipleChoiceQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
   ];
 }
 
@@ -320,6 +352,7 @@ final class BuzzerQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
   });
 
   /// Restores the question from [json].
@@ -337,6 +370,7 @@ final class BuzzerQuestion extends Question {
     adminNotes: json.readStringOrNull('adminNotes') ?? '',
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
   );
 
   static const String _type = 'buzzer';
@@ -395,6 +429,7 @@ final class BuzzerQuestion extends Question {
     softTimeLimit: softTimeLimit,
     category: category,
     media: media,
+    hints: concealedHints,
   );
 
   @override
@@ -421,6 +456,7 @@ final class BuzzerQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
   ];
 }
 
@@ -435,6 +471,7 @@ final class ShortAnswerQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
     this.acceptedAnswers,
     this.maxEdits = 1,
     this.manualGrading = false,
@@ -457,6 +494,7 @@ final class ShortAnswerQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
     acceptedAnswers: json['acceptedAnswers'] == null
         ? null
         : json.readStringList('acceptedAnswers'),
@@ -500,6 +538,7 @@ final class ShortAnswerQuestion extends Question {
     softTimeLimit: softTimeLimit,
     scoringRule: scoringRule,
     media: media,
+    hints: concealedHints,
     maxEdits: maxEdits,
     manualGrading: manualGrading,
   );
@@ -521,6 +560,7 @@ final class ShortAnswerQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
     manualGrading,
     acceptedAnswers,
     maxEdits,
@@ -538,6 +578,7 @@ final class OrderingQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
     this.items = const [],
     this.correctOrder,
   });
@@ -553,6 +594,7 @@ final class OrderingQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
     items: json.readList('items', AnswerOption.fromJson),
     correctOrder: json['correctOrder'] == null
         ? null
@@ -604,6 +646,7 @@ final class OrderingQuestion extends Question {
     softTimeLimit: softTimeLimit,
     scoringRule: scoringRule,
     media: media,
+    hints: concealedHints,
     items: items,
   );
   @override
@@ -623,6 +666,7 @@ final class OrderingQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
     items,
     correctOrder,
   ];
@@ -639,6 +683,7 @@ final class MatchingQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
     this.leftItems = const [],
     this.rightItems = const [],
     this.correctPairs,
@@ -656,6 +701,7 @@ final class MatchingQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
     leftItems: json.readList('leftItems', AnswerOption.fromJson),
     rightItems: json.readList('rightItems', AnswerOption.fromJson),
     correctPairs: json['correctPairs'] == null
@@ -675,9 +721,23 @@ final class MatchingQuestion extends Question {
       answer is MatchingAnswer &&
           correctPairs != null &&
           answer.pairs.length == correctPairs!.length &&
-          correctPairs!.entries.every((e) => answer.pairs[e.key] == e.value)
+          correctPairs!.entries.every(
+            (e) => switch (answer.pairs[e.key]) {
+              final given? => _rightKey(given) == _rightKey(e.value),
+              null => false,
+            },
+          )
       ? 1
       : 0;
+
+  /// Right items with the same label are interchangeable: "pork" may exist
+  /// twice, and either of them fits both pork dishes (since quiz schema 13).
+  String _rightKey(String id) => switch (rightItems
+      .where((item) => item.id == id)
+      .firstOrNull) {
+    final item? => item.label.trim().toLowerCase(),
+    null => id,
+  };
   @override
   String get solutionLabel => (correctPairs ?? {}).entries
       .map(
@@ -706,7 +766,7 @@ final class MatchingQuestion extends Question {
       answer is MatchingAnswer && accepts(answer)
       ? ([
           for (final pair in answer.pairs.entries)
-            '${pair.key}$_keySeparator${pair.value}',
+            '${pair.key}$_keySeparator${_rightKey(pair.value)}',
         ]..sort()).join('$_keySeparator$_keySeparator')
       : null;
   @override
@@ -718,6 +778,7 @@ final class MatchingQuestion extends Question {
     softTimeLimit: softTimeLimit,
     scoringRule: scoringRule,
     media: media,
+    hints: concealedHints,
     leftItems: leftItems,
     rightItems: rightItems,
   );
@@ -739,6 +800,7 @@ final class MatchingQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
     leftItems,
     rightItems,
     correctPairs,
@@ -756,6 +818,7 @@ final class EstimationQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
     this.correctValue,
     this.zeroScale = 1,
     this.unit = '',
@@ -773,6 +836,7 @@ final class EstimationQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
     correctValue: json['correctValue'] == null
         ? null
         : readFiniteDouble(json, 'correctValue'),
@@ -809,6 +873,7 @@ final class EstimationQuestion extends Question {
     softTimeLimit: softTimeLimit,
     scoringRule: scoringRule,
     media: media,
+    hints: concealedHints,
     zeroScale: zeroScale,
     unit: unit,
   );
@@ -830,6 +895,7 @@ final class EstimationQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
     correctValue,
     zeroScale,
     unit,
@@ -847,6 +913,7 @@ final class TrueFalseQuestion extends Question {
     super.media,
     super.solutionMedia,
     super.adminNotes,
+    super.hints,
     this.correctAnswer,
   });
   final bool? correctAnswer;
@@ -860,6 +927,7 @@ final class TrueFalseQuestion extends Question {
     scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
     media: readMedia(json, 'media'),
     solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
     correctAnswer: json['correctAnswer'] == null
         ? null
         : json.readBool('correctAnswer'),
@@ -899,6 +967,7 @@ final class TrueFalseQuestion extends Question {
     softTimeLimit: softTimeLimit,
     scoringRule: scoringRule,
     media: media,
+    hints: concealedHints,
   );
   @override
   JsonMap toJson() => {
@@ -916,6 +985,7 @@ final class TrueFalseQuestion extends Question {
     media,
     solutionMedia,
     adminNotes,
+    hints,
     correctAnswer,
   ];
 }

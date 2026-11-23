@@ -1,6 +1,7 @@
 /// Panels of the quizmaster dashboard.
 library;
 
+import '../common/hint_views.dart';
 import '../common/question_media_view.dart';
 
 import 'package:flutter/material.dart';
@@ -1116,8 +1117,16 @@ class LiveRoundPanel extends StatelessWidget {
     this.onJudgeAnswer,
     this.onJudgeBuzzer,
     this.onSetVerbalAnswers,
+    this.onShowHint,
+    this.onTakeBackHint,
     super.key,
   });
+
+  /// Shows the next hint of the question on stage.
+  final ValueChanged<ShowHintEvent>? onShowHint;
+
+  /// Takes back the hint shown last.
+  final ValueChanged<TakeBackHintEvent>? onTakeBackHint;
 
   /// Switches the verbal answer mode; `null` hides the switch.
   final ValueChanged<bool>? onSetVerbalAnswers;
@@ -1321,7 +1330,7 @@ class LiveRoundPanel extends StatelessWidget {
                 _QuestionContent(question: question),
                 QuestionMediaView(
                   media: question.media,
-                  playing: game.tvMediaPaused
+                  playing: game.tvMediaPaused || latestHintPlays(round)
                       ? false
                       : game.tvMediaCommandRevision > 0
                       ? true
@@ -1334,6 +1343,11 @@ class LiveRoundPanel extends StatelessWidget {
                 // cannot be mistaken for one another during a game.
                 if (question.adminNotes.trim().isNotEmpty)
                   HostNoteCard(note: question.adminNotes),
+                HintsCard(
+                  game: game,
+                  onShow: onShowHint,
+                  onTakeBack: onTakeBackHint,
+                ),
                 SolutionCard(question: question, game: game),
                 if (game.round.status == RoundStatus.revealed)
                   QuestionMediaView(

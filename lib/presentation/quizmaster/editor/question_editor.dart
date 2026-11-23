@@ -9,6 +9,7 @@ import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'new_question_fields.dart';
+import 'hints_editor.dart';
 import 'media_editor.dart';
 import 'selection_dropdown.dart';
 
@@ -209,6 +210,12 @@ class QuestionEditorPage extends StatefulWidget {
     JeopardyFormat() || PokerFormat() => false,
   };
 
+  /// Whether hints lower the points; poker has chips instead.
+  bool get hintsCostPoints => switch (format) {
+    PokerFormat() => false,
+    StandardFormat() || JeopardyFormat() || SnowflakeFormat() => true,
+  };
+
   /// Whether the format is played without a stored solution.
   bool get hidesSolution => switch (format) {
     SnowflakeFormat() => true,
@@ -224,6 +231,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
   Map<String, Object?> _contentFields = {};
   late List<MediaAttachment> _media;
   late List<MediaAttachment> _solutionMedia;
+  late List<QuestionHint> _hints;
   late final TextEditingController _notesController;
   late final TextEditingController _promptController;
   late final TextEditingController _categoryController;
@@ -258,6 +266,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     _notesController = TextEditingController(text: question.adminNotes);
     _media = question.media;
     _solutionMedia = question.solutionMedia;
+    _hints = question.hints;
     _promptController = TextEditingController(text: question.prompt);
     _categoryController = TextEditingController(text: question.category ?? '');
     _timeLimitController = TextEditingController(
@@ -468,6 +477,11 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               ),
             },
             if (widget.usesQuestionPoints) _scoringPanel(),
+            HintsEditor(
+              hints: _hints,
+              onChanged: (hints) => _hints = hints,
+              costsPoints: widget.hintsCostPoints,
+            ),
             MediaEditor(
               media: _media,
               onChanged: (media) => _media = media,
@@ -809,12 +823,14 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       'media': _media.map((m) => m.toJson()).toList(),
       'solutionMedia': _solutionMedia.map((m) => m.toJson()).toList(),
       'adminNotes': _notesController.text,
+      'hints': _hints.map((hint) => hint.toJson()).toList(),
     });
     if (widget.hidesSolution) question = question.withoutSolution();
     final errors = [
       ...question.structureErrors,
       if (!widget.hidesSolution) ...question.solutionErrors,
       for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
+      for (final hint in _hints) ...hint.validationErrors,
     ];
     if (errors.isNotEmpty) {
       ScaffoldMessenger.of(

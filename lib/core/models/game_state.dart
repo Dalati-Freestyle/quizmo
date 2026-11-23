@@ -3,6 +3,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import '../engine/scoring_rules.dart';
 import 'answer.dart';
 import 'game_protocol.dart';
 import 'jeopardy.dart';
@@ -325,6 +326,46 @@ final class GameState extends Equatable {
     return true;
   }
 
+  /// Whether hints lower the points. Poker has chips instead of points, so
+  /// hints are always free there.
+  bool get hintsCostPoints => poker == null;
+
+  /// Most points a correct answer given now can still earn, after the hints
+  /// on stage; `null` without a question or in poker.
+  int? get reachablePoints {
+    final question = round.question;
+    if (question == null || !hintsCostPoints) return null;
+    final full =
+        jeopardy?.activePoints ??
+        question.scoringRule
+            .evaluate(
+              ScoringContext(
+                isCorrect: true,
+                elapsed: Duration.zero,
+                timeLimit: question.timeLimit,
+                rank: round.resolvedAttempts,
+              ),
+            )
+            .points;
+    return applyHintDeduction(ScoreDelta(full), round.hintDeduction).points;
+  }
+
+  /// Whether the host may show or take back hints of the question on stage.
+  bool get mayChangeHints =>
+      !recoveryPaused &&
+      !isFinished &&
+      !(poker?.betting ?? false) &&
+      round.question != null &&
+      (round.status == RoundStatus.acceptingAnswers ||
+          round.status == RoundStatus.locked);
+
+  /// Whether the host may take back the hint shown last. A buzzer answer that
+  /// was already judged correct keeps its points, so it locks the hints.
+  bool get mayTakeBackHint =>
+      mayChangeHints &&
+      round.shownHintCount > 0 &&
+      !round.buzzerVerdicts.values.contains(1);
+
   /// Answers of the participant whose turn it is, e.g. the picking team on
   /// a Jeopardy board. Everybody may see them as soon as they are given.
   ///
@@ -494,6 +535,7 @@ final class GameState extends Equatable {
                   question: completed.question?.forWire(
                     reveal: true,
                     includeMediaData: includeMediaData,
+                    visibleHints: completed.shownHintCount,
                   ),
                 ),
             ]
@@ -509,6 +551,7 @@ final class GameState extends Equatable {
             : question?.forWire(
                 reveal: keepSolution,
                 includeMediaData: includeMediaData,
+                visibleHints: round.shownHintCount,
               ),
         answers: hideAnswers ? const {} : round.answers,
         hiddenAnswerCount: hideAnswers ? round.answers.length : 0,

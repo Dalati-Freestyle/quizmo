@@ -217,6 +217,19 @@ the release pipeline does this automatically.
   (`PokerCategoryView`) and TV (`TvCategoryStage`) show this phase separately. Players address the round by
   `roundStartedAt`, never by a question id they cannot know yet.
 
+### Hints
+* `Question.hints` (`QuestionHint`, schema 13: text, media, `cost` in points) belong to every question kind and
+  format. The host shows them in order (`ShowHintEvent`) and may take back the last one (`TakeBackHintEvent`)
+  while the round is open or locked, never during poker betting. `RoundState.hintTimesMicros` holds the host
+  instants; its length is the number of shown hints.
+* Scoring: `applyHintDeduction` lowers only positive points, never below 0, by `RoundState.hintDeductionAt` of the
+  answer's (buzzer press') host timestamp. Penalties stay with the `ScoringRule`. Poker ignores the cost
+  (`GameState.hintsCostPoints`). A steal round keeps the shown hints.
+* Guests receive the number and cost of all hints, but text and media only of the shown ones
+  (`Question.forWire(visibleHints:)`); `serveMedia` serves only media of shown hints.
+* Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
+  `uniquenessKey`.
+
 ### Interstitial slides
 * `Quiz.slides` (`InfoSlide`, schema 12): unscored screens with title, text and media, placed before a
   question (`beforeQuestionId`, `null` = at the end). They are not questions and never enter the question

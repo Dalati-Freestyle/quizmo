@@ -320,6 +320,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       );
     });
     on<RevokeJokerEvent>(_onRevokeJoker);
+    on<ShowHintEvent>(_onShowHint);
+    on<TakeBackHintEvent>(_onTakeBackHint);
     on<ResetGameEvent>(_onResetGame);
     on<FinishQuizEvent>((event, emit) {
       var game = state.game;
@@ -453,6 +455,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
                 : round.timerRestartedAtHostMicros == null
                 ? null
                 : round.timerRestartedAtHostMicros! + delta,
+            hintTimesMicros: [
+              for (final time in round.hintTimesMicros) time + delta,
+            ],
             recoverySoftTimer:
                 event.timerPolicy == RecoveryTimerPolicy.soft ||
                 (event.timerPolicy == RecoveryTimerPolicy.savedTime &&
@@ -1687,18 +1692,21 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final press = rank >= 0 ? round.buzzerQueue[rank] : null;
     final atHostMicros = press?.hostTimestampMicros ?? _now();
 
-    final delta = _ruleFor(game, question).evaluate(
-      ScoringContext(
-        isCorrect: event.wasCorrect,
-        elapsed: Duration(
-          microseconds:
-              round.acceptedElapsedMicros[activeId] ??
-              round.elapsedAt(atHostMicros).inMicroseconds,
+    final delta = applyHintDeduction(
+      _ruleFor(game, question).evaluate(
+        ScoringContext(
+          isCorrect: event.wasCorrect,
+          elapsed: Duration(
+            microseconds:
+                round.acceptedElapsedMicros[activeId] ??
+                round.elapsedAt(atHostMicros).inMicroseconds,
+          ),
+          timeLimit: question.timeLimit,
+          rank: round.resolvedAttempts,
+          attempt: round.resolvedAttempts + 1,
         ),
-        timeLimit: question.timeLimit,
-        rank: round.resolvedAttempts,
-        attempt: round.resolvedAttempts + 1,
       ),
+      round.hintDeductionAt(atHostMicros),
     );
     final scores = game.scores.apply(
       playerId: activeId,
@@ -2102,6 +2110,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (!jeopardy.hasActiveQuestion || jeopardy.isStealRound) return false;
     if (!jeopardy.canSteal || jeopardy.currentTeamId == null) return false;
     if (game.participantIds.length < 2) return false;
+    // A right answer that hints reduced to 0 points is still no miss.
+    final points = jeopardy.activePoints ?? 0;
+    if (game.round.hintDeduction > 0 &&
+        game.round.answers.values.any(
+          (answer) =>
+              (points * (game.round.accuracyFor(answer) ?? 0)).round() > 0,
+        )) {
+      return false;
+    }
     return !game.scores.history.any(
       (event) => event.questionId == question.id && event.points > 0,
     );
@@ -2120,6 +2137,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         startedAtHostMicros: _now(),
         snowflake: game.snowflake,
         verbal: game.round.verbal,
+        // The other teams saw the hints too.
+        hintTimesMicros: game.round.hintTimesMicros,
       ),
       jeopardy: game.jeopardy!.copyWith(isStealRound: true),
     );
@@ -2521,19 +2540,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           round.accuracyFor(answer) ??
           (throw StateError('Cannot score an ungraded answer.'));
       final isCorrect = accuracy > 0;
-      final delta = evaluateAccuracy(
-        rule,
-        ScoringContext(
-          isCorrect: isCorrect,
-          elapsed: Duration(
-            microseconds:
-                round.acceptedElapsedMicros[answer.playerId] ??
-                round.elapsedAt(answer.hostTimestampMicros).inMicroseconds,
+      final delta = applyHintDeduction(
+        evaluateAccuracy(
+          rule,
+          ScoringContext(
+            isCorrect: isCorrect,
+            elapsed: Duration(
+              microseconds:
+                  round.acceptedElapsedMicros[answer.playerId] ??
+                  round.elapsedAt(answer.hostTimestampMicros).inMicroseconds,
+            ),
+            timeLimit: question.timeLimit,
+            rank: isCorrect ? correctRank : index,
           ),
-          timeLimit: question.timeLimit,
-          rank: isCorrect ? correctRank : index,
+          accuracy,
         ),
-        accuracy,
+        // Only the hints visible when the answer was given count.
+        round.hintDeductionAt(answer.hostTimestampMicros),
       );
       if (isCorrect) correctRank++;
       scores = scores.apply(
@@ -2750,6 +2773,61 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           poker: poker?.copyWith(chips: chips, wagers: wagers),
         ),
         notice: 'Joker zurückgenommen.',
+      ),
+    );
+  }
+
+  void _onShowHint(ShowHintEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final round = game.round;
+    if (!game.mayChangeHints ||
+        round.question?.id != event.questionId ||
+        round.shownHintCount != event.shownHints ||
+        round.nextHint == null) {
+      emit(state.copyWith(notice: 'Gerade kann kein Tipp gezeigt werden.'));
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          round: round.copyWith(
+            hintTimesMicros: [...round.hintTimesMicros, _now()],
+          ),
+          // Media paused before belongs to the question, not to the hint.
+          tvMediaPaused:
+              round.nextHint!.media.any(
+                (m) => m is AudioAttachment || m is VideoAttachment,
+              )
+              ? false
+              : null,
+        ),
+        notice: 'Tipp wird gezeigt.',
+      ),
+    );
+  }
+
+  void _onTakeBackHint(TakeBackHintEvent event, Emitter<QuizEngineState> emit) {
+    final game = state.game;
+    final round = game.round;
+    if (!game.mayTakeBackHint ||
+        round.question?.id != event.questionId ||
+        round.shownHintCount != event.shownHints) {
+      emit(
+        state.copyWith(notice: 'Der Tipp kann nicht zurückgenommen werden.'),
+      );
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(
+          round: round.copyWith(
+            hintTimesMicros: round.hintTimesMicros.sublist(
+              0,
+              round.shownHintCount - 1,
+            ),
+          ),
+        ),
+        notice: 'Tipp zurückgenommen.',
       ),
     );
   }

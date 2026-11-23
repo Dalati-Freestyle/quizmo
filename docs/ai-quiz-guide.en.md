@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **12**
+Quizmo schema version of this guide: **13**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -97,7 +97,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 12,              // always exactly 12
+  "schemaVersion": 13,              // always exactly 13
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -206,6 +206,7 @@ medium is required; `media` as for questions (at most ten).
   "adminNotes": "",             // note for the host only
   "media": [],                  // attachments of the question (section 6)
   "solutionMedia": [],          // attachments shown only with the solution
+  "hints": [],                  // optional, hints (see below)
   "scoringRule": { … }          // scoring, see below
 }
 ```
@@ -222,6 +223,24 @@ Estimation questions award points in proportion to the accuracy. On a
 Jeopardy board and in the poker format the format replaces the points; still
 give a valid `scoringRule` (e.g. `fixed` with 10/0).
 
+**Hints (`hints`, optional):** a list of at most 10 hints the host shows one by
+one, from top to bottom, while the question runs:
+
+```text
+"hints": [
+  {"text": "It is not the largest city.", "media": [], "cost": 0},
+  {"text": "It starts with a C.", "media": [], "cost": 3}
+]
+```
+
+Every hint needs `text` or `media` (as in section 6, at most 10). `cost` is the
+point deduction (integer ≥ 0; 0 = free): whoever answers correctly only after
+the hint earns this many points less, never below 0. Wrong answers stay
+unchanged. On a Jeopardy board the deduction counts against the points of the
+row or the Daily Double wager, so choose it accordingly; in the poker format
+hints are always free. Order hints from vague to obvious, and never use the
+solution itself as a hint.
+
 ## 5. Question types
 
 | `type` | Additional fields | Rules |
@@ -230,7 +249,7 @@ give a valid `scoringRule` (e.g. `fixed` with 10/0).
 | `buzzer` | `expectedAnswer`, `lockOutOnMiss`, `hostEndsRound`, `retryLimit` | Whoever buzzes first answers out loud; the host judges. `retryLimit`: `null` = unlimited, otherwise ≥ 0. Scoring usually `firstBuzzer`. |
 | `shortAnswer` | `acceptedAnswers` (list), `maxEdits` (0–5), `manualGrading` | Free text. At least one accepted answer. `maxEdits` = allowed typos. `manualGrading: true` = the host grades by hand. |
 | `ordering` | `items` (list of `{"id","label"}`), `correctOrder` (list of the IDs) | Order. At least 2 items; `correctOrder` contains every ID exactly once. |
-| `matching` | `leftItems`, `rightItems` (each a list of `{"id","label"}`), `correctPairs` (`{"leftId": "rightId"}`) | Matching. Pair every left ID with exactly one unique right partner. |
+| `matching` | `leftItems`, `rightItems` (each a list of `{"id","label"}`), `correctPairs` (`{"leftId": "rightId"}`) | Matching. Equally many items on the left and the right; pair every left ID with exactly one right ID of its own. If a value fits several left items (e.g. two dishes with pork), add it several times on the right with the same `label` and different IDs: equal values are interchangeable. |
 | `estimation` | `correctValue` (number), `zeroScale` (> 0), `unit` | Estimate. Points in proportion `max(0, 1 − |answer − target| / |target|)`; for target 0, `zeroScale` replaces the denominator. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | True/false. |
 
@@ -297,7 +316,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 12` is at the very top.
+- [ ] `"schemaVersion": 13` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -326,7 +345,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -365,6 +384,9 @@ The following files are valid and import unchanged.
       "adminNotes": "Multiple answers",
       "media": [],
       "solutionMedia": [],
+      "hints": [
+        {"text": "A prime is divisible only by 1 and itself.", "media": [], "cost": 2}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": -5},
       "options": [
         {"id": "a", "label": "2"},
@@ -490,7 +512,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -560,7 +582,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -605,7 +627,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

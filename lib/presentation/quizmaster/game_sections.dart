@@ -77,6 +77,8 @@ Map<DashboardSection, Widget> buildGameSections(
       ),
       onJudgeAnswer: engine.add,
       onJudgeBuzzer: engine.add,
+      onShowHint: engine.add,
+      onTakeBackHint: engine.add,
       onSetVerbalAnswers: (enabled) =>
           engine.add(SetVerbalAnswersEvent(enabled)),
       onReveal: () => engine.add(const RevealRoundEvent()),
@@ -96,7 +98,9 @@ Map<DashboardSection, Widget> buildGameSections(
       if ([
         ...question.media,
         if (game.round.status == RoundStatus.revealed)
-          ...question.solutionMedia,
+          ...question.solutionMedia
+        else
+          for (final hint in game.round.shownHints) ...hint.media,
       ].any((m) => m is AudioAttachment || m is VideoAttachment))
         DashboardSection.media: PanelCard(
           title: context.tr("Medienwiedergabe"),

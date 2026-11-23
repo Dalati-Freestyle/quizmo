@@ -163,7 +163,7 @@ void main() {
       );
       final exported = exportQuizJson(quiz);
       final json = jsonDecode(exported) as Map<String, Object?>;
-      expect(json['schemaVersion'], 12);
+      expect(json['schemaVersion'], Quiz.currentSchemaVersion);
       expect(json['format'], {
         'type': 'poker',
         'startingChips': 200,

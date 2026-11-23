@@ -286,6 +286,20 @@ ScoreDelta evaluateAccuracy(
       : delta;
 }
 
+/// Lowers the points of a successful answer by the cost of the hints shown
+/// before it was given.
+///
+/// Hints only reduce what the answer would have earned, never below 0: wrong
+/// answers and their penalties are left to the [ScoringRule].
+ScoreDelta applyHintDeduction(ScoreDelta delta, int deduction) {
+  if (delta.points <= 0 || deduction <= 0) return delta;
+  final points = delta.points - deduction;
+  return ScoreDelta(
+    points < 0 ? 0 : points,
+    reason: '${delta.reason}, -$deduction hints',
+  );
+}
+
 // The stake has already been deducted when betting. Only a fully correct
 // answer returns twice the stake; a miss or no answer returns nothing.
 int pokerChipPayout({required int wager, required bool isCorrect}) =>

@@ -21,6 +21,7 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_texts.dart';
 import 'tv_category_stage.dart';
@@ -563,12 +564,16 @@ class _Pill extends StatelessWidget {
             ),
             const SizedBox(width: 12),
           ],
-          Text(
-            label,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
             ),
           ),
         ],
@@ -1461,6 +1466,9 @@ class _QuestionStage extends StatelessWidget {
                     ),
                   if (boardCategory ?? question.category case final category?)
                     _Pill(label: category, color: scheme.tertiaryContainer),
+                  if (!isRevealed)
+                    if (hintStatusText(context, game) case final hints?)
+                      _Pill(label: hints, color: scheme.secondaryContainer),
                   if (round.verbal && !isRevealed)
                     _Pill(
                       label: context.tr("MÜNDLICH ANTWORTEN"),
@@ -1570,22 +1578,111 @@ class _QuestionStage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
         ],
+        if (!isRevealed && round.shownHints.isNotEmpty) ...[
+          _HintStrip(game: game),
+          const SizedBox(height: 20),
+        ],
         Expanded(
-          // Exhaustive over the sealed hierarchy: a new question type does not
-          // compile until the TV knows how to render it.
-          child:
-              question.media.isNotEmpty ||
-                  (isRevealed && question.solutionMedia.isNotEmpty)
-              ? LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        QuestionMediaView(
-                          key: ValueKey('question-media-${question.id}'),
-                          media: question.media,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Always the first child of this row, so the media of the
+              // question keeps its state when a hint with media appears.
+              Expanded(
+                // Exhaustive over the sealed hierarchy: a new question type
+                // does not compile until the TV knows how to render it.
+                child:
+                    question.media.isNotEmpty ||
+                        (isRevealed && question.solutionMedia.isNotEmpty)
+                    ? LayoutBuilder(
+                        builder: (context, constraints) =>
+                            SingleChildScrollView(
+                              child: Column(
+                                children: [
+                                  QuestionMediaView(
+                                    key: ValueKey(
+                                      'question-media-${question.id}',
+                                    ),
+                                    media: question.media,
+                                    playing:
+                                        !game.tvMediaPaused &&
+                                        !latestHintPlays(round) &&
+                                        (!isRevealed ||
+                                            question.solutionMedia.isEmpty),
+                                    playbackRevision: game.tvMediaRevision,
+                                    commandRevision:
+                                        game.tvMediaCommandRevision,
+                                    maxVideoHeight: (constraints.maxHeight - 24)
+                                        .clamp(40, 300),
+                                  ),
+                                  if (isRevealed)
+                                    QuestionMediaView(
+                                      key: ValueKey(
+                                        'solution-media-${question.id}',
+                                      ),
+                                      media: question.solutionMedia,
+                                      playing: !game.tvMediaPaused,
+                                      playbackRevision: game.tvMediaRevision,
+                                      commandRevision:
+                                          game.tvMediaCommandRevision,
+                                      maxVideoHeight:
+                                          (constraints.maxHeight - 24).clamp(
+                                            40,
+                                            300,
+                                          ),
+                                    ),
+                                  QuestionResultView(
+                                    question: question,
+                                    game: game,
+                                  ),
+                                ],
+                              ),
+                            ),
+                      )
+                    : _ShrinkToFit(
+                        child: switch (current) {
+                          // A revealed snowflake round has no right option to mark;
+                          // it shows the answers by rarity like every other kind.
+                          MultipleChoiceQuestion()
+                              when !(isRevealed && round.snowflake != null) =>
+                            _ChoiceBoard(
+                              question: current,
+                              game: game,
+                              chosenColor: Color(
+                                picker?.colorValue ?? 0xff1565c0,
+                              ),
+                            ),
+                          MultipleChoiceQuestion() ||
+                          ShortAnswerQuestion() ||
+                          OrderingQuestion() ||
+                          MatchingQuestion() ||
+                          EstimationQuestion() ||
+                          TrueFalseQuestion() => SingleChildScrollView(
+                            child: QuestionResultView(
+                              question: current,
+                              game: game,
+                            ),
+                          ),
+                          BuzzerQuestion() => _BuzzerBoard(
+                            question: current,
+                            game: game,
+                          ),
+                        },
+                      ),
+              ),
+              if (!isRevealed)
+                if (round.shownHints.lastWithMedia case final hint?) ...[
+                  const SizedBox(width: 32),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => SingleChildScrollView(
+                        child: QuestionMediaView(
+                          key: ValueKey(
+                            'hint-media-${round.shownHints.indexOf(hint)}',
+                          ),
+                          media: hint.media,
                           playing:
-                              !game.tvMediaPaused &&
-                              (!isRevealed || question.solutionMedia.isEmpty),
+                              !game.tvMediaPaused && latestHintPlays(round),
                           playbackRevision: game.tvMediaRevision,
                           commandRevision: game.tvMediaCommandRevision,
                           maxVideoHeight: (constraints.maxHeight - 24).clamp(
@@ -1593,46 +1690,12 @@ class _QuestionStage extends StatelessWidget {
                             300,
                           ),
                         ),
-                        if (isRevealed)
-                          QuestionMediaView(
-                            key: ValueKey('solution-media-${question.id}'),
-                            media: question.solutionMedia,
-                            playing: !game.tvMediaPaused,
-                            playbackRevision: game.tvMediaRevision,
-                            commandRevision: game.tvMediaCommandRevision,
-                            maxVideoHeight: (constraints.maxHeight - 24).clamp(
-                              40,
-                              300,
-                            ),
-                          ),
-                        QuestionResultView(question: question, game: game),
-                      ],
+                      ),
                     ),
                   ),
-                )
-              : switch (current) {
-                  // A revealed snowflake round has no right option to mark;
-                  // it shows the answers by rarity like every other kind.
-                  MultipleChoiceQuestion()
-                      when !(isRevealed && round.snowflake != null) =>
-                    _ChoiceBoard(
-                      question: current,
-                      game: game,
-                      chosenColor: Color(picker?.colorValue ?? 0xff1565c0),
-                    ),
-                  MultipleChoiceQuestion() ||
-                  ShortAnswerQuestion() ||
-                  OrderingQuestion() ||
-                  MatchingQuestion() ||
-                  EstimationQuestion() ||
-                  TrueFalseQuestion() => SingleChildScrollView(
-                    child: QuestionResultView(question: current, game: game),
-                  ),
-                  BuzzerQuestion() => _BuzzerBoard(
-                    question: current,
-                    game: game,
-                  ),
-                },
+                ],
+            ],
+          ),
         ),
         if (isRevealed) _AwardsRow(game: game, questionId: question.id),
       ],
@@ -1646,6 +1709,92 @@ class _QuestionStage extends StatelessWidget {
     <= 200 => 52,
     _ => 44,
   };
+}
+
+/// Scales [child] down when hints leave less than [minHeight] for it, so the
+/// answers stay complete on the canvas instead of overflowing.
+class _ShrinkToFit extends StatelessWidget {
+  const _ShrinkToFit({required this.child});
+
+  final Widget child;
+
+  static const double minHeight = 400;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final height = constraints.maxHeight;
+      if (height >= minHeight || height <= 0) return child;
+      return FittedBox(
+        child: SizedBox(
+          width: constraints.maxWidth * minHeight / height,
+          height: minHeight,
+          child: child,
+        ),
+      );
+    },
+  );
+}
+
+extension on List<QuestionHint> {
+  /// The newest hint that has media.
+  QuestionHint? get lastWithMedia =>
+      where((hint) => hint.media.isNotEmpty).lastOrNull;
+}
+
+/// The texts of the hints shown last; the canvas cannot scroll, so at most
+/// three of them.
+class _HintStrip extends StatelessWidget {
+  const _HintStrip({required this.game});
+
+  final GameState game;
+
+  static const _maxHints = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final shown = game.round.shownHints;
+    final first = shown.length > _maxHints ? shown.length - _maxHints : 0;
+    return Container(
+      key: const ValueKey('tv-hints'),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (index, hint) in shown.indexed.skip(first))
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lightbulb, size: 30, color: scheme.primary),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    hint.text.trim().isEmpty
+                        ? hintTitle(context, game, index)
+                        : '${hintTitle(context, game, index)}: ${hint.text}',
+                    // Only the newest hint gets room for a second line.
+                    maxLines: index == shown.length - 1 ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontSize: 28,
+                      fontWeight: index == shown.length - 1
+                          ? FontWeight.w800
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RoundStatusPill extends StatelessWidget {

@@ -51,6 +51,11 @@ class _SessionNotificationsState extends State<SessionNotifications> {
               previous.round.question?.id != game.round.question?.id)) {
         messages.add(roundFeedback(game, widget.playerId!, context: context));
       }
+      if (widget.playerId != null &&
+          game.round.question?.id == previous.round.question?.id &&
+          game.round.shownHintCount > previous.round.shownHintCount) {
+        messages.add(context.tr('Neuer Tipp!'));
+      }
       for (final player in game.players.values) {
         final wasConnected = previous.players[player.id]?.isConnected ?? false;
         if (player.isConnected != wasConnected) {

@@ -565,3 +565,27 @@ final class HideSlideEvent extends QuizEngineEvent {
   @override
   List<Object?> get props => const [];
 }
+
+/// The host shows the next hint of the question on stage. [shownHints] is the
+/// number of hints the host saw as shown, so a double tap shows only one.
+final class ShowHintEvent extends QuizEngineEvent {
+  const ShowHintEvent({required this.questionId, required this.shownHints});
+
+  final String questionId;
+  final int shownHints;
+
+  @override
+  List<Object?> get props => [questionId, shownHints];
+}
+
+/// The host takes back the hint shown last; its cost no longer counts, also
+/// for answers given in the meantime.
+final class TakeBackHintEvent extends QuizEngineEvent {
+  const TakeBackHintEvent({required this.questionId, required this.shownHints});
+
+  final String questionId;
+  final int shownHints;
+
+  @override
+  List<Object?> get props => [questionId, shownHints];
+}

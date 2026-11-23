@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **12**
+Quizmo-Schema-Version dieser Anleitung: **13**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -98,7 +98,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 12,              // immer genau 12
+  "schemaVersion": 13,              // immer genau 13
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -208,6 +208,7 @@ Medium ist Pflicht; `media` wie bei Fragen (höchstens zehn).
   "adminNotes": "",             // Notiz nur für die Spielleitung
   "media": [],                  // Anhänge zur Frage (Abschnitt 6)
   "solutionMedia": [],          // Anhänge, die erst mit der Lösung erscheinen
+  "hints": [],                  // optional, Tipps (siehe unten)
   "scoringRule": { … }          // Wertung, siehe unten
 }
 ```
@@ -224,6 +225,24 @@ Bei Schätzfragen werden die Punkte anteilig nach Genauigkeit vergeben. Auf eine
 Jeopardy-Board und im Pokerformat ersetzt das Format die Punkte; gib trotzdem
 eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 
+**Tipps (`hints`, optional):** Liste von höchstens 10 Tipps, die die
+Spielleitung während der Frage von oben nach unten einzeln aufdeckt:
+
+```text
+"hints": [
+  {"text": "Es ist nicht die größte Stadt.", "media": [], "cost": 0},
+  {"text": "Sie beginnt mit C.", "media": [], "cost": 3}
+]
+```
+
+Jeder Tipp braucht `text` oder `media` (wie in Abschnitt 6, höchstens 10).
+`cost` ist der Punktabzug (ganze Zahl ≥ 0; 0 = kostenlos): Wer erst nach dem
+Tipp richtig antwortet, erhält so viele Punkte weniger, nie weniger als 0.
+Falsche Antworten bleiben unverändert. Auf einem Jeopardy-Board zählt der Abzug
+gegen die Punkte der Zeile bzw. den Daily-Double-Einsatz, wähle ihn passend; im
+Pokerformat sind Tipps immer kostenlos. Ordne Tipps von vage nach deutlich, und
+nimm nie die Lösung selbst als Tipp.
+
 ## 5. Fragetypen
 
 | `type` | Zusätzliche Felder | Regeln |
@@ -232,7 +251,7 @@ eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 | `buzzer` | `expectedAnswer`, `lockOutOnMiss`, `hostEndsRound`, `retryLimit` | Wer zuerst buzzert, antwortet mündlich; die Spielleitung bewertet. `retryLimit`: `null` = unbegrenzt, sonst ≥ 0. Wertung meist `firstBuzzer`. |
 | `shortAnswer` | `acceptedAnswers` (Liste), `maxEdits` (0–5), `manualGrading` | Freitext. Mindestens eine akzeptierte Antwort. `maxEdits` = erlaubte Tippfehler. `manualGrading: true` = Spielleitung bewertet von Hand. |
 | `ordering` | `items` (Liste `{"id","label"}`), `correctOrder` (Liste der IDs) | Reihenfolge. Mindestens 2 Elemente; `correctOrder` enthält jede ID genau einmal. |
-| `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Jede linke ID genau einem eindeutigen rechten Partner zuordnen. |
+| `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Gleich viele Elemente links und rechts; jede linke ID genau einer eigenen rechten ID zuordnen. Passt ein Wert zu mehreren linken Elementen (z. B. zwei Gerichte mit Schwein), lege ihn rechts mehrfach mit gleichem `label` und verschiedenen IDs an: gleiche Werte sind untereinander austauschbar. |
 | `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | Wahr/Falsch. |
 
@@ -299,7 +318,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 12` steht ganz oben.
+- [ ] `"schemaVersion": 13` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -329,7 +348,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -368,6 +387,9 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
       "adminNotes": "Mehrfachauswahl",
       "media": [],
       "solutionMedia": [],
+      "hints": [
+        {"text": "Eine Primzahl ist nur durch 1 und sich selbst teilbar.", "media": [], "cost": 2}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": -5},
       "options": [
         {"id": "a", "label": "2"},
@@ -493,7 +515,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -563,7 +585,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -608,7 +630,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 12,
+  "schemaVersion": 13,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

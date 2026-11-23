@@ -9,6 +9,7 @@ import 'info_slide.dart';
 import 'joker.dart';
 import 'json.dart';
 import 'question.dart';
+import 'question_hint.dart';
 import 'quiz_format.dart';
 import 'team.dart';
 import 'team_color.dart';
@@ -46,7 +47,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 12;
+  static const int currentSchemaVersion = 13;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -75,6 +76,7 @@ final class Quiz extends Equatable {
       10 => Quiz._fromJsonV10(json),
       11 => Quiz._fromJsonV11(json),
       12 => Quiz._fromJsonV12(json),
+      13 => Quiz._fromJsonV13(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -176,7 +178,21 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV12(json);
   }
 
+  /// Schema 12 has no hints; questions without hints are equal in schema 13.
+  /// Right items of a matching question with the same label used to be told
+  /// apart; from schema 13 on they are interchangeable, which also applies to
+  /// imported older files.
   factory Quiz._fromJsonV12(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question['hints'] case final List<Object?> hints
+          when hints.isNotEmpty) {
+        throw const JsonContractException('Hints need schemaVersion 13.');
+      }
+    }
+    return Quiz._fromJsonV13(json);
+  }
+
+  factory Quiz._fromJsonV13(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -496,6 +512,14 @@ List<String> _questionValidationErrors(
     ...media.validationErrors,
     if (media.asset != null && media.asset!.data == null)
       'Medien-Datei fehlt im Quiz.',
+  ],
+  if (question.hints.length > QuestionHint.maxPerQuestion)
+    'Maximal zehn Tipps pro Frage.',
+  for (final hint in question.hints) ...[
+    ...hint.validationErrors,
+    for (final media in hint.media)
+      if (media.asset != null && media.asset!.data == null)
+        'Medien-Datei fehlt im Quiz.',
   ],
   ...switch (question) {
     MultipleChoiceQuestion(

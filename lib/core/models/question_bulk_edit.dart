@@ -115,6 +115,17 @@ final class QuestionBulkEdit {
         for (final media in question.solutionMedia)
           _media(media, hideSolutionMediaDetails).toJson(),
       ],
+      // Hints appear while the question runs: they follow its media.
+      'hints': [
+        for (final hint in question.hints)
+          {
+            ...hint.toJson(),
+            'media': [
+              for (final media in hint.media)
+                _media(media, hideQuestionMediaDetails).toJson(),
+            ],
+          },
+      ],
     });
   }
 

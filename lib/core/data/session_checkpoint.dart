@@ -327,6 +327,12 @@ final class SessionCheckpoint {
         'round clock.',
       );
       require(
+        round.hintTimesMicros.length <= (q?.hints.length ?? 0) &&
+            (archived ||
+                round.hintTimesMicros.every((t) => t <= game.hostTimeMicros)),
+        'shown hints.',
+      );
+      require(
         (round.timerRestartedAtHostMicros == null ||
                 round.timerRestartedAtHostMicros! <= game.hostTimeMicros) &&
             round.acceptedElapsedMicros.values.every((v) => v >= 0),

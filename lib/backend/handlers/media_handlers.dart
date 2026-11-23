@@ -37,6 +37,7 @@ Response serveMedia(
     ...?game.activeSlide?.media,
     if (question != null) ...[
       ...question.media,
+      for (final hint in round.shownHints) ...hint.media,
       if (round.status == RoundStatus.revealed && !game.resultsHidden)
         ...question.solutionMedia,
     ],
@@ -44,6 +45,7 @@ Response serveMedia(
       for (final completed in game.roundHistory)
         if (completed.question case final archived?) ...[
           ...archived.media,
+          for (final hint in completed.shownHints) ...hint.media,
           ...archived.solutionMedia,
         ],
   ];
