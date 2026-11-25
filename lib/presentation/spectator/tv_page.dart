@@ -56,6 +56,7 @@ import 'animated_score_value.dart';
 import '../common/answer_countdown.dart';
 import '../common/elimination_label.dart';
 import '../common/media_playback.dart';
+import '../common/tv_instruction.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -879,7 +880,6 @@ class _JeopardyBoardStage extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final picker = game.teams[jeopardy.currentTeamId];
-    final pickerName = game.participantName(jeopardy.currentTeamId);
     final remaining = jeopardy.board.questionIds
         .where((id) => !game.completedQuestionIds.contains(id))
         .length;
@@ -901,9 +901,9 @@ class _JeopardyBoardStage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               )
-            else if (pickerName != null)
+            else if (tvInstruction(context.tr, game) case final instruction?)
               _Pill(
-                label: context.tr("{0} picks the next question", [pickerName]),
+                label: instruction.text,
                 color: Color(picker?.colorValue ?? 0xff1565c0)
                     .withValues(alpha: 0.35),
                 dotColor: Color(picker?.colorValue ?? 0xff1565c0),
@@ -971,9 +971,10 @@ class _DailyDoubleStage extends StatelessWidget {
             _Pill(label: category, color: scheme.tertiaryContainer),
           const SizedBox(height: 32),
           Text(
-            context.tr("{0}, place your wager!", [
-              pickerName ?? context.tr('The picking team'),
-            ]),
+            tvInstruction(context.tr, game)?.text ??
+                context.tr('{0} legt den Einsatz fest.', [
+                  pickerName ?? context.tr('The picking team'),
+                ]),
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 56,
@@ -1493,11 +1494,6 @@ class _QuestionStage extends StatelessWidget {
                   if (!isRevealed)
                     if (hintStatusText(context, game) case final hints?)
                       _Pill(label: hints, color: scheme.secondaryContainer),
-                  if (round.verbal && !isRevealed)
-                    _Pill(
-                      label: context.tr("MÜNDLICH ANTWORTEN"),
-                      color: scheme.secondaryContainer,
-                    ),
                   if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
                     _Pill(
                       label: context.tr("{0} pts", [jeopardy.activePoints]),
@@ -1508,19 +1504,6 @@ class _QuestionStage extends StatelessWidget {
                         label: context.tr("DAILY DOUBLE"),
                         color: scheme.tertiary.withValues(alpha: 0.4),
                         dotColor: scheme.tertiary,
-                      ),
-                    if (pickerName != null && !isRevealed)
-                      _Pill(
-                        label: game.round.buzzerOpenForAll
-                            ? context.tr("BUZZER: everyone may answer")
-                            : jeopardy.isStealRound
-                            ? context.tr("STEAL: everyone but {0}", [
-                                pickerName,
-                              ])
-                            : context.tr("{0} answers", [pickerName]),
-                        color: Color(picker?.colorValue ?? 0xff1565c0)
-                            .withValues(alpha: 0.35),
-                        dotColor: Color(picker?.colorValue ?? 0xff1565c0),
                       ),
                   ] else
                     _Pill(
@@ -1549,7 +1532,14 @@ class _QuestionStage extends StatelessWidget {
             height: 1.15,
           ),
         ),
-        SizedBox(height: hasMedia ? 16 : 28),
+        SizedBox(height: hasMedia ? 8 : 16),
+        TvInstructionLine(
+          game: game,
+          color: jeopardy?.hasActiveQuestion == true && picker != null
+              ? Color(picker.colorValue)
+              : null,
+        ),
+        SizedBox(height: hasMedia ? 8 : 12),
         if (game.poker case final poker?
             when poker.betting && game.totalQuestionCount > 0) ...[
           Text(
@@ -1714,6 +1704,7 @@ class _QuestionStage extends StatelessWidget {
                         child: QuestionResultView(
                           question: current,
                           game: game,
+                          tv: true,
                         ),
                       ),
                       BuzzerQuestion() => _BuzzerBoard(
@@ -2472,16 +2463,6 @@ class _PulsingBuzzerHintState extends State<_PulsingBuzzerHint>
                 style: theme.textTheme.displaySmall?.copyWith(
                   fontSize: 64,
                   fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                context.tr(
-                  widget.ready ? "Be the first to hit your buzzer." : "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
-                ),
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontSize: 34,
-                  color: scheme.onSurfaceVariant,
                 ),
               ),
             ],
