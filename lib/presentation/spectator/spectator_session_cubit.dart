@@ -185,6 +185,17 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     return reconnect();
   }
 
+  final Set<Object> _blockedMedia = {};
+
+  /// Called when a player on this TV could (not) start by itself.
+  void mediaBlocked(Object source, bool blocked) {
+    final before = _blockedMedia.isNotEmpty;
+    blocked ? _blockedMedia.add(source) : _blockedMedia.remove(source);
+    if (before != _blockedMedia.isNotEmpty) {
+      _client?.reportMediaBlocked(_blockedMedia.isNotEmpty);
+    }
+  }
+
   Timer? _retryTimer;
   var _attempt = 0;
 

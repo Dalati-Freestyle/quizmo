@@ -16,6 +16,7 @@ import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
 import '../l10n/app_localizations.dart';
+import '../common/media_playback.dart';
 
 /// The kinds of round information, each with its own look.
 enum RoundInfoKind {
@@ -178,15 +179,14 @@ class HintsCard extends StatelessWidget {
                             QuestionMediaView(
                               key: ValueKey('host-hint-media-$index'),
                               media: hint.media,
-                              // The host previews hints by hand; only the
-                              // newest shown one follows the media controls.
-                              playing: index != shown - 1
-                                  ? null
-                                  : game.tvMediaPaused
-                                  ? false
-                                  : game.tvMediaCommandRevision > 0
-                                  ? true
-                                  : null,
+                              // The host previews hints by hand; the
+                              // shown ones stop with the host's pause.
+                              playback: index < shown
+                                  ? MediaPlayback.onDevice(
+                                      game,
+                                      stopped: index != shown - 1,
+                                    )
+                                  : MediaPlayback.onDemand,
                               playbackRevision: game.tvMediaRevision,
                               commandRevision: game.tvMediaCommandRevision,
                             ),

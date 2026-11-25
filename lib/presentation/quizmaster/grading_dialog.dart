@@ -10,6 +10,7 @@ import '../../core/models/models.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../l10n/app_localizations.dart';
+import '../common/media_playback.dart';
 
 /// One line of the pop-up: a team, or a player without a team.
 final class GradingRow {
@@ -483,7 +484,7 @@ class GradingDialog extends StatelessWidget {
                 if (question.solutionMedia.isNotEmpty)
                   QuestionMediaView(
                     media: question.solutionMedia,
-                    playing: false,
+                    playback: MediaPlayback.stopped,
                   ),
               ],
             ),

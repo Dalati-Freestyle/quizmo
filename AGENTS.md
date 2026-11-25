@@ -261,6 +261,13 @@ the release pipeline does this automatically.
 * Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
   `uniquenessKey`.
 
+### Media playback
+* `MediaPlayback` (`presentation/common/media_playback.dart`) states what a view may do: the TV plays `automatic`, player
+  devices and the host's device only `onDemand` (never by themselves, whatever the host pressed), `stopped` media stand
+  still but may be started, `paused` (host command, buzzer) locks playback on every device. Always derive it with
+  `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
+* A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
+
 ### Interstitial slides
 * `Quiz.slides` (`InfoSlide`, schema 12): unscored screens with title, text and media, placed before a
   question (`beforeQuestionId`, `null` = at the end). They are not questions and never enter the question

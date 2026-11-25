@@ -757,6 +757,10 @@ class SocketHub {
           _deviceCheck = check.confirm(playerId);
         }
 
+      case MediaBlockedReport(:final blocked):
+        if (!connection.isSpectator) return;
+        _engine.mediaScreens.report(connection.id, blocked: blocked);
+
       case LeaveNotice():
         _onDisconnected(connection);
         connection.closeSocket();
@@ -766,6 +770,7 @@ class SocketHub {
   void _onDisconnected(_Connection connection) {
     if (_connections.remove(connection.id) == null) return;
     _engine.access.revokeReadCredential(connection.id);
+    _engine.mediaScreens.report(connection.id, blocked: false);
     connection.handshakeTimeout?.cancel();
     connection.identityRetry?.cancel();
     connection.subscription?.cancel();

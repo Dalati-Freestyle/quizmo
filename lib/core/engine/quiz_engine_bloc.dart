@@ -11,11 +11,13 @@ import 'package:bloc/bloc.dart';
 
 import '../models/models.dart';
 import '../sync/clock.dart';
+import 'media_screens.dart';
 import 'quiz_engine_event.dart';
 import 'quiz_engine_state.dart';
 import 'scoring_rules.dart';
 import 'session_access.dart';
 
+export 'media_screens.dart';
 export 'quiz_engine_event.dart';
 export 'quiz_engine_state.dart';
 
@@ -248,7 +250,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     });
     on<ControlTvMediaEvent>((event, emit) {
       final game = state.game;
-      if (game.round.question == null) return;
+      if (game.round.question == null && !game.showsSlide) return;
       emit(
         _publish(
           game.copyWith(
@@ -626,6 +628,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// Players whose draft changed.
   Stream<String> get draftChanges => _draftChanges.stream;
 
+  /// TVs whose browser refuses to start media with sound.
+  final MediaScreens mediaScreens = MediaScreens();
+
   /// Whether the answers are closed but drafts under way may still arrive.
   bool get isWaitingForDrafts => _draftWait != null;
 
@@ -768,6 +773,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     _countdownTimer?.cancel();
     _draftTimer?.cancel();
     unawaited(_draftChanges.close());
+    mediaScreens.close();
     unawaited(access.close());
     return super.close();
   }
@@ -2860,6 +2866,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         hostTimeMicros: game.recoveryPaused ? game.hostTimeMicros : _now(),
         tvMediaPaused:
             game.round.question?.id != state.game.round.question?.id ||
+                game.activeSlide?.id != state.game.activeSlide?.id ||
                 (game.round.status == RoundStatus.revealed &&
                     state.game.round.status != RoundStatus.revealed)
             ? false

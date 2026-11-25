@@ -22,38 +22,40 @@ sealed class ClientMessage extends Equatable {
   String encode() => jsonEncode(toJson());
 
   /// Restores a message from [json].
-  static ClientMessage fromJson(JsonMap json) =>
-      switch (json.readString('type')) {
-        JoinRequest._type => JoinRequest.fromJson(json),
-        'lobby' => const LobbyRequest(),
-        'renameTeam' => RenameTeamMessage(name: json.readString('name')),
-        SyncPing._type => SyncPing.fromJson(json),
-        ClockReport._type => ClockReport.fromJson(json),
-        SubmissionMessage._type => SubmissionMessage.fromJson(json),
-        DraftMessage._type => DraftMessage.fromJson(json),
-        WatchRequest._type => WatchRequest(
-          joinCode: json.readStringOrNull('joinCode'),
-        ),
-        'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
-        'dailyDoubleWager' => DailyDoubleWagerMessage(
-          questionId: json.readString('questionId'),
-          wager: json.readInt('wager'),
-        ),
-        'pokerWager' => PokerWagerMessage(
-          questionId: json.readString('questionId'),
-          wager: json.readInt('wager'),
-        ),
-        UseJokerMessage._type => UseJokerMessage(
-          roundStartedAt: json.readInt('roundStartedAt'),
-          jokerId: json.readString('jokerId'),
-          targetTeamId: json.readStringOrNull('targetTeamId'),
-        ),
-        LeaveNotice._type => const LeaveNotice(),
-        DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
-        final unknown => throw JsonContractException(
-          'Unknown client message "$unknown".',
-        ),
-      };
+  static ClientMessage fromJson(JsonMap json) => switch (json.readString(
+    'type',
+  )) {
+    JoinRequest._type => JoinRequest.fromJson(json),
+    'lobby' => const LobbyRequest(),
+    'renameTeam' => RenameTeamMessage(name: json.readString('name')),
+    SyncPing._type => SyncPing.fromJson(json),
+    ClockReport._type => ClockReport.fromJson(json),
+    SubmissionMessage._type => SubmissionMessage.fromJson(json),
+    DraftMessage._type => DraftMessage.fromJson(json),
+    WatchRequest._type => WatchRequest(
+      joinCode: json.readStringOrNull('joinCode'),
+    ),
+    'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
+    'dailyDoubleWager' => DailyDoubleWagerMessage(
+      questionId: json.readString('questionId'),
+      wager: json.readInt('wager'),
+    ),
+    'pokerWager' => PokerWagerMessage(
+      questionId: json.readString('questionId'),
+      wager: json.readInt('wager'),
+    ),
+    UseJokerMessage._type => UseJokerMessage(
+      roundStartedAt: json.readInt('roundStartedAt'),
+      jokerId: json.readString('jokerId'),
+      targetTeamId: json.readStringOrNull('targetTeamId'),
+    ),
+    LeaveNotice._type => const LeaveNotice(),
+    MediaBlockedReport._type => MediaBlockedReport(json.readBool('blocked')),
+    DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
+    final unknown => throw JsonContractException(
+      'Unknown client message "$unknown".',
+    ),
+  };
 
   /// Decodes a raw web socket frame.
   static ClientMessage decode(String raw) =>
@@ -249,6 +251,21 @@ final class WatchRequest extends ClientMessage {
 
   @override
   List<Object?> get props => [joinCode];
+}
+
+/// A TV tells whether its browser refuses to start media with sound.
+final class MediaBlockedReport extends ClientMessage {
+  const MediaBlockedReport(this.blocked);
+
+  static const String _type = 'mediaBlocked';
+
+  final bool blocked;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'blocked': blocked};
+
+  @override
+  List<Object?> get props => [blocked];
 }
 
 /// Announces a graceful disconnect.

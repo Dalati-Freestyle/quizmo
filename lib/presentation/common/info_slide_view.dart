@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/models.dart';
 import 'question_media_view.dart';
+import 'media_playback.dart';
 
 /// Title, text and media of [slide].
 ///
@@ -14,7 +15,7 @@ class InfoSlideView extends StatelessWidget {
   const InfoSlideView({
     required this.slide,
     this.large = false,
-    this.playing,
+    this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
     this.baseUri,
@@ -24,7 +25,7 @@ class InfoSlideView extends StatelessWidget {
 
   final InfoSlide slide;
   final bool large;
-  final bool? playing;
+  final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
   final Uri? baseUri;
@@ -72,7 +73,7 @@ class InfoSlideView extends StatelessWidget {
             key: ValueKey('slide-media-${slide.id}'),
             media: slide.media,
             baseUri: baseUri,
-            playing: playing,
+            playback: playback,
             playbackRevision: playbackRevision,
             commandRevision: commandRevision,
             maxVideoHeight: maxVideoHeight,

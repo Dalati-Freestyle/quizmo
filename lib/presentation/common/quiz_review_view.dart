@@ -4,6 +4,7 @@ import '../../core/models/models.dart';
 import '../l10n/app_localizations.dart';
 import 'question_media_view.dart';
 import 'question_result_view.dart';
+import 'media_playback.dart';
 
 class QuizReviewView extends StatelessWidget {
   const QuizReviewView({
@@ -75,7 +76,7 @@ class QuizReviewView extends StatelessWidget {
                 QuestionMediaView(
                   media: question.media,
                   baseUri: mediaBaseUri,
-                  playing: false,
+                  playback: MediaPlayback.stopped,
                 ),
                 for (final hint in round.shownHints) ...[
                   if (hint.text.trim().isNotEmpty)
@@ -83,13 +84,13 @@ class QuizReviewView extends StatelessWidget {
                   QuestionMediaView(
                     media: hint.media,
                     baseUri: mediaBaseUri,
-                    playing: false,
+                    playback: MediaPlayback.stopped,
                   ),
                 ],
                 QuestionMediaView(
                   media: question.solutionMedia,
                   baseUri: mediaBaseUri,
-                  playing: false,
+                  playback: MediaPlayback.stopped,
                 ),
               ],
             ),

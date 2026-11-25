@@ -42,6 +42,7 @@ import 'questions/multiple_choice_question_view.dart';
 import '../common/answer_countdown.dart';
 import 'team_answer_card.dart';
 import 'team_inputs_view.dart';
+import '../common/media_playback.dart';
 
 /// Player facing screen.
 ///
@@ -626,7 +627,9 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey('slide-${game.activeSlide!.id}'),
         slide: game.activeSlide!,
         baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
-        playing: false,
+        playback: MediaPlayback.onDevice(game),
+        playbackRevision: game.tvMediaRevision,
+        commandRevision: game.tvMediaCommandRevision,
       );
     }
 
@@ -932,13 +935,13 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.media,
             baseUri: cubit.mediaBaseUri,
-            playing:
-                state.game?.tvMediaPaused == true ||
-                    latestHintPlays(state.game?.round ?? RoundState.idle)
-                ? false
-                : (state.game?.tvMediaCommandRevision ?? 0) > 0
-                ? true
-                : null,
+            playback: MediaPlayback.onDevice(
+              state.game,
+              stopped:
+                  latestHintPlays(state.game?.round ?? RoundState.idle) ||
+                  (state.roundStatus == RoundStatus.revealed &&
+                      question.solutionMedia.isNotEmpty),
+            ),
             playbackRevision: state.game?.tvMediaRevision ?? 0,
             commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
@@ -960,11 +963,7 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.solutionMedia,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true
-                ? false
-                : (state.game?.tvMediaCommandRevision ?? 0) > 0
-                ? true
-                : null,
+            playback: MediaPlayback.onDevice(state.game),
             playbackRevision: state.game?.tvMediaRevision ?? 0,
             commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
@@ -1404,7 +1403,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           QuestionMediaView(
             media: state.question!.media,
             baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
-            playing: false,
+            playback: MediaPlayback.stopped,
           ),
       ],
     );

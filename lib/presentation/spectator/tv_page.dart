@@ -54,6 +54,7 @@ import 'tv_standings.dart';
 import 'animated_score_value.dart';
 import '../common/answer_countdown.dart';
 import '../common/elimination_label.dart';
+import '../common/media_playback.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -249,9 +250,14 @@ class _TvViewState extends State<_TvView> {
                           >(
                             builder: (context, state) => SessionMediaAccess(
                               baseUri: state.mediaBaseUri,
-                              child: TvScreen(
-                                state: state,
-                                joinUri: widget.joinUri,
+                              child: MediaBlockReporter(
+                                onChanged: context
+                                    .read<SpectatorSessionCubit>()
+                                    .mediaBlocked,
+                                child: TvScreen(
+                                  state: state,
+                                  joinUri: widget.joinUri,
+                                ),
                               ),
                             ),
                           ),
@@ -723,7 +729,7 @@ class _MainStage extends StatelessWidget {
                 child: InfoSlideView(
                   slide: game.activeSlide!,
                   large: true,
-                  playing: !game.tvMediaPaused,
+                  playback: MediaPlayback.onTv(game),
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
                   maxVideoHeight: 560,
@@ -807,7 +813,7 @@ class _FinalReviewStageState extends State<_FinalReviewStage> {
   Widget build(BuildContext context) {
     final rounds = widget.game.roundHistory;
     final round = rounds[_index % rounds.length];
-    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: true);
+    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -855,6 +861,7 @@ class _FinalReviewStageState extends State<_FinalReviewStage> {
             game: reviewGame,
             question: round.question!,
             state: widget.state.copyWith(game: reviewGame),
+            review: true,
           ),
         ),
       ],
@@ -1428,8 +1435,15 @@ class _QuestionStage extends StatelessWidget {
     required this.game,
     required this.question,
     required this.state,
+    this.review = false,
     super.key,
   });
+
+  /// In the final review nothing plays by itself.
+  final bool review;
+
+  MediaPlayback _playback({bool silent = false}) =>
+      review ? MediaPlayback.stopped : MediaPlayback.onTv(game, silent: silent);
 
   final GameState game;
   final Question question;
@@ -1612,11 +1626,14 @@ class _QuestionStage extends StatelessWidget {
                                       'question-media-${question.id}',
                                     ),
                                     media: question.media,
-                                    playing:
-                                        !game.tvMediaPaused &&
-                                        !latestHintPlays(round) &&
-                                        (!isRevealed ||
-                                            question.solutionMedia.isEmpty),
+                                    playback: _playback(
+                                      silent:
+                                          latestHintPlays(round) ||
+                                          (isRevealed &&
+                                              question
+                                                  .solutionMedia
+                                                  .isNotEmpty),
+                                    ),
                                     playbackRevision: game.tvMediaRevision,
                                     commandRevision:
                                         game.tvMediaCommandRevision,
@@ -1629,7 +1646,7 @@ class _QuestionStage extends StatelessWidget {
                                         'solution-media-${question.id}',
                                       ),
                                       media: question.solutionMedia,
-                                      playing: !game.tvMediaPaused,
+                                      playback: _playback(),
                                       playbackRevision: game.tvMediaRevision,
                                       commandRevision:
                                           game.tvMediaCommandRevision,
@@ -1689,8 +1706,7 @@ class _QuestionStage extends StatelessWidget {
                             'hint-media-${round.shownHints.indexOf(hint)}',
                           ),
                           media: hint.media,
-                          playing:
-                              !game.tvMediaPaused && latestHintPlays(round),
+                          playback: _playback(silent: !latestHintPlays(round)),
                           playbackRevision: game.tvMediaRevision,
                           commandRevision: game.tvMediaCommandRevision,
                           maxVideoHeight: (constraints.maxHeight - 24).clamp(

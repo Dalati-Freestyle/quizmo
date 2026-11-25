@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
+import 'media_playback.dart';
 import 'media_playback_source.dart';
 
 import 'package:flutter/material.dart';
@@ -18,6 +20,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart'
     hide PlayerState;
+import 'package:youtube_player_iframe/youtube_player_iframe.dart'
+    as youtube
+    show PlayerState;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/models.dart';
@@ -76,13 +81,13 @@ class QuestionMediaView extends StatelessWidget {
   const QuestionMediaView({
     required this.media,
     this.baseUri,
-    this.playing,
+    this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
     this.maxVideoHeight = 300,
     super.key,
   });
-  final bool? playing;
+  final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
   final double maxVideoHeight;
@@ -115,7 +120,7 @@ class QuestionMediaView extends StatelessWidget {
           builder: (loaded) => _ReadyMediaView(
             media: [loaded],
             baseUri: baseUri,
-            playing: playing,
+            playback: StillMedia.of(context) ? MediaPlayback.stopped : playback,
             playbackRevision: playbackRevision,
             commandRevision: commandRevision,
             maxVideoHeight: maxVideoHeight,
@@ -261,7 +266,7 @@ class _ReadyMediaView extends QuestionMediaView {
   const _ReadyMediaView({
     required super.media,
     super.baseUri,
-    super.playing,
+    super.playback,
     super.playbackRevision,
     super.commandRevision,
     super.maxVideoHeight,
@@ -285,7 +290,7 @@ class _ReadyMediaView extends QuestionMediaView {
                     attachment: attachment,
                     source: source(attachment.asset, context),
                     onRetry: retry,
-                    playing: playing,
+                    playback: playback,
                     playbackRevision: playbackRevision,
                     commandRevision: commandRevision,
                   ),
@@ -296,7 +301,7 @@ class _ReadyMediaView extends QuestionMediaView {
                           maxHeight: maxVideoHeight,
                           id: youtubeId,
                           hideDetails: attachment.hideDetails,
-                          playing: playing,
+                          playback: playback,
                           playbackRevision: playbackRevision,
                           commandRevision: commandRevision,
                         )
@@ -305,7 +310,7 @@ class _ReadyMediaView extends QuestionMediaView {
                             maxHeight: maxVideoHeight,
                             source: source(attachment.asset!, context),
                             onRetry: retry,
-                            playing: playing,
+                            playback: playback,
                             playbackRevision: playbackRevision,
                             commandRevision: commandRevision,
                           ),
@@ -326,6 +331,10 @@ class _ReadyMediaView extends QuestionMediaView {
                   ),
                 GeoAttachment() => _map(attachment),
               },
+              if (playback == MediaPlayback.paused &&
+                  (attachment is AudioAttachment ||
+                      attachment is VideoAttachment))
+                const _PausedByHost(),
               if (!attachment.hideDetails && attachment.caption.isNotEmpty)
                 Text(attachment.caption, style: const TextStyle(fontSize: 22)),
             ],
@@ -408,6 +417,92 @@ class _ReadyMediaView extends QuestionMediaView {
   );
 }
 
+/// Replaces a button without effect while the host paused the media.
+class _PausedByHost extends StatelessWidget {
+  const _PausedByHost();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.pause_circle_outline),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              context.tr('Von der Spielleitung pausiert'),
+              style: const TextStyle(fontSize: 22),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// The browser wants a key press before it plays sound.
+class _BlockedStart extends StatelessWidget {
+  const _BlockedStart({required this.onStart});
+
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Column(
+      key: const ValueKey('media-blocked'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          context.tr(
+            'Der Browser blockiert die Wiedergabe mit Ton. Bitte hier bestätigen.',
+          ),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          autofocus: true,
+          onPressed: onStart,
+          icon: const Icon(Icons.volume_up),
+          label: Text(
+            context.tr('Wiedergabe starten'),
+            style: const TextStyle(fontSize: 22),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Reports a start the browser refused, and its end, to the surrounding
+/// [MediaBlockReporter].
+mixin _BlockedStartState<T extends StatefulWidget> on State<T> {
+  MediaBlockReporter? _reporter;
+  bool startBlocked = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reporter = MediaBlockReporter.maybeOf(context);
+  }
+
+  void setStartBlocked(bool blocked) {
+    if (!mounted || startBlocked == blocked) return;
+    setState(() => startBlocked = blocked);
+    _reporter?.onChanged(this, blocked);
+  }
+
+  @override
+  void dispose() {
+    if (startBlocked) _reporter?.onChanged(this, false);
+    super.dispose();
+  }
+}
+
 class _PlaybackRetry extends StatefulWidget {
   const _PlaybackRetry({required this.builder});
   final Widget Function(VoidCallback) builder;
@@ -482,11 +577,11 @@ class _AudioView extends StatefulWidget {
     required this.attachment,
     required this.source,
     required this.onRetry,
-    this.playing,
+    this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
   });
-  final bool? playing;
+  final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
   final AudioAttachment attachment;
@@ -496,13 +591,13 @@ class _AudioView extends StatefulWidget {
   State<_AudioView> createState() => _AudioViewState();
 }
 
-class _AudioViewState extends State<_AudioView> {
+class _AudioViewState extends State<_AudioView> with _BlockedStartState {
   final player = AudioPlayer();
   @override
   void didUpdateWidget(_AudioView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (ready &&
-        (oldWidget.playing != widget.playing ||
+        (oldWidget.playback != widget.playback ||
             oldWidget.commandRevision != widget.commandRevision ||
             oldWidget.playbackRevision != widget.playbackRevision)) {
       _applyPlayback(oldWidget.playbackRevision != widget.playbackRevision);
@@ -515,22 +610,37 @@ class _AudioViewState extends State<_AudioView> {
 
   Future<void> _control(bool restart) async {
     try {
-      if (restart || player.processingState == ProcessingState.completed) {
-        await player.pause();
-        await player.seek(Duration.zero);
-      }
-      if (!mounted) return;
-      if (restart || widget.playing == true) {
-        if (player.processingState == ProcessingState.completed) {
-          await player.seek(Duration.zero);
-        }
-        unawaited(player.play().catchError((Object _) {}));
-      } else if (widget.playing == false) {
-        await player.pause();
+      switch (widget.playback) {
+        case MediaPlayback.automatic:
+          if (restart || player.processingState == ProcessingState.completed) {
+            await player.pause();
+            await player.seek(Duration.zero);
+          }
+          if (mounted && widget.playback == MediaPlayback.automatic) _start();
+        case MediaPlayback.stopped || MediaPlayback.paused:
+          await player.pause();
+        case MediaPlayback.onDemand:
+          // Nothing starts without a press on this device.
+          break;
       }
     } on Object {
-      /* Local play remains available if browser autoplay is blocked. */
+      /* Local play remains available. */
     }
+  }
+
+  void _start() {
+    unawaited(
+      player
+          .play()
+          .then((_) => setStartBlocked(false))
+          .catchError((Object _) => setStartBlocked(true)),
+    );
+  }
+
+  Future<void> _restartHere() async {
+    await player.pause();
+    await player.seek(Duration.zero);
+    if (mounted && widget.playback != MediaPlayback.paused) _start();
   }
 
   MediaPlaybackSource? playbackSource;
@@ -587,6 +697,16 @@ class _AudioViewState extends State<_AudioView> {
   Widget build(BuildContext context) {
     if (error != null) return _mediaFailure(context, error!, widget.onRetry);
     if (!ready) return const LinearProgressIndicator();
+    final locked = widget.playback == MediaPlayback.paused;
+    final still = StillMedia.of(context);
+    if (startBlocked && widget.playback == MediaPlayback.automatic) {
+      return _BlockedStart(
+        onStart: () {
+          setStartBlocked(false);
+          _start();
+        },
+      );
+    }
     return StreamBuilder<PlayerState>(
       stream: player.playerStateStream,
       builder: (context, snapshot) {
@@ -596,34 +716,43 @@ class _AudioViewState extends State<_AudioView> {
         return Row(
           children: [
             IconButton(
-              tooltip: playing ? context.tr("Pause") : context.tr("Abspielen"),
+              tooltip: locked
+                  ? context.tr('Von der Spielleitung pausiert')
+                  : playing
+                  ? context.tr("Pause")
+                  : context.tr("Abspielen"),
               icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-              onPressed: () async {
-                if (playing) {
-                  await player.pause();
-                } else {
-                  if (player.processingState == ProcessingState.completed) {
-                    await player.pause();
-                    await player.seek(Duration.zero);
-                  }
-                  try {
-                    await player.play();
-                  } on Object {
-                    if (mounted) {
-                      setState(
-                        () => error = context.tr(
-                          "Audio konnte nicht abgespielt werden.",
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
+              onPressed: locked || still
+                  ? null
+                  : () async {
+                      if (playing) {
+                        await player.pause();
+                      } else {
+                        if (player.processingState ==
+                            ProcessingState.completed) {
+                          await player.pause();
+                          await player.seek(Duration.zero);
+                        }
+                        try {
+                          await player.play();
+                        } on Object {
+                          if (mounted) {
+                            setState(
+                              () => error = context.tr(
+                                "Audio konnte nicht abgespielt werden.",
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
             ),
             IconButton(
               tooltip: context.tr("Neustart"),
               icon: const Icon(Icons.replay),
-              onPressed: () => _applyPlayback(true),
+              onPressed: locked || still
+                  ? null
+                  : () => unawaited(_restartHere()),
             ),
             Expanded(
               child: StreamBuilder<Duration>(
@@ -646,11 +775,11 @@ class _VideoView extends StatefulWidget {
     required this.source,
     required this.onRetry,
     this.maxHeight = 300,
-    this.playing,
+    this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
   });
-  final bool? playing;
+  final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
   final Uri source;
@@ -660,12 +789,12 @@ class _VideoView extends StatefulWidget {
   State<_VideoView> createState() => _VideoViewState();
 }
 
-class _VideoViewState extends State<_VideoView> {
+class _VideoViewState extends State<_VideoView> with _BlockedStartState {
   @override
   void didUpdateWidget(_VideoView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (controller?.value.isInitialized == true &&
-        (oldWidget.playing != widget.playing ||
+        (oldWidget.playback != widget.playback ||
             oldWidget.commandRevision != widget.commandRevision ||
             oldWidget.playbackRevision != widget.playbackRevision)) {
       unawaited(
@@ -677,15 +806,19 @@ class _VideoViewState extends State<_VideoView> {
   Future<void> _applyPlayback(bool restart) async {
     try {
       final video = controller!;
-      if (restart) await video.seekTo(Duration.zero);
-      if (!mounted) return;
-      if (widget.playing == true) {
-        if (video.value.position >= video.value.duration) {
-          await video.seekTo(Duration.zero);
-        }
-        await video.play();
-      } else if (widget.playing == false) {
-        await video.pause();
+      switch (widget.playback) {
+        case MediaPlayback.automatic:
+          if (restart || video.value.position >= video.value.duration) {
+            await video.seekTo(Duration.zero);
+          }
+          if (mounted && widget.playback == MediaPlayback.automatic) {
+            await video.play();
+          }
+        case MediaPlayback.stopped || MediaPlayback.paused:
+          await video.pause();
+        case MediaPlayback.onDemand:
+          // Nothing starts without a press on this device.
+          break;
       }
     } on Object {
       /* Local play remains available if browser autoplay is blocked. */
@@ -726,8 +859,26 @@ class _VideoViewState extends State<_VideoView> {
     }
   }
 
+  /// Whether the browser refused to start with sound (and the video itself is
+  /// fine).
+  bool get _refused {
+    final description = controller?.value.errorDescription?.toLowerCase() ?? '';
+    return widget.playback == MediaPlayback.automatic &&
+        (description.contains('notallowed') ||
+            description.contains('not allowed') ||
+            description.contains('interact'));
+  }
+
   void _update() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final video = controller?.value;
+    // A press on the browser's own controls must not undo the host's pause.
+    if (widget.playback == MediaPlayback.paused &&
+        (video?.isPlaying ?? false)) {
+      unawaited(controller!.pause());
+    }
+    setState(() {});
+    if (video != null) setStartBlocked(video.hasError && _refused);
   }
 
   @override
@@ -749,6 +900,12 @@ class _VideoViewState extends State<_VideoView> {
     final controller = this.controller;
     if (error != null) return _mediaFailure(context, error!, widget.onRetry);
     if (controller == null) return const LinearProgressIndicator();
+    final locked = widget.playback == MediaPlayback.paused;
+    final still = StillMedia.of(context);
+    if (controller.value.hasError && _refused) {
+      // The press counts as the interaction the browser asked for.
+      return _BlockedStart(onStart: widget.onRetry);
+    }
     if (controller.value.hasError) {
       return _mediaFailure(
         context,
@@ -766,14 +923,18 @@ class _VideoViewState extends State<_VideoView> {
             child: VideoPlayer(controller),
           ),
         ),
-        VideoProgressIndicator(controller, allowScrubbing: true),
+        VideoProgressIndicator(controller, allowScrubbing: !locked && !still),
         IconButton(
-          tooltip: controller.value.isPlaying
+          tooltip: locked
+              ? context.tr('Von der Spielleitung pausiert')
+              : controller.value.isPlaying
               ? context.tr("Pause")
               : context.tr("Abspielen"),
-          onPressed: () => controller.value.isPlaying
-              ? controller.pause()
-              : controller.play(),
+          onPressed: locked || still
+              ? null
+              : () => controller.value.isPlaying
+                    ? controller.pause()
+                    : controller.play(),
           icon: Icon(
             controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
           ),
@@ -788,12 +949,12 @@ class _YoutubeView extends StatefulWidget {
     required this.id,
     this.maxHeight = 300,
     this.hideDetails = false,
-    this.playing,
+    this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
   });
   final bool hideDetails;
-  final bool? playing;
+  final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
   final String id;
@@ -802,11 +963,11 @@ class _YoutubeView extends StatefulWidget {
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
 
-class _YoutubeViewState extends State<_YoutubeView> {
+class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
   @override
   void didUpdateWidget(_YoutubeView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.playing != widget.playing ||
+    if (oldWidget.playback != widget.playback ||
         oldWidget.commandRevision != widget.commandRevision ||
         oldWidget.playbackRevision != widget.playbackRevision) {
       unawaited(
@@ -819,15 +980,19 @@ class _YoutubeViewState extends State<_YoutubeView> {
     final player = controller;
     if (player == null) return;
     try {
-      if (restart) {
-        await player.loadVideoById(videoId: widget.id, startSeconds: 0);
-        return;
-      }
-      if (!mounted) return;
-      if (widget.playing == true) {
-        await player.playVideo();
-      } else if (widget.playing == false) {
-        await player.pauseVideo();
+      switch (widget.playback) {
+        case MediaPlayback.automatic:
+          if (restart) {
+            await player.loadVideoById(videoId: widget.id, startSeconds: 0);
+          } else {
+            await player.playVideo();
+          }
+          _watchStart();
+        case MediaPlayback.stopped || MediaPlayback.paused:
+          await player.pauseVideo();
+        case MediaPlayback.onDemand:
+          // Nothing starts without a press on this device.
+          break;
       }
     } on Object {
       /* Keep the embedded player's local fallback available. */
@@ -836,6 +1001,25 @@ class _YoutubeViewState extends State<_YoutubeView> {
 
   YoutubePlayerController? controller;
   StreamSubscription<YoutubePlayerValue>? _errors;
+  Timer? _startWatch;
+
+  /// YouTube does not report a refused start: nothing happens instead.
+  void _watchStart() {
+    _startWatch?.cancel();
+    _startWatch = Timer(const Duration(seconds: 5), () {
+      final value = controller?.value;
+      if (!mounted ||
+          value == null ||
+          value.hasError ||
+          widget.playback != MediaPlayback.automatic) {
+        return;
+      }
+      setStartBlocked(
+        value.playerState == youtube.PlayerState.unStarted ||
+            value.playerState == youtube.PlayerState.cued,
+      );
+    });
+  }
 
   /// Latched: the package clears `error` on the next state change, and YouTube
   /// follows an error with "unstarted", which would hide the reason again.
@@ -851,29 +1035,59 @@ class _YoutubeViewState extends State<_YoutubeView> {
     if (_openInBrowser) return;
     final player = controller = YoutubePlayerController.fromVideoId(
       videoId: widget.id,
-      autoPlay: widget.playing == true,
+      autoPlay: widget.playback == MediaPlayback.automatic,
       params: YoutubePlayerParams(
         showControls: !widget.hideDetails,
         showFullscreenButton: true,
       ),
     );
     _errors = player.stream.listen((value) {
-      if (value.hasError && value.error != _error && mounted) {
+      if (!mounted) return;
+      if (value.hasError && value.error != _error) {
         setState(() => _error = value.error);
       }
+      if (value.playerState == youtube.PlayerState.playing) {
+        setStartBlocked(false);
+        // A press on YouTube's own controls must not undo the host's pause.
+        if (widget.playback == MediaPlayback.paused ||
+            (widget.playback == MediaPlayback.stopped &&
+                StillMedia.of(context))) {
+          unawaited(player.pauseVideo());
+        }
+      }
     });
+    if (widget.playback == MediaPlayback.automatic) _watchStart();
   }
 
   @override
   void dispose() {
     _errors?.cancel();
+    _startWatch?.cancel();
     controller?.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => _openInBrowser
-      ? YoutubeOpenButton(id: widget.id)
+      ? Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            YoutubeOpenButton(id: widget.id),
+            Text(
+              context.tr(
+                'Öffnet den Browser; die Pause der Spielleitung wirkt dort nicht.',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        )
+      : startBlocked && widget.playback == MediaPlayback.automatic
+      ? _BlockedStart(
+          onStart: () {
+            setStartBlocked(false);
+            unawaited(_applyPlayback(false));
+          },
+        )
       : _error != YoutubeError.none
       ? YoutubeUnavailableView(
           id: widget.id,
@@ -885,7 +1099,18 @@ class _YoutubeViewState extends State<_YoutubeView> {
             constraints: BoxConstraints(maxWidth: widget.maxHeight * 16 / 9),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: YoutubePlayer(controller: controller!),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  YoutubePlayer(controller: controller!),
+                  // While the host paused, nobody may press play in the frame.
+                  if (widget.playback == MediaPlayback.paused ||
+                      StillMedia.of(context))
+                    PointerInterceptor(
+                      child: const AbsorbPointer(child: SizedBox.expand()),
+                    ),
+                ],
+              ),
             ),
           ),
         );

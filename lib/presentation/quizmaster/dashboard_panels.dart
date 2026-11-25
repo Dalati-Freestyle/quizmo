@@ -21,6 +21,7 @@ import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
 import 'round_info_cards.dart';
 import 'grading_dialog.dart';
+import '../common/media_playback.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -1338,11 +1339,10 @@ class LiveRoundPanel extends StatelessWidget {
                 _QuestionContent(question: question),
                 QuestionMediaView(
                   media: question.media,
-                  playing: game.tvMediaPaused || latestHintPlays(round)
-                      ? false
-                      : game.tvMediaCommandRevision > 0
-                      ? true
-                      : null,
+                  playback: MediaPlayback.onDevice(
+                    game,
+                    stopped: latestHintPlays(round),
+                  ),
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
                 ),
@@ -1360,11 +1360,7 @@ class LiveRoundPanel extends StatelessWidget {
                 if (game.round.status == RoundStatus.revealed)
                   QuestionMediaView(
                     media: question.solutionMedia,
-                    playing: game.tvMediaPaused
-                        ? false
-                        : game.tvMediaCommandRevision > 0
-                        ? true
-                        : null,
+                    playback: MediaPlayback.onDevice(game),
                     playbackRevision: game.tvMediaRevision,
                     commandRevision: game.tvMediaCommandRevision,
                   ),

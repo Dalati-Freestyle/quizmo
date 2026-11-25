@@ -96,48 +96,57 @@ Map<DashboardSection, Widget> buildGameSections(
       onFinish: () => engine.add(const FinishQuizEvent()),
       onFinishEarly: () => engine.add(const FinishQuizEvent(early: true)),
     ),
-    if (game.round.question case final question?)
-      if ([
-        ...question.media,
-        if (game.round.status == RoundStatus.revealed)
+    if ([
+      if (game.showsSlide) ...game.activeSlide!.media,
+      if (game.round.question case final question?) ...[
+        if (!game.showsSlide) ...question.media,
+        if (game.round.status == RoundStatus.revealed && !game.showsSlide)
           ...question.solutionMedia
-        else
+        else if (!game.showsSlide)
           for (final hint in game.round.shownHints) ...hint.media,
-      ].any((m) => m is AudioAttachment || m is VideoAttachment))
-        DashboardSection.media: PanelCard(
-          title: context.tr("Medienwiedergabe"),
-          icon: Icons.live_tv,
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: () =>
-                    engine.add(const ControlTvMediaEvent(TvMediaAction.play)),
-                icon: const Icon(Icons.play_arrow),
-                label: Text(context.tr("Abspielen")),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    engine.add(const ControlTvMediaEvent(TvMediaAction.pause)),
-                icon: const Icon(Icons.pause),
-                label: Text(context.tr("Pause")),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => engine.add(
-                  const ControlTvMediaEvent(TvMediaAction.restart),
+      ],
+    ].any((m) => m is AudioAttachment || m is VideoAttachment))
+      DashboardSection.media: PanelCard(
+        title: context.tr("Medienwiedergabe"),
+        icon: Icons.live_tv,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _BlockedTvNotice(screens: engine.mediaScreens),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: () =>
+                      engine.add(const ControlTvMediaEvent(TvMediaAction.play)),
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(context.tr("Abspielen")),
                 ),
-                icon: const Icon(Icons.replay),
-                label: Text(context.tr("Neu starten")),
-              ),
-              Text(
-                game.tvMediaPaused
-                    ? context.tr("TV: pausiert")
-                    : context.tr("TV: Wiedergabe angefordert"),
-              ),
-            ],
-          ),
+                OutlinedButton.icon(
+                  onPressed: () => engine.add(
+                    const ControlTvMediaEvent(TvMediaAction.pause),
+                  ),
+                  icon: const Icon(Icons.pause),
+                  label: Text(context.tr("Pause")),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => engine.add(
+                    const ControlTvMediaEvent(TvMediaAction.restart),
+                  ),
+                  icon: const Icon(Icons.replay),
+                  label: Text(context.tr("Neu starten")),
+                ),
+                Text(
+                  game.tvMediaPaused
+                      ? context.tr('Überall pausiert')
+                      : context.tr('TV spielt, andere Geräte nur auf Wunsch.'),
+                ),
+              ],
+            ),
+          ],
         ),
+      ),
     if (game.poker case final poker?)
       DashboardSection.poker: PanelCard(
         title: context.tr("Pokerchips"),
@@ -443,4 +452,39 @@ class _WithSlides extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Warns while a TV waits for somebody to allow sound on it.
+class _BlockedTvNotice extends StatelessWidget {
+  const _BlockedTvNotice({required this.screens});
+
+  final MediaScreens screens;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<bool>(
+    stream: screens.changes,
+    initialData: screens.anyBlocked,
+    builder: (context, snapshot) => snapshot.data ?? false
+        ? Padding(
+            key: const ValueKey('tv-media-blocked'),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.volume_off,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.tr(
+                      'Der Browser am TV blockiert die Wiedergabe mit Ton. Bitte am TV bestätigen.',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        : const SizedBox.shrink(),
+  );
 }

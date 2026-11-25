@@ -384,6 +384,15 @@ class QuizClient {
     _send(SubmissionMessage(build(id, _now(), clock.clockOffsetMicros)));
   }
 
+  /// Tells the host that this TV cannot start media by itself (any more).
+  void reportMediaBlocked(bool blocked) {
+    try {
+      _send(MediaBlockedReport(blocked));
+    } on StateError {
+      // Not connected; the host forgets a disconnected TV anyway.
+    }
+  }
+
   /// Reports input that is not sent yet; [content] builds it, `null` clears.
   void sendDraft({
     required String questionId,

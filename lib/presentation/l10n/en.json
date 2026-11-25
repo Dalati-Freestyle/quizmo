@@ -1445,5 +1445,12 @@
   "Niemand hat geantwortet.": "Nobody answered.",
   "Bewertung öffnen": "Open grading",
   "Mündlich: Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Verbal: everything is judged together once the answers are closed.",
-  "Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Everything is judged together once the answers are closed."
+  "Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Everything is judged together once the answers are closed.",
+  "Von der Spielleitung pausiert": "Paused by the host",
+  "Der Browser blockiert die Wiedergabe mit Ton. Bitte hier bestätigen.": "The browser blocks playback with sound. Please confirm here.",
+  "Wiedergabe starten": "Start playback",
+  "Öffnet den Browser; die Pause der Spielleitung wirkt dort nicht.": "Opens the browser; the host's pause has no effect there.",
+  "Überall pausiert": "Paused everywhere",
+  "TV spielt, andere Geräte nur auf Wunsch.": "The TV plays, other devices only on demand.",
+  "Der Browser am TV blockiert die Wiedergabe mit Ton. Bitte am TV bestätigen.": "The browser of the TV blocks playback with sound. Please confirm on the TV."
 }
