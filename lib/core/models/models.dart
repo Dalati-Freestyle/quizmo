@@ -20,6 +20,7 @@ export 'player_answers.dart';
 export 'poker.dart';
 export 'question.dart';
 export 'question_bulk_edit.dart';
+export 'question_conversion.dart';
 export 'question_hint.dart';
 export 'quiz.dart';
 export 'quiz_format.dart';

@@ -538,13 +538,16 @@ final class ShortAnswerQuestion extends Question {
   @override
   String get solutionLabel => acceptedAnswers?.join(' / ') ?? '';
   @override
-  List<String> get contentErrors => [
+  List<String> get structureErrors => [
+    if (maxEdits < 0 || maxEdits > 5)
+      'Fehlertoleranz muss zwischen 0 und 5 liegen.',
+  ];
+  @override
+  List<String> get solutionErrors => [
     if (acceptedAnswers == null ||
         acceptedAnswers!.isEmpty ||
         acceptedAnswers!.any((a) => a.trim().isEmpty))
       'Mindestens eine Textlösung angeben.',
-    if (maxEdits < 0 || maxEdits > 5)
-      'Fehlertoleranz muss zwischen 0 und 5 liegen.',
   ];
   @override
   ShortAnswerQuestion redacted() => ShortAnswerQuestion(
@@ -918,11 +921,14 @@ final class EstimationQuestion extends Question {
   /// [value] with the unit of this question.
   String valueLabel(double value) => '${formatNumber(value)} $unit'.trimRight();
   @override
-  List<String> get contentErrors => [
-    if (correctValue == null || !correctValue!.isFinite)
-      'Endliche Zielzahl angeben.',
+  List<String> get structureErrors => [
     if (!zeroScale.isFinite || zeroScale <= 0)
       'Skala für Zielwert 0 muss positiv sein.',
+  ];
+  @override
+  List<String> get solutionErrors => [
+    if (correctValue == null || !correctValue!.isFinite)
+      'Endliche Zielzahl angeben.',
     if ((minAccepted == null) != (maxAccepted == null))
       'Für die Toleranz Unter- und Obergrenze angeben.',
     if (hasTolerance && minAccepted! > maxAccepted!)

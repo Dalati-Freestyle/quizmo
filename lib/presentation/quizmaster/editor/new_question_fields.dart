@@ -33,7 +33,13 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
   late String scale;
   late String minAccepted;
   late String maxAccepted;
-  late bool truth;
+
+  /// `null`: not chosen yet (after a change of the kind).
+  late bool? truth;
+
+  /// Whether the lines of an ordering are the right order; asked for when
+  /// the order is unknown (after a change of the kind).
+  late bool orderConfirmed;
   @override
   void initState() {
     super.initState();
@@ -69,7 +75,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
     scale = q is EstimationQuestion ? _number(q.zeroScale) : '1';
     minAccepted = q is EstimationQuestion ? _number(q.minAccepted) : '';
     maxAccepted = q is EstimationQuestion ? _number(q.maxAccepted) : '';
-    truth = q is TrueFalseQuestion ? q.correctAnswer ?? true : true;
+    truth = q is TrueFalseQuestion ? q.correctAnswer : true;
+    orderConfirmed = q is! OrderingQuestion || q.correctOrder != null;
   }
 
   static String _number(double? value) =>
@@ -121,9 +128,10 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         for (final (i, label) in sorted.indexed)
           {'id': 'item-$i', 'label': label},
       ],
-      'correctOrder': [
-        for (final label in lines) 'item-${sorted.indexOf(label)}',
-      ],
+      // An order nobody confirmed is no solution.
+      'correctOrder': orderConfirmed
+          ? [for (final label in lines) 'item-${sorted.indexOf(label)}']
+          : null,
     };
   }
 
@@ -176,15 +184,25 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
           if (widget.question is TrueFalseQuestion && !widget.showSolution)
             Text(context.tr("Die Spieler wählen zwischen Wahr und Falsch."))
           else if (widget.question is TrueFalseQuestion)
-            SwitchListTile(
-              title: Text(
-                truth
-                    ? context.tr("Lösung: Wahr")
-                    : context.tr("Lösung: Falsch"),
-              ),
-              value: truth,
-              onChanged: (v) {
-                setState(() => truth = v);
+            SegmentedButton<bool>(
+              key: const ValueKey('true-false-solution'),
+              // Nothing chosen yet after a change of the kind: no guess.
+              emptySelectionAllowed: true,
+              segments: [
+                ButtonSegment(
+                  value: true,
+                  icon: const Icon(Icons.check),
+                  label: Text(context.tr("Lösung: Wahr")),
+                ),
+                ButtonSegment(
+                  value: false,
+                  icon: const Icon(Icons.close),
+                  label: Text(context.tr("Lösung: Falsch")),
+                ),
+              ],
+              selected: {?truth},
+              onSelectionChanged: (selection) {
+                setState(() => truth = selection.firstOrNull);
                 changed();
               },
             )
@@ -219,6 +237,26 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               ),
               onChanged: (v) {
                 content = v;
+                changed();
+              },
+            ),
+          if (widget.question is OrderingQuestion &&
+              widget.showSolution &&
+              !orderConfirmed)
+            CheckboxListTile(
+              key: const ValueKey('confirm-order'),
+              contentPadding: EdgeInsets.zero,
+              value: orderConfirmed,
+              title: Text(
+                context.tr('Die Zeilen stehen in der richtigen Reihenfolge.'),
+              ),
+              subtitle: Text(
+                context.tr(
+                  'Die richtige Reihenfolge muss noch festgelegt werden.',
+                ),
+              ),
+              onChanged: (value) {
+                setState(() => orderConfirmed = value ?? false);
                 changed();
               },
             ),
