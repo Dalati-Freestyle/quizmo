@@ -139,6 +139,9 @@ views MUST be checked in both, and the views are shared structurally:
 2. **Player:** joined players see `PlayerGameColumn` (status, device test, game, final page with protocol) inside
    `SessionNotifications`, both in `PlayerPage` and in the preview's `LocalPlayerBoard`.
 3. **TV:** both render `TvScreen` from the redacted guest snapshot (`guestSnapshotOf`).
+   The optional admin section "TV-Vorschau" (`TvPreviewPanel`, also in the preview) renders the same `TvScreen` through
+   `TvCanvas` from the guest snapshot, as a still picture (`StillMedia`: no players, no sound, no input), never as
+   a watching connection.
 4. `test/presentation/preview_parity_test.dart` guards this; extend it when adding views or sections.
 5. A host started with `flutter run` embeds whatever `assets/web_client/bundle.zip` is on disk. If it is stale,
    browser players and TVs miss new features although host and preview have them. The dashboard shows a red

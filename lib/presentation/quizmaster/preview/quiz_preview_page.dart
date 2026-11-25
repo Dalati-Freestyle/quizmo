@@ -6,17 +6,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/engine/quiz_engine_bloc.dart';
 import '../../../core/models/models.dart';
-import '../../../core/net/quiz_client.dart';
 import '../../../core/simulation/bot_decisions.dart';
 import '../../../core/simulation/preview_session.dart';
 import '../../common/adaptive_layout.dart';
 import '../../l10n/app_localizations.dart';
 import '../../player/player_page.dart';
 import '../../player/player_session_cubit.dart';
-import '../../spectator/spectator_session_cubit.dart';
-import '../../spectator/tv_page.dart';
 import '../game_sections.dart';
 import '../layout/dashboard_section_view.dart';
+import '../../spectator/tv_canvas.dart';
 
 class QuizPreviewPage extends StatefulWidget {
   const QuizPreviewPage({required this.quiz, this.seed, super.key});
@@ -338,31 +336,10 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
     return BlocProvider.value(value: _player!, child: const LocalPlayerBoard());
   }
 
-  Widget _tvView() => MediaQuery(
-    data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-    child: ColoredBox(
-      color: Theme.of(context).colorScheme.surface,
-      child: Center(
-        child: FittedBox(
-          child: SizedBox(
-            width: kTvCanvasWidth,
-            height: kTvCanvasHeight,
-            child: TvScreen(
-              state: SpectatorSessionState(
-                status: QuizClientStatus.connected,
-                serverName: context.tr('Preview'),
-                game: _session.guestGame.copyWith(
-                  hostTimeMicros: _session.clock.nowMicros,
-                ),
-                snapshotReceivedAt: DateTime.now(),
-                extrapolateTime: false,
-              ),
-              joinUri: Uri.parse('https://preview.invalid'),
-            ),
-          ),
-        ),
-      ),
-    ),
+  Widget _tvView() => TvCanvas(
+    serverName: context.tr('Preview'),
+    game: _session.guestGame.copyWith(hostTimeMicros: _session.clock.nowMicros),
+    joinUri: Uri.parse('https://preview.invalid'),
   );
 
   /// The host view of the preview: exactly the game sections of the real
@@ -420,6 +397,7 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
           engine: engine,
           engineState: state,
           quizName: widget.quiz.name,
+          tvJoinUri: Uri.parse('https://preview.invalid'),
         ),
       ),
     );

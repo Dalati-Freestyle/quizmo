@@ -1486,5 +1486,11 @@
   "Wähl eine Antwort.": "Wähl eine Antwort.",
   "Drückt den Buzzer und antwortet laut.": "Drückt den Buzzer und antwortet laut.",
   "Drück den Buzzer und antworte laut.": "Drück den Buzzer und antworte laut.",
-  "Die Frage folgt gleich.": "Die Frage folgt gleich."
+  "Die Frage folgt gleich.": "Die Frage folgt gleich.",
+  "TV-Vorschau": "TV-Vorschau",
+  "Verkleinerte TV-Ansicht": "Verkleinerte TV-Ansicht",
+  "Größer ansehen": "Größer ansehen",
+  "Der Server läuft noch nicht. Der QR-Code erscheint, sobald er gestartet ist.": "Der Server läuft noch nicht. Der QR-Code erscheint, sobald er gestartet ist.",
+  "Audio": "Audio",
+  "Video": "Video"
 }

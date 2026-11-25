@@ -401,6 +401,7 @@ class _HostDashboardView extends StatelessWidget {
                         quizName: quizName,
                         connectionsAvailable:
                             serverState.status == HostServerStatus.running,
+                        tvJoinUri: serverState.endpoint?.lanUri,
                         startExtras: [
                           OutlinedButton.icon(
                             key: const ValueKey("open-tech-check"),

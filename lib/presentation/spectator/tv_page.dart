@@ -135,7 +135,7 @@ class TvPage extends StatelessWidget {
 class _TvView extends StatefulWidget {
   const _TvView({required this.joinUri, required this.initialBrightness});
 
-  final Uri joinUri;
+  final Uri? joinUri;
   final Brightness initialBrightness;
 
   @override
@@ -336,10 +336,12 @@ class _TvViewState extends State<_TvView> {
 /// Pure function of its inputs (no networking), which keeps it testable.
 class TvScreen extends StatelessWidget {
   /// Creates the canvas content.
-  const TvScreen({required this.state, required this.joinUri, super.key});
+  const TvScreen({required this.state, this.joinUri, super.key});
 
   final SpectatorSessionState state;
-  final Uri joinUri;
+
+  /// Address players are told; `null` before the server runs (preview).
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -400,7 +402,7 @@ class TvScreen extends StatelessWidget {
           const SizedBox(height: 32),
           Expanded(
             child: game == null
-                ? _ConnectingStage(state: state, joinUri: joinUri)
+                ? _ConnectingStage(state: state, joinUri: joinUri ?? Uri())
                 : game.isFinished && game.protocol != null
                 ? TvFinalStage(
                     protocol: game.protocol!,
@@ -691,7 +693,7 @@ class _MainStage extends StatelessWidget {
 
   final GameState game;
   final SpectatorSessionState state;
-  final Uri joinUri;
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -873,7 +875,7 @@ class _JeopardyBoardStage extends StatelessWidget {
 
   final GameState game;
   final JeopardyState jeopardy;
-  final Uri joinUri;
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -908,9 +910,9 @@ class _JeopardyBoardStage extends StatelessWidget {
                     .withValues(alpha: 0.35),
                 dotColor: Color(picker?.colorValue ?? 0xff1565c0),
               ),
-            if (isOpening)
+            if (isOpening && joinUri != null)
               Text(
-                context.tr("Join: {0}", [joinUri.authority]),
+                context.tr("Join: {0}", [joinUri!.authority]),
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
@@ -987,6 +989,28 @@ class _DailyDoubleStage extends StatelessWidget {
   }
 }
 
+/// Takes the place of the QR code while no server runs (TV preview).
+class _NoServerYet extends StatelessWidget {
+  const _NoServerYet();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('tv-no-server'),
+    padding: const EdgeInsets.all(32),
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Text(
+      context.tr(
+        'Der Server läuft noch nicht. Der QR-Code erscheint, sobald er gestartet ist.',
+      ),
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 30),
+    ),
+  );
+}
+
 class _LobbyStage extends StatelessWidget {
   const _LobbyStage({
     required this.game,
@@ -996,7 +1020,7 @@ class _LobbyStage extends StatelessWidget {
   });
 
   final GameState game;
-  final Uri joinUri;
+  final Uri? joinUri;
   final GuestWifi? wifi;
 
   /// Before the first question the lobby shows the Wi-Fi code prominently;
@@ -1058,17 +1082,22 @@ class _LobbyStage extends StatelessWidget {
                           : context.tr('Password: {0}', [wifi.password]),
                     ),
                     const SizedBox(width: 72),
-                    _QrStep(
-                      step: 2,
-                      title: context.tr('Scan to join with your phone'),
-                      data: joinUri.toString(),
-                      semanticsLabel: context.tr('QR code to join at {0}', [
-                        joinUri,
-                      ]),
-                      caption: joinUri.authority,
-                    ),
+                    if (joinUri case final joinUri?)
+                      _QrStep(
+                        step: 2,
+                        title: context.tr('Scan to join with your phone'),
+                        data: joinUri.toString(),
+                        semanticsLabel: context.tr('QR code to join at {0}', [
+                          joinUri,
+                        ]),
+                        caption: joinUri.authority,
+                      )
+                    else
+                      const _NoServerYet(),
                   ],
                 )
+              else if (joinUri == null)
+                const _NoServerYet()
               else
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1082,13 +1111,13 @@ class _LobbyStage extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.all(20),
                       child: QrImageView(
-                        data: joinUri.toString(),
+                        data: joinUri!.toString(),
                         size: 300,
                         padding: EdgeInsets.zero,
                         backgroundColor: Colors.white,
                         errorCorrectionLevel: QrErrorCorrectLevel.M,
                         semanticsLabel: context.tr("QR code to join at {0}", [
-                          joinUri,
+                          joinUri!,
                         ]),
                       ),
                     ),
@@ -1114,7 +1143,7 @@ class _LobbyStage extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            joinUri.authority,
+                            joinUri!.authority,
                             style: theme.textTheme.displaySmall?.copyWith(
                               fontSize: 64,
                               fontWeight: FontWeight.w800,
@@ -1293,7 +1322,7 @@ class _JoinColumn extends StatelessWidget {
   const _JoinColumn({required this.joinUri, required this.game, this.wifi});
 
   final GuestWifi? wifi;
-  final Uri joinUri;
+  final Uri? joinUri;
   final GameState game;
 
   /// The board is shown but nothing was played yet.
@@ -1334,14 +1363,17 @@ class _JoinColumn extends StatelessWidget {
               ),
               const SizedBox(height: 28),
             ],
-            _QrStep(
-              step: wifi == null ? null : 2,
-              title: context.tr('Scan to join with your phone'),
-              data: joinUri.toString(),
-              semanticsLabel: context.tr('QR code to join at {0}', [joinUri]),
-              caption: joinUri.authority,
-              qrSize: wifi == null ? 300 : 200,
-            ),
+            if (joinUri case final joinUri?)
+              _QrStep(
+                step: wifi == null ? null : 2,
+                title: context.tr('Scan to join with your phone'),
+                data: joinUri.toString(),
+                semanticsLabel: context.tr('QR code to join at {0}', [joinUri]),
+                caption: joinUri.authority,
+                qrSize: wifi == null ? 300 : 200,
+              )
+            else
+              const _NoServerYet(),
             const SizedBox(height: 20),
             Text(
               online == 0

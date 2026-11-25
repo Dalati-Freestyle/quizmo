@@ -425,6 +425,10 @@ class _ReadyMediaView extends QuestionMediaView {
   @override
   Widget build(BuildContext context) {
     final attachment = media.single;
+    if (StillMedia.of(context) &&
+        (attachment is AudioAttachment || attachment is VideoAttachment)) {
+      return _bounded(_StillPlayer(attachment: attachment));
+    }
     final content = switch (attachment) {
       ImageAttachment() => _bounded(_image(context, attachment)),
       AudioAttachment() => _PlaybackRetry(
@@ -576,6 +580,50 @@ class _ReadyMediaView extends QuestionMediaView {
       ],
     ),
   );
+}
+
+/// Stands for audio or video in a picture of another screen: no player is
+/// created, so nothing loads and nothing makes a sound.
+class _StillPlayer extends StatelessWidget {
+  const _StillPlayer({required this.attachment});
+
+  final MediaAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('still-player'),
+      constraints: const BoxConstraints(minHeight: 72),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.center,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                attachment is AudioAttachment
+                    ? Icons.music_note
+                    : Icons.smart_display_outlined,
+                size: 48,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                context.tr(attachment is AudioAttachment ? 'Audio' : 'Video'),
+                style: const TextStyle(fontSize: 28),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Replaces a button without effect while the host paused the media.

@@ -35,6 +35,7 @@ IconData dashboardSectionIcon(DashboardSection section) => switch (section) {
   DashboardSection.report => Icons.summarize_outlined,
   DashboardSection.players => Icons.groups_outlined,
   DashboardSection.serverLog => Icons.receipt_long_outlined,
+  DashboardSection.tvPreview => Icons.connected_tv,
 };
 
 /// Wraps [child] with a coloured header that collapses and expands it.

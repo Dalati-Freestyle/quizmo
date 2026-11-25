@@ -23,6 +23,7 @@ import 'dashboard_panels.dart';
 import 'layout/dashboard_layout.dart';
 import 'session_report_panel.dart';
 import 'grading_dialog.dart';
+import 'tv_preview_panel.dart';
 
 /// Builds the game sections for [engineState] of [engine].
 ///
@@ -36,6 +37,8 @@ Map<DashboardSection, Widget> buildGameSections(
   required String quizName,
   bool connectionsAvailable = true,
   List<Widget> startExtras = const [],
+  Uri? tvJoinUri,
+  GuestWifi? guestWifi,
 }) {
   final game = engineState.game;
   return {
@@ -147,6 +150,12 @@ Map<DashboardSection, Widget> buildGameSections(
           ],
         ),
       ),
+    DashboardSection.tvPreview: TvPreviewPanel(
+      game: game,
+      quizName: quizName,
+      joinUri: tvJoinUri,
+      guestWifi: guestWifi,
+    ),
     if (game.poker case final poker?)
       DashboardSection.poker: PanelCard(
         title: context.tr("Pokerchips"),

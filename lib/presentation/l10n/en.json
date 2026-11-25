@@ -1486,5 +1486,11 @@
   "Wähl eine Antwort.": "Pick one answer.",
   "Drückt den Buzzer und antwortet laut.": "Hit the buzzer and answer out loud.",
   "Drück den Buzzer und antworte laut.": "Hit the buzzer and answer out loud.",
-  "Die Frage folgt gleich.": "The question follows shortly."
+  "Die Frage folgt gleich.": "The question follows shortly.",
+  "TV-Vorschau": "TV preview",
+  "Verkleinerte TV-Ansicht": "Small TV view",
+  "Größer ansehen": "View larger",
+  "Der Server läuft noch nicht. Der QR-Code erscheint, sobald er gestartet ist.": "The server is not running yet. The QR code appears once it is started.",
+  "Audio": "Audio",
+  "Video": "Video"
 }
