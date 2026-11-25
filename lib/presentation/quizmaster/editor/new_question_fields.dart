@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
+import '../../../core/engine/answer_evaluation.dart';
 import '../../../core/models/models.dart';
 
 /// Shown where a solution would be entered in a quiz without solutions.
@@ -30,6 +31,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
   late bool manualGrading;
   late String unit;
   late String scale;
+  late String minAccepted;
+  late String maxAccepted;
   late bool truth;
   @override
   void initState() {
@@ -54,15 +57,28 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
           for (final (index, i) in leftItems.indexed)
             '${i.label} = ${(correctPairs == null ? rightItems.elementAtOrNull(index) : rightItems.where((r) => r.id == correctPairs[i.id]).firstOrNull)?.label ?? ''}',
         ].join('\n'),
-      EstimationQuestion(:final correctValue) => correctValue?.toString() ?? '',
+      EstimationQuestion(:final correctValue) => _number(correctValue),
       TrueFalseQuestion() || MultipleChoiceQuestion() || BuzzerQuestion() => '',
     };
     edits = q is ShortAnswerQuestion ? q.maxEdits : 1;
     manualGrading = q is ShortAnswerQuestion && q.manualGrading;
     unit = q is EstimationQuestion ? q.unit : '';
-    scale = q is EstimationQuestion ? '${q.zeroScale}' : '1';
+    scale = q is EstimationQuestion ? _number(q.zeroScale) : '1';
+    minAccepted = q is EstimationQuestion ? _number(q.minAccepted) : '';
+    maxAccepted = q is EstimationQuestion ? _number(q.maxAccepted) : '';
     truth = q is TrueFalseQuestion ? q.correctAnswer ?? true : true;
   }
+
+  static String _number(double? value) =>
+      value == null ? '' : formatNumber(value);
+
+  static double? _parse(String text) =>
+      double.tryParse(text.trim().replaceAll(',', '.'));
+
+  String? _optionalNumber(String? text) =>
+      (text ?? '').trim().isEmpty || (_parse(text!)?.isFinite ?? false)
+      ? null
+      : context.tr('Endliche Zahl angeben.');
 
   List<String> get lines => content
       .split('\n')
@@ -79,9 +95,11 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       OrderingQuestion() => _orderingFields(),
       MatchingQuestion() => _matchingFields(),
       EstimationQuestion() => <String, Object?>{
-        'correctValue': double.tryParse(content.replaceAll(',', '.')),
+        'correctValue': _parse(content),
         'unit': unit,
-        'zeroScale': double.tryParse(scale.replaceAll(',', '.')),
+        'zeroScale': _parse(scale),
+        'minAccepted': _parse(minAccepted),
+        'maxAccepted': _parse(maxAccepted),
       },
       TrueFalseQuestion() => <String, Object?>{
         if (widget.showSolution) 'correctAnswer': truth,
@@ -281,6 +299,53 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               context.tr(
                 "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
               ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              context.tr('Toleranz (optional)'),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              context.tr(
+                'Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.',
+              ),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    key: const ValueKey('estimation-min'),
+                    initialValue: minAccepted,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Untergrenze'),
+                    ),
+                    validator: _optionalNumber,
+                    onChanged: (v) {
+                      minAccepted = v;
+                      changed();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    key: const ValueKey('estimation-max'),
+                    initialValue: maxAccepted,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Obergrenze'),
+                    ),
+                    validator: _optionalNumber,
+                    onChanged: (v) {
+                      maxAccepted = v;
+                      changed();
+                    },
+                  ),
+                ),
+              ],
             ),
           ],
         ],

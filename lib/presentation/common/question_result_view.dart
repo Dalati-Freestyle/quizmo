@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 
+import '../../core/engine/answer_evaluation.dart';
 import '../../core/models/models.dart';
 import 'snowflake_result_view.dart';
 
@@ -100,7 +101,10 @@ String answerLabel(
   BuildContext? context,
 }) => switch (answer) {
   ShortAnswer(:final text) => text,
-  EstimationAnswer(:final value) => '$value',
+  EstimationAnswer(:final value) =>
+    question is EstimationQuestion
+        ? question.valueLabel(value)
+        : formatNumber(value),
   TrueFalseAnswer(:final value) =>
     value
         ? (context?.tr("Wahr") ?? 'Wahr')

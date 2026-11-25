@@ -1402,5 +1402,13 @@
   "Hints need schemaVersion 13.": "Tipps brauchen schemaVersion 13.",
   "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.": "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.",
   "Ausgeschieden": "Ausgeschieden",
-  "Ausgeschieden bei Frage {0}": "Ausgeschieden bei Frage {0}"
+  "Ausgeschieden bei Frage {0}": "Ausgeschieden bei Frage {0}",
+  "Für die Toleranz Unter- und Obergrenze angeben.": "Für die Toleranz Unter- und Obergrenze angeben.",
+  "Die Untergrenze darf nicht über der Obergrenze liegen.": "Die Untergrenze darf nicht über der Obergrenze liegen.",
+  "Der Zielwert muss im gültigen Bereich liegen.": "Der Zielwert muss im gültigen Bereich liegen.",
+  "Endliche Zahl angeben.": "Endliche Zahl angeben.",
+  "Toleranz (optional)": "Toleranz (optional)",
+  "Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.": "Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.",
+  "Untergrenze": "Untergrenze",
+  "Obergrenze": "Obergrenze"
 }

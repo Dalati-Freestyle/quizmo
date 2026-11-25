@@ -1,6 +1,7 @@
 /// Builds the guest facing [GameProtocol] from the host's full game state.
 library;
 
+import '../engine/answer_evaluation.dart';
 import '../models/answer.dart';
 import '../models/game_protocol.dart';
 import '../models/game_state.dart';
@@ -209,8 +210,8 @@ String protocolAnswerLabel(AnswerSubmission answer, Question question) {
     ShortAnswer(:final text) => text,
     EstimationAnswer(:final value) =>
       question is EstimationQuestion
-          ? '$value ${question.unit}'.trimRight()
-          : '$value',
+          ? question.valueLabel(value)
+          : formatNumber(value),
     TrueFalseAnswer(:final value) => value ? 'Wahr' : 'Falsch',
     MultipleChoiceAnswer(:final selectedOptionIds) => [
       for (final id in selectedOptionIds)

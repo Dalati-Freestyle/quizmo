@@ -732,12 +732,11 @@ final class MatchingQuestion extends Question {
 
   /// Right items with the same label are interchangeable: "pork" may exist
   /// twice, and either of them fits both pork dishes (since quiz schema 13).
-  String _rightKey(String id) => switch (rightItems
-      .where((item) => item.id == id)
-      .firstOrNull) {
-    final item? => item.label.trim().toLowerCase(),
-    null => id,
-  };
+  String _rightKey(String id) =>
+      switch (rightItems.where((item) => item.id == id).firstOrNull) {
+        final item? => item.label.trim().toLowerCase(),
+        null => id,
+      };
   @override
   String get solutionLabel => (correctPairs ?? {}).entries
       .map(
@@ -822,8 +821,18 @@ final class EstimationQuestion extends Question {
     this.correctValue,
     this.zeroScale = 1,
     this.unit = '',
+    this.minAccepted,
+    this.maxAccepted,
   });
   final double? correctValue;
+
+  /// Optional tolerance (quiz schema 14): every answer from [minAccepted] to
+  /// [maxAccepted] counts as fully correct. Both are set or none is. They
+  /// belong to the solution and stay secret until the reveal.
+  final double? minAccepted;
+  final double? maxAccepted;
+
+  bool get hasTolerance => minAccepted != null && maxAccepted != null;
   final double zeroScale;
   final String unit;
   factory EstimationQuestion.fromJson(JsonMap json) => EstimationQuestion(
@@ -842,6 +851,12 @@ final class EstimationQuestion extends Question {
         : readFiniteDouble(json, 'correctValue'),
     zeroScale: readFiniteDouble(json, 'zeroScale'),
     unit: json.readString('unit'),
+    minAccepted: json['minAccepted'] == null
+        ? null
+        : readFiniteDouble(json, 'minAccepted'),
+    maxAccepted: json['maxAccepted'] == null
+        ? null
+        : readFiniteDouble(json, 'maxAccepted'),
   );
   @override
   bool get hasSolution => correctValue != null;
@@ -853,16 +868,37 @@ final class EstimationQuestion extends Question {
   @override
   double accuracy(AnswerSubmission answer) =>
       answer is EstimationAnswer && correctValue != null
-      ? estimationAccuracy(answer.value, correctValue!, zeroScale)
+      ? estimationAccuracyWithin(
+          answer.value,
+          correctValue!,
+          zeroScale,
+          min: minAccepted,
+          max: maxAccepted,
+        )
       : 0;
   @override
-  String get solutionLabel => correctValue == null ? '' : '$correctValue $unit';
+  String get solutionLabel => correctValue == null
+      ? ''
+      : hasTolerance
+      ? '${valueLabel(correctValue!)} (${formatNumber(minAccepted!)} – ${valueLabel(maxAccepted!)})'
+      : valueLabel(correctValue!);
+
+  /// [value] with the unit of this question.
+  String valueLabel(double value) => '${formatNumber(value)} $unit'.trimRight();
   @override
   List<String> get contentErrors => [
     if (correctValue == null || !correctValue!.isFinite)
       'Endliche Zielzahl angeben.',
     if (!zeroScale.isFinite || zeroScale <= 0)
       'Skala für Zielwert 0 muss positiv sein.',
+    if ((minAccepted == null) != (maxAccepted == null))
+      'Für die Toleranz Unter- und Obergrenze angeben.',
+    if (hasTolerance && minAccepted! > maxAccepted!)
+      'Die Untergrenze darf nicht über der Obergrenze liegen.'
+    else if (hasTolerance &&
+        correctValue != null &&
+        (correctValue! < minAccepted! || correctValue! > maxAccepted!))
+      'Der Zielwert muss im gültigen Bereich liegen.',
   ];
   @override
   EstimationQuestion redacted() => EstimationQuestion(
@@ -883,6 +919,9 @@ final class EstimationQuestion extends Question {
     'correctValue': correctValue,
     'zeroScale': zeroScale,
     'unit': unit,
+    // Only written when set: questions without a tolerance stay equal.
+    if (minAccepted != null) 'minAccepted': minAccepted,
+    if (maxAccepted != null) 'maxAccepted': maxAccepted,
   };
   @override
   List<Object?> get props => [
@@ -899,6 +938,8 @@ final class EstimationQuestion extends Question {
     correctValue,
     zeroScale,
     unit,
+    minAccepted,
+    maxAccepted,
   ];
 }
 

@@ -1402,5 +1402,13 @@
   "Hints need schemaVersion 13.": "Hints need schemaVersion 13.",
   "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.": "The same value may occur several times on the right; equal values are interchangeable.",
   "Ausgeschieden": "Eliminated",
-  "Ausgeschieden bei Frage {0}": "Eliminated at question {0}"
+  "Ausgeschieden bei Frage {0}": "Eliminated at question {0}",
+  "Für die Toleranz Unter- und Obergrenze angeben.": "A tolerance needs a lower and an upper limit.",
+  "Die Untergrenze darf nicht über der Obergrenze liegen.": "The lower limit must not exceed the upper limit.",
+  "Der Zielwert muss im gültigen Bereich liegen.": "The target must be within the accepted range.",
+  "Endliche Zahl angeben.": "Enter a finite number.",
+  "Toleranz (optional)": "Tolerance (optional)",
+  "Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.": "Answers from the lower to the upper limit count as fully correct.",
+  "Untergrenze": "Lower limit",
+  "Obergrenze": "Upper limit"
 }

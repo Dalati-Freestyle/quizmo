@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../engine/answer_evaluation.dart';
 import '../models/answer.dart';
 import '../models/game_state.dart';
 import '../models/question.dart';
@@ -560,8 +561,8 @@ String reportAnswerLabel(
   ShortAnswer(:final text) => text,
   EstimationAnswer(:final value) =>
     question is EstimationQuestion
-        ? '$value ${question.unit}'.trimRight()
-        : '$value',
+        ? question.valueLabel(value)
+        : formatNumber(value),
   TrueFalseAnswer(:final value) => value ? 'true' : 'false',
   MultipleChoiceAnswer(:final selectedOptionIds) => jsonEncode([
     for (final id in selectedOptionIds)

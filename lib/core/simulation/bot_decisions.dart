@@ -155,6 +155,15 @@ String _wrongText(ShortAnswerQuestion question) {
 
 double _wrongEstimate(EstimationQuestion question) {
   final target = question.correctValue!;
-  if (target != 0) return target > 0 ? -target : 0;
-  return question.zeroScale;
+  final simple = target != 0
+      ? (target > 0 ? -target : 0.0)
+      : question.zeroScale;
+  final lower = question.minAccepted;
+  final upper = question.maxAccepted;
+  if (lower == null || upper == null || simple < lower || simple > upper) {
+    return simple;
+  }
+  // Inside the tolerance: leave it upwards, far enough for zero credit.
+  final distance = target != 0 ? target.abs() : question.zeroScale;
+  return max(upper, target + distance) + distance;
 }

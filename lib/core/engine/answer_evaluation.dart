@@ -43,6 +43,28 @@ bool fuzzyEquals(String input, String expected, int maxEdits) {
   return previous.last <= maxEdits;
 }
 
+/// [value] without a needless fraction: `330` instead of `330.0`.
+String formatNumber(double value) =>
+    value.isFinite && value == value.roundToDouble() && value.abs() < 1e15
+    ? value.toStringAsFixed(0).replaceFirst(RegExp(r'^-0$'), '0')
+    : '$value';
+
+/// Accuracy of an estimation that may have a tolerance: everything from [min]
+/// to [max] (both included) is fully correct, nothing outside ever is.
+double estimationAccuracyWithin(
+  double value,
+  double target,
+  double zeroScale, {
+  double? min,
+  double? max,
+}) {
+  if (min == null || max == null) {
+    return estimationAccuracy(value, target, zeroScale);
+  }
+  if (value >= min && value <= max) return 1;
+  return math.min(estimationAccuracy(value, target, zeroScale), 0.999999);
+}
+
 double estimationAccuracy(double value, double target, double zeroScale) =>
     (1 - (value - target).abs() / (target == 0 ? zeroScale : target.abs()))
         .clamp(0.0, 1.0);
