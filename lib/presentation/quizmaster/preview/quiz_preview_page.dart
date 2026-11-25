@@ -331,7 +331,8 @@ class _QuizPreviewPageState extends State<QuizPreviewPage> {
         snapshots: _session.guestSnapshots,
         send: _session.send,
         now: () => _session.clock.nowMicros,
-        answers: () => playerAnswersOf(_session.engine.state.game, id),
+        answers: () => _session.answersOf(id),
+        draftChanges: _session.engine.draftChanges,
       );
     }
     return BlocProvider.value(value: _player!, child: const LocalPlayerBoard());

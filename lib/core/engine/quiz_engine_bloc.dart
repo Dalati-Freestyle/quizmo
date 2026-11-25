@@ -545,10 +545,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       }
       final key = teamId == null ? 'player:${player.id}' : 'team:$teamId';
       final previous = best[key];
-      if (previous == null ||
-          draft.hostTimestampMicros > previous.hostTimestampMicros ||
-          (draft.hostTimestampMicros == previous.hostTimestampMicros &&
-              draft.playerId.compareTo(previous.playerId) > 0)) {
+      if (previous == null || compareDraftOrder(draft, previous) > 0) {
         best[key] = draft;
       }
     }
@@ -626,6 +623,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final draft? when _belongsToRound(draft, state.game.round) => draft,
     _ => null,
   };
+
+  /// What the team of [playerId] enters in the running round, for its members
+  /// only: empty when they answer alone or their team may not answer.
+  List<AnswerDraft> teamDraftsOf(String playerId) {
+    final game = state.game;
+    final teamId = game.sharedAnswerTeamOf(playerId);
+    if (teamId == null ||
+        game.round.status == RoundStatus.revealed ||
+        (game.poker?.betting ?? false) ||
+        _rejectParticipant(game.round, playerId) != null) {
+      return const [];
+    }
+    return [
+      for (final member in game.players.values)
+        if (member.teamId == teamId) ?draftOf(member.id)?.preview(),
+    ];
+  }
 
   static bool _belongsToRound(AnswerDraft draft, RoundState round) =>
       draft.questionId == round.question?.id &&

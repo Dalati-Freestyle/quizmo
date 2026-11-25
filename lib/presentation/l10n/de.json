@@ -1425,5 +1425,11 @@
   "Die Antwort des Teams wurde schon bewertet.": "Die Antwort des Teams wurde schon bewertet.",
   "beim Ablauf übernommen": "beim Ablauf übernommen",
   "Zeit abgelaufen: Deine Eingabe wurde übernommen.": "Zeit abgelaufen: Deine Eingabe wurde übernommen.",
-  "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.": "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen."
+  "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.": "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.",
+  "Deine Eingabe zählt": "Deine Eingabe zählt",
+  "zählt": "zählt",
+  "abgeschickt": "abgeschickt",
+  "tippt …": "tippt …",
+  "bearbeitet": "bearbeitet",
+  "noch nichts eingegeben": "noch nichts eingegeben"
 }

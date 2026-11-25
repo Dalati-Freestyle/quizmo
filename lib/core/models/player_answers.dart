@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'answer.dart';
+import 'answer_draft.dart';
 import 'game_state.dart';
 import 'json.dart';
 
@@ -16,6 +17,7 @@ final class PlayerAnswers extends Equatable {
     this.team = const [],
     this.isFinal = false,
     this.isAdopted = false,
+    this.drafts = const [],
   });
 
   factory PlayerAnswers.fromJson(JsonMap json) => PlayerAnswers(
@@ -32,6 +34,9 @@ final class PlayerAnswers extends Equatable {
         : json.readList('team', AnswerSubmission.fromJson),
     isFinal: json.readBool('isFinal', orElse: false),
     isAdopted: json.readBool('isAdopted', orElse: false),
+    drafts: json['drafts'] == null
+        ? const []
+        : json.readList('drafts', AnswerDraft.fromJson),
   );
 
   /// The last answer this player sent in the round.
@@ -50,16 +55,45 @@ final class PlayerAnswers extends Equatable {
   /// Whether [valid] was taken over from input that was never sent.
   final bool isAdopted;
 
+  /// What the members of the team enter right now, sent or not.
+  final List<AnswerDraft> drafts;
+
+  /// A copy with [drafts].
+  PlayerAnswers withDrafts(List<AnswerDraft> drafts) => PlayerAnswers(
+    own: own,
+    valid: valid,
+    team: team,
+    isFinal: isFinal,
+    isAdopted: isAdopted,
+    drafts: drafts,
+  );
+
+  /// The player whose input would count if the answers closed now: the sent
+  /// answer of the team, else the draft edited last.
+  String? get countingPlayerId {
+    if (valid case final valid?) return valid.playerId;
+    AnswerDraft? last;
+    for (final draft in drafts) {
+      if (draft.content != null &&
+          (last == null || compareDraftOrder(draft, last) > 0)) {
+        last = draft;
+      }
+    }
+    return last?.playerId;
+  }
+
   JsonMap toJson() => {
     if (own != null) 'own': own!.toJson(),
     if (valid != null) 'valid': valid!.toJson(),
     if (team.isNotEmpty) 'team': [for (final answer in team) answer.toJson()],
     if (isFinal) 'isFinal': true,
     if (isAdopted) 'isAdopted': true,
+    if (drafts.isNotEmpty)
+      'drafts': [for (final draft in drafts) draft.toJson()],
   };
 
   @override
-  List<Object?> get props => [own, valid, team, isFinal, isAdopted];
+  List<Object?> get props => [own, valid, team, isFinal, isAdopted, drafts];
 }
 
 /// The answers of the round on stage that [playerId] may see in [game], the

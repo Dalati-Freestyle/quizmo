@@ -301,6 +301,7 @@ sealed class ServerMessage extends Equatable {
     ),
     SyncPong._type => SyncPong.fromJson(json),
     GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
+    TeamDraftsMessage._type => TeamDraftsMessage.fromJson(json),
     ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
     final unknown => throw JsonContractException(
       'Unknown server message "$unknown".',
@@ -509,6 +510,39 @@ final class GameSnapshotMessage extends ServerMessage {
 
   @override
   List<Object?> get props => [game, ownSubmissionAccepted, answers];
+}
+
+/// What the members of the own team enter right now. Sent only to them, never
+/// part of a snapshot.
+final class TeamDraftsMessage extends ServerMessage {
+  const TeamDraftsMessage({
+    required this.questionId,
+    required this.roundStartedAt,
+    required this.drafts,
+  });
+
+  factory TeamDraftsMessage.fromJson(JsonMap json) => TeamDraftsMessage(
+    questionId: json.readString('questionId'),
+    roundStartedAt: json.readInt('roundStartedAt'),
+    drafts: json.readList('drafts', AnswerDraft.fromJson),
+  );
+
+  static const String _type = 'teamDrafts';
+
+  final String questionId;
+  final int roundStartedAt;
+  final List<AnswerDraft> drafts;
+
+  @override
+  JsonMap toJson() => {
+    'type': _type,
+    'questionId': questionId,
+    'roundStartedAt': roundStartedAt,
+    'drafts': [for (final draft in drafts) draft.toJson()],
+  };
+
+  @override
+  List<Object?> get props => [questionId, roundStartedAt, drafts];
 }
 
 /// Reports a rejected frame without tearing the connection down.

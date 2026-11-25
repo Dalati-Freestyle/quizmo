@@ -192,6 +192,12 @@ final class PreviewSession {
     return _work;
   }
 
+  /// What [playerId] may see of the answers, as a real host sends it.
+  PlayerAnswers answersOf(String playerId) => playerAnswersOf(
+    engine.state.game,
+    playerId,
+  ).withDrafts(engine.teamDraftsOf(playerId));
+
   Future<void> flush() => advance(Duration.zero);
 
   bool _maySubmit(GameState game, String id) {

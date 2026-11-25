@@ -85,6 +85,8 @@ class QuizClient {
       StreamController<ProtocolErrorMessage>.broadcast();
   final StreamController<LobbySnapshotMessage> _lobbies =
       StreamController<LobbySnapshotMessage>.broadcast();
+  final StreamController<TeamDraftsMessage> _teamDrafts =
+      StreamController<TeamDraftsMessage>.broadcast();
   bool _inLobby = false;
   bool _awaitingLobby = false;
   bool _awaitingApproval = false;
@@ -133,6 +135,9 @@ class QuizClient {
   /// Protocol level rejections that did not close the socket.
   Stream<ProtocolErrorMessage> get errors => _errors.stream;
   Stream<LobbySnapshotMessage> get lobbies => _lobbies.stream;
+
+  /// Live input of the own team.
+  Stream<TeamDraftsMessage> get teamDrafts => _teamDrafts.stream;
 
   /// Current lifecycle position.
   QuizClientStatus get status => _status;
@@ -442,6 +447,7 @@ class QuizClient {
     await _statuses.close();
     await _errors.close();
     await _lobbies.close();
+    await _teamDrafts.close();
     await _guestWifi.close();
     await _deviceChecks.close();
     await _admissions.close();
@@ -620,6 +626,8 @@ class QuizClient {
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
         if (!_snapshots.isClosed) _snapshots.add(message);
+      case TeamDraftsMessage():
+        if (!_teamDrafts.isClosed) _teamDrafts.add(message);
       case ProtocolErrorMessage():
         _awaitingApproval = false;
         _admissions.add(false);

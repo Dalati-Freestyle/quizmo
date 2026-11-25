@@ -41,6 +41,7 @@ import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
 import '../common/answer_countdown.dart';
 import 'team_answer_card.dart';
+import 'team_inputs_view.dart';
 
 /// Player facing screen.
 ///
@@ -904,6 +905,7 @@ class _QuestionStage extends StatelessWidget {
         input,
         AdoptedAnswerCard(state: state),
         TeamAnswerCard(state: state, onResend: cubit.resend),
+        TeamInputsView(state: state, hostNowMicros: cubit.hostNowMicros),
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)
           AwaitingHostCard(state: state),

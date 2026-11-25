@@ -220,6 +220,9 @@ the release pipeline does this automatically.
   host) the engine locks the round, waits `draftGrace` for drafts under way and counts the last draft of every team (or
   player) without a sent answer, ordered and bounded by host timestamps, never by arrival
   (`RoundState.adoptedPlayerIds`, no time bonus). Every new question kind states `supportsDrafts` / `acceptsDraft`.
+* Team mates see each other's drafts live (`TeamInputsView`): the hub sends `TeamDraftsMessage` (bundled, long text cut
+  off) only to connected members of the same team while that team may answer, and `PlayerAnswers.drafts` with each
+  snapshot. Never put drafts into `GameState`, the server log or anything other teams or TVs receive.
 
 ### Jokers
 * A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means

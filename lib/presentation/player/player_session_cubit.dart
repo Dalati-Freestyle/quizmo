@@ -218,6 +218,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     required void Function(QuizEngineEvent) send,
     required NowMicros now,
     PlayerAnswers Function()? answers,
+    Stream<void>? draftChanges,
   }) : _store = PlayerSessionStore(),
        _createClient = ((host) => QuizClient(baseUri: host)),
        _localSend = send,
@@ -234,11 +235,17 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _gameSubscription = snapshots.listen(
       (game) => _onSnapshot(game, answers: _localAnswers?.call()),
     );
+    _localDraftSubscription = draftChanges?.listen((_) {
+      final answers = _localAnswers?.call();
+      if (!isClosed && answers != null) emit(state.copyWith(answers: answers));
+    });
   }
 
   final void Function(QuizEngineEvent)? _localSend;
   final NowMicros? _localNow;
   final PlayerAnswers Function()? _localAnswers;
+  StreamSubscription<void>? _localDraftSubscription;
+  StreamSubscription<TeamDraftsMessage>? _teamDraftsSubscription;
 
   /// Client timestamp of the answer whose confirmation is awaited.
   int? _pendingTimestamp;
@@ -430,6 +437,21 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       );
     });
 
+    _teamDraftsSubscription = client.teamDrafts.listen((message) {
+      final round = state.game?.round;
+      if (isClosed ||
+          round?.question?.id != message.questionId ||
+          round?.startedAtHostMicros != message.roundStartedAt) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          answers: (state.answers ?? const PlayerAnswers()).withDrafts(
+            message.drafts,
+          ),
+        ),
+      );
+    });
     _snapshotSubscription = client.snapshots.listen((snapshot) {
       _onSnapshot(
         snapshot.game,
@@ -1012,6 +1034,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     await _lobbySubscription?.cancel();
     await _admissionSubscription?.cancel();
     await _deviceCheckSubscription?.cancel();
+    await _teamDraftsSubscription?.cancel();
+    await _localDraftSubscription?.cancel();
     _gameSubscription = null;
     _snapshotSubscription = null;
     _statusSubscription = null;
@@ -1019,6 +1043,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _lobbySubscription = null;
     _admissionSubscription = null;
     _deviceCheckSubscription = null;
+    _teamDraftsSubscription = null;
+    _localDraftSubscription = null;
     _lastQuestionId = null;
     await _client?.dispose();
     _client = null;

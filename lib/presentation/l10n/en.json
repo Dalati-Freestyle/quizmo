@@ -1425,5 +1425,11 @@
   "Die Antwort des Teams wurde schon bewertet.": "The answer of the team was already judged.",
   "beim Ablauf übernommen": "taken over when time was up",
   "Zeit abgelaufen: Deine Eingabe wurde übernommen.": "Time's up: your input was taken over.",
-  "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.": "Time's up: the input of {0} was taken over."
+  "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.": "Time's up: the input of {0} was taken over.",
+  "Deine Eingabe zählt": "Your input counts",
+  "zählt": "counts",
+  "abgeschickt": "sent",
+  "tippt …": "typing …",
+  "bearbeitet": "edited",
+  "noch nichts eingegeben": "nothing entered yet"
 }
