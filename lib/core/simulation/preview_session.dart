@@ -24,6 +24,7 @@ final class PreviewSession {
       teams: quiz.teamsById,
       mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
       autoContinueBuzzer: false,
+      answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
       revealMode: switch (quiz.format) {
         StandardFormat(:final revealMode) => revealMode,
         JeopardyFormat() ||
@@ -197,7 +198,7 @@ final class PreviewSession {
     if (!round.status.acceptsInput ||
         game.players[id]?.isConnected != true ||
         !game.mayAnswerQuestion(id) ||
-        round.answers.containsKey(id) ||
+        round.hasSubmitted(id) ||
         round.lockedOutPlayerIds.contains(id) ||
         round.buzzerQueue.any((press) => press.playerId == id)) {
       return false;
@@ -212,13 +213,8 @@ final class PreviewSession {
         return false;
       }
     }
-    if (game.jeopardy != null || game.poker != null) {
-      if (game.mode is TeamMode &&
-          round.answers.keys.any((id) => game.players[id]?.teamId == teamId)) {
-        return false;
-      }
-    }
-    return true;
+    // Bots never replace the answer of their team.
+    return game.teamAnswerOf(game.sharedAnswerTeamOf(id)) == null;
   }
 
   void _plan(GameState game) {

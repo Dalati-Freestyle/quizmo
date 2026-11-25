@@ -243,10 +243,11 @@ void main() {
       );
       expect(game().onTurnAnswers.single.playerId, picker);
       expect(
-        game().redactedForPlayers().onTurnAnswers.single.playerId,
-        picker,
-        reason: 'TVs render the guest snapshot',
+        game().redactedForPlayers().onTurnAnswers,
+        isEmpty,
+        reason: 'the team may still replace its answer',
       );
+      expect(game().redactedForPlayers().round.answerCount, 1);
       await send(judge(picker, true));
       await send(const RevealRoundEvent());
       expect(game().round.status, RoundStatus.revealed);

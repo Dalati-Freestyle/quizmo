@@ -39,6 +39,8 @@ import '../common/snowflake_result_view.dart';
 import '../common/quiz_review_view.dart';
 import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
+import '../common/answer_countdown.dart';
+import 'team_answer_card.dart';
 
 /// Player facing screen.
 ///
@@ -678,21 +680,24 @@ class _QuestionStage extends StatelessWidget {
 
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
-    final enabled =
-        state.isConnected &&
-        state.roundStatus.acceptsInput &&
-        state.lastSubmittedOptionId == null &&
-        state.mayAnswerQuestion;
+    final enabled = state.mayEditAnswer;
     final submitted = state.lastSubmittedOptionId != null;
-    final myAnswer = state.game?.round.answers[state.playerId];
+    final myAnswer =
+        state.answers?.own ?? state.game?.round.answers[state.playerId];
+    final team = state.sharesTeamAnswer
+        ? TeamAnswerMode(valid: state.answers?.valid, own: state.answers?.own)
+        : null;
     final input = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
-        enabled: state.isConnected && state.mayAnswerQuestion,
+        team: team,
+        enabled: team == null
+            ? state.isConnected && state.mayAnswerQuestion
+            : enabled,
         submissionAccepted: state.submissionStatus == SubmissionStatus.accepted,
-        selectedOptionIds: switch (state.game?.round.answers[state.playerId]) {
+        selectedOptionIds: switch (myAnswer) {
           MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds,
           _ => const [],
         },
@@ -706,6 +711,7 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -723,6 +729,7 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -740,6 +747,7 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -757,6 +765,7 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -778,6 +787,7 @@ class _QuestionStage extends StatelessWidget {
           TrueFalseAnswer(:final value) => value,
           _ => null,
         },
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -833,7 +843,13 @@ class _QuestionStage extends StatelessWidget {
               ),
             ),
           ),
+        if (state.game?.round.answerDeadlineMicros case final deadline?)
+          AnswerCountdownBanner(
+            deadlineMicros: deadline,
+            hostNowMicros: cubit.hostNowMicros,
+          ),
         input,
+        TeamAnswerCard(state: state, onResend: cubit.resend),
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)
           AwaitingHostCard(state: state),

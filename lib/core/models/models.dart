@@ -14,6 +14,7 @@ export 'joker.dart';
 export 'json.dart';
 export 'manual_correction.dart';
 export 'player.dart';
+export 'player_answers.dart';
 export 'poker.dart';
 export 'question.dart';
 export 'question_bulk_edit.dart';

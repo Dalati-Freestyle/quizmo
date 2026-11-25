@@ -293,6 +293,27 @@ final class GameState extends Equatable {
   /// Not part of the quiz, the host toggles it while playing.
   final bool verbalAnswers;
 
+  /// Whether every team gives one answer together in the round on stage, the
+  /// last one its members sent. Biggest Snowflake compares each player, and a
+  /// buzzer is pressed by one person.
+  bool get sharesTeamAnswers =>
+      mode is TeamMode &&
+      snowflake == null &&
+      round.question is! BuzzerQuestion;
+
+  /// The team [playerId] answers with, `null` when they answer alone.
+  String? sharedAnswerTeamOf(String? playerId) =>
+      sharesTeamAnswers ? players[playerId]?.teamId : null;
+
+  /// The answer that counts for [teamId], if it gave one.
+  AnswerSubmission? teamAnswerOf(String? teamId) {
+    if (teamId == null) return null;
+    for (final answer in round.answers.values) {
+      if (players[answer.playerId]?.teamId == teamId) return answer;
+    }
+    return null;
+  }
+
   /// Whether the host may record a verbal verdict for [playerId] in the
   /// round on stage, also when the player did not submit anything.
   bool mayJudgeVerbally(String playerId) {
@@ -316,14 +337,8 @@ final class GameState extends Equatable {
       }
       if (poker.settledTeamIds.contains(teamId)) return false;
     }
-    // On a board and in poker a team answers once: one team mate at most.
-    if (mode is TeamMode &&
-        (jeopardy != null || poker != null) &&
-        player.teamId != null &&
-        round.answers.keys.any((id) => players[id]?.teamId == player.teamId)) {
-      return false;
-    }
-    return true;
+    // A team gives one answer: one team mate at most.
+    return teamAnswerOf(sharedAnswerTeamOf(playerId)) == null;
   }
 
   /// Whether hints lower the points. Poker has chips instead of points, so
@@ -515,8 +530,15 @@ final class GameState extends Equatable {
   GameState redactedForPlayers({bool includeMediaData = false}) {
     final question = round.question;
     final keepSolution = round.status == RoundStatus.revealed && !resultsHidden;
-    // Poker and snowflake rounds must not leak what the others answered.
-    final hideAnswers = (poker != null || snowflake != null) && !keepSolution;
+    // Nobody may copy what the others answered; each player learns the own
+    // answers separately (`PlayerAnswers`). Only a single player whose turn it
+    // is answers in public.
+    final hideAnswers = !keepSolution;
+    final publicAnswers = !hideAnswers
+        ? round.answers
+        : sharesTeamAnswers || round.status == RoundStatus.revealed
+        ? const <String, AnswerSubmission>{}
+        : {for (final answer in onTurnAnswers) answer.playerId: answer};
     return copyWith(
       corrections: const [],
       reportRounds: const [],
@@ -533,6 +555,7 @@ final class GameState extends Equatable {
           ? [
               for (final completed in roundHistory)
                 completed.copyWith(
+                  replacedAnswers: const [],
                   question: completed.question?.forWire(
                     reveal: true,
                     includeMediaData: includeMediaData,
@@ -554,8 +577,9 @@ final class GameState extends Equatable {
                 includeMediaData: includeMediaData,
                 visibleHints: round.shownHintCount,
               ),
-        answers: hideAnswers ? const {} : round.answers,
-        hiddenAnswerCount: hideAnswers ? round.answers.length : 0,
+        answers: publicAnswers,
+        replacedAnswers: const [],
+        hiddenAnswerCount: round.answers.length - publicAnswers.length,
         acceptedElapsedMicros: hideAnswers
             ? const {}
             : round.acceptedElapsedMicros,

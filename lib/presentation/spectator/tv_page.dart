@@ -52,6 +52,7 @@ import 'tv_launch.dart';
 import 'tv_final_stage.dart';
 import 'tv_standings.dart';
 import 'animated_score_value.dart';
+import '../common/answer_countdown.dart';
 import '../common/elimination_label.dart';
 
 /// Width of the logical design canvas.
@@ -1570,6 +1571,12 @@ class _QuestionStage extends StatelessWidget {
               : null,
         ),
         const SizedBox(height: 28),
+        if (round.answerDeadlineMicros case final deadline?)
+          AnswerCountdownBanner(
+            deadlineMicros: deadline,
+            hostNowMicros: () => state.hostNowMicros(DateTime.now()),
+            fontSize: 26,
+          ),
         if (!isRevealed && game.onTurnAnswers.isNotEmpty) ...[
           _OnTurnAnswerBanner(
             game: game,

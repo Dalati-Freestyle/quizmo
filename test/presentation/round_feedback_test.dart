@@ -246,17 +246,13 @@ void main() {
     });
   });
 
-  testWidgets('the TV shows what the team on turn picked', (tester) async {
+  testWidgets('the TV shows what the player on turn picked', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final engine = QuizEngineBloc(
       questionBank: const [mc],
-      teams: const {
-        'red': Team(id: 'red', name: 'Red'),
-        'blue': Team(id: 'blue', name: 'Blue'),
-      },
-      mode: const TeamMode(),
+      // Answers of teams stay secret: they may still be replaced.
       jeopardyBoard: const JeopardyBoard(
         rowPoints: [100],
         categories: [
@@ -271,14 +267,8 @@ void main() {
     addTearDown(engine.close);
     engine
       ..add(const StartGameEvent())
-      ..add(
-        const PlayerJoinedEvent(Player(id: 'p1', name: 'Ada', teamId: 'red')),
-      )
-      ..add(
-        const PlayerJoinedEvent(
-          Player(id: 'p2', name: 'Linus', teamId: 'blue'),
-        ),
-      )
+      ..add(const PlayerJoinedEvent(Player(id: 'p1', name: 'Ada')))
+      ..add(const PlayerJoinedEvent(Player(id: 'p2', name: 'Linus')))
       // Judged by the host, so the round stays open after the pick.
       ..add(const SetVerbalAnswersEvent(true))
       ..add(const SelectJeopardyCellEvent('mc'));
@@ -287,7 +277,7 @@ void main() {
     engine.add(
       SubmitAnswerEvent(
         MultipleChoiceAnswer(
-          playerId: turn == 'red' ? 'p1' : 'p2',
+          playerId: turn,
           questionId: 'mc',
           clientTimestampMicros: 1000,
           clockOffsetMicros: 0,

@@ -1410,5 +1410,17 @@
   "Toleranz (optional)": "Toleranz (optional)",
   "Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.": "Antworten von der Unter- bis zur Obergrenze gelten als vollständig richtig.",
   "Untergrenze": "Untergrenze",
-  "Obergrenze": "Obergrenze"
+  "Obergrenze": "Obergrenze",
+  "Alle Teams haben geantwortet. Antworten schließen in {0} s.": "Alle Teams haben geantwortet. Antworten schließen in {0} s.",
+  "Jetzt schließen": "Jetzt schließen",
+  "Antwort ersetzen": "Antwort ersetzen",
+  "Teamantwort": "Teamantwort",
+  "Ein Druck sendet die Antwort für dein Team.": "Ein Druck sendet die Antwort für dein Team.",
+  "Gültige Teamantwort: {0} (von {1})": "Gültige Teamantwort: {0} (von {1})",
+  "dir": "dir",
+  "{0} hat die Teamantwort geändert.": "{0} hat die Teamantwort geändert.",
+  "Die Spielleitung hat eure Antwort schon bewertet. Sie kann nicht mehr geändert werden.": "Die Spielleitung hat eure Antwort schon bewertet. Sie kann nicht mehr geändert werden.",
+  "Meine Antwort wieder einsetzen": "Meine Antwort wieder einsetzen",
+  "Frühere Antworten ({0})": "Frühere Antworten ({0})",
+  "Die Antwort des Teams wurde schon bewertet.": "Die Antwort des Teams wurde schon bewertet."
 }

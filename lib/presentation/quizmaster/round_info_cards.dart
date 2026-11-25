@@ -337,7 +337,15 @@ class AnswersCard extends StatelessWidget {
               '${round.answerCount} / ${game.connectedPlayers.length}',
               style: theme.textTheme.labelLarge,
             ),
-      child: body,
+      child: round.replacedAnswers.isEmpty || question == null
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                body,
+                _ReplacedAnswers(question: question, game: game),
+              ],
+            ),
     );
   }
 
@@ -355,6 +363,38 @@ class AnswersCard extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Answers teams replaced in this round; they do not count.
+class _ReplacedAnswers extends StatelessWidget {
+  const _ReplacedAnswers({required this.question, required this.game});
+
+  final Question question;
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final answers = [...game.round.replacedAnswers]..sort(compareAnswerOrder);
+    return ExpansionTile(
+      key: const ValueKey('replaced-answers'),
+      tilePadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(context.tr('Frühere Antworten ({0})', [answers.length])),
+      children: [
+        for (final answer in answers)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                '${_nameOf(game, answer.playerId)}: '
+                '${answerLabel(answer, question, context: context)}',
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 String _nameOf(GameState game, String playerId) {

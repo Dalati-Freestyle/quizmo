@@ -310,6 +310,9 @@ void main() {
       session.send(const OpenPokerAnswersEvent());
       await session.advance(const Duration(seconds: 1));
       expect(session.engine.state.game.round.answers.length, 1);
+      // The team could still replace its answer.
+      expect(session.engine.state.game.round.answerDeadlineMicros, isNotNull);
+      await session.advance(const Duration(seconds: 5));
       expect(session.engine.state.game.poker!.chips[team], 100 + wager);
       final replay = session.replayRound();
       addTearDown(replay.close);

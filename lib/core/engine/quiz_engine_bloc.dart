@@ -56,6 +56,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     SolutionRevealMode revealMode = SolutionRevealMode.afterEachQuestion,
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
+    this.answerCountdown = Duration.zero,
     NowMicros now = systemNowMicros,
     Timer Function(Duration, void Function()) createTimer = Timer.new,
     GameState? restoredGame,
@@ -181,6 +182,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<StartRoundEvent>(_onStartRound);
     on<NextQuestionEvent>(_onNextQuestion);
     on<SubmitAnswerEvent>(_onSubmitAnswer);
+    on<EndAnswerCountdownEvent>(_onEndAnswerCountdown);
     on<BuzzerPressEvent>(_onBuzzerPress);
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
@@ -390,6 +392,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   Timer? _graceTimer;
   final Timer Function(Duration, void Function()) _createTimer;
   Timer? _roundTimer;
+
+  /// Time teams have to replace their answer in a hosted or previewed game.
+  static const defaultAnswerCountdown = Duration(seconds: 5);
+
+  /// Time to replace answers after every team answered; zero closes at once.
+  final Duration answerCountdown;
+
+  Timer? _countdownTimer;
   final String? recoverySessionId;
   final Map<String, String> resumeTokenHashes;
   final SessionAccess access;
@@ -465,6 +475,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             answers: round.answers.map(
               (id, answer) => MapEntry(id, shift(answer)),
             ),
+            replacedAnswers: [
+              for (final answer in round.replacedAnswers) shift(answer),
+            ],
+            answerDeadlineMicros: round.answerDeadlineMicros == null
+                ? null
+                : _now() + answerCountdown.inMicroseconds,
             buzzerQueue: round.buzzerQueue
                 .map(
                   (press) => BuzzerPress(
@@ -494,6 +510,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   Future<void> close() {
     _graceTimer?.cancel();
     _roundTimer?.cancel();
+    _countdownTimer?.cancel();
     unawaited(access.close());
     return super.close();
   }
@@ -532,6 +549,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     final acceptedElapsed = {...game.round.acceptedElapsedMicros}
       ..remove(source.id);
     final answer = answers.remove(source.id);
+    final replacedAnswers = [
+      for (final earlier in game.round.replacedAnswers)
+        earlier.playerId == source.id
+            ? earlier.withPlayerId(target.id)
+            : earlier,
+    ];
     final sourceVerdict = answerVerdicts.remove(source.id);
     if (answer != null && !answers.containsKey(target.id)) {
       answers[target.id] = answer.withPlayerId(target.id);
@@ -578,6 +601,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           scores: game.scores.copyWith(byPlayer: totals, history: history),
           round: cleaned.round.copyWith(
             answers: answers,
+            replacedAnswers: replacedAnswers,
             acceptedElapsedMicros: acceptedElapsed,
             answerVerdicts: answerVerdicts,
             buzzerQueue: orderedQueue,
@@ -623,6 +647,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       ),
       round: game.round.copyWith(
         answers: answers,
+        replacedAnswers: [
+          for (final answer in game.round.replacedAnswers)
+            if (answer.playerId != id) answer,
+        ],
         acceptedElapsedMicros: {...game.round.acceptedElapsedMicros}
           ..remove(id),
         answerVerdicts: {...game.round.answerVerdicts}..remove(id),
@@ -1016,43 +1044,167 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'Invalid answer for this question.'));
       return;
     }
-    if (round.answers.containsKey(answer.playerId)) {
+    final teamId = game.sharedAnswerTeamOf(answer.playerId);
+    if (teamId == null && round.answers.containsKey(answer.playerId)) {
       emit(state.copyWith(notice: 'Only the first answer counts.'));
       return;
     }
-    if (_teamAlreadyAnswered(game, answer.playerId)) {
-      emit(state.copyWith(notice: 'Your team already answered.'));
+    final previous = round.lastSubmissionOf(answer.playerId);
+    if (previous != null && compareAnswerOrder(answer, previous) <= 0) {
+      // A repeated or overtaken frame of the same player.
+      return;
+    }
+    final current = game.teamAnswerOf(teamId);
+    if (current != null && round.answerVerdicts.containsKey(current.playerId)) {
+      emit(
+        state.copyWith(notice: 'Die Antwort des Teams wurde schon bewertet.'),
+      );
       return;
     }
 
-    var updated = game.copyWith(
-      round: round.copyWith(
-        answers: {...round.answers, answer.playerId: answer},
-        acceptedElapsedMicros: {
-          ...round.acceptedElapsedMicros,
-          answer.playerId: round
-              .timerElapsedAt(answer.hostTimestampMicros)
-              .inMicroseconds,
-        },
-      ),
-    );
-
-    final allAnswered = _everyoneAnswered(updated);
-    if (allAnswered && round.manualGrading) {
-      updated = updated.copyWith(
-        round: updated.round.copyWith(status: RoundStatus.locked),
-      );
-    }
-    emit(
-      _publish(
-        updated.copyWith(
-          allAnswersRevision: game.allAnswersRevision + (allAnswered ? 1 : 0),
+    // The last answer of a team counts; the ones before stay on record.
+    final updated = _withValidTeamAnswers(
+      game.copyWith(
+        round: round.copyWith(
+          answers: {...round.answers, answer.playerId: answer},
+          replacedAnswers: teamId == null || previous == null
+              ? null
+              : [
+                  for (final earlier in round.replacedAnswers)
+                    if (earlier != previous) earlier,
+                  previous,
+                ],
+          acceptedElapsedMicros: {
+            ...round.acceptedElapsedMicros,
+            answer.playerId: round
+                .timerElapsedAt(answer.hostTimestampMicros)
+                .inMicroseconds,
+          },
         ),
       ),
     );
-    if (allAnswered && !round.manualGrading && !round.hasSoftTimer) {
-      add(const RevealRoundEvent());
+
+    if (!_everyoneAnswered(updated)) {
+      emit(_publish(updated));
+      return;
     }
+    final announced = updated.copyWith(
+      // Replacing an answer does not announce it again.
+      allAnswersRevision:
+          game.allAnswersRevision +
+          (round.answerDeadlineMicros == null ? 1 : 0),
+    );
+    final closes = round.manualGrading || !round.hasSoftTimer;
+    if (closes && teamId != null && answerCountdown > Duration.zero) {
+      emit(
+        _publish(
+          announced.copyWith(
+            round: announced.round.copyWith(
+              answerDeadlineMicros: _countdownEnd(announced.round),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    _closeAnswered(announced, emit);
+  }
+
+  /// Closes the answers of a round that everybody answered.
+  void _closeAnswered(GameState game, Emitter<QuizEngineState> emit) {
+    if (!game.round.manualGrading) {
+      emit(_publish(game));
+      if (!game.round.hasSoftTimer) add(const RevealRoundEvent());
+      return;
+    }
+    emit(
+      _publish(
+        game.copyWith(round: game.round.copyWith(status: RoundStatus.locked)),
+      ),
+    );
+  }
+
+  /// End of a fresh countdown; never later than the time limit.
+  int _countdownEnd(RoundState round) {
+    final end = _now() + answerCountdown.inMicroseconds;
+    final question = round.question!;
+    if (!question.hasTimeLimit || round.hasSoftTimer) return end;
+    final limit =
+        round.timerStartedAtHostMicros! + question.timeLimit.inMicroseconds;
+    return limit < end ? limit : end;
+  }
+
+  void _onEndAnswerCountdown(
+    EndAnswerCountdownEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    final game = state.game;
+    final deadline = game.round.answerDeadlineMicros;
+    if (deadline == null ||
+        !game.round.status.acceptsInput ||
+        (event.deadlineMicros != null && event.deadlineMicros != deadline)) {
+      return;
+    }
+    _closeAnswered(
+      game.copyWith(round: game.round.copyWith(answerDeadlineMicros: null)),
+      emit,
+    );
+  }
+
+  /// Keeps exactly one answer per team that shares its answer: a judged one,
+  /// else the last one its current members sent. Also settles the answers
+  /// after players changed teams or were removed.
+  GameState _withValidTeamAnswers(GameState game) {
+    final round = game.round;
+    if (!game.sharesTeamAnswers ||
+        round.status == RoundStatus.revealed ||
+        round.allSubmissions.isEmpty) {
+      return game;
+    }
+    final answers = <String, AnswerSubmission>{};
+    final replaced = <AnswerSubmission>[];
+    final valid = <String, AnswerSubmission>{};
+    bool judged(AnswerSubmission answer) =>
+        round.answers[answer.playerId] == answer &&
+        round.answerVerdicts.containsKey(answer.playerId);
+    for (final answer in round.allSubmissions) {
+      final player = game.players[answer.playerId];
+      if (player == null) continue;
+      final teamId = player.teamId;
+      if (teamId == null) {
+        if (round.answers[answer.playerId] == answer) {
+          answers[answer.playerId] = answer;
+        }
+        continue;
+      }
+      final best = valid[teamId];
+      final wins =
+          best == null ||
+          (judged(answer) != judged(best)
+              ? judged(answer)
+              : compareAnswerOrder(answer, best) > 0);
+      if (wins) {
+        if (best != null) replaced.add(best);
+        valid[teamId] = answer;
+      } else {
+        replaced.add(answer);
+      }
+    }
+    for (final answer in valid.values) {
+      answers[answer.playerId] = answer;
+    }
+    return game.copyWith(
+      round: round.copyWith(
+        answers: answers,
+        replacedAnswers: replaced,
+        answerVerdicts: {
+          for (final entry in round.answerVerdicts.entries)
+            if (answers[entry.key] == round.answers[entry.key] &&
+                answers.containsKey(entry.key))
+              entry.key: entry.value,
+        },
+      ),
+    );
   }
 
   void _onJudgeAnswer(JudgeAnswerEvent event, Emitter<QuizEngineState> emit) {
@@ -2214,23 +2366,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
   }
 
-  /// Whether the team of [playerId] already gave an answer this round.
-  ///
-  /// On a board only one answer per team counts, otherwise a big team would
-  /// earn the row points once per member.
-  bool _teamAlreadyAnswered(GameState game, String playerId) {
-    if (game.mode is! TeamMode ||
-        (game.jeopardy == null && game.poker == null)) {
-      return false;
-    }
-    final teamId = game.players[playerId]?.teamId;
-    if (teamId == null) return false;
-    return game.round.answers.keys.any(
-      (answeredId) => game.players[answeredId]?.teamId == teamId,
-    );
-  }
-
-  /// Whether every player (on a board: every team) that may answer did.
+  /// Whether everybody (with shared answers: every team) that may answer did.
   bool _everyoneAnswered(GameState game) {
     if (game.poker case final poker?) {
       final teams = game.teams.keys.where(
@@ -2254,14 +2390,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         .toList(growable: false);
     if (eligible.isEmpty) return false;
     return eligible.every((player) {
-      if (game.mode is TeamMode &&
-          (jeopardy != null || game.poker != null) &&
-          player.teamId != null) {
-        return game.round.answers.keys.any(
-          (id) => game.players[id]?.teamId == player.teamId,
-        );
-      }
-      return game.round.answers.containsKey(player.id);
+      final teamId = game.sharedAnswerTeamOf(player.id);
+      return teamId == null
+          ? game.round.answers.containsKey(player.id)
+          : game.teamAnswerOf(teamId) != null;
     });
   }
 
@@ -2322,9 +2454,29 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// Wraps [game] into a state, stamping it with the current host clock.
   QuizEngineState _publish(GameState game, {String? notice}) {
+    game = _withValidTeamAnswers(game);
+    if (game.round.answerDeadlineMicros != null &&
+        (!game.round.status.acceptsInput || !_everyoneAnswered(game))) {
+      game = game.copyWith(
+        round: game.round.copyWith(answerDeadlineMicros: null),
+      );
+    }
     game = _recordReportRound(game);
     _roundTimer?.cancel();
+    _countdownTimer?.cancel();
     final round = game.round;
+    if (round.answerDeadlineMicros case final deadline?
+        when !game.recoveryPaused) {
+      final remaining = deadline - _now();
+      _countdownTimer = _createTimer(
+        Duration(microseconds: remaining < 0 ? 0 : remaining),
+        () {
+          if (!isClosed) {
+            add(EndAnswerCountdownEvent(deadlineMicros: deadline));
+          }
+        },
+      );
+    }
     final question = round.question;
     final start = round.startedAtHostMicros;
     if (question != null &&

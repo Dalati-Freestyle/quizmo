@@ -319,6 +319,18 @@ final class RevealRoundEvent extends QuizEngineEvent {
   const RevealRoundEvent();
 }
 
+/// Closes the answers after every team answered: sent by the countdown
+/// ([deadlineMicros] set) or by the host to skip it.
+final class EndAnswerCountdownEvent extends QuizEngineEvent {
+  const EndAnswerCountdownEvent({this.deadlineMicros});
+
+  /// The countdown that ran out; a restarted one ignores the event.
+  final int? deadlineMicros;
+
+  @override
+  List<Object?> get props => [deadlineMicros];
+}
+
 /// Finishes the game after the last question: guests then get the final
 /// page with standings and protocol, and deferred solutions are published.
 ///

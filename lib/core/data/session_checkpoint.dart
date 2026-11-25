@@ -350,6 +350,15 @@ final class SessionCheckpoint {
         'accepted answers.',
       );
       require(
+        round.replacedAnswers.every(
+          (answer) =>
+              (archived || game.players.containsKey(answer.playerId)) &&
+              answer.questionId == q?.id &&
+              (q?.accepts(answer) ?? false),
+        ),
+        'replaced answers.',
+      );
+      require(
         round.buzzerQueue.every(
               (p) =>
                   (archived || game.players.containsKey(p.playerId)) &&

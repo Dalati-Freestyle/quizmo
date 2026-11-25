@@ -87,6 +87,8 @@ Map<DashboardSection, Widget> buildGameSections(
       onReopenBuzzerForAll: () =>
           engine.add(const ReopenBuzzerEvent(forAll: true)),
       onEndRound: () => engine.add(const EndRoundEvent()),
+      onSkipCountdown: () => engine.add(const EndAnswerCountdownEvent()),
+      hostNowMicros: () => engine.hostNowMicros,
       onNext: () {
         if (game.isStarted) engine.add(const NextQuestionEvent());
       },

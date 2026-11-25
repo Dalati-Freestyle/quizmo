@@ -63,6 +63,7 @@ class HostDashboardPage extends StatelessWidget {
             accessState: checkpoint?.accessState ?? const SessionAccessState(),
             questionBank: quiz.questions,
             autoContinueBuzzer: false,
+            answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
             revealMode: switch (quiz.format) {

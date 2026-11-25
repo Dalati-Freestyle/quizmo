@@ -210,12 +210,6 @@ void main() {
     expect((await snapshot).questionBank, isEmpty);
     restored.add(const ResumeRecoveredGameEvent(RecoveryTimerPolicy.savedTime));
     await wait(restored, (g) => !g.recoveryPaused);
-    returning.submitChoice(questionId: 'q-capital', optionId: 'a');
-    await pumpEventQueue();
-    expect(
-      (restored.state.game.round.answers[id] as MultipleChoiceAnswer).optionId,
-      'b',
-    );
     restored.add(const RevealRoundEvent());
     await wait(restored, (g) => g.round.status == RoundStatus.revealed);
     final points = restored.state.game.scores.scoreOf(id);

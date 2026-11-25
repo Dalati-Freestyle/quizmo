@@ -162,7 +162,9 @@ final class SessionReport {
         final eligible = record.eligiblePlayerIds.contains(player.id);
         final teamAnswered =
             teamMode &&
-            (game.jeopardy != null || poker) &&
+            (game.jeopardy != null ||
+                poker ||
+                (game.snowflake == null && question is! BuzzerQuestion)) &&
             player.teamId != null &&
             [
               ...round.answers.keys,

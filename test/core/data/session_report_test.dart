@@ -120,35 +120,31 @@ void main() {
     },
   );
 
-  test(
-    'standard team mode sums member scores and judged submissions',
-    () async {
-      await engine.close();
-      engine = QuizEngineBloc(
-        questionBank: const [question],
-        teams: teams,
-        mode: const TeamMode(),
-        now: () => now,
-      );
-      await join(teammate: true);
-      await send(const StartRoundEvent('q'));
-      await answer('p1', true);
-      await answer('p3', false);
-      await send(const RevealRoundEvent());
-      final team = report().summaries.firstWhere(
-        (s) => s.isTeam && s.id == 'a',
-      );
-      expect(team.finalScore, engine.state.game.teamScores['a']);
-      expect(team.evaluated, 2);
-      expect(team.hitRate, 0.5);
-      final rows = csvRows(report().toCsv());
-      final summary = rows.firstWhere(
-        (r) => r['row_type'] == 'question_summary' && r['entity_id'] == 'a',
-      );
-      expect(summary['hit_rate_ratio'], '0.5');
-      expect(summary['evaluated_answers'], '2');
-    },
-  );
+  test('standard team mode judges and scores one answer per team', () async {
+    await engine.close();
+    engine = QuizEngineBloc(
+      questionBank: const [question],
+      teams: teams,
+      mode: const TeamMode(),
+      now: () => now,
+    );
+    await join(teammate: true);
+    await send(const StartRoundEvent('q'));
+    await answer('p1', true);
+    await answer('p3', false);
+    await send(const RevealRoundEvent());
+    final team = report().summaries.firstWhere((s) => s.isTeam && s.id == 'a');
+    expect(team.finalScore, engine.state.game.teamScores['a']);
+    // Only the last answer of the team counts (p1's was replaced).
+    expect(team.evaluated, 1);
+    expect(team.hitRate, 0);
+    final rows = csvRows(report().toCsv());
+    final summary = rows.firstWhere(
+      (r) => r['row_type'] == 'question_summary' && r['entity_id'] == 'a',
+    );
+    expect(summary['hit_rate_ratio'], '0.0');
+    expect(summary['evaluated_answers'], '1');
+  });
 
   test(
     'partial estimation accuracy is not a full hit or a Poker payout',

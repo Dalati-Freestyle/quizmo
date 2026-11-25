@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
+import 'new_question_views.dart';
 
 /// Shows the prompt and the selectable options.
 ///
@@ -22,6 +23,8 @@ class MultipleChoiceQuestionView extends StatefulWidget {
     this.onSubmitMultiple,
     this.enabled = true,
     this.submissionAccepted = false,
+    this.team,
+    this.onChanged,
     super.key,
   });
 
@@ -41,6 +44,12 @@ class MultipleChoiceQuestionView extends StatefulWidget {
   final ValueChanged<List<String>>? onSubmitMultiple;
   final bool enabled;
   final bool submissionAccepted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every change of a multiple selection, before it is sent.
+  final ValueChanged<List<String>>? onChanged;
   @override
   State<MultipleChoiceQuestionView> createState() =>
       _MultipleChoiceQuestionViewState();
@@ -61,7 +70,9 @@ class _MultipleChoiceQuestionViewState
   MultipleChoiceQuestion get question => widget.question;
   RoundStatus get status => widget.status;
   String? get selectedOptionId => widget.selectedOptionId;
-  Set<String> get selected => widget.selectedOptionIds.isNotEmpty
+  Set<String> get selected => widget.team != null && draft.isNotEmpty
+      ? draft
+      : widget.selectedOptionIds.isNotEmpty
       ? widget.selectedOptionIds.toSet()
       : {
           if (selectedOptionId != null && selectedOptionId != 'submitted')
@@ -72,11 +83,21 @@ class _MultipleChoiceQuestionViewState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final team = widget.team;
     final isLocked =
         !widget.enabled ||
         !status.acceptsInput ||
-        selectedOptionId != null ||
-        submitted;
+        (team == null && (selectedOptionId != null || submitted));
+    final counts = switch (team?.valid) {
+      MultipleChoiceAnswer(:final selectedOptionIds) =>
+        selectedOptionIds.toSet(),
+      _ => const <String>{},
+    };
+    final sentMultiple =
+        team != null &&
+        counts.isNotEmpty &&
+        counts.length == selected.length &&
+        counts.containsAll(selected);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -89,19 +110,31 @@ class _MultipleChoiceQuestionViewState
                 ? null
                 : question.isCorrect(option.id),
             enabled: !isLocked,
+            note: counts.contains(option.id) ? context.tr('Teamantwort') : null,
             onTap: () {
-              if (isLocked || submitted || widget.selectedOptionId != null) {
+              if (isLocked ||
+                  (team == null &&
+                      (submitted || widget.selectedOptionId != null))) {
                 return;
+              }
+              // The own last choice is where editing goes on after a reload.
+              if (team != null && draft.isEmpty) {
+                draft.addAll(widget.selectedOptionIds);
               }
               setState(() {
                 if (question.allowMultipleAnswers) {
                   if (!draft.add(option.id)) draft.remove(option.id);
                 } else {
+                  if (team != null) draft.clear();
                   draft.add(option.id);
                   submitted = true;
                 }
               });
-              if (!question.allowMultipleAnswers) widget.onSelect(option.id);
+              if (question.allowMultipleAnswers) {
+                widget.onChanged?.call(draft.toList());
+              } else {
+                widget.onSelect(option.id);
+              }
             },
           ),
           const SizedBox(height: 10),
@@ -109,14 +142,28 @@ class _MultipleChoiceQuestionViewState
         if (question.allowMultipleAnswers)
           FilledButton(
             onPressed:
-                !isLocked && draft.isNotEmpty && widget.onSubmitMultiple != null
+                !isLocked &&
+                    draft.isNotEmpty &&
+                    !sentMultiple &&
+                    widget.onSubmitMultiple != null
                 ? () {
-                    if (submitted || widget.selectedOptionId != null) return;
+                    if (team == null &&
+                        (submitted || widget.selectedOptionId != null)) {
+                      return;
+                    }
                     setState(() => submitted = true);
                     widget.onSubmitMultiple!(draft.toList());
                   }
                 : null,
-            child: Text(context.tr("Antworten einloggen")),
+            child: Text(
+              context.tr(
+                sentMultiple
+                    ? 'Gesendet'
+                    : team?.valid != null
+                    ? 'Antwort ersetzen'
+                    : 'Antworten einloggen',
+              ),
+            ),
           ),
         const SizedBox(height: 16),
         Text(question.prompt, style: theme.textTheme.headlineSmall),
@@ -138,7 +185,9 @@ class _MultipleChoiceQuestionViewState
                       "Wähle alle richtigen Antworten und logge sie ein.",
                     )
                   : context.tr(
-                      "Ein Druck loggt deine Antwort verbindlich ein.",
+                      team == null
+                          ? 'Ein Druck loggt deine Antwort verbindlich ein.'
+                          : 'Ein Druck sendet die Antwort für dein Team.',
                     ),
           },
           textAlign: TextAlign.center,
@@ -158,7 +207,11 @@ class _OptionTile extends StatelessWidget {
     required this.isCorrect,
     required this.enabled,
     required this.onTap,
+    this.note,
   });
+
+  /// Extra label, such as the mark of the answer that counts for the team.
+  final String? note;
 
   final AnswerOption option;
   final bool isSelected;
@@ -204,6 +257,12 @@ class _OptionTile extends StatelessWidget {
                   ),
                 ),
               ),
+              if (note case final note?) ...[
+                const SizedBox(width: 12),
+                const Icon(Icons.groups, size: 20),
+                const SizedBox(width: 4),
+                Flexible(child: Text(note)),
+              ],
               if (isCorrect == true || isSelected) const SizedBox(width: 12),
               if (isCorrect == true)
                 const Icon(Icons.check_circle, size: 20)

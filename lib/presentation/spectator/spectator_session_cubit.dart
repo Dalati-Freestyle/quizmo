@@ -92,6 +92,15 @@ final class SpectatorSessionState extends Equatable {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// Estimated host clock, see [remainingTime].
+  int hostNowMicros(DateTime now) {
+    final receivedAt = snapshotReceivedAt;
+    final base = game?.hostTimeMicros ?? 0;
+    return receivedAt == null || game!.recoveryPaused || !extrapolateTime
+        ? base
+        : base + now.difference(receivedAt).inMicroseconds;
+  }
+
   /// Returns a copy with the given fields replaced.
   SpectatorSessionState copyWith({
     QuizClientStatus? status,

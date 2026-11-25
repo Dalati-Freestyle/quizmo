@@ -877,6 +877,7 @@ class SocketHub {
     return GameSnapshotMessage(
       redacted ?? guestSnapshotOf(game, title: serverName),
       ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
+      answers: id == null ? null : playerAnswersOf(game, id),
     );
   }
 

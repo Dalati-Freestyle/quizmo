@@ -10,6 +10,33 @@ import 'package:equatable/equatable.dart';
 
 import 'json.dart';
 
+/// Whether [a] and [b] say the same, no matter who sent them when.
+bool sameAnswerContent(AnswerSubmission a, AnswerSubmission b) => switch ((
+  a,
+  b,
+)) {
+  (final MultipleChoiceAnswer a, final MultipleChoiceAnswer b) =>
+    a.selectedOptionIds.length == b.selectedOptionIds.length &&
+        a.selectedOptionIds.toSet().containsAll(b.selectedOptionIds),
+  (final ShortAnswer a, final ShortAnswer b) => a.text.trim() == b.text.trim(),
+  (final OrderingAnswer a, final OrderingAnswer b) =>
+    a.itemIds.length == b.itemIds.length &&
+        a.itemIds.indexed.every((e) => e.$2 == b.itemIds[e.$1]),
+  (final MatchingAnswer a, final MatchingAnswer b) =>
+    a.pairs.length == b.pairs.length &&
+        a.pairs.entries.every((e) => b.pairs[e.key] == e.value),
+  (final EstimationAnswer a, final EstimationAnswer b) => a.value == b.value,
+  (final TrueFalseAnswer a, final TrueFalseAnswer b) => a.value == b.value,
+  _ => false,
+};
+
+/// Orders answers of one team: by the calculated host time, never by arrival;
+/// equal instants are told apart by the player id.
+int compareAnswerOrder(AnswerSubmission a, AnswerSubmission b) {
+  final byTime = a.hostTimestampMicros.compareTo(b.hostTimestampMicros);
+  return byTime != 0 ? byTime : a.playerId.compareTo(b.playerId);
+}
+
 /// Base type of every player input that competes for points.
 sealed class AnswerSubmission extends Equatable {
   /// Creates the shared submission metadata.

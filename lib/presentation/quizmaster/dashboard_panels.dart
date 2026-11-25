@@ -1,6 +1,7 @@
 /// Panels of the quizmaster dashboard.
 library;
 
+import '../common/answer_countdown.dart';
 import '../common/hint_views.dart';
 import '../common/question_media_view.dart';
 
@@ -1119,8 +1120,16 @@ class LiveRoundPanel extends StatelessWidget {
     this.onSetVerbalAnswers,
     this.onShowHint,
     this.onTakeBackHint,
+    this.onSkipCountdown,
+    this.hostNowMicros,
     super.key,
   });
+
+  /// Closes the answers before the countdown of the teams ends.
+  final VoidCallback? onSkipCountdown;
+
+  /// Host clock of the countdown.
+  final int Function()? hostNowMicros;
 
   /// Shows the next hint of the question on stage.
   final ValueChanged<ShowHintEvent>? onShowHint;
@@ -1359,6 +1368,12 @@ class LiveRoundPanel extends StatelessWidget {
                         : null,
                     playbackRevision: game.tvMediaRevision,
                     commandRevision: game.tvMediaCommandRevision,
+                  ),
+                if (game.round.answerDeadlineMicros case final deadline?)
+                  AnswerCountdownBanner(
+                    deadlineMicros: deadline,
+                    hostNowMicros: hostNowMicros ?? () => game.hostTimeMicros,
+                    onSkip: onSkipCountdown,
                   ),
                 AnswersCard(game: game, onJudge: onJudgeAnswer),
                 ?_verbalSwitch(context, game),

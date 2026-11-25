@@ -85,7 +85,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 ### Jeopardy format
 * Board = categories (columns) × rows; `rowPoints` gives the points per row, categories may hold different numbers of cells (missing cells are empty). Rules per quiz: `penalizeWrongAnswers`, `allowSteal`; optional Daily Double flag per cell.
 * The quizmaster clicks the cell the picking team asked for (`SelectJeopardyCellEvent`); the pick rotates through the teams after every question (`SetJeopardyTurnEvent` overrides it). A Daily Double first waits for `PlaceDailyDoubleWagerEvent`; the wager is capped by `QuizEngineBloc.maxDailyDoubleWager`, a miss always costs the wager and a Daily Double can never be stolen.
-* The picking team answers first; with `allowSteal` a miss (or an unanswered question) restarts the question for the *other* teams (`JeopardyState.isStealRound`). On a board only the first answer of a team counts.
+* The picking team answers first; with `allowSteal` a miss (or an unanswered question) restarts the question for the *other* teams (`JeopardyState.isStealRound`). The last answer of a team counts (see *Team answers*).
 * `StartRoundEvent` / `NextQuestionEvent` are routed through the board in a Jeopardy session; do not bypass it.
 
 ### Adding Scoring Rules / Team Modes
@@ -201,7 +201,18 @@ the release pipeline does this automatically.
   It is set after a settled question (`_reveal`) or a chip correction between questions, never by an all-in, and is
   restored when the correction that brought the team back is undone. Every ranking (host, players, TV, protocol,
   report) comes from `rankTeams` / `rankPlayers` in `lib/core/models/standings.dart`; never sort teams elsewhere.
-* All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+* All question kinds use the same team chip accounting. A team is settled exactly once per question, with its valid answer (see *Team answers*); buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+
+### Team answers
+* In a team game every team gives **one** answer (`GameState.sharesTeamAnswers`): the last one by calculated host
+  timestamp, whoever sent it. Biggest Snowflake (compared per player) and buzzer rounds are excluded. `RoundState.answers`
+  holds at most that one answer per team, earlier ones are in `replacedAnswers` (host only); `_withValidTeamAnswers` in
+  the engine restores this after every change (also team changes and removals). A judged answer is final.
+* When every team answered, `RoundState.answerDeadlineMicros` starts a countdown (`answerCountdown`) before the answers
+  close; replacing restarts it.
+* Guest snapshots withhold all answers in every format until the reveal. What one player may see (own and team answers)
+  travels as `PlayerAnswers` per connection (`GameSnapshotMessage.answers`), in the preview through
+  `PlayerSessionCubit.local(answers:)`.
 
 ### Jokers
 * A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means

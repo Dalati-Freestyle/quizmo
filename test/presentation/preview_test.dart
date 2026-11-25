@@ -93,6 +93,7 @@ void main() {
           snapshots: session.guestSnapshots,
           send: session.send,
           now: () => session.clock.nowMicros,
+          answers: () => playerAnswersOf(session.engine.state.game, id),
         );
         addTearDown(player.close);
         await open(session, question.id);
@@ -127,6 +128,10 @@ void main() {
             );
         }
         await session.flush();
+        // Teams may replace their answer until the countdown ends.
+        if (format == 'poker') {
+          await session.advance(QuizEngineBloc.defaultAnswerCountdown);
+        }
         expect(session.engine.state.game.completedQuestionIds, {question.id});
         expect(player.state.question!.hasSolution, isTrue);
         expect(
