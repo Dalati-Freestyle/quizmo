@@ -189,6 +189,7 @@ class HintsCard extends StatelessWidget {
                                   : MediaPlayback.onDemand,
                               playbackRevision: game.tvMediaRevision,
                               commandRevision: game.tvMediaCommandRevision,
+                              maxMediaHeight: hostMediaHeight(context),
                             ),
                         ],
                       ),
@@ -393,6 +394,10 @@ class _ReplacedAnswers extends StatelessWidget {
     );
   }
 }
+
+/// Media in the host's round monitor: large, but the controls stay close.
+double hostMediaHeight(BuildContext context) =>
+    (MediaQuery.sizeOf(context).height * 0.42).clamp(160, 460);
 
 String _nameOf(GameState game, String playerId) {
   final player = game.players[playerId];

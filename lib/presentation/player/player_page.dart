@@ -437,7 +437,9 @@ class _GameBoard extends StatelessWidget {
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: BoxConstraints(
+              maxWidth: _hasVisualMedia(game) ? 900 : 560,
+            ),
             // The countdown floats above the question: on a phone the answers
             // often need scrolling, and the clock must stay in sight.
             child: Stack(
@@ -593,6 +595,23 @@ class LocalPlayerBoard extends StatelessWidget {
           child: PlayerGameColumn(state: state),
         ),
       );
+}
+
+/// Whether something on stage gains from a wider column.
+bool _hasVisualMedia(GameState? game) {
+  if (game == null) return false;
+  bool visual(MediaAttachment media) => switch (media) {
+    ImageAttachment() || VideoAttachment() || GeoAttachment() => true,
+    AudioAttachment() || CodeAttachment() => false,
+  };
+  if (game.showsSlide) return game.activeSlide!.media.any(visual);
+  final question = game.round.question;
+  return question != null &&
+      [
+        ...question.media,
+        ...question.solutionMedia,
+        for (final hint in game.round.shownHints) ...hint.media,
+      ].any(visual);
 }
 
 class _QuestionStage extends StatelessWidget {

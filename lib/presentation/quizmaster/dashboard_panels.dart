@@ -1345,6 +1345,7 @@ class LiveRoundPanel extends StatelessWidget {
                   ),
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
+                  maxMediaHeight: hostMediaHeight(context),
                 ),
                 const SizedBox(height: 6),
                 // Note, solution and answers each get their own card so they
@@ -1363,6 +1364,7 @@ class LiveRoundPanel extends StatelessWidget {
                     playback: MediaPlayback.onDevice(game),
                     playbackRevision: game.tvMediaRevision,
                     commandRevision: game.tvMediaCommandRevision,
+                    maxMediaHeight: hostMediaHeight(context),
                   ),
                 if (game.round.answerDeadlineMicros case final deadline?)
                   AnswerCountdownBanner(

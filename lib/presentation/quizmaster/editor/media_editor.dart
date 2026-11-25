@@ -188,7 +188,7 @@ class _MediaEditorState extends State<MediaEditor> {
                     ),
                     if (attachment case VideoAttachment(youtubeId: _?))
                       const YoutubeEmbedWarning(),
-                    QuestionMediaView(media: [attachment]),
+                    QuestionMediaView(media: [attachment], maxMediaHeight: 360),
                     if (attachment is AudioAttachment ||
                         attachment is VideoAttachment &&
                             attachment.asset != null)

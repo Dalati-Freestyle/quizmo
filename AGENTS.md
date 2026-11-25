@@ -268,6 +268,14 @@ the release pipeline does this automatically.
   `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
 * A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
 
+### Media size
+* `QuestionMediaView` shows media as large as the space allows. In scrolling pages: full width, at most `maxMediaHeight`
+  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling or
+  "enlarge". Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
+  (read from the bytes, sent with references in `forWire`, never stored in quiz files) while it loads.
+* On the TV media are always the first child of the row in `_QuestionStage`, so a video keeps running when the layout
+  changes; answers stand next to them and scale down instead of scrolling.
+
 ### Interstitial slides
 * `Quiz.slides` (`InfoSlide`, schema 12): unscored screens with title, text and media, placed before a
   question (`beforeQuestionId`, `null` = at the end). They are not questions and never enter the question

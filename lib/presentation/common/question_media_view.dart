@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -77,6 +78,12 @@ class _SessionMediaScope extends InheritedWidget {
       cache != oldWidget.cache;
 }
 
+/// Shows the media of a question, solution, hint or slide as large as the
+/// available space allows, complete and without distortion.
+///
+/// In a scrolling page pictures, videos and maps take the full width, but are
+/// never higher than [maxMediaHeight] (default: 60 % of the screen). With
+/// [fill] they share the bounded space of the parent instead (TV).
 class QuestionMediaView extends StatelessWidget {
   const QuestionMediaView({
     required this.media,
@@ -84,15 +91,25 @@ class QuestionMediaView extends StatelessWidget {
     this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
-    this.maxVideoHeight = 300,
+    this.maxMediaHeight,
+    this.fill = false,
     super.key,
   });
   final MediaPlayback playback;
   final int playbackRevision;
   final int commandRevision;
-  final double maxVideoHeight;
+  final double? maxMediaHeight;
+
+  /// Fills the parent: no scrolling and no "enlarge" button.
+  final bool fill;
   final List<MediaAttachment> media;
   final Uri? baseUri;
+
+  /// Smallest height limit, so that media stay recognisable.
+  static const minLimit = 120.0;
+
+  /// From this width on several media stand next to each other.
+  static const sideBySideWidth = 700.0;
 
   Uri source(MediaAsset asset, [BuildContext? context]) {
     if (asset.data != null) {
@@ -108,35 +125,146 @@ class QuestionMediaView extends StatelessWidget {
     return sessionMediaUri(base, asset);
   }
 
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final (i, attachment) in media.indexed)
-        _LoadedMedia(
-          key: ValueKey('${attachment.asset?.id ?? attachment.hashCode}-$i'),
-          attachment: attachment,
-          baseUri: baseUri,
-          builder: (loaded) => _ReadyMediaView(
-            media: [loaded],
-            baseUri: baseUri,
-            playback: StillMedia.of(context) ? MediaPlayback.stopped : playback,
-            playbackRevision: playbackRevision,
-            commandRevision: commandRevision,
-            maxVideoHeight: maxVideoHeight,
-          ),
-        ),
-    ],
+  static bool _isVisual(MediaAttachment attachment) => switch (attachment) {
+    ImageAttachment() || VideoAttachment() || GeoAttachment() => true,
+    AudioAttachment() || CodeAttachment() => false,
+  };
+
+  Widget _loaded(
+    BuildContext context,
+    int index,
+    MediaAttachment attachment, {
+    double? slot,
+  }) => _LoadedMedia(
+    key: ValueKey('${attachment.asset?.id ?? attachment.hashCode}-$index'),
+    attachment: attachment,
+    baseUri: baseUri,
+    slot: slot,
+    builder: (loaded) => _ReadyMediaView(
+      media: [loaded],
+      baseUri: baseUri,
+      playback: StillMedia.of(context) ? MediaPlayback.stopped : playback,
+      playbackRevision: playbackRevision,
+      commandRevision: commandRevision,
+      fill: fill,
+      slot: slot,
+    ),
   );
+
+  @override
+  Widget build(BuildContext context) {
+    if (media.isEmpty) return const SizedBox.shrink();
+    return fill ? _filled(context) : _flow(context);
+  }
+
+  Widget _filled(BuildContext context) {
+    final large = [
+      for (final (i, attachment) in media.indexed)
+        if (attachment is! AudioAttachment) (i, attachment),
+    ];
+    final bars = [
+      for (final (i, attachment) in media.indexed)
+        if (attachment is AudioAttachment) (i, attachment),
+    ];
+    // Only the number decides, so a changed size never restarts a video.
+    final columns = large.length <= 3
+        ? large.length
+        : math.sqrt(large.length).ceil();
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var row = 0; row * math.max(columns, 1) < large.length; row++)
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (position, (i, attachment)) in large.indexed)
+                  if (position ~/ columns == row) ...[
+                    if (position % columns > 0) const SizedBox(width: 16),
+                    Expanded(child: _loaded(context, i, attachment)),
+                  ],
+              ],
+            ),
+          ),
+        for (final (i, attachment) in bars) _loaded(context, i, attachment),
+      ],
+    );
+  }
+
+  Widget _flow(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final screen = MediaQuery.sizeOf(context);
+      final limit = math.max(minLimit, maxMediaHeight ?? screen.height * 0.6);
+      final width = constraints.maxWidth.isFinite
+          ? constraints.maxWidth
+          : screen.width;
+      final visuals = media.where(_isVisual).length;
+      final half = visuals > 1 && width >= sideBySideWidth;
+      // Always a Wrap: the widgets keep their place (and a running video)
+      // when the width changes.
+      return Wrap(
+        spacing: 16,
+        children: [
+          for (final (i, attachment) in media.indexed)
+            SizedBox(
+              width: half && _isVisual(attachment) ? (width - 16) / 2 : width,
+              child: _loaded(
+                context,
+                i,
+                attachment,
+                slot: _isVisual(attachment)
+                    ? _slotHeight(
+                        attachment,
+                        half ? (width - 16) / 2 : width,
+                        limit,
+                      )
+                    : null,
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
+  /// Height reserved for [attachment], also while it loads.
+  static double _slotHeight(
+    MediaAttachment attachment,
+    double width,
+    double limit,
+  ) {
+    if (attachment is VideoAttachment &&
+        attachment.youtubeId != null &&
+        _youtubeOpensBrowser) {
+      return 76;
+    }
+    final ratio = switch (attachment) {
+      ImageAttachment(:final asset) => asset.aspectRatio ?? 16 / 9,
+      VideoAttachment(:final asset) => asset?.aspectRatio ?? 16 / 9,
+      GeoAttachment() => 3 / 2,
+      AudioAttachment() || CodeAttachment() => 16 / 9,
+    };
+    return math.min(limit, width / ratio);
+  }
 }
+
+/// Windows and Linux have no embedded YouTube player.
+bool get _youtubeOpensBrowser =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux);
 
 class _LoadedMedia extends StatefulWidget {
   const _LoadedMedia({
     required this.attachment,
     required this.baseUri,
     required this.builder,
+    this.slot,
     super.key,
   });
+
+  /// Height of the loaded medium, reserved while it loads.
+  final double? slot;
   final MediaAttachment attachment;
   final Uri? baseUri;
   final Widget Function(MediaAttachment) builder;
@@ -188,25 +316,37 @@ class _LoadedMediaState extends State<_LoadedMedia> {
   @override
   Widget build(BuildContext context) {
     if (download == null) return widget.builder(widget.attachment);
+    Widget reserved(Widget child) => widget.slot == null
+        ? Center(child: child)
+        : SizedBox(
+            height: widget.slot! + 16,
+            child: Center(child: child),
+          );
     return FutureBuilder<MediaAsset>(
       future: download,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Column(
-            children: [
-              Text(
-                context.tr('Medium konnte nicht geladen werden.'),
-                style: const TextStyle(fontSize: 22),
+          return reserved(
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.tr('Medium konnte nicht geladen werden.'),
+                    style: const TextStyle(fontSize: 22),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => setState(_load),
+                    icon: const Icon(Icons.refresh),
+                    label: Text(
+                      context.tr('Erneut versuchen'),
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                  ),
+                ],
               ),
-              TextButton.icon(
-                onPressed: () => setState(_load),
-                icon: const Icon(Icons.refresh),
-                label: Text(
-                  context.tr('Erneut versuchen'),
-                  style: const TextStyle(fontSize: 22),
-                ),
-              ),
-            ],
+            ),
           );
         }
         if (snapshot.data case final asset?) {
@@ -237,22 +377,25 @@ class _LoadedMediaState extends State<_LoadedMedia> {
           stream: cache!.updates,
           builder: (context, _) {
             final progress = cache!.progress(widget.attachment.asset!.id);
-            return Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Text(
-                    context.tr('Preloading media...'),
-                    style: const TextStyle(fontSize: 22),
-                  ),
-                  LinearProgressIndicator(value: progress?.fraction),
-                  if (progress != null)
+            return reserved(
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      '${(progress.received / (1024 * 1024)).toStringAsFixed(1)}'
-                      '${progress.total == null ? "" : " / ${(progress.total! / (1024 * 1024)).toStringAsFixed(1)}"} MiB',
+                      context.tr('Preloading media...'),
                       style: const TextStyle(fontSize: 22),
                     ),
-                ],
+                    LinearProgressIndicator(value: progress?.fraction),
+                    if (progress != null)
+                      Text(
+                        '${(progress.received / (1024 * 1024)).toStringAsFixed(1)}'
+                        '${progress.total == null ? "" : " / ${(progress.total! / (1024 * 1024)).toStringAsFixed(1)}"} MiB',
+                        style: const TextStyle(fontSize: 22),
+                      ),
+                  ],
+                ),
               ),
             );
           },
@@ -269,129 +412,147 @@ class _ReadyMediaView extends QuestionMediaView {
     super.playback,
     super.playbackRevision,
     super.commandRevision,
-    super.maxVideoHeight,
+    super.fill,
+    this.slot,
   });
 
+  /// Height of a visual medium; `null` when it fills its parent.
+  final double? slot;
+
+  /// Space of the controls below an MP4 video.
+  static const _videoControls = 64.0;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final (i, attachment) in media.indexed)
-        Padding(
-          key: ValueKey('${attachment.hashCode}-$i'),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              switch (attachment) {
-                ImageAttachment() => _image(context, attachment),
-                AudioAttachment() => _PlaybackRetry(
-                  builder: (retry) => _AudioView(
-                    attachment: attachment,
-                    source: source(attachment.asset, context),
+  Widget build(BuildContext context) {
+    final attachment = media.single;
+    final content = switch (attachment) {
+      ImageAttachment() => _bounded(_image(context, attachment)),
+      AudioAttachment() => _PlaybackRetry(
+        builder: (retry) => _AudioView(
+          attachment: attachment,
+          source: source(attachment.asset, context),
+          onRetry: retry,
+          playback: playback,
+          playbackRevision: playbackRevision,
+          commandRevision: commandRevision,
+        ),
+      ),
+      VideoAttachment(:final youtubeId) =>
+        youtubeId != null
+            ? _bounded(
+                _YoutubeView(
+                  id: youtubeId,
+                  hideDetails: attachment.hideDetails,
+                  playback: playback,
+                  playbackRevision: playbackRevision,
+                  commandRevision: commandRevision,
+                ),
+              )
+            : _bounded(
+                _PlaybackRetry(
+                  builder: (retry) => _VideoView(
+                    source: source(attachment.asset!, context),
                     onRetry: retry,
                     playback: playback,
                     playbackRevision: playbackRevision,
                     commandRevision: commandRevision,
                   ),
                 ),
-                VideoAttachment(:final youtubeId) =>
-                  youtubeId != null
-                      ? _YoutubeView(
-                          maxHeight: maxVideoHeight,
-                          id: youtubeId,
-                          hideDetails: attachment.hideDetails,
-                          playback: playback,
-                          playbackRevision: playbackRevision,
-                          commandRevision: commandRevision,
-                        )
-                      : _PlaybackRetry(
-                          builder: (retry) => _VideoView(
-                            maxHeight: maxVideoHeight,
-                            source: source(attachment.asset!, context),
-                            onRetry: retry,
-                            playback: playback,
-                            playbackRevision: playbackRevision,
-                            commandRevision: commandRevision,
-                          ),
-                        ),
-                CodeAttachment(:final code, :final language) =>
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: HighlightView(
-                      code,
-                      language: language,
-                      theme: githubTheme,
-                      padding: const EdgeInsets.all(16),
-                      textStyle: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 22,
-                      ),
-                    ),
-                  ),
-                GeoAttachment() => _map(attachment),
-              },
-              if (playback == MediaPlayback.paused &&
-                  (attachment is AudioAttachment ||
-                      attachment is VideoAttachment))
-                const _PausedByHost(),
-              if (!attachment.hideDetails && attachment.caption.isNotEmpty)
-                Text(attachment.caption, style: const TextStyle(fontSize: 22)),
-            ],
-          ),
-        ),
-    ],
-  );
-
-  Widget _image(BuildContext context, ImageAttachment image) {
-    Widget picture() => _AttachmentImage(asset: image.asset);
-    return Column(
-      children: [
-        SizedBox(height: 240, child: picture()),
-        if (image.zoom)
-          TextButton.icon(
-            icon: const Icon(Icons.zoom_in),
-            label: Text(context.tr('Vergrößern')),
-            // Uses (almost) the whole screen: on a phone every pixel counts
-            // for reading details of the picture.
-            onPressed: () => showDialog<void>(
-              context: context,
-              barrierColor: Colors.black87,
-              useSafeArea: false,
-              builder: (context) => Dialog.fullscreen(
-                key: const ValueKey('media-zoom-dialog'),
-                backgroundColor: Colors.black,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: InteractiveViewer(
-                        minScale: .5,
-                        maxScale: 8,
-                        child: picture(),
-                      ),
-                    ),
-                    Positioned(
-                      right: 4,
-                      top: 4,
-                      child: SafeArea(
-                        child: IconButton.filledTonal(
-                          tooltip: context.tr('Schließen'),
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                extra: _videoControls,
               ),
+      CodeAttachment(:final code, :final language) => _code(code, language),
+      GeoAttachment() => _bounded(_map(attachment)),
+    };
+    final grows = fill && attachment is! AudioAttachment;
+    return Padding(
+      key: ValueKey('${attachment.hashCode}'),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: grows ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (grows) Expanded(child: content) else content,
+          if (playback == MediaPlayback.paused &&
+              (attachment is AudioAttachment || attachment is VideoAttachment))
+            const _PausedByHost(),
+          if (attachment case final ImageAttachment image
+              when image.zoom && !fill && !StillMedia.of(context))
+            Center(child: _zoomButton(context, image)),
+          if (!attachment.hideDetails && attachment.caption.isNotEmpty)
+            Text(
+              attachment.caption,
+              maxLines: fill ? 2 : null,
+              overflow: fill ? TextOverflow.ellipsis : null,
+              textAlign: fill ? TextAlign.center : null,
+              style: const TextStyle(fontSize: 22),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _map(GeoAttachment geo) => SizedBox(
-    height: 300,
+  Widget _bounded(Widget child, {double extra = 0}) =>
+      slot == null ? child : SizedBox(height: slot! + extra, child: child);
+
+  Widget _code(String code, String language) {
+    final view = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: HighlightView(
+        code,
+        language: language,
+        theme: githubTheme,
+        padding: const EdgeInsets.all(16),
+        textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 22),
+      ),
+    );
+    return fill ? SingleChildScrollView(primary: false, child: view) : view;
+  }
+
+  Widget _image(BuildContext context, ImageAttachment image) => SizedBox.expand(
+    key: const ValueKey('media-image'),
+    child: _AttachmentImage(asset: image.asset),
+  );
+
+  Widget _zoomButton(BuildContext context, ImageAttachment image) =>
+      TextButton.icon(
+        icon: const Icon(Icons.zoom_in),
+        label: Text(context.tr('Vergrößern')),
+        // Uses (almost) the whole screen: on a phone every pixel counts
+        // for reading details of the picture.
+        onPressed: () => showDialog<void>(
+          context: context,
+          barrierColor: Colors.black87,
+          useSafeArea: false,
+          builder: (context) => Dialog.fullscreen(
+            key: const ValueKey('media-zoom-dialog'),
+            backgroundColor: Colors.black,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: InteractiveViewer(
+                    minScale: .5,
+                    maxScale: 8,
+                    child: _AttachmentImage(asset: image.asset),
+                  ),
+                ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: SafeArea(
+                    child: IconButton.filledTonal(
+                      tooltip: context.tr('Schließen'),
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _map(GeoAttachment geo) => SizedBox.expand(
     child: FlutterMap(
       options: MapOptions(
         initialCenter: LatLng(geo.latitude, geo.longitude),
@@ -452,28 +613,33 @@ class _BlockedStart extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     liveRegion: true,
-    child: Column(
-      key: const ValueKey('media-blocked'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          context.tr(
-            'Der Browser blockiert die Wiedergabe mit Ton. Bitte hier bestätigen.',
-          ),
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 22),
+    child: Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
+          key: const ValueKey('media-blocked'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              context.tr(
+                'Der Browser blockiert die Wiedergabe mit Ton. Bitte hier bestätigen.',
+              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              autofocus: true,
+              onPressed: onStart,
+              icon: const Icon(Icons.volume_up),
+              label: Text(
+                context.tr('Wiedergabe starten'),
+                style: const TextStyle(fontSize: 22),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        FilledButton.icon(
-          autofocus: true,
-          onPressed: onStart,
-          icon: const Icon(Icons.volume_up),
-          label: Text(
-            context.tr('Wiedergabe starten'),
-            style: const TextStyle(fontSize: 22),
-          ),
-        ),
-      ],
+      ),
     ),
   );
 }
@@ -523,18 +689,24 @@ Widget _mediaFailure(
   BuildContext context,
   String message,
   VoidCallback retry,
-) => Column(
-  children: [
-    Text(context.tr(message), style: const TextStyle(fontSize: 22)),
-    TextButton.icon(
-      onPressed: retry,
-      icon: const Icon(Icons.refresh),
-      label: Text(
-        context.tr('Erneut versuchen'),
-        style: const TextStyle(fontSize: 22),
-      ),
+) => Center(
+  child: FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(context.tr(message), style: const TextStyle(fontSize: 22)),
+        TextButton.icon(
+          onPressed: retry,
+          icon: const Icon(Icons.refresh),
+          label: Text(
+            context.tr('Erneut versuchen'),
+            style: const TextStyle(fontSize: 22),
+          ),
+        ),
+      ],
     ),
-  ],
+  ),
 );
 
 class _AttachmentImage extends StatefulWidget {
@@ -774,7 +946,6 @@ class _VideoView extends StatefulWidget {
   const _VideoView({
     required this.source,
     required this.onRetry,
-    this.maxHeight = 300,
     this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
     this.commandRevision = 0,
@@ -784,7 +955,6 @@ class _VideoView extends StatefulWidget {
   final int commandRevision;
   final Uri source;
   final VoidCallback onRetry;
-  final double maxHeight;
   @override
   State<_VideoView> createState() => _VideoViewState();
 }
@@ -916,11 +1086,12 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
     if (!controller.value.isInitialized) return const LinearProgressIndicator();
     return Column(
       children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: widget.maxHeight),
-          child: AspectRatio(
-            aspectRatio: controller.value.aspectRatio,
-            child: VideoPlayer(controller),
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
           ),
         ),
         VideoProgressIndicator(controller, allowScrubbing: !locked && !still),
@@ -947,7 +1118,6 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
 class _YoutubeView extends StatefulWidget {
   const _YoutubeView({
     required this.id,
-    this.maxHeight = 300,
     this.hideDetails = false,
     this.playback = MediaPlayback.onDemand,
     this.playbackRevision = 0,
@@ -958,7 +1128,6 @@ class _YoutubeView extends StatefulWidget {
   final int playbackRevision;
   final int commandRevision;
   final String id;
-  final double maxHeight;
   @override
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
@@ -1024,10 +1193,7 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
   /// Latched: the package clears `error` on the next state change, and YouTube
   /// follows an error with "unstarted", which would hide the reason again.
   YoutubeError _error = YoutubeError.none;
-  bool get _openInBrowser =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.linux);
+  bool get _openInBrowser => _youtubeOpensBrowser;
 
   @override
   void initState() {
@@ -1069,17 +1235,20 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
 
   @override
   Widget build(BuildContext context) => _openInBrowser
-      ? Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            YoutubeOpenButton(id: widget.id),
-            Text(
-              context.tr(
-                'Öffnet den Browser; die Pause der Spielleitung wirkt dort nicht.',
+      ? FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              YoutubeOpenButton(id: widget.id),
+              Text(
+                context.tr(
+                  'Öffnet den Browser; die Pause der Spielleitung wirkt dort nicht.',
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+            ],
+          ),
         )
       : startBlocked && widget.playback == MediaPlayback.automatic
       ? _BlockedStart(
@@ -1095,22 +1264,19 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
           hideDetails: widget.hideDetails,
         )
       : Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: widget.maxHeight * 16 / 9),
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  YoutubePlayer(controller: controller!),
-                  // While the host paused, nobody may press play in the frame.
-                  if (widget.playback == MediaPlayback.paused ||
-                      StillMedia.of(context))
-                    PointerInterceptor(
-                      child: const AbsorbPointer(child: SizedBox.expand()),
-                    ),
-                ],
-              ),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                YoutubePlayer(controller: controller!),
+                // While the host paused, nobody may press play in the frame.
+                if (widget.playback == MediaPlayback.paused ||
+                    StillMedia.of(context))
+                  PointerInterceptor(
+                    child: const AbsorbPointer(child: SizedBox.expand()),
+                  ),
+              ],
             ),
           ),
         );
@@ -1170,20 +1336,28 @@ class YoutubeUnavailableView extends StatelessWidget {
         true,
       ),
     };
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.videocam_off_outlined, size: 48),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 22),
+    return Center(
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.videocam_off_outlined, size: 48),
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22),
+                ),
+                if (canOpen && !hideDetails) YoutubeOpenButton(id: id),
+              ],
+            ),
           ),
-          if (canOpen && !hideDetails) YoutubeOpenButton(id: id),
-        ],
+        ),
       ),
     );
   }

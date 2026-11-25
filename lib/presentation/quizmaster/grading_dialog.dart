@@ -485,6 +485,7 @@ class GradingDialog extends StatelessWidget {
                   QuestionMediaView(
                     media: question.solutionMedia,
                     playback: MediaPlayback.stopped,
+                    maxMediaHeight: 280,
                   ),
               ],
             ),
