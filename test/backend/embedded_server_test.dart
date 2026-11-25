@@ -204,6 +204,9 @@ void main() {
     engine.add(const StartRoundEvent('q-buzzer-element'));
     await waitFor((state) => state.game.round.question != null);
 
+    // Presses right at the start may fall before it by the measured clock
+    // offset and are then rejected; people are slower than that.
+    await Future<void>.delayed(const Duration(milliseconds: 60));
     // Ada presses first; Linus follows inside the grace window.
     ada.pressBuzzer('q-buzzer-element');
     await Future<void>.delayed(const Duration(milliseconds: 40));
