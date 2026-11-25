@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../engine/answer_evaluation.dart';
 import '../models/answer.dart';
 import '../models/game_state.dart';
+import '../models/markdown_text.dart';
 import '../models/question.dart';
 import '../models/standings.dart';
 
@@ -197,7 +198,7 @@ final class SessionReport {
           ReportAnswer(
             phase: phase,
             questionId: question.id,
-            question: question.prompt,
+            question: markdownToPlain(question.prompt),
             playerId: player.id,
             player: player.name,
             teamId: teamMode ? player.teamId : null,

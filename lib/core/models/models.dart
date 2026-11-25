@@ -14,6 +14,7 @@ export 'jeopardy.dart';
 export 'joker.dart';
 export 'json.dart';
 export 'manual_correction.dart';
+export 'markdown_text.dart';
 export 'player.dart';
 export 'player_answers.dart';
 export 'poker.dart';

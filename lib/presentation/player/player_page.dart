@@ -43,6 +43,7 @@ import '../common/answer_countdown.dart';
 import 'team_answer_card.dart';
 import 'team_inputs_view.dart';
 import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
 
 /// Player facing screen.
 ///
@@ -941,7 +942,7 @@ class _QuestionStage extends StatelessWidget {
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
-          Text(
+          QuizMarkdown(
             question.prompt,
             style: Theme.of(context).textTheme.headlineSmall,
           ),

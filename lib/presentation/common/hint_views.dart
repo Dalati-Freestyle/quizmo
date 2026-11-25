@@ -7,6 +7,7 @@ import '../../core/models/models.dart';
 import '../l10n/app_localizations.dart';
 import 'question_media_view.dart';
 import 'media_playback.dart';
+import 'quiz_markdown.dart';
 
 /// Whether [hint] has media that plays (audio or video).
 bool hintPlaysMedia(QuestionHint hint) => hint.media.any(
@@ -98,8 +99,8 @@ class PlayerHintsView extends StatelessWidget {
                   color: scheme.primary,
                 ),
               ),
-              if (hint.text.trim().isNotEmpty)
-                Text(hint.text, style: theme.textTheme.bodyLarge),
+              if (!isBlankMarkdown(hint.text))
+                QuizMarkdown(hint.text, style: theme.textTheme.bodyLarge),
               if (hint.media.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 QuestionMediaView(

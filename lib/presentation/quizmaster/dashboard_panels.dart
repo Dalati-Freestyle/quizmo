@@ -22,6 +22,7 @@ import 'host_server_cubit.dart';
 import 'round_info_cards.dart';
 import 'grading_dialog.dart';
 import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -678,7 +679,7 @@ class QuestionBankPanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            question.prompt,
+                            markdownToPlain(question.prompt),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -755,7 +756,9 @@ class SlideControlRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  slide.title.trim().isEmpty ? slide.text : slide.title,
+                  slide.title.trim().isEmpty
+                      ? markdownToPlain(slide.text)
+                      : slide.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -1329,7 +1332,7 @@ class LiveRoundPanel extends StatelessWidget {
                   _JeopardyRoundBanner(game: game, jeopardy: jeopardy),
                   const SizedBox(height: 10),
                 ],
-                Text(
+                QuizMarkdown(
                   question.prompt,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,

@@ -12,6 +12,7 @@ import 'new_question_fields.dart';
 import 'hints_editor.dart';
 import 'media_editor.dart';
 import 'selection_dropdown.dart';
+import 'markdown_field.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
@@ -396,25 +397,21 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
+                  MarkdownField(
+                    key: const ValueKey('prompt-field'),
                     controller: _promptController,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Prompt"),
-                    ),
-                    minLines: 2,
-                    maxLines: 4,
-                    validator: _requiredText(
-                      context.tr("Enter a question prompt."),
-                    ),
+                    label: context.tr("Prompt"),
+                    maxLines: 6,
+                    // Markdown without anything visible is empty, too.
+                    validator: (value) => isBlankMarkdown(value ?? '')
+                        ? context.tr("Enter a question prompt.")
+                        : null,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  MarkdownField(
+                    key: const ValueKey('notes-field'),
                     controller: _notesController,
-                    minLines: 2,
-                    maxLines: 6,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Admin-Notizen (nur Spielleiter)"),
-                    ),
+                    label: context.tr("Admin-Notizen (nur Spielleiter)"),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -857,9 +854,6 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       rankDecay: int.parse(_tertiaryPointsController.text),
     ),
   };
-
-  FormFieldValidator<String> _requiredText(String message) =>
-      (value) => value == null || value.trim().isEmpty ? message : null;
 
   FormFieldValidator<String> _positiveInt(String message) => (value) {
     final parsed = int.tryParse(value ?? '');

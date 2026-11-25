@@ -113,6 +113,14 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
   caps every response to that size (`serveMedia(maxBodyBytes:)`); never reintroduce a whole-file transfer.
 * `docs/ai-quiz-guide.md` (German) and `docs/ai-quiz-guide.en.md` (English) describe the file format for AI assistants and ship in the app (settings → "Quiz mit KI erstellen", in the app language). Every schema bump MUST update both descriptions and examples; `test/core/data/ai_quiz_guide_test.dart` fails until both guides state the new `schemaVersion` and all their examples import cleanly. Team colours are palette names (`TeamColor`), never colour codes.
 
+### Markdown
+* Since quiz schema 15 `prompt`, `adminNotes`, hint texts and slide texts are Markdown (`markdown_text.dart`:
+  `markdownRuns`, `markdownToPlain`, `escapeMarkdown`). Display them with `QuizMarkdown` (links open only for the host),
+  edit them with `MarkdownField`, and use `markdownToPlain` wherever only plain text fits (lists, reports, CSV, PDF,
+  notices). Every other field stays plain text, and player input is never Markdown.
+* Importers of schema 14 and older escape the four fields, so old quizzes look as before; a recovered game with an
+  older quiz escapes its slides too.
+
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs
 the LAN address — no install, no second web server.

@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **14**
+Quizmo-Schema-Version dieser Anleitung: **15**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -98,7 +98,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 14,              // immer genau 14
+  "schemaVersion": 15,              // immer genau 15
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -243,6 +243,15 @@ gegen die Punkte der Zeile bzw. den Daily-Double-Einsatz, wähle ihn passend; im
 Pokerformat sind Tipps immer kostenlos. Ordne Tipps von vage nach deutlich, und
 nimm nie die Lösung selbst als Tipp.
 
+**Formatierung (Markdown):** `prompt`, `adminNotes`, der `text` von Tipps und von
+Folien dürfen Markdown enthalten: `**fett**`, `*kursiv*`, `~~durchgestrichen~~`,
+Überschriften `#` bis `###`, Listen (`- Punkt`, `1. Punkt`), Zitate (`> Text`),
+`` `Code` `` und Codeblöcke, Trennlinien (`---`) und Links `[Text](https://…)`.
+Ein einfacher Zeilenumbruch bleibt sichtbar. HTML, Bilder und Tabellen werden
+nicht umgewandelt (Bilder gehören in `media`). Soll ein Zeichen wie `*` als
+Zeichen erscheinen, schreibe `\*`. Alle anderen Felder (Antworten, Lösungen,
+Titel, Kategorien) sind reiner Text.
+
 ## 5. Fragetypen
 
 | `type` | Zusätzliche Felder | Regeln |
@@ -318,7 +327,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 14` steht ganz oben.
+- [ ] `"schemaVersion": 15` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -348,7 +357,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -357,7 +366,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     {
       "type": "multipleChoice",
       "id": "q-hauptstadt",
-      "prompt": "Welche Stadt ist die Hauptstadt von Kanada?",
+      "prompt": "**Welche Stadt ist die Hauptstadt von Kanada**?",
       "timeLimitMs": 25000,
       "softTimeLimit": false,
       "category": "Geografie",
@@ -515,7 +524,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -585,7 +594,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -630,7 +639,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

@@ -589,7 +589,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                 title: Text(
                   question.prompt.isEmpty
                       ? context.tr("Untitled question")
-                      : question.prompt,
+                      : markdownToPlain(question.prompt),
                 ),
                 subtitle: Text(
                   context.tr("{0} · {1} · {2}", [

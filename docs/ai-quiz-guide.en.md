@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **14**
+Quizmo schema version of this guide: **15**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -97,7 +97,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 14,              // always exactly 14
+  "schemaVersion": 15,              // always exactly 15
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -241,6 +241,14 @@ row or the Daily Double wager, so choose it accordingly; in the poker format
 hints are always free. Order hints from vague to obvious, and never use the
 solution itself as a hint.
 
+**Formatting (Markdown):** `prompt`, `adminNotes` and the `text` of hints and
+slides may use Markdown: `**bold**`, `*italic*`, `~~strike-through~~`, headings
+`#` to `###`, lists (`- item`, `1. item`), quotes (`> text`), `` `code` `` and code
+blocks, rules (`---`) and links `[text](https://…)`. A single line break stays
+visible. HTML, images and tables are not converted (images belong in `media`).
+To show a character such as `*` literally, write `\*`. All other fields
+(answers, solutions, titles, categories) are plain text.
+
 ## 5. Question types
 
 | `type` | Additional fields | Rules |
@@ -316,7 +324,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 14` is at the very top.
+- [ ] `"schemaVersion": 15` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -345,7 +353,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -354,7 +362,7 @@ The following files are valid and import unchanged.
     {
       "type": "multipleChoice",
       "id": "q-capital",
-      "prompt": "Which city is the capital of Canada?",
+      "prompt": "**Which city is the capital of Canada**?",
       "timeLimitMs": 25000,
       "softTimeLimit": false,
       "category": "Geography",
@@ -512,7 +520,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -582,7 +590,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -627,7 +635,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

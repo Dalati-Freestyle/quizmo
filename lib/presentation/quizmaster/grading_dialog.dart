@@ -11,6 +11,7 @@ import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../l10n/app_localizations.dart';
 import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
 
 /// One line of the pop-up: a team, or a player without a team.
 final class GradingRow {
@@ -441,7 +442,7 @@ class GradingDialog extends StatelessWidget {
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 4),
-          Text(question.prompt, style: theme.textTheme.titleLarge),
+          QuizMarkdown(question.prompt, style: theme.textTheme.titleLarge),
           const SizedBox(height: 8),
           DecoratedBox(
             decoration: BoxDecoration(
@@ -479,7 +480,7 @@ class GradingDialog extends StatelessWidget {
                 if (notes.isNotEmpty)
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: Text(notes),
+                    child: QuizMarkdown(notes, openLinks: true),
                   ),
                 if (question.solutionMedia.isNotEmpty)
                   QuestionMediaView(

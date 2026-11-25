@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
 import 'new_question_views.dart';
+import '../../common/quiz_markdown.dart';
 
 /// Shows the prompt and the selectable options.
 ///
@@ -166,7 +167,7 @@ class _MultipleChoiceQuestionViewState
             ),
           ),
         const SizedBox(height: 16),
-        Text(question.prompt, style: theme.textTheme.headlineSmall),
+        QuizMarkdown(question.prompt, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
           switch (status) {

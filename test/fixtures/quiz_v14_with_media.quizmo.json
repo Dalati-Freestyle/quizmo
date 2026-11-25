@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 14,
+  "id": "quiz-v14-fixture",
+  "name": "Schema 12 fixture",
+  "description": "Quiz with question and solution media and a slide written by schema 12.",
+  "category": "Fixtures",
+  "questions": [
+    {
+      "type": "trueFalse",
+      "id": "q-tf",
+      "prompt": "# 1 Frage: Was ist 5 * 3 * 2?\n- kein Punkt\n1. Platz",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "**nicht fett** und [kein Link](https://x.de)",
+      "media": [
+        {
+          "type": "image",
+          "caption": "Square",
+          "hideDetails": false,
+          "zoom": true,
+          "asset": {
+            "id": "13131fc4dea9e926fed51a97ade386dad81903ba6a6b24fc676549ca7cfb2f54",
+            "mimeType": "image/svg+xml",
+            "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgZmlsbD0icmVkIi8+PC9zdmc+"
+          }
+        }
+      ],
+      "solutionMedia": [
+        {
+          "type": "image",
+          "caption": "Answer",
+          "hideDetails": false,
+          "zoom": true,
+          "asset": {
+            "id": "526cee4faee675a206f4a92bfc145ae542ef43898c8141e3f9198c2c5db83106",
+            "mimeType": "image/svg+xml",
+            "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCIgZmlsbD0iYmx1ZSIvPjwvc3ZnPg=="
+          }
+        }
+      ],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "correctAnswer": true,
+      "hints": [
+        {
+          "text": "> kein Zitat _und_ `kein Code`",
+          "media": [],
+          "cost": 1
+        }
+      ]
+    },
+    {
+      "type": "matching",
+      "id": "q-match",
+      "prompt": "Which meat?",
+      "timeLimitMs": 0,
+      "softTimeLimit": false,
+      "category": null,
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "leftItems": [
+        {
+          "id": "a",
+          "label": "Kassler"
+        },
+        {
+          "id": "b",
+          "label": "Tafelspitz"
+        }
+      ],
+      "rightItems": [
+        {
+          "id": "x",
+          "label": "Pork"
+        },
+        {
+          "id": "y",
+          "label": "Beef"
+        }
+      ],
+      "correctPairs": {
+        "a": "x",
+        "b": "y"
+      }
+    },
+    {
+      "type": "estimation",
+      "id": "est13",
+      "prompt": "Wie hoch ist der Eiffelturm?",
+      "timeLimitMs": 30000,
+      "softTimeLimit": false,
+      "category": "Schätzen",
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {
+        "type": "fixed",
+        "correctPoints": 10,
+        "wrongPoints": 0
+      },
+      "correctValue": 330.0,
+      "zeroScale": 1.0,
+      "unit": "m",
+      "minAccepted": 320,
+      "maxAccepted": 340
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-a",
+      "name": "Alpha",
+      "color": "blue"
+    }
+  ],
+  "format": {
+    "type": "standard",
+    "revealMode": "afterEachQuestion"
+  },
+  "createdAtMicros": 1793491200000000,
+  "updatedAtMicros": 1793491200000000,
+  "jokers": [],
+  "slides": [
+    {
+      "id": "s1",
+      "title": "Pause",
+      "text": "---\n~~nicht durchgestrichen~~ &amp;",
+      "media": [],
+      "beforeQuestionId": "q-match"
+    }
+  ]
+}

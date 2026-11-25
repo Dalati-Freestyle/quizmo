@@ -1277,7 +1277,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             verbal: _verbalFor(game, question),
           ),
         ),
-        notice: 'Round started: ${question.prompt}',
+        notice: 'Round started: ${markdownToPlain(question.prompt)}',
       ),
     );
   }
@@ -2656,7 +2656,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             isStealRound: false,
           ),
         ),
-        notice: 'Round started: ${question.prompt}',
+        notice: 'Round started: ${markdownToPlain(question.prompt)}',
       ),
     );
   }

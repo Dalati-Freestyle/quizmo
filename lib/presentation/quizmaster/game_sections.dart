@@ -360,7 +360,7 @@ class JeopardyPickConfirmation extends StatelessWidget {
                     state.game.players[playerId]?.name ?? "Spieler",
                     pick.board.categoryNameOf(id),
                     pick.board.pointsFor(id),
-                    question?.prompt ?? "",
+                    markdownToPlain(question?.prompt ?? ''),
                   ],
                 ),
               ),

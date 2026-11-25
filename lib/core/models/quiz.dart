@@ -13,6 +13,7 @@ import 'question_hint.dart';
 import 'quiz_format.dart';
 import 'team.dart';
 import 'team_color.dart';
+import 'markdown_text.dart';
 
 /// Describes quiz content that cannot be saved or imported safely.
 final class QuizValidationException implements Exception {
@@ -47,7 +48,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 14;
+  static const int currentSchemaVersion = 15;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -78,6 +79,7 @@ final class Quiz extends Equatable {
       12 => Quiz._fromJsonV12(json),
       13 => Quiz._fromJsonV13(json),
       14 => Quiz._fromJsonV14(json),
+      15 => Quiz._fromJsonV15(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -206,7 +208,17 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV14(json);
   }
 
-  factory Quiz._fromJsonV14(JsonMap json) {
+  /// Schema 14 and older store plain text: from schema 15 on prompts, host
+  /// notes, hint texts and slide texts are Markdown. Characters that would
+  /// format something are escaped, so older quizzes look exactly as before.
+  factory Quiz._fromJsonV14(JsonMap json) => Quiz._fromJsonV15({
+    ...json,
+    'questions': json.readList('questions', escapeQuestionTexts),
+    if (json['slides'] != null)
+      'slides': json.readList('slides', escapeSlideText),
+  });
+
+  factory Quiz._fromJsonV15(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -624,9 +636,35 @@ List<String> _baseQuestionValidationErrors({
 }) {
   final errors = <String>[];
   if (id.trim().isEmpty) errors.add('A question ID must not be empty.');
-  if (prompt.trim().isEmpty) errors.add('Question "$id" needs a prompt.');
+  if (isBlankMarkdown(prompt)) {
+    errors.add('Question "$id" needs a prompt.');
+  }
   if (timeLimit < Duration.zero) {
     errors.add('Question "$id" must not have a negative time limit.');
   }
   return errors;
 }
+
+/// [question] (JSON of schema 14 or older) with its plain texts escaped for
+/// Markdown.
+JsonMap escapeQuestionTexts(JsonMap question) => {
+  ...question,
+  if (question['prompt'] case final String prompt)
+    'prompt': escapeMarkdown(prompt),
+  if (question['adminNotes'] case final String notes)
+    'adminNotes': escapeMarkdown(notes),
+  if (question['hints'] case final List<Object?> hints)
+    'hints': [
+      for (final hint in hints)
+        if (hint is JsonMap && hint['text'] is String)
+          {...hint, 'text': escapeMarkdown(hint['text']! as String)}
+        else
+          hint,
+    ],
+};
+
+/// [slide] (JSON of schema 14 or older) with its plain text escaped.
+JsonMap escapeSlideText(JsonMap slide) => {
+  ...slide,
+  if (slide['text'] case final String text) 'text': escapeMarkdown(text),
+};

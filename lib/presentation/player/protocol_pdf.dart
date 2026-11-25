@@ -17,6 +17,7 @@ import '../../core/models/game_protocol.dart';
 import '../common/protocol_labels.dart';
 import 'emoji_rasterizer.dart';
 import '../common/elimination_label.dart';
+import '../../core/models/markdown_text.dart';
 
 /// Matches emoji (incl. ZWJ sequences, flags and keycaps).
 final _emoji = RegExp(
@@ -194,7 +195,7 @@ Future<Uint8List> buildProtocolPdf(
         for (final question in protocol.questions) ...[
           pw.SizedBox(height: 8),
           text(
-            '${question.number}. ${question.prompt}',
+            '${question.number}. ${markdownToPlain(question.prompt)}',
             pw.TextStyle(font: bold, fontSize: 11),
           ),
           if (protocolQuestionTags(question, tr) case final tags

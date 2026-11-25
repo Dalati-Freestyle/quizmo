@@ -57,6 +57,7 @@ import '../common/answer_countdown.dart';
 import '../common/elimination_label.dart';
 import '../common/media_playback.dart';
 import '../common/tv_instruction.dart';
+import '../common/quiz_markdown.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -1550,13 +1551,14 @@ class _QuestionStage extends StatelessWidget {
           ],
         ),
         SizedBox(height: hasMedia ? 16 : 32),
-        Text(
+        QuizMarkdown(
           question.prompt,
           maxLines: hasMedia ? 3 : 5,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.displaySmall?.copyWith(
             fontSize: math.min(
-              _promptSize(question.prompt.length),
+              // The visible text decides, not the Markdown characters.
+              _promptSize(markdownToPlain(question.prompt).length),
               // Media are the centre of attention.
               hasMedia ? 48 : double.infinity,
             ),
@@ -1860,8 +1862,8 @@ class _HintStrip extends StatelessWidget {
                 Icon(Icons.lightbulb, size: 30, color: scheme.primary),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    hint.text.trim().isEmpty
+                  child: QuizMarkdown(
+                    isBlankMarkdown(hint.text)
                         ? hintTitle(context, game, index)
                         : '${hintTitle(context, game, index)}: ${hint.text}',
                     // Only the newest hint gets room for a second line.

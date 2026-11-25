@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/models.dart';
 import 'question_media_view.dart';
 import 'media_playback.dart';
+import 'quiz_markdown.dart';
 
 /// Title, text and media of [slide].
 ///
@@ -33,7 +34,7 @@ class InfoSlideView extends StatelessWidget {
   Widget build(BuildContext context) => large ? _tv(context) : _page(context);
 
   bool get _hasTitle => slide.title.trim().isNotEmpty;
-  bool get _hasText => slide.text.trim().isNotEmpty;
+  bool get _hasText => !isBlankMarkdown(slide.text);
 
   QuestionMediaView _media({required bool fill}) => QuestionMediaView(
     key: ValueKey('slide-media-${slide.id}'),
@@ -62,7 +63,7 @@ class InfoSlideView extends StatelessWidget {
           ),
         if (_hasText) ...[
           const SizedBox(height: 8),
-          Text(slide.text, style: theme.textTheme.bodyLarge),
+          QuizMarkdown(slide.text, style: theme.textTheme.bodyLarge),
         ],
         if (slide.media.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -92,7 +93,7 @@ class InfoSlideView extends StatelessWidget {
           ),
         if (_hasText) ...[
           SizedBox(height: hasMedia ? 12 : 24),
-          Text(
+          QuizMarkdown(
             slide.text,
             textAlign: TextAlign.center,
             maxLines: hasMedia ? 4 : 6,

@@ -17,6 +17,7 @@ import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
 import '../l10n/app_localizations.dart';
 import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
 
 /// The kinds of round information, each with its own look.
 enum RoundInfoKind {
@@ -113,7 +114,8 @@ class HostNoteCard extends StatelessWidget {
     kind: RoundInfoKind.note,
     title: context.tr('Admin-Notiz'),
     subtitle: context.tr('Nur für dich sichtbar'),
-    child: SelectableText(note),
+    // Links in notes are for the host and open on a click.
+    child: QuizMarkdown(note, openLinks: true, selectable: true),
   );
 }
 
@@ -174,7 +176,8 @@ class HintsCard extends StatelessWidget {
                             hintTitle(context, game, index),
                             style: theme.textTheme.labelMedium,
                           ),
-                          if (hint.text.trim().isNotEmpty) Text(hint.text),
+                          if (!isBlankMarkdown(hint.text))
+                            QuizMarkdown(hint.text),
                           if (hint.media.isNotEmpty)
                             QuestionMediaView(
                               key: ValueKey('host-hint-media-$index'),
