@@ -186,6 +186,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<EndAnswerCountdownEvent>(_onEndAnswerCountdown);
     on<UpdateDraftEvent>(_onUpdateDraft);
     on<AdoptDraftsEvent>(_onAdoptDrafts);
+    on<ConfirmGradesEvent>(_onConfirmGrades);
     on<BuzzerPressEvent>(_onBuzzerPress);
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
@@ -372,10 +373,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       round: round.copyWith(status: RoundStatus.locked),
     );
     // On a board, running out of time is a miss of the picking team: the
-    // other teams may steal right away, as after a wrong answer. Answers
-    // that still need the host's verdict keep the round locked.
-    if (locked.jeopardy?.isStealRound == false &&
-        locked.round.pendingGradeCount == 0) {
+    // other teams may steal right away, as after a wrong answer. A round
+    // the host judges stays locked until the grades are confirmed.
+    if (locked.jeopardy?.isStealRound == false && !locked.round.manualGrading) {
       final scored = _scoreRound(locked, round.question!);
       if (_canOpenSteal(scored)) {
         emit(
@@ -510,6 +510,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
     final game = _settleDrafts(state.game, wait.endMicros);
+    if (game.round.manualGrading &&
+        (game.round.pendingGradeCount > 0 ||
+            game.round.answerVerdicts.isEmpty)) {
+      emit(
+        _publish(game, notice: 'Antworten sind geschlossen. Bitte bewerten.'),
+      );
+      return;
+    }
     switch (wait.resume) {
       case ExpireRoundEvent():
         _expire(game, emit);
@@ -617,6 +625,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// Players whose draft changed.
   Stream<String> get draftChanges => _draftChanges.stream;
+
+  /// Whether the answers are closed but drafts under way may still arrive.
+  bool get isWaitingForDrafts => _draftWait != null;
 
   /// The current draft of [playerId] in the running round.
   AnswerDraft? draftOf(String playerId) => switch (_drafts[playerId]) {
@@ -972,6 +983,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   void _endRound(GameState game, Emitter<QuizEngineState> emit) {
     final question = game.round.question!;
+    if (_closesForGrading(game, emit)) return;
     if (_awaitManualGrades(game, emit)) return;
     final scored = question is BuzzerQuestion
         ? game
@@ -1473,19 +1485,37 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(state.copyWith(notice: 'Diese Antwort kann nicht bewertet werden.'));
       return;
     }
-    final value = event.wasCorrect ? 1 : 0;
-    if (round.answerVerdicts[event.playerId] == value) return;
+    if (round.answerVerdicts[event.playerId] == (event.wasCorrect ? 1 : 0)) {
+      return;
+    }
+    emit(
+      _publish(
+        _withVerdict(game, event.playerId, event.wasCorrect, event.reason),
+      ),
+    );
+  }
+
+  /// Records the host's verdict on the answer of [playerId]; a spoken answer
+  /// without typed text is created by it.
+  GameState _withVerdict(
+    GameState game,
+    String playerId,
+    bool correct,
+    String? reason,
+  ) {
+    final round = game.round;
+    final answered = round.answers.containsKey(playerId);
+    final value = correct ? 1 : 0;
     final now = _now();
     final updated = game.copyWith(
       round: round.copyWith(
-        // A verbal verdict without a typed answer records the spoken one.
         answers: answered
             ? null
             : {
                 ...round.answers,
-                event.playerId: VerbalAnswer(
-                  playerId: event.playerId,
-                  questionId: event.questionId,
+                playerId: VerbalAnswer(
+                  playerId: playerId,
+                  questionId: round.question!.id,
                   clientTimestampMicros: now,
                 ),
               },
@@ -1493,24 +1523,85 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             ? null
             : {
                 ...round.acceptedElapsedMicros,
-                event.playerId: round.timerElapsedAt(now).inMicroseconds,
+                playerId: round.timerElapsedAt(now).inMicroseconds,
               },
-        answerVerdicts: {...round.answerVerdicts, event.playerId: value},
+        answerVerdicts: {...round.answerVerdicts, playerId: value},
       ),
     );
+    return _recordJudgment(
+      game,
+      updated,
+      playerId,
+      CorrectionKind.answer,
+      round.answerVerdicts[playerId],
+      value,
+      reason,
+    );
+  }
+
+  void _onConfirmGrades(
+    ConfirmGradesEvent event,
+    Emitter<QuizEngineState> emit,
+  ) {
+    var game = state.game;
+    final round = game.round;
+    // A stale or repeated confirmation never judges another round.
+    if (game.recoveryPaused ||
+        !round.manualGrading ||
+        round.status != RoundStatus.locked ||
+        _draftWait != null ||
+        round.question?.id != event.questionId ||
+        round.startedAtHostMicros != event.startedAtHostMicros ||
+        (game.poker?.betting ?? false)) {
+      emit(state.copyWith(notice: 'Diese Runde kann nicht bewertet werden.'));
+      return;
+    }
+    if (round.answers.keys.any(
+      (id) =>
+          !event.grades.containsKey(id) &&
+          !round.answerVerdicts.containsKey(id),
+    )) {
+      emit(
+        state.copyWith(
+          notice: 'Bitte erst alle eingegangenen Antworten bewerten.',
+        ),
+      );
+      return;
+    }
+    for (final entry in event.grades.entries) {
+      if (!game.round.answers.containsKey(entry.key) &&
+          !game.mayJudgeVerbally(entry.key)) {
+        continue;
+      }
+      if (game.round.answerVerdicts[entry.key] ==
+          (entry.value.correct ? 1 : 0)) {
+        continue;
+      }
+      game = _withVerdict(
+        game,
+        entry.key,
+        entry.value.correct,
+        entry.value.reason,
+      );
+    }
+    _revealRound(game, emit);
+  }
+
+  /// Closes the answers of a round the host still has to judge.
+  bool _closesForGrading(GameState game, Emitter<QuizEngineState> emit) {
+    final round = game.round;
+    if (!round.manualGrading ||
+        !round.status.acceptsInput ||
+        (round.pendingGradeCount == 0 && round.answerVerdicts.isNotEmpty)) {
+      return false;
+    }
     emit(
       _publish(
-        _recordJudgment(
-          game,
-          updated,
-          event.playerId,
-          CorrectionKind.answer,
-          round.answerVerdicts[event.playerId],
-          value,
-          event.reason,
-        ),
+        game.copyWith(round: round.copyWith(status: RoundStatus.locked)),
+        notice: 'Antworten sind geschlossen. Bitte bewerten.',
       ),
     );
+    return true;
   }
 
   void _onSetVerbalAnswers(
@@ -2285,6 +2376,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   void _revealRound(GameState game, Emitter<QuizEngineState> emit) {
     final question = game.round.question!;
+    if (_closesForGrading(game, emit)) return;
     if (_awaitManualGrades(game, emit)) return;
 
     final scored = _scoreRound(game, question);

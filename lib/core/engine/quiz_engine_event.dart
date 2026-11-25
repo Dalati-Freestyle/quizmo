@@ -319,6 +319,28 @@ final class RevealRoundEvent extends QuizEngineEvent {
   const RevealRoundEvent();
 }
 
+/// The host's verdict on one answer.
+typedef AnswerGrade = ({bool correct, String reason});
+
+/// The host judged the closed answers of the round on stage together: all
+/// verdicts are booked and the round is revealed (or passed on) in one step.
+final class ConfirmGradesEvent extends QuizEngineEvent {
+  const ConfirmGradesEvent({
+    required this.questionId,
+    required this.startedAtHostMicros,
+    required this.grades,
+  });
+
+  final String questionId;
+  final int startedAtHostMicros;
+
+  /// Verdicts by the player whose answer is judged.
+  final Map<String, AnswerGrade> grades;
+
+  @override
+  List<Object?> get props => [questionId, startedAtHostMicros, grades];
+}
+
 /// A player changed their input without sending it.
 final class UpdateDraftEvent extends QuizEngineEvent {
   const UpdateDraftEvent(this.draft);

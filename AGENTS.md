@@ -224,6 +224,12 @@ the release pipeline does this automatically.
   off) only to connected members of the same team while that team may answer, and `PlayerAnswers.drafts` with each
   snapshot. Never put drafts into `GameState`, the server log or anything other teams or TVs receive.
 
+### Grading by the host
+* Answers the host judges (manual free text, verbal rounds) are graded together in `GradingDialog`. `GradingHost` opens it
+  once per round when the answers are closed (`RoundStatus.locked`), shared by dashboard and preview. The choices stay in
+  the host's UI until `ConfirmGradesEvent` books all verdicts and reveals (or opens the steal round) in one state.
+  Verdicts never reach guests before the reveal.
+
 ### Jokers
 * A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means
   none. `Joker` is a sealed hierarchy in `lib/core/models/joker.dart`; every kind states the formats it can be

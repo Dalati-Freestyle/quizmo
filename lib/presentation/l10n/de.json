@@ -1431,5 +1431,19 @@
   "abgeschickt": "abgeschickt",
   "tippt …": "tippt …",
   "bearbeitet": "bearbeitet",
-  "noch nichts eingegeben": "noch nichts eingegeben"
+  "noch nichts eingegeben": "noch nichts eingegeben",
+  "Diese Runde kann nicht bewertet werden.": "Diese Runde kann nicht bewertet werden.",
+  "Antworten sind geschlossen. Bitte bewerten.": "Antworten sind geschlossen. Bitte bewerten.",
+  "Antworten bewerten": "Antworten bewerten",
+  "{0} von {1} bewertet": "{0} von {1} bewertet",
+  "Empfehlungen übernehmen": "Empfehlungen übernehmen",
+  "Später": "Später",
+  "Bestätigen (noch {0})": "Bestätigen (noch {0})",
+  "Keine Musterlösung hinterlegt.": "Keine Musterlösung hinterlegt.",
+  "Musterlösung: {0}": "Musterlösung: {0}",
+  "Notizen und Lösungsmedien": "Notizen und Lösungsmedien",
+  "Niemand hat geantwortet.": "Niemand hat geantwortet.",
+  "Bewertung öffnen": "Bewertung öffnen",
+  "Mündlich: Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Mündlich: Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.",
+  "Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Bewertet wird gemeinsam, sobald die Antworten geschlossen sind."
 }

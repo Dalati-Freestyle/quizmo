@@ -20,6 +20,7 @@ import '../common/adaptive_layout.dart';
 import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
 import 'round_info_cards.dart';
+import 'grading_dialog.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -1115,7 +1116,6 @@ class LiveRoundPanel extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
-    this.onJudgeAnswer,
     this.onJudgeBuzzer,
     this.onSetVerbalAnswers,
     this.onShowHint,
@@ -1212,7 +1212,6 @@ class LiveRoundPanel extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
-  final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
   final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
 
   /// The host switch for answers given aloud.
@@ -1375,7 +1374,7 @@ class LiveRoundPanel extends StatelessWidget {
                     hostNowMicros: hostNowMicros ?? () => game.hostTimeMicros,
                     onSkip: onSkipCountdown,
                   ),
-                AnswersCard(game: game, onJudge: onJudgeAnswer),
+                AnswersCard(game: game),
                 ?_verbalSwitch(context, game),
                 const SizedBox(height: 12),
                 _RoundActions(
@@ -1559,8 +1558,7 @@ class _RoundActionsState extends State<_RoundActions> {
         game.teams.length > 1;
 
     final question = round.question;
-    if (question?.requiresManualGrading == true &&
-        round.status != RoundStatus.revealed) {
+    if (round.manualGrading && round.status != RoundStatus.revealed) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1571,15 +1569,16 @@ class _RoundActionsState extends State<_RoundActions> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: round.status.acceptsInput || round.pendingGradeCount == 0
+            key: const ValueKey('open-grading'),
+            onPressed: round.status.acceptsInput
                 ? onReveal
-                : null,
+                : GradingHost.maybeOf(context)?.open,
             icon: const Icon(Icons.fact_check_outlined),
             label: Text(
               context.tr(
                 round.status.acceptsInput
                     ? 'Antworten schließen & bewerten'
-                    : 'Bewertung abschließen',
+                    : 'Bewertung öffnen',
               ),
             ),
           ),

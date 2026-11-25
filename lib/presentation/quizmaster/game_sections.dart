@@ -22,6 +22,7 @@ import 'correction_history_panel.dart';
 import 'dashboard_panels.dart';
 import 'layout/dashboard_layout.dart';
 import 'session_report_panel.dart';
+import 'grading_dialog.dart';
 
 /// Builds the game sections for [engineState] of [engine].
 ///
@@ -75,7 +76,6 @@ Map<DashboardSection, Widget> buildGameSections(
           resolvedAttempts: game.round.resolvedAttempts,
         ),
       ),
-      onJudgeAnswer: engine.add,
       onJudgeBuzzer: engine.add,
       onShowHint: engine.add,
       onTakeBackHint: engine.add,
@@ -368,7 +368,8 @@ class JeopardyPickConfirmation extends StatelessWidget {
             );
           }
         },
-        child: child,
+        // The grading pop-up never overlaps a pick: a pick needs an idle round.
+        child: GradingHost(engine: engine, child: child),
       );
 }
 

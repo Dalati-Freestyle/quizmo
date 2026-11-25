@@ -422,6 +422,9 @@ void main() {
       await send(const KickPlayerEvent('replacement'));
       expect(engine.state.game.round.answers, isEmpty);
       expect(engine.state.game.round.answerVerdicts, isEmpty);
+      // Closing comes before grading, even when nobody answered.
+      await send(const EndRoundEvent());
+      expect(engine.state.game.round.status, RoundStatus.locked);
       await send(const EndRoundEvent());
       expect(engine.state.game.round.status, RoundStatus.revealed);
     },

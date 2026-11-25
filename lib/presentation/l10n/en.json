@@ -1431,5 +1431,19 @@
   "abgeschickt": "sent",
   "tippt …": "typing …",
   "bearbeitet": "edited",
-  "noch nichts eingegeben": "nothing entered yet"
+  "noch nichts eingegeben": "nothing entered yet",
+  "Diese Runde kann nicht bewertet werden.": "This round cannot be judged.",
+  "Antworten sind geschlossen. Bitte bewerten.": "Answers are closed. Please judge them.",
+  "Antworten bewerten": "Judge the answers",
+  "{0} von {1} bewertet": "{0} of {1} judged",
+  "Empfehlungen übernehmen": "Accept recommendations",
+  "Später": "Later",
+  "Bestätigen (noch {0})": "Confirm ({0} left)",
+  "Keine Musterlösung hinterlegt.": "No model answer stored.",
+  "Musterlösung: {0}": "Model answer: {0}",
+  "Notizen und Lösungsmedien": "Notes and solution media",
+  "Niemand hat geantwortet.": "Nobody answered.",
+  "Bewertung öffnen": "Open grading",
+  "Mündlich: Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Verbal: everything is judged together once the answers are closed.",
+  "Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.": "Everything is judged together once the answers are closed."
 }
