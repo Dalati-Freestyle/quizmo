@@ -27,6 +27,15 @@ abstract interface class QuizLibraryStore {
   Future<void> write(String contents);
 }
 
+/// Reads or clears the library document of an older storage location.
+abstract interface class LegacyQuizLibrarySource {
+  /// The previously persisted document, or `null` when there is none.
+  Future<String?> read();
+
+  /// Forgets the old document once the new location holds the library.
+  Future<void> clear();
+}
+
 /// Stores and retrieves reusable quiz definitions.
 abstract interface class QuizRepository {
   /// Loads every quiz in the local library in its saved order.

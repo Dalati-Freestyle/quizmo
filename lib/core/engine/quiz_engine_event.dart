@@ -484,3 +484,108 @@ final class EndRoundEvent extends QuizEngineEvent {
 final class StartGameEvent extends QuizEngineEvent {
   const StartGameEvent();
 }
+
+/// A team plays a joker in the question on stage.
+///
+/// Sent by a player of the team ([playerId]) or by the host on behalf of
+/// [teamId]. [targetTeamId] names the team a joker is aimed at
+/// (`Joker.needsTarget`).
+final class UseJokerEvent extends QuizEngineEvent {
+  /// Creates the event; exactly one of [playerId] and [teamId] is set.
+  const UseJokerEvent({
+    required this.jokerId,
+    this.playerId,
+    this.teamId,
+    this.targetTeamId,
+    this.questionId,
+    this.roundStartedAt,
+  });
+
+  final String jokerId;
+  final String? playerId;
+  final String? teamId;
+  final String? targetTeamId;
+
+  /// Question the player saw; the play is dropped when it changed meanwhile.
+  final String? questionId;
+
+  /// Start of the round the player saw (`RoundState.startedAtHostMicros`).
+  /// Used instead of [questionId] in the category phase, where guests do not
+  /// know the question yet.
+  final int? roundStartedAt;
+
+  @override
+  List<Object?> get props => [
+    jokerId,
+    playerId,
+    teamId,
+    targetTeamId,
+    questionId,
+    roundStartedAt,
+  ];
+}
+
+/// The host takes back a joker [teamId] played in the question on stage,
+/// while the betting is still open (e.g. a misclick).
+final class RevokeJokerEvent extends QuizEngineEvent {
+  /// Creates the event.
+  const RevokeJokerEvent({required this.teamId, required this.jokerId});
+
+  final String teamId;
+  final String jokerId;
+
+  @override
+  List<Object?> get props => [teamId, jokerId];
+}
+
+/// The host reveals the question after the category phase of a poker
+/// session (`PokerState.questionHidden`); stakes may be placed from now on.
+final class RevealPokerQuestionEvent extends QuizEngineEvent {
+  const RevealPokerQuestionEvent();
+
+  @override
+  List<Object?> get props => const [];
+}
+
+/// The host shows the interstitial slide [slideId] on the TV and the player
+/// devices. Allowed while no question is running; the next question hides it.
+final class ShowSlideEvent extends QuizEngineEvent {
+  const ShowSlideEvent(this.slideId);
+
+  final String slideId;
+
+  @override
+  List<Object?> get props => [slideId];
+}
+
+/// The host hides the interstitial slide on stage.
+final class HideSlideEvent extends QuizEngineEvent {
+  const HideSlideEvent();
+
+  @override
+  List<Object?> get props => const [];
+}
+
+/// The host shows the next hint of the question on stage. [shownHints] is the
+/// number of hints the host saw as shown, so a double tap shows only one.
+final class ShowHintEvent extends QuizEngineEvent {
+  const ShowHintEvent({required this.questionId, required this.shownHints});
+
+  final String questionId;
+  final int shownHints;
+
+  @override
+  List<Object?> get props => [questionId, shownHints];
+}
+
+/// The host takes back the hint shown last; its cost no longer counts, also
+/// for answers given in the meantime.
+final class TakeBackHintEvent extends QuizEngineEvent {
+  const TakeBackHintEvent({required this.questionId, required this.shownHints});
+
+  final String questionId;
+  final int shownHints;
+
+  @override
+  List<Object?> get props => [questionId, shownHints];
+}

@@ -77,6 +77,15 @@ class QuizReviewView extends StatelessWidget {
                   baseUri: mediaBaseUri,
                   playing: false,
                 ),
+                for (final hint in round.shownHints) ...[
+                  if (hint.text.trim().isNotEmpty)
+                    Text(context.tr('Tipp: {0}', [hint.text])),
+                  QuestionMediaView(
+                    media: hint.media,
+                    baseUri: mediaBaseUri,
+                    playing: false,
+                  ),
+                ],
                 QuestionMediaView(
                   media: question.solutionMedia,
                   baseUri: mediaBaseUri,

@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **11**
+Quizmo schema version of this guide: **13**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -29,12 +29,29 @@ Explain in two or three sentences how it works, then ask **first**:
 
 ### Fully automatic mode
 
-* Ask only the most necessary questions (usually just: topic; language or
-  audience if not obvious).
-* Decide everything else yourself: format, teams or solo, time limits,
-  scoring, number and kind of questions (mixed, at least three different
-  question types).
+* Ask only the most necessary questions: the topic, language or audience if
+  not obvious, **and always the time limits** (see "Time limits" below) unless
+  the person already named them.
+* Decide everything else yourself: format, teams or solo, scoring, number and
+  kind of questions (mixed, at least three different question types).
 * Then output the finished file right away.
+
+### Time limits – always ask
+
+**Never pick time limits on your own**; limits that are too tight spoil the
+game. If the person said nothing about them, ask in every mode – in one
+question:
+
+> "Should the questions have a time limit? If so: how many seconds, and should
+> it be **hard** (answers close automatically when time runs out) or **soft**
+> (the clock is only a guide, the host ends the round)?"
+
+* No time limit: `"timeLimitMs": 0`. Hard: `"softTimeLimit": false`, soft:
+  `"softTimeLimit": true` (each with `timeLimitMs` > 0).
+* If the person leaves it to you, be generous: rather no limit or at least 45
+  seconds; questions with video, audio, long texts or calculations clearly
+  more. A speed bonus needs a limit.
+* If one limit applies to the whole quiz, name the exceptions per question.
 
 ### Guided mode
 
@@ -46,11 +63,15 @@ question is written. Ask actively and suggest sensible defaults:
    starting chips, solutions after every question or at the end, snowflake
    scoring).
 2. **Teams or solo** – predefined teams (names, colours) or single players.
-3. **Time limits** – no time limit (the host ends the round) or a default time
-   per question, hard or soft limit.
-4. **Scoring** – fixed points, speed bonus, buzzer scoring, minus points for
+3. **Time limits** – always ask (see "Time limits" above): no time limit (the
+   host ends the round) or a default time per question, and whether the limit
+   is hard or soft.
+4. **Pictures and media** – whether pictures (or audio/video) belong to
+   questions or solutions; the person can send them to you in the chat (see
+   section 6).
+5. **Scoring** – fixed points, speed bonus, buzzer scoring, minus points for
    wrong answers.
-5. **Content** – topic, audience, difficulty, language, number of questions
+6. **Content** – topic, audience, difficulty, language, number of questions
    and desired question types.
 
 Summarise the decisions briefly and have them confirmed.
@@ -67,15 +88,16 @@ the host). Show each question briefly for confirmation before the next one.
    download if your tool can do that). No comments in the JSON.
 3. Below it, explain briefly how to import: save the file as
    `<name>.quizmo.json` → open Quizmo → quiz library → "Import" → pick the
-   file. You cannot embed the person's own images, audio files and videos:
-   after the import they upload them in the quiz editor via "Media" on the
-   question (or solution).
+   file. Embedded pictures, audio and videos are part of the file and come
+   along with the import. Whatever you could not embed, the person uploads
+   after the import in the quiz editor via "Media" on the question (or
+   solution).
 
 ## 2. File structure
 
 ```text
 {
-  "schemaVersion": 11,              // always exactly 11
+  "schemaVersion": 13,              // always exactly 13
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -83,6 +105,8 @@ the host). Show each question briefly for confirmation before the next one.
   "questions": [ … ],               // see section 4
   "teams": [ … ],                   // empty = solo (poker: teams are created when joining)
   "format": { … },                  // see section 3
+  "jokers": [ … ],                  // optional, see "Jokers"; empty = no jokers
+  "slides": [ … ],                  // optional, interstitial slides, see below
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -105,9 +129,32 @@ the host). Show each question briefly for confirmation before the next one.
 | --- | --- | --- |
 | Standard | `{"type": "standard", "revealMode": "afterEachQuestion"}` | Questions one after another. `revealMode`: `afterEachQuestion` (solution after every question) or `atEnd` (all solutions and points only at the end). |
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board of categories (columns) × rows. Points come from the row, not from the question. |
-| Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams bet chips before every question (1–1,000,000 starting chips). Correct = twice the stake back, wrong = stake lost. `teams` may be empty. |
+| Pokerchips | `{"type": "poker", "startingChips": 100, "minStake": 0, "maxStake": 50}` | Teams bet chips before every question (1–1,000,000 starting chips). Correct = twice the stake back, wrong = stake lost. Optional: `minStake` (minimum stake, default 0 = sitting out allowed; a team with fewer chips goes all-in) and `maxStake` (maximum stake, omit = no limit). `teams` may be empty. |
 
 | Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | There is **no correct solution**: points go to whoever gives the answer the fewest players chose. `scoring`: `winnerOnly` (only the rarest answer scores) or `graded` (the share drops with every step of more common answers, the most common one earns nothing). Details below. |
+
+**Jokers** (`jokers`, optional): a quiz only has jokers if they are listed
+here. Each kind at most once; `usesPerTeam` says how often every team may play
+it (1–99). A team can be covered by only one joker per question. Both jokers
+exist in the Pokerchips format only and are played while betting:
+
+| Joker | Entry | Effect |
+| --- | --- | --- |
+| Credit (defensive) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | If the stake is lost, the team only loses `maxLoss` chips of it. |
+| 50/50 chance (attack) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Forces another team to bet `stake` chips (all-in if it has fewer). Correct = the usual payout, wrong = `lossFactor` × the stake lost. Costs the attacker `cost` chips. |
+
+With a joker that is played **before the reveal** (`forcedStake`), every poker
+question starts with a category phase: players and TV only see the question's
+`category`, attack jokers are played, then the host reveals the question;
+afterwards credit jokers and stakes, then answers. So give poker questions a
+meaningful `category`.
+
+**Interstitial slides** (`slides`, optional): unscored screens between the
+questions (a break, a category title, "the results are coming"), in every
+format. `{"id": "slide-break", "title": "Drinks break", "text": "", "media": [],
+"beforeQuestionId": "q3"}` – `beforeQuestionId` is the ID of the question the
+slide comes before, omit it = after the last question. A title, a text or a
+medium is required; `media` as for questions (at most ten).
 
 **Biggest Snowflake:**
 
@@ -159,6 +206,7 @@ the host). Show each question briefly for confirmation before the next one.
   "adminNotes": "",             // note for the host only
   "media": [],                  // attachments of the question (section 6)
   "solutionMedia": [],          // attachments shown only with the solution
+  "hints": [],                  // optional, hints (see below)
   "scoringRule": { … }          // scoring, see below
 }
 ```
@@ -175,6 +223,24 @@ Estimation questions award points in proportion to the accuracy. On a
 Jeopardy board and in the poker format the format replaces the points; still
 give a valid `scoringRule` (e.g. `fixed` with 10/0).
 
+**Hints (`hints`, optional):** a list of at most 10 hints the host shows one by
+one, from top to bottom, while the question runs:
+
+```text
+"hints": [
+  {"text": "It is not the largest city.", "media": [], "cost": 0},
+  {"text": "It starts with a C.", "media": [], "cost": 3}
+]
+```
+
+Every hint needs `text` or `media` (as in section 6, at most 10). `cost` is the
+point deduction (integer ≥ 0; 0 = free): whoever answers correctly only after
+the hint earns this many points less, never below 0. Wrong answers stay
+unchanged. On a Jeopardy board the deduction counts against the points of the
+row or the Daily Double wager, so choose it accordingly; in the poker format
+hints are always free. Order hints from vague to obvious, and never use the
+solution itself as a hint.
+
 ## 5. Question types
 
 | `type` | Additional fields | Rules |
@@ -183,20 +249,61 @@ give a valid `scoringRule` (e.g. `fixed` with 10/0).
 | `buzzer` | `expectedAnswer`, `lockOutOnMiss`, `hostEndsRound`, `retryLimit` | Whoever buzzes first answers out loud; the host judges. `retryLimit`: `null` = unlimited, otherwise ≥ 0. Scoring usually `firstBuzzer`. |
 | `shortAnswer` | `acceptedAnswers` (list), `maxEdits` (0–5), `manualGrading` | Free text. At least one accepted answer. `maxEdits` = allowed typos. `manualGrading: true` = the host grades by hand. |
 | `ordering` | `items` (list of `{"id","label"}`), `correctOrder` (list of the IDs) | Order. At least 2 items; `correctOrder` contains every ID exactly once. |
-| `matching` | `leftItems`, `rightItems` (each a list of `{"id","label"}`), `correctPairs` (`{"leftId": "rightId"}`) | Matching. Pair every left ID with exactly one unique right partner. |
+| `matching` | `leftItems`, `rightItems` (each a list of `{"id","label"}`), `correctPairs` (`{"leftId": "rightId"}`) | Matching. Equally many items on the left and the right; pair every left ID with exactly one right ID of its own. If a value fits several left items (e.g. two dishes with pork), add it several times on the right with the same `label` and different IDs: equal values are interchangeable. |
 | `estimation` | `correctValue` (number), `zeroScale` (> 0), `unit` | Estimate. Points in proportion `max(0, 1 − |answer − target| / |target|)`; for target 0, `zeroScale` replaces the denominator. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | True/false. |
 
 ## 6. Media
 
-Embedded files (images, audio, MP4) contain Base64 data with a SHA-256 ID.
-Since schema 11 they have no size limit (the editor limits uploads to 20 MiB by
-default, which can be switched off in the advanced settings).
-**Do not create such uploads** – a chat model cannot do that reliably. Leave
-`media`/`solutionMedia` empty or use only these references without file
-content. Tell the person that they have to add their own images, audio and
-videos after the import in the quiz editor via "Media" on the question or
-solution; feel free to suggest which media would fit where:
+Pictures, audio and videos can be **embedded in the file**; they travel along
+with export and import (one single `.quizmo.json`, no size limit since schema
+11). `media` appears with the question, `solutionMedia` only with the solution –
+ask where a picture belongs (picture for the question, reveal).
+
+**Embedded file:** `asset.id` is the SHA-256 hash (64 lowercase hex characters)
+of the file bytes, `asset.data` is the Base64 encoding of the same bytes,
+`mimeType` must match the content. Quizmo checks this on import and rejects the
+**whole file** if hash, data or format do not match.
+
+* Only embed files whose bytes you really have: pictures the person sends you
+  in the chat, or ones you create with a tool. Then compute hash and Base64
+  **with code** (code execution, e.g. Python, script below) – never estimate,
+  copy by hand or invent them.
+* If you cannot run code, embed nothing: leave the attachments empty, write in
+  `adminNotes` which picture belongs where, and tell the person to upload it
+  after the import in the quiz editor via "Media".
+* Allowed: PNG, JPEG, WebP, SVG (without scripts), MP3, WAV, OGG, MP4. Keep
+  pictures small (e.g. at most 1920 px wide, JPEG), otherwise the file gets
+  very large.
+
+| Kind | JSON |
+| --- | --- |
+| Picture | `{"type": "image", "caption": "", "hideDetails": false, "zoom": true, "asset": {"id": "<sha256>", "mimeType": "image/png", "data": "<base64>"}}` – `zoom`: picture can be enlarged with a tap. |
+| Audio | `{"type": "audio", "caption": "", "hideDetails": false, "playbackLimitSeconds": null, "softPlaybackLimit": false, "asset": {"id": "<sha256>", "mimeType": "audio/mpeg", "data": "<base64>"}}` |
+| Video (MP4) | `{"type": "video", "caption": "", "hideDetails": false, "youtubeId": null, "asset": {"id": "<sha256>", "mimeType": "video/mp4", "data": "<base64>"}}` |
+
+Script that turns a file into the finished entry:
+
+```python
+import base64, hashlib, json, pathlib
+
+def medium(path, kind="image", caption=""):
+    data = pathlib.Path(path).read_bytes()
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg",
+            ".wav": "audio/wav", ".ogg": "audio/ogg", ".mp4": "video/mp4"}[pathlib.Path(path).suffix.lower()]
+    entry = {"type": kind, "caption": caption, "hideDetails": False,
+             "asset": {"id": hashlib.sha256(data).hexdigest(), "mimeType": mime,
+                       "data": base64.b64encode(data).decode()}}
+    if kind == "image": entry["zoom"] = True
+    if kind == "audio": entry |= {"playbackLimitSeconds": None, "softPlaybackLimit": False}
+    if kind == "video": entry["youtubeId"] = None
+    return entry
+
+print(json.dumps(medium("picture.png")))
+```
+
+These references work without file content:
 
 | Kind | JSON |
 | --- | --- |
@@ -209,7 +316,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 11` is at the very top.
+- [ ] `"schemaVersion": 13` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -220,11 +327,14 @@ attachments per question (question and solution together).
       `matching`; `scoring` is `winnerOnly` or `graded`.
 - [ ] Jeopardy: every `questionId` exists, no question twice, row points > 0,
       every category has a name, at least two teams.
-- [ ] Poker: `startingChips` between 1 and 1,000,000.
+- [ ] Jokers only in the Pokerchips format, each kind at most once.
+- [ ] Poker: `startingChips` between 1 and 1,000,000; `minStake` between 0 and `startingChips`; `maxStake` (if given) between `minStake` (at least 1) and `startingChips`.
 - [ ] Teams have `id`, `name` and `color` (a palette name from section 2).
-- [ ] No uploaded media (`asset` with data); only YouTube, map, code. The
-      person adds their own images, audio and videos afterwards in the quiz
-      editor.
+- [ ] Embedded media only with real bytes: `id` = SHA-256 of exactly these
+      bytes, `data` = Base64, matching `mimeType` – computed with code.
+      Otherwise leave the attachment out and note it in `adminNotes`.
+- [ ] The person decided the time limits (or explicitly left them to you);
+      hard/soft (`softTimeLimit`) matches their answer.
 - [ ] Valid JSON: double quotes, no comments, no trailing commas.
 
 ## 8. Complete examples
@@ -235,7 +345,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -274,6 +384,9 @@ The following files are valid and import unchanged.
       "adminNotes": "Multiple answers",
       "media": [],
       "solutionMedia": [],
+      "hints": [
+        {"text": "A prime is divisible only by 1 and itself.", "media": [], "cost": 2}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": -5},
       "options": [
         {"id": "a", "label": "2"},
@@ -381,7 +494,9 @@ The following files are valid and import unchanged.
       "media": [
         {"type": "code", "caption": "", "hideDetails": false, "code": "print(2 + 2);", "language": "dart"}
       ],
-      "solutionMedia": [],
+      "solutionMedia": [
+        {"type": "image", "caption": "Picture for the solution", "hideDetails": false, "zoom": true, "asset": {"id": "6eac1db9594fa41f49be880b8dd3fa9d0a2c81361a6b2ee54896688adfb9fbbf", "mimeType": "image/svg+xml", "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgODAiPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiMxZTg4ZTUiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQwIiByPSIyNCIgZmlsbD0iI2ZmZWIzYiIvPjwvc3ZnPg=="}}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
       "correctAnswer": true
     }
@@ -397,7 +512,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -467,7 +582,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -494,7 +609,15 @@ The following files are valid and import unchanged.
     }
   ],
   "teams": [],
-  "format": {"type": "poker", "startingChips": 100},
+  "format": {"type": "poker", "startingChips": 100, "minStake": 5, "maxStake": 50},
+  "jokers": [
+    {"type": "credit", "usesPerTeam": 1, "maxLoss": 1},
+    {"type": "forcedStake", "usesPerTeam": 1, "stake": 30, "cost": 10, "lossFactor": 2}
+  ],
+  "slides": [
+    {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
+  ],
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -504,7 +627,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

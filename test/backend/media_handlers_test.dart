@@ -48,6 +48,44 @@ void main() {
       );
     },
   );
+  test('media of a hint is served only while the hint is shown', () async {
+    final first = svg('red');
+    final second = svg('blue');
+    final engine = QuizEngineBloc(
+      questionBank: [
+        TrueFalseQuestion(
+          id: 'q',
+          prompt: 'True?',
+          correctAnswer: true,
+          hints: [
+            QuestionHint(media: [ImageAttachment(asset: first)]),
+            QuestionHint(media: [ImageAttachment(asset: second)]),
+          ],
+        ),
+      ],
+    );
+    addTearDown(engine.close);
+    int status(MediaAsset asset) => serveMedia(
+      Request('GET', Uri.parse('http://localhost/api/media/${asset.id}')),
+      asset.id,
+      engine,
+    ).statusCode;
+    Future<void> send(QuizEngineEvent event) async {
+      engine.add(event);
+      await pumpEventQueue();
+    }
+
+    await send(const StartRoundEvent('q'));
+    expect(status(first), 404);
+    await send(const ShowHintEvent(questionId: 'q', shownHints: 0));
+    expect(status(first), 200);
+    expect(status(second), 404);
+    final guest = engine.state.game.redactedForPlayers().round.question!;
+    expect(guest.hints.first.media.single.asset!.data, isNull);
+    expect(guest.hints.last.media, isEmpty);
+    await send(const TakeBackHintEvent(questionId: 'q', shownHints: 1));
+    expect(status(first), 404);
+  });
   test('HTTP only exposes current media; solutions wait for reveal; byte ranges work', () async {
     final image = svg('red');
     final solution = svg('blue');

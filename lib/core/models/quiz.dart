@@ -5,8 +5,11 @@ import 'package:equatable/equatable.dart';
 
 import '../engine/scoring_rules.dart';
 import 'jeopardy.dart';
+import 'info_slide.dart';
+import 'joker.dart';
 import 'json.dart';
 import 'question.dart';
+import 'question_hint.dart';
 import 'quiz_format.dart';
 import 'team.dart';
 import 'team_color.dart';
@@ -38,11 +41,13 @@ final class Quiz extends Equatable {
     this.questions = const [],
     this.teams = const [],
     this.format = const StandardFormat(),
+    this.jokers = const [],
+    this.slides = const [],
     this.schemaVersion = currentSchemaVersion,
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 11;
+  static const int currentSchemaVersion = 13;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -70,6 +75,8 @@ final class Quiz extends Equatable {
       9 => Quiz._fromJsonV9(json),
       10 => Quiz._fromJsonV10(json),
       11 => Quiz._fromJsonV11(json),
+      12 => Quiz._fromJsonV12(json),
+      13 => Quiz._fromJsonV13(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -150,7 +157,42 @@ final class Quiz extends Equatable {
   /// respect them, so they import unchanged.
   factory Quiz._fromJsonV10(JsonMap json) => Quiz._fromJsonV11(json);
 
+  /// Schema 11 has no stake limits in the poker format (every team could bet
+  /// anything from 0 to all its chips, which the defaults keep) and no jokers.
   factory Quiz._fromJsonV11(JsonMap json) {
+    final format = json.readObjectOrNull('format');
+    if (format != null &&
+        ((format['minStake'] ?? 0) != 0 || format['maxStake'] != null)) {
+      throw const JsonContractException(
+        'Poker stake limits need schemaVersion 12.',
+      );
+    }
+    if (json['jokers'] case final List<Object?> jokers when jokers.isNotEmpty) {
+      throw const JsonContractException('Jokers need schemaVersion 12.');
+    }
+    if (json['slides'] case final List<Object?> slides when slides.isNotEmpty) {
+      throw const JsonContractException(
+        'Interstitial slides need schemaVersion 12.',
+      );
+    }
+    return Quiz._fromJsonV12(json);
+  }
+
+  /// Schema 12 has no hints; questions without hints are equal in schema 13.
+  /// Right items of a matching question with the same label used to be told
+  /// apart; from schema 13 on they are interchangeable, which also applies to
+  /// imported older files.
+  factory Quiz._fromJsonV12(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question['hints'] case final List<Object?> hints
+          when hints.isNotEmpty) {
+        throw const JsonContractException('Hints need schemaVersion 13.');
+      }
+    }
+    return Quiz._fromJsonV13(json);
+  }
+
+  factory Quiz._fromJsonV13(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -170,6 +212,12 @@ final class Quiz extends Equatable {
       ],
       teams: json.readList('teams', _teamFromQuizJson),
       format: format,
+      jokers: json['jokers'] == null
+          ? const []
+          : json.readList('jokers', Joker.fromJson),
+      slides: json['slides'] == null
+          ? const []
+          : json.readList('slides', InfoSlide.fromJson),
       createdAt: DateTime.fromMicrosecondsSinceEpoch(
         json.readInt('createdAtMicros'),
         isUtc: true,
@@ -206,6 +254,12 @@ final class Quiz extends Equatable {
 
   /// How the question bank is played; see [QuizFormat].
   final QuizFormat format;
+
+  /// Jokers every team may play; empty for a quiz without jokers.
+  final List<Joker> jokers;
+
+  /// Unscored interstitial slides, each placed before a question.
+  final List<InfoSlide> slides;
 
   /// Instant at which this quiz was first created.
   final DateTime createdAt;
@@ -256,9 +310,21 @@ final class Quiz extends Equatable {
       );
     }
     switch (format) {
-      case PokerFormat(:final startingChips):
+      case PokerFormat(:final startingChips, :final minStake, :final maxStake):
         if (startingChips < 1 || startingChips > 1000000) {
           errors.add('Startchips müssen zwischen 1 und 1000000 liegen.');
+        }
+        if (minStake < 0 || minStake > startingChips) {
+          errors.add(
+            'Der Mindesteinsatz muss zwischen 0 und den Startchips liegen.',
+          );
+        }
+        if (maxStake != null &&
+            (maxStake < 1 || maxStake < minStake || maxStake > startingChips)) {
+          errors.add(
+            'Der Höchsteinsatz muss zwischen dem Mindesteinsatz (mindestens 1) '
+            'und den Startchips liegen.',
+          );
         }
       case StandardFormat():
         break;
@@ -280,6 +346,19 @@ final class Quiz extends Equatable {
       case JeopardyFormat(:final board):
         errors.addAll(_jeopardyValidationErrors(board, questions));
     }
+    for (final joker in jokers) {
+      errors.addAll(joker.validationErrors(format));
+    }
+    if (jokers.map((joker) => joker.id).toSet().length != jokers.length) {
+      errors.add('Jeder Joker darf nur einmal pro Quiz vorkommen.');
+    }
+    final questionIds = questions.map((question) => question.id).toSet();
+    for (final slide in slides) {
+      errors.addAll(slide.validationErrors(questionIds));
+    }
+    if (slides.map((slide) => slide.id).toSet().length != slides.length) {
+      errors.add('Jede Zwischenfolie braucht eine eigene ID.');
+    }
     return List.unmodifiable(errors);
   }
 
@@ -299,6 +378,8 @@ final class Quiz extends Equatable {
     List<Question>? questions,
     List<Team>? teams,
     QuizFormat? format,
+    List<Joker>? jokers,
+    List<InfoSlide>? slides,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Quiz(
@@ -310,6 +391,8 @@ final class Quiz extends Equatable {
     questions: questions ?? this.questions,
     teams: teams ?? this.teams,
     format: format ?? this.format,
+    jokers: jokers ?? this.jokers,
+    slides: slides ?? this.slides,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -326,6 +409,8 @@ final class Quiz extends Equatable {
         .toList(growable: false),
     'teams': teams.map(_teamToQuizJson).toList(growable: false),
     'format': format.toJson(),
+    'jokers': jokers.map((joker) => joker.toJson()).toList(growable: false),
+    'slides': slides.map((slide) => slide.toJson()).toList(growable: false),
     'createdAtMicros': createdAt.toUtc().microsecondsSinceEpoch,
     'updatedAtMicros': updatedAt.toUtc().microsecondsSinceEpoch,
   };
@@ -340,6 +425,8 @@ final class Quiz extends Equatable {
     questions,
     teams,
     format,
+    jokers,
+    slides,
     createdAt,
     updatedAt,
   ];
@@ -425,6 +512,14 @@ List<String> _questionValidationErrors(
     ...media.validationErrors,
     if (media.asset != null && media.asset!.data == null)
       'Medien-Datei fehlt im Quiz.',
+  ],
+  if (question.hints.length > QuestionHint.maxPerQuestion)
+    'Maximal zehn Tipps pro Frage.',
+  for (final hint in question.hints) ...[
+    ...hint.validationErrors,
+    for (final media in hint.media)
+      if (media.asset != null && media.asset!.data == null)
+        'Medien-Datei fehlt im Quiz.',
   ],
   ...switch (question) {
     MultipleChoiceQuestion(

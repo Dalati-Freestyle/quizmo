@@ -8,6 +8,7 @@ library;
 
 import 'package:equatable/equatable.dart';
 
+import '../models/joker.dart';
 import '../models/json.dart';
 
 /// The immutable outcome of applying a [ScoringRule] to one submission.
@@ -285,10 +286,47 @@ ScoreDelta evaluateAccuracy(
       : delta;
 }
 
+/// Lowers the points of a successful answer by the cost of the hints shown
+/// before it was given.
+///
+/// Hints only reduce what the answer would have earned, never below 0: wrong
+/// answers and their penalties are left to the [ScoringRule].
+ScoreDelta applyHintDeduction(ScoreDelta delta, int deduction) {
+  if (delta.points <= 0 || deduction <= 0) return delta;
+  final points = delta.points - deduction;
+  return ScoreDelta(
+    points < 0 ? 0 : points,
+    reason: '${delta.reason}, -$deduction hints',
+  );
+}
+
 // The stake has already been deducted when betting. Only a fully correct
 // answer returns twice the stake; a miss or no answer returns nothing.
 int pokerChipPayout({required int wager, required bool isCorrect}) =>
     isCorrect ? wager * 2 : 0;
+
+/// Chips a poker team gets back when its answer is settled, given the joker
+/// [covering] it in this question (see `JokerState.coveringJoker`).
+///
+/// The stake has already been deducted, so the result is added to the
+/// balance; a negative result costs chips beyond the stake (the caller keeps
+/// the balance at 0 or above).
+/// * no joker: [pokerChipPayout],
+/// * [CreditJoker]: a miss only costs `maxLoss` chips of the stake,
+/// * [ForcedStakeJoker]: a miss costs `lossFactor` times the stake.
+int pokerSettlement({
+  required int wager,
+  required bool isCorrect,
+  Joker? covering,
+}) {
+  final payout = pokerChipPayout(wager: wager, isCorrect: isCorrect);
+  if (isCorrect) return payout;
+  return switch (covering) {
+    CreditJoker(:final maxLoss) => wager - (maxLoss < wager ? maxLoss : wager),
+    ForcedStakeJoker(:final lossFactor) => -wager * (lossFactor - 1),
+    null => payout,
+  };
+}
 
 /// Shares of the points in a "Biggest Snowflake" round.
 ///

@@ -38,6 +38,16 @@ final class PreviewSession {
         PokerFormat(:final startingChips) => startingChips,
         StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
       },
+      pokerMinStake: switch (quiz.format) {
+        PokerFormat(:final minStake) => minStake,
+        StandardFormat() || JeopardyFormat() || SnowflakeFormat() => 0,
+      },
+      jokers: quiz.jokers,
+      slides: quiz.slides,
+      pokerMaxStake: switch (quiz.format) {
+        PokerFormat(:final maxStake) => maxStake,
+        StandardFormat() || JeopardyFormat() || SnowflakeFormat() => null,
+      },
       snowflakeScoring: switch (quiz.format) {
         SnowflakeFormat(:final scoring) => scoring,
         StandardFormat() || JeopardyFormat() || PokerFormat() => null,

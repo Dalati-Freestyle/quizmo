@@ -9,7 +9,7 @@ dieselben Vorlagen beim Bearbeiten einer Zelle verfügbar.
 | Buzzer | Wer zuerst buzzert, antwortet mündlich; die Spielleitung bewertet. Reihenfolge über die Uhrensynchronisation, optional Sperre nach Fehler und Wiederholungslimit. |
 | Freitext | Akzeptierte Antworten, eine pro Zeile. Groß-/Kleinschreibung und mehrfache Leerzeichen werden normalisiert. 0–5 Zeichenänderungen (Levenshtein-Distanz) sind einstellbar. Optional bewertet die Spielleitung von Hand (`manualGrading`). |
 | Reihenfolge | Elemente in der richtigen Reihenfolge eingeben. Spieler sortieren mit Hoch-/Runter-Buttons. Nur eine vollständige korrekte Reihenfolge zählt. |
-| Zuordnung | Je Zeile `links = rechts`. Spieler wählen für jedes linke Element einen eindeutigen Partner. Nur die vollständige korrekte Zuordnung zählt. |
+| Zuordnung | Je Zeile `links = rechts`. Spieler wählen für jedes linke Element einen eindeutigen Partner. Nur die vollständige korrekte Zuordnung zählt. Derselbe Wert darf rechts mehrfach vorkommen (z. B. zwei Gerichte mit Schwein); gleiche Werte sind untereinander austauschbar. |
 | Schätzfrage | Endliche Zielzahl und optionale Einheit. Anteil der Maximalpunkte: `max(0, 1 - abs(Antwort - Ziel) / abs(Ziel))`. Bei Ziel 0 ersetzt die einstellbare Null-Skala den Nenner. Ganze Punkte werden gerundet. |
 | Wahr/Falsch | Binäre Lösung und Auswahl. |
 
@@ -22,6 +22,14 @@ Neue Fragen haben kein Zeitlimit (Schalter „Zeitlimit“ im Editor, Datei:
 keinen Timer und der Spielleiter beendet die Runde. Ein Geschwindigkeitsbonus
 braucht ein Zeitlimit. Mit Zeitlimit zeigt das Spielergerät die Restzeit; bei
 Ablauf auf schmalen Bildschirmen eine tiefrote 0, sonst „Zeit abgelaufen“.
+
+Jede Frage kann bis zu zehn Tipps haben (Editor → „Tipps“, ab Schema 13) mit Text
+und/oder Medien. Der Spielleiter deckt sie in der laufenden Runde einzeln auf und
+kann den letzten wieder zurücknehmen; Spieler und TV sehen aufgedeckte Tipps sowie
+Anzahl und Kosten der übrigen. Ein Tipp kann einen Punktabzug haben: Wer erst nach
+dem Tipp richtig antwortet (beim Buzzer: drückt), erhält so viele Punkte weniger,
+mindestens 0. Falsche Antworten bleiben unverändert. Bei mündlichen Antworten zählt
+der Zeitpunkt der Bewertung. Im Pokerchips-Format sind Tipps kostenlos.
 
 Jede Frage hat `media` und `solutionMedia`. Lösungsmedien und Lösungen werden erst
 bei der Auflösung veröffentlicht. Unterstützt sind PNG/JPEG/WebP/SVG mit Zoom,

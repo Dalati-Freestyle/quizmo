@@ -109,6 +109,13 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
     // IDs and public order are independent of the solution pairing.
     final right = pairs.map((p) => p.length == 2 ? p[1].trim() : '').toList()
       ..sort();
+    // The same value may occur on several lines: each line gets its own item.
+    final free = [for (final (i, label) in right.indexed) (i, label)];
+    int take(String label) {
+      final index = free.indexWhere((item) => item.$2 == label);
+      return free.removeAt(index).$1;
+    }
+
     return {
       'leftItems': [
         for (final (i, p) in pairs.indexed)
@@ -120,7 +127,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       ],
       'correctPairs': {
         for (final (i, p) in pairs.indexed)
-          'left-$i': 'right-${right.indexOf(p.length == 2 ? p[1].trim() : '')}',
+          'left-$i': 'right-${take(p.length == 2 ? p[1].trim() : '')}',
       },
     };
   }
@@ -191,6 +198,15 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 changed();
               },
             ),
+          if (widget.question is MatchingQuestion && widget.showSolution) ...[
+            const SizedBox(height: 8),
+            Text(
+              context.tr(
+                "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.",
+              ),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 20),
           if (widget.question is ShortAnswerQuestion) ...[
             DropdownButtonFormField<bool>(

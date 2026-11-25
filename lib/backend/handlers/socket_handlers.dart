@@ -690,6 +690,21 @@ class SocketHub {
             questionId: questionId,
           ),
         );
+      case UseJokerMessage(
+        :final roundStartedAt,
+        :final jokerId,
+        :final targetTeamId,
+      ):
+        final playerId = connection.playerId;
+        if (playerId == null || connection.isSpectator) return;
+        _engine.add(
+          UseJokerEvent(
+            jokerId: jokerId,
+            playerId: playerId,
+            targetTeamId: targetTeamId,
+            roundStartedAt: roundStartedAt,
+          ),
+        );
       case PokerWagerMessage(:final questionId, :final wager):
         final playerId = connection.playerId;
         if (playerId == null || connection.isSpectator) return;

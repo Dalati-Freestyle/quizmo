@@ -38,7 +38,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Pokerchips').last);
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), '250');
+    await tester.enterText(
+      find.byKey(const ValueKey('poker-starting-chips')),
+      '250',
+    );
+    await tester.enterText(find.byKey(const ValueKey('poker-min-stake')), '5');
+    await tester.enterText(find.byKey(const ValueKey('poker-max-stake')), '60');
     await tester.pumpAndSettle();
     await tester.tap(
       find.byWidgetPredicate((widget) => widget is DropdownButton).first,
@@ -50,7 +55,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       (await repository.loadAll()).single.format,
-      const PokerFormat(startingChips: 250),
+      const PokerFormat(startingChips: 250, minStake: 5, maxStake: 60),
     );
     expect(tester.takeException(), isNull);
   });
@@ -91,6 +96,52 @@ void main() {
     await tester.tap(find.text('Teameinsatz bestätigen'));
     await tester.tap(find.text('All-in'));
     expect(bets, [20, 100]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('wager view respects the minimum and maximum stake', (
+    tester,
+  ) async {
+    final bets = <int>[];
+    final game = GameState(
+      players: const {'p': Player(id: 'p', name: 'Player', teamId: 'a')},
+      teams: const {'a': Team(id: 'a', name: 'A')},
+      round: const RoundState(
+        question: TrueFalseQuestion(id: 'q', prompt: 'True?'),
+      ),
+      poker: PokerState.start(
+        100,
+        ['a'],
+        minStake: 10,
+        maxStake: 40,
+      ).copyWith(betting: true),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PokerWagerView(
+            state: PlayerSessionState(game: game, playerId: 'p'),
+            onWager: bets.add,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Einsatz (10–40)'), findsOneWidget);
+    for (final invalid in ['0', '9', '41']) {
+      await tester.enterText(find.byType(TextField), invalid);
+      await tester.pump();
+      expect(
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNull,
+        reason: invalid,
+      );
+    }
+    await tester.enterText(find.byType(TextField), '25');
+    await tester.pump();
+    await tester.tap(find.text('Teameinsatz bestätigen'));
+    await tester.tap(find.text('Höchsteinsatz'));
+    expect(bets, [25, 40]);
+    expect(find.text('All-in'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

@@ -7,6 +7,7 @@ import 'answer.dart';
 import 'json.dart';
 import '../engine/scoring_rules.dart';
 import 'question.dart';
+import 'question_hint.dart';
 import 'snowflake.dart';
 
 const Object _unset = Object();
@@ -57,12 +58,16 @@ final class RoundState extends Equatable {
     this.snowflake,
     this.hiddenAnswerCount = 0,
     this.verbal = false,
+    this.hintTimesMicros = const [],
   });
 
   /// Restores a round from [json].
   factory RoundState.fromJson(JsonMap json) => RoundState(
     hiddenAnswerCount: json.readIntOrNull('hiddenAnswerCount') ?? 0,
     verbal: json.readBool('verbal', orElse: false),
+    hintTimesMicros: json['hintTimesMicros'] == null
+        ? const []
+        : json.readIntList('hintTimesMicros'),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -151,6 +156,38 @@ final class RoundState extends Equatable {
   /// Players may still type an answer, but every answer is graded manually
   /// and the host may also judge players that did not submit anything.
   final bool verbal;
+
+  /// Host instants at which the hints of the question were shown, in order;
+  /// its length is the number of hints on stage.
+  final List<int> hintTimesMicros;
+
+  /// Number of hints the guests currently see.
+  int get shownHintCount {
+    final total = question?.hints.length ?? 0;
+    return hintTimesMicros.length < total ? hintTimesMicros.length : total;
+  }
+
+  /// The hints the guests currently see, in order.
+  List<QuestionHint> get shownHints =>
+      question?.hints.sublist(0, shownHintCount) ?? const [];
+
+  /// The hint the host may show next, `null` when none is left.
+  QuestionHint? get nextHint =>
+      question?.hints.skip(shownHintCount).firstOrNull;
+
+  /// Points a correct answer given at [hostMicros] earns less, i.e. the cost
+  /// of the hints that were already shown at that instant.
+  int hintDeductionAt(int hostMicros) {
+    var total = 0;
+    for (final (index, hint) in shownHints.indexed) {
+      if (hintTimesMicros[index] <= hostMicros) total += hint.cost;
+    }
+    return total;
+  }
+
+  /// Points a correct answer given now earns less.
+  int get hintDeduction =>
+      shownHints.fold(0, (total, hint) => total + hint.cost);
 
   /// Whether the host judges the answers of this round instead of the
   /// question's own evaluation. Buzzer rounds are always judged live.
@@ -280,7 +317,9 @@ final class RoundState extends Equatable {
     Map<String, int>? acceptedElapsedMicros,
     int? hiddenAnswerCount,
     bool? verbal,
+    List<int>? hintTimesMicros,
   }) => RoundState(
+    hintTimesMicros: hintTimesMicros ?? this.hintTimesMicros,
     snowflake: snowflake,
     verbal: verbal ?? this.verbal,
     hiddenAnswerCount: hiddenAnswerCount ?? this.hiddenAnswerCount,
@@ -332,6 +371,7 @@ final class RoundState extends Equatable {
     if (snowflake != null) 'snowflake': snowflake!.name,
     if (hiddenAnswerCount != 0) 'hiddenAnswerCount': hiddenAnswerCount,
     if (verbal) 'verbal': true,
+    if (hintTimesMicros.isNotEmpty) 'hintTimesMicros': hintTimesMicros,
   };
 
   @override
@@ -354,5 +394,6 @@ final class RoundState extends Equatable {
     snowflake,
     hiddenAnswerCount,
     verbal,
+    hintTimesMicros,
   ];
 }

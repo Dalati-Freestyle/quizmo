@@ -264,7 +264,11 @@ MediaCheckSummary checkQuizMedia(List<Question> questions) {
   final broken = <String>[];
   final online = <String>[];
   for (final question in questions) {
-    for (final media in [...question.media, ...question.solutionMedia]) {
+    for (final media in [
+      ...question.media,
+      ...question.solutionMedia,
+      for (final hint in question.hints) ...hint.media,
+    ]) {
       final label = '${question.id}: ${media.runtimeType}';
       switch (media) {
         case VideoAttachment(youtubeId: final _?):

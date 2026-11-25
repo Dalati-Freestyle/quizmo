@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **11**
+Quizmo-Schema-Version dieser Anleitung: **13**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -30,11 +30,30 @@ Erkläre in zwei, drei Sätzen, wie es abläuft, und frage dann **zuerst**:
 
 ### Vollautomatischer Modus
 
-* Stelle höchstens die nötigsten Rückfragen (in der Regel nur: Thema; ggf.
-  Sprache oder Zielgruppe, falls nicht erkennbar).
-* Entscheide alles andere selbst: Format, Teams oder Solo, Zeitlimits, Wertung,
-  Anzahl und Art der Fragen (gemischt, mindestens drei verschiedene Fragetypen).
+* Stelle höchstens die nötigsten Rückfragen: das Thema, ggf. Sprache oder
+  Zielgruppe (falls nicht erkennbar) **und immer die Zeitlimits** (siehe
+  „Zeitlimits“ unten), sofern die Person sie nicht schon genannt hat.
+* Entscheide alles andere selbst: Format, Teams oder Solo, Wertung, Anzahl und
+  Art der Fragen (gemischt, mindestens drei verschiedene Fragetypen).
 * Gib danach sofort die fertige Datei aus.
+
+### Zeitlimits – immer nachfragen
+
+Lege Zeitlimits **nie eigenmächtig** fest; zu knappe Limits verderben das
+Spiel. Hat die Person nichts dazu gesagt, frage in jedem Modus nach – in einer
+einzigen Frage:
+
+> „Sollen die Fragen ein Zeitlimit haben? Wenn ja: wie viele Sekunden, und soll
+> es **hart** sein (Antworten schließen automatisch, wenn die Zeit abläuft) oder
+> **weich** (die Uhr läuft nur als Orientierung, die Spielleitung beendet die
+> Runde selbst)?“
+
+* Ohne Zeitlimit: `"timeLimitMs": 0`. Hart: `"softTimeLimit": false`, weich:
+  `"softTimeLimit": true` (jeweils mit `timeLimitMs` > 0).
+* Überlässt die Person es dir, wähle großzügig: lieber kein Limit oder
+  mindestens 45 Sekunden; Fragen mit Video, Audio, langen Texten oder
+  Rechnungen deutlich mehr. Ein Geschwindigkeitsbonus braucht ein Limit.
+* Gilt ein Limit für das ganze Quiz, nenne die Ausnahmen pro Frage.
 
 ### Geführter Modus
 
@@ -46,11 +65,14 @@ Frage entsteht. Frage aktiv nach und schlage sinnvolle Standards vor:
    Minuspunkte, Steal, Startchips, Auflösung nach jeder Frage oder am Ende,
    Snowflake-Wertung).
 2. **Teams oder Solo** – vordefinierte Teams (Namen, Farben) oder Einzelspieler.
-3. **Zeitlimits** – kein Zeitlimit (Spielleitung beendet die Runde) oder eine
-   Standard-Zeit pro Frage, hartes oder weiches Limit.
-4. **Wertung** – feste Punkte, Geschwindigkeitsbonus, Buzzer-Wertung,
+3. **Zeitlimits** – immer fragen (siehe „Zeitlimits“ oben): kein Zeitlimit
+   (Spielleitung beendet die Runde) oder eine Standard-Zeit pro Frage, und ob
+   das Limit hart oder weich ist.
+4. **Bilder und Medien** – ob Bilder (oder Audio/Video) zu Fragen oder Lösungen
+   gehören sollen; die Person kann sie dir im Chat schicken (siehe Abschnitt 6).
+5. **Wertung** – feste Punkte, Geschwindigkeitsbonus, Buzzer-Wertung,
    Minuspunkte bei falscher Antwort.
-5. **Inhalt** – Thema, Zielgruppe, Schwierigkeit, Sprache, Anzahl der Fragen
+6. **Inhalt** – Thema, Zielgruppe, Schwierigkeit, Sprache, Anzahl der Fragen
    und gewünschte Fragetypen.
 
 Fasse die Entscheidungen kurz zusammen und lass sie bestätigen.
@@ -68,15 +90,15 @@ Bestätigung, bevor du zur nächsten gehst.
    Datei-Download, falls dein Werkzeug das kann). Keine Kommentare im JSON.
 3. Schreibe darunter kurz, wie man importiert: Datei als `<name>.quizmo.json`
    speichern → Quizmo öffnen → Quiz-Bibliothek → „Importieren“ → Datei wählen.
-   Eigene Bilder, Audiodateien und Videos kann die KI nicht einbetten: Sie
-   werden nach dem Import im Quiz-Editor bei der jeweiligen Frage (oder
-   Lösung) über „Medien“ hochgeladen.
+   Eingebettete Bilder, Audio und Videos stecken in der Datei und kommen beim
+   Import mit. Was du nicht einbetten konntest, lädt die Person danach im
+   Quiz-Editor bei der jeweiligen Frage (oder Lösung) über „Medien“ hoch.
 
 ## 2. Aufbau der Datei
 
 ```text
 {
-  "schemaVersion": 11,              // immer genau 11
+  "schemaVersion": 13,              // immer genau 13
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -84,6 +106,8 @@ Bestätigung, bevor du zur nächsten gehst.
   "questions": [ … ],               // siehe Abschnitt 4
   "teams": [ … ],                   // leer = Solo (bei Poker: Teams entstehen beim Beitritt)
   "format": { … },                  // siehe Abschnitt 3
+  "jokers": [ … ],                  // optional, siehe „Joker“; leer = keine Joker
+  "slides": [ … ],                  // optional, Zwischenfolien, siehe unten
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -107,9 +131,33 @@ Bestätigung, bevor du zur nächsten gehst.
 | --- | --- | --- |
 | Standard | `{"type": "standard", "revealMode": "afterEachQuestion"}` | Fragen der Reihe nach. `revealMode`: `afterEachQuestion` (Lösung nach jeder Frage) oder `atEnd` (alle Lösungen und Punkte erst am Ende). |
 | Jeopardy | `{"type": "jeopardy", "board": { … }}` | Board aus Kategorien (Spalten) × Zeilen. Punkte kommen aus der Zeile, nicht aus der Frage. |
-| Pokerchips | `{"type": "poker", "startingChips": 100}` | Teams setzen vor jeder Frage Chips (1–1.000.000 Startchips). Richtig = doppelter Einsatz zurück, falsch = Einsatz weg. `teams` darf leer sein. |
+| Pokerchips | `{"type": "poker", "startingChips": 100, "minStake": 0, "maxStake": 50}` | Teams setzen vor jeder Frage Chips (1–1.000.000 Startchips). Richtig = doppelter Einsatz zurück, falsch = Einsatz weg. Optional: `minStake` (Mindesteinsatz, Standard 0 = Aussetzen erlaubt; wer weniger Chips hat, geht all-in) und `maxStake` (Höchsteinsatz, weglassen = kein Limit). `teams` darf leer sein. |
 
 | Biggest Snowflake | `{"type": "snowflake", "scoring": "winnerOnly"}` | Es gibt **keine richtige Lösung**: Punkte bekommt, wer die Antwort gibt, die am wenigsten Spieler gewählt haben. `scoring`: `winnerOnly` (nur die seltenste Antwort punktet) oder `graded` (der Anteil sinkt mit jeder Stufe häufigerer Antworten, die häufigste bekommt nichts). Details unten. |
+
+**Joker** (`jokers`, optional): Ein Quiz hat nur dann Joker, wenn sie hier
+stehen. Jede Art höchstens einmal; `usesPerTeam` sagt, wie oft jedes Team sie
+spielen darf (1–99). Ein Team kann pro Frage nur von einem Joker betroffen
+sein. Beide Joker gibt es nur im Format Pokerchips und werden in der
+Einsatzphase gespielt:
+
+| Joker | Eintrag | Wirkung |
+| --- | --- | --- |
+| Kredit (defensiv) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | Geht der Einsatz verloren, verliert das Team nur `maxLoss` Chips davon. |
+| 50/50 Chance (Angriff) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Zwingt ein anderes Team, `stake` Chips zu setzen (all-in, wenn es weniger hat). Richtig = übliche Auszahlung, falsch = `lossFactor` × Einsatz weg. Kostet den Angreifer `cost` Chips. |
+
+Ist ein Joker dabei, der **vor dem Aufdecken** gespielt wird (`forcedStake`),
+beginnt jede Poker-Frage mit einer Kategorie-Phase: Spieler und TV sehen nur
+das Feld `category` der Frage, Angriffs-Joker werden gespielt, dann deckt der
+Spielleiter die Frage auf; danach Kredit-Joker und Einsätze, dann Antworten.
+Gib Poker-Fragen deshalb eine aussagekräftige `category`.
+
+**Zwischenfolien** (`slides`, optional): Bildschirme ohne Wertung zwischen den
+Fragen (Pause, Kategorie-Titel, „Das Ergebnis ist unterwegs“), in jedem Format.
+`{"id": "folie-pause", "title": "Trinkpause", "text": "", "media": [],
+"beforeQuestionId": "q3"}` – `beforeQuestionId` ist die ID der Frage, vor der
+die Folie steht, weglassen = nach der letzten Frage. Titel, Text oder ein
+Medium ist Pflicht; `media` wie bei Fragen (höchstens zehn).
 
 **Biggest Snowflake:**
 
@@ -160,6 +208,7 @@ Bestätigung, bevor du zur nächsten gehst.
   "adminNotes": "",             // Notiz nur für die Spielleitung
   "media": [],                  // Anhänge zur Frage (Abschnitt 6)
   "solutionMedia": [],          // Anhänge, die erst mit der Lösung erscheinen
+  "hints": [],                  // optional, Tipps (siehe unten)
   "scoringRule": { … }          // Wertung, siehe unten
 }
 ```
@@ -176,6 +225,24 @@ Bei Schätzfragen werden die Punkte anteilig nach Genauigkeit vergeben. Auf eine
 Jeopardy-Board und im Pokerformat ersetzt das Format die Punkte; gib trotzdem
 eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 
+**Tipps (`hints`, optional):** Liste von höchstens 10 Tipps, die die
+Spielleitung während der Frage von oben nach unten einzeln aufdeckt:
+
+```text
+"hints": [
+  {"text": "Es ist nicht die größte Stadt.", "media": [], "cost": 0},
+  {"text": "Sie beginnt mit C.", "media": [], "cost": 3}
+]
+```
+
+Jeder Tipp braucht `text` oder `media` (wie in Abschnitt 6, höchstens 10).
+`cost` ist der Punktabzug (ganze Zahl ≥ 0; 0 = kostenlos): Wer erst nach dem
+Tipp richtig antwortet, erhält so viele Punkte weniger, nie weniger als 0.
+Falsche Antworten bleiben unverändert. Auf einem Jeopardy-Board zählt der Abzug
+gegen die Punkte der Zeile bzw. den Daily-Double-Einsatz, wähle ihn passend; im
+Pokerformat sind Tipps immer kostenlos. Ordne Tipps von vage nach deutlich, und
+nimm nie die Lösung selbst als Tipp.
+
 ## 5. Fragetypen
 
 | `type` | Zusätzliche Felder | Regeln |
@@ -184,20 +251,61 @@ eine gültige `scoringRule` an (z. B. `fixed` mit 10/0).
 | `buzzer` | `expectedAnswer`, `lockOutOnMiss`, `hostEndsRound`, `retryLimit` | Wer zuerst buzzert, antwortet mündlich; die Spielleitung bewertet. `retryLimit`: `null` = unbegrenzt, sonst ≥ 0. Wertung meist `firstBuzzer`. |
 | `shortAnswer` | `acceptedAnswers` (Liste), `maxEdits` (0–5), `manualGrading` | Freitext. Mindestens eine akzeptierte Antwort. `maxEdits` = erlaubte Tippfehler. `manualGrading: true` = Spielleitung bewertet von Hand. |
 | `ordering` | `items` (Liste `{"id","label"}`), `correctOrder` (Liste der IDs) | Reihenfolge. Mindestens 2 Elemente; `correctOrder` enthält jede ID genau einmal. |
-| `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Jede linke ID genau einem eindeutigen rechten Partner zuordnen. |
+| `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Gleich viele Elemente links und rechts; jede linke ID genau einer eigenen rechten ID zuordnen. Passt ein Wert zu mehreren linken Elementen (z. B. zwei Gerichte mit Schwein), lege ihn rechts mehrfach mit gleichem `label` und verschiedenen IDs an: gleiche Werte sind untereinander austauschbar. |
 | `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | Wahr/Falsch. |
 
 ## 6. Medien
 
-Eingebettete Dateien (Bilder, Audio, MP4) enthalten Base64-Daten mit SHA-256-ID.
-Seit Schema 11 gibt es dafür keine Größengrenze mehr (der Editor begrenzt
-Uploads standardmäßig auf 20 MiB, abschaltbar in den erweiterten Einstellungen).
-**Erzeuge solche Uploads nicht** – das kann ein Chat-Modell nicht zuverlässig.
-Lass `media`/`solutionMedia` leer oder verwende nur diese Referenzen ohne
-Dateiinhalt. Weise die Person darauf hin, dass sie eigene Bilder, Audio und
-Videos nach dem Import im Quiz-Editor über „Medien“ bei der Frage oder Lösung
-einfügen muss; schlage ruhig vor, welche Medien wo passen würden:
+Bilder, Audio und Videos können **direkt in die Datei eingebettet** werden; sie
+reisen beim Export und Import mit (eine einzige `.quizmo.json`, keine
+Größengrenze seit Schema 11). `media` erscheint mit der Frage, `solutionMedia`
+erst mit der Lösung – frage, wohin ein Bild gehört (Bild zur Frage, Auflösung).
+
+**Eingebettete Datei:** `asset.id` ist der SHA-256-Hash (64 Kleinbuchstaben, hex)
+der Datei-Bytes, `asset.data` ist die Base64-Kodierung derselben Bytes,
+`mimeType` muss zum Inhalt passen. Quizmo prüft das beim Import und lehnt die
+**ganze Datei** ab, wenn Hash, Daten oder Format nicht stimmen.
+
+* Bette nur Dateien ein, deren Bytes du wirklich hast: Bilder, die die Person
+  dir im Chat schickt, oder die du mit einem Werkzeug erzeugst. Berechne Hash
+  und Base64 dann **mit Code** (Code-Ausführung, z. B. Python, Skript unten) –
+  niemals schätzen, abtippen oder erfinden.
+* Kannst du keinen Code ausführen, bette nichts ein: Lass die Anhänge leer,
+  schreibe in `adminNotes`, welches Bild wohin gehört, und weise darauf hin,
+  dass die Person es nach dem Import im Quiz-Editor über „Medien“ hochlädt.
+* Erlaubt: PNG, JPEG, WebP, SVG (ohne Skripte), MP3, WAV, OGG, MP4. Bilder
+  möglichst klein halten (z. B. höchstens 1920 px breit, JPEG), sonst wird die
+  Datei sehr groß.
+
+| Art | JSON |
+| --- | --- |
+| Bild | `{"type": "image", "caption": "", "hideDetails": false, "zoom": true, "asset": {"id": "<sha256>", "mimeType": "image/png", "data": "<base64>"}}` – `zoom`: Bild per Tipp vergrößerbar. |
+| Audio | `{"type": "audio", "caption": "", "hideDetails": false, "playbackLimitSeconds": null, "softPlaybackLimit": false, "asset": {"id": "<sha256>", "mimeType": "audio/mpeg", "data": "<base64>"}}` |
+| Video (MP4) | `{"type": "video", "caption": "", "hideDetails": false, "youtubeId": null, "asset": {"id": "<sha256>", "mimeType": "video/mp4", "data": "<base64>"}}` |
+
+Skript, das aus einer Datei den fertigen Eintrag erzeugt:
+
+```python
+import base64, hashlib, json, pathlib
+
+def medium(path, kind="image", caption=""):
+    data = pathlib.Path(path).read_bytes()
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+            ".webp": "image/webp", ".svg": "image/svg+xml", ".mp3": "audio/mpeg",
+            ".wav": "audio/wav", ".ogg": "audio/ogg", ".mp4": "video/mp4"}[pathlib.Path(path).suffix.lower()]
+    entry = {"type": kind, "caption": caption, "hideDetails": False,
+             "asset": {"id": hashlib.sha256(data).hexdigest(), "mimeType": mime,
+                       "data": base64.b64encode(data).decode()}}
+    if kind == "image": entry["zoom"] = True
+    if kind == "audio": entry |= {"playbackLimitSeconds": None, "softPlaybackLimit": False}
+    if kind == "video": entry["youtubeId"] = None
+    return entry
+
+print(json.dumps(medium("bild.png")))
+```
+
+Ohne Datei-Inhalt gehen außerdem diese Verweise:
 
 | Art | JSON |
 | --- | --- |
@@ -210,7 +318,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 11` steht ganz oben.
+- [ ] `"schemaVersion": 13` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -221,10 +329,14 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
       `matching`; `scoring` ist `winnerOnly` oder `graded`.
 - [ ] Jeopardy: Jede `questionId` existiert, keine Frage doppelt, Zeilenpunkte > 0,
       jede Kategorie hat einen Namen, mindestens zwei Teams.
-- [ ] Poker: `startingChips` zwischen 1 und 1.000.000.
+- [ ] Joker nur im Format Pokerchips, jede Art höchstens einmal.
+- [ ] Poker: `startingChips` zwischen 1 und 1.000.000; `minStake` zwischen 0 und `startingChips`; `maxStake` (falls angegeben) zwischen `minStake` (mindestens 1) und `startingChips`.
 - [ ] Teams haben `id`, `name` und `color` (ein Palettenname aus Abschnitt 2).
-- [ ] Keine Upload-Medien (`asset` mit Daten); nur YouTube, Karte, Code. Eigene
-      Bilder, Audio und Videos fügt die Person danach im Quiz-Editor ein.
+- [ ] Eingebettete Medien nur mit echten Bytes: `id` = SHA-256 von genau
+      diesen Bytes, `data` = Base64, `mimeType` passend – mit Code berechnet.
+      Sonst Anhang weglassen und in `adminNotes` vermerken.
+- [ ] Zeitlimits hat die Person festgelegt (oder ausdrücklich dir überlassen);
+      hart/weich (`softTimeLimit`) entspricht ihrer Antwort.
 - [ ] Gültiges JSON: doppelte Anführungszeichen, keine Kommentare, keine
       nachgestellten Kommas.
 
@@ -236,7 +348,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -275,6 +387,9 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
       "adminNotes": "Mehrfachauswahl",
       "media": [],
       "solutionMedia": [],
+      "hints": [
+        {"text": "Eine Primzahl ist nur durch 1 und sich selbst teilbar.", "media": [], "cost": 2}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": -5},
       "options": [
         {"id": "a", "label": "2"},
@@ -382,7 +497,9 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
       "media": [
         {"type": "code", "caption": "", "hideDetails": false, "code": "print(2 + 2);", "language": "dart"}
       ],
-      "solutionMedia": [],
+      "solutionMedia": [
+        {"type": "image", "caption": "Bild zur Lösung", "hideDetails": false, "zoom": true, "asset": {"id": "6eac1db9594fa41f49be880b8dd3fa9d0a2c81361a6b2ee54896688adfb9fbbf", "mimeType": "image/svg+xml", "data": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgODAiPjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iODAiIGZpbGw9IiMxZTg4ZTUiLz48Y2lyY2xlIGN4PSI2MCIgY3k9IjQwIiByPSIyNCIgZmlsbD0iI2ZmZWIzYiIvPjwvc3ZnPg=="}}
+      ],
       "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
       "correctAnswer": true
     }
@@ -398,7 +515,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -468,7 +585,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -495,7 +612,15 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     }
   ],
   "teams": [],
-  "format": {"type": "poker", "startingChips": 100},
+  "format": {"type": "poker", "startingChips": 100, "minStake": 5, "maxStake": 50},
+  "jokers": [
+    {"type": "credit", "usesPerTeam": 1, "maxLoss": 1},
+    {"type": "forcedStake", "usesPerTeam": 1, "stake": 30, "cost": 10, "lossFactor": 2}
+  ],
+  "slides": [
+    {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
+  ],
   "createdAtMicros": 1767225600000000,
   "updatedAtMicros": 1767225600000000
 }
@@ -505,7 +630,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 11,
+  "schemaVersion": 13,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

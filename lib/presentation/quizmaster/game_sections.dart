@@ -14,6 +14,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../common/adaptive_layout.dart';
+import '../common/joker_play_form.dart';
+import '../common/joker_texts.dart';
 import '../common/scoreboard_view.dart';
 import '../l10n/app_localizations.dart';
 import 'correction_history_panel.dart';
@@ -75,6 +77,8 @@ Map<DashboardSection, Widget> buildGameSections(
       ),
       onJudgeAnswer: engine.add,
       onJudgeBuzzer: engine.add,
+      onShowHint: engine.add,
+      onTakeBackHint: engine.add,
       onSetVerbalAnswers: (enabled) =>
           engine.add(SetVerbalAnswersEvent(enabled)),
       onReveal: () => engine.add(const RevealRoundEvent()),
@@ -94,7 +98,9 @@ Map<DashboardSection, Widget> buildGameSections(
       if ([
         ...question.media,
         if (game.round.status == RoundStatus.revealed)
-          ...question.solutionMedia,
+          ...question.solutionMedia
+        else
+          for (final hint in game.round.shownHints) ...hint.media,
       ].any((m) => m is AudioAttachment || m is VideoAttachment))
         DashboardSection.media: PanelCard(
           title: context.tr("Medienwiedergabe"),
@@ -145,6 +151,13 @@ Map<DashboardSection, Widget> buildGameSections(
                     : context.tr("Antwortphase"),
               ]),
             ),
+            if (poker.minStake > 0 || poker.maxStake != null)
+              Text(
+                context.tr("Einsatz pro Frage: {0}–{1} Chips", [
+                  poker.minStake,
+                  poker.maxStake ?? context.tr("alle"),
+                ]),
+              ),
             for (final team in game.teams.values)
               Text(
                 context.tr("{0}: {1} Chips · Einsatz: {2}", [
@@ -153,36 +166,98 @@ Map<DashboardSection, Widget> buildGameSections(
                   poker.wagers[team.id] ?? "–",
                 ]),
               ),
-            if (poker.betting)
+            if (poker.betting && poker.questionHidden) ...[
+              Text(
+                context.tr(
+                  "Phase 1 · Kategorie „{0}“: Spieler und TV sehen nur die Kategorie. Angriffs-Joker jetzt, danach die Frage aufdecken.",
+                  [poker.category ?? "–"],
+                ),
+              ),
+              FilledButton(
+                onPressed: () => engine.add(const RevealPokerQuestionEvent()),
+                child: Text(context.tr("Frage aufdecken")),
+              ),
+            ] else if (poker.betting)
               FilledButton(
                 onPressed: () => engine.add(const OpenPokerAnswersEvent()),
                 child: Text(
                   context.tr("Einsätze schließen & Antworten öffnen"),
                 ),
               ),
+            if (game.jokers case final jokers?) ...[
+              const Divider(),
+              for (final team in game.teams.values)
+                Text(
+                  context.tr("{0} · Joker übrig: {1}", [
+                    team.name,
+                    jokers.jokers
+                        .map(
+                          (joker) =>
+                              '${jokerName(context, joker)} '
+                              '${jokers.remainingFor(team.id, joker)}',
+                        )
+                        .join(', '),
+                  ]),
+                ),
+              for (final (index, line) in jokerPlayLines(context, game).indexed)
+                Row(
+                  children: [
+                    Expanded(child: Text(line)),
+                    if (poker.betting)
+                      TextButton(
+                        onPressed: () => engine.add(
+                          RevokeJokerEvent(
+                            teamId: jokers.plays[index].teamId,
+                            jokerId: jokers.plays[index].jokerId,
+                          ),
+                        ),
+                        child: Text(context.tr("Zurücknehmen")),
+                      ),
+                  ],
+                ),
+              if (poker.betting && game.round.question != null)
+                JokerPlayForm(
+                  game: game,
+                  onUse: (jokerId, teamId, target) => engine.add(
+                    UseJokerEvent(
+                      jokerId: jokerId,
+                      teamId: teamId,
+                      targetTeamId: target,
+                    ),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     if (game.jeopardy case final jeopardy?)
-      DashboardSection.questions: JeopardyBoardPanel(
+      DashboardSection.questions: _WithSlides(
         game: game,
-        jeopardy: jeopardy,
-        canPick:
-            game.isStarted &&
-            engineState.canStartRound &&
-            jeopardy.pendingPickQuestionId == null,
-        maxWager: engine.maxDailyDoubleWager(game),
-        onSelect: (questionId) =>
-            engine.add(SelectJeopardyCellEvent(questionId)),
-        onPlaceWager: (wager) => engine.add(PlaceDailyDoubleWagerEvent(wager)),
-        onSetOrder: (ids) => engine.add(SetJeopardyOrderEvent(ids)),
-        onSetTurn: (teamId) => engine.add(SetJeopardyTurnEvent(teamId)),
+        onShow: (slideId) => engine.add(ShowSlideEvent(slideId)),
+        onHide: () => engine.add(const HideSlideEvent()),
+        child: JeopardyBoardPanel(
+          game: game,
+          jeopardy: jeopardy,
+          canPick:
+              game.isStarted &&
+              engineState.canStartRound &&
+              jeopardy.pendingPickQuestionId == null,
+          maxWager: engine.maxDailyDoubleWager(game),
+          onSelect: (questionId) =>
+              engine.add(SelectJeopardyCellEvent(questionId)),
+          onPlaceWager: (wager) =>
+              engine.add(PlaceDailyDoubleWagerEvent(wager)),
+          onSetOrder: (ids) => engine.add(SetJeopardyOrderEvent(ids)),
+          onSetTurn: (teamId) => engine.add(SetJeopardyTurnEvent(teamId)),
+        ),
       )
     else
       DashboardSection.questions: QuestionBankPanel(
         game: game,
         canStart: game.isStarted && engineState.canStartRound,
         onStart: (questionId) => engine.add(StartRoundEvent(questionId)),
+        onShowSlide: (slideId) => engine.add(ShowSlideEvent(slideId)),
+        onHideSlide: () => engine.add(const HideSlideEvent()),
       ),
     DashboardSection.scoreboard: PanelCard(
       title: game.poker == null
@@ -323,4 +398,46 @@ class GameModeMenu extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// A board has no question list, so its slides get their own card below it.
+class _WithSlides extends StatelessWidget {
+  const _WithSlides({
+    required this.game,
+    required this.onShow,
+    required this.onHide,
+    required this.child,
+  });
+
+  final GameState game;
+  final ValueChanged<String> onShow;
+  final VoidCallback onHide;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (game.slides.isEmpty) return child;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        child,
+        PanelCard(
+          title: context.tr("Zwischenfolien"),
+          icon: Icons.slideshow_outlined,
+          child: Column(
+            children: [
+              for (final slide in game.slides)
+                SlideControlRow(
+                  game: game,
+                  slide: slide,
+                  onShow: onShow,
+                  onHide: onHide,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

@@ -5,12 +5,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/data/quiz_library_store_io.dart';
 import '../../../core/data/quiz_repository.dart';
-
-const String _libraryKey = 'quizmo.quiz-library.v1';
+import 'shared_preferences_quiz_library.dart';
 
 /// Creates the persistent local quiz repository for native platforms.
 ///
@@ -21,16 +19,6 @@ QuizRepository createQuizRepository() => PersistentQuizRepository(
     () async => Directory(
       p.join((await getApplicationSupportDirectory()).path, 'quiz-library'),
     ),
-    legacy: _SharedPreferencesLibrary(),
+    legacy: SharedPreferencesQuizLibrary(),
   ),
 );
-
-final class _SharedPreferencesLibrary implements LegacyQuizLibrarySource {
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
-
-  @override
-  Future<String?> read() => _preferences.getString(_libraryKey);
-
-  @override
-  Future<void> clear() => _preferences.remove(_libraryKey);
-}

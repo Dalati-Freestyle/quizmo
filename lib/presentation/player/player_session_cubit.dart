@@ -754,6 +754,33 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     }
   }
 
+  /// Plays [jokerId] for the own team (aimed at [targetTeamId]).
+  void useJoker(String jokerId, {String? targetTeamId}) {
+    final started = state.game?.round.startedAtHostMicros;
+    if (!state.isConnected ||
+        state.game?.recoveryPaused == true ||
+        started == null ||
+        state.game?.jokers == null) {
+      return;
+    }
+    if (_localSend case final send?) {
+      send(
+        UseJokerEvent(
+          jokerId: jokerId,
+          playerId: state.playerId,
+          targetTeamId: targetTeamId,
+          roundStartedAt: started,
+        ),
+      );
+    } else {
+      _client?.useJoker(
+        roundStartedAt: started,
+        jokerId: jokerId,
+        targetTeamId: targetTeamId,
+      );
+    }
+  }
+
   void placePokerWager(int wager) {
     final question = state.question;
     if (!state.isConnected ||

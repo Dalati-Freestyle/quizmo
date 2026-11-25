@@ -1,30 +1,22 @@
 /// Browser implementation of the local quiz library factory.
 library;
 
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../../../core/data/migrating_quiz_library_store.dart';
 import '../../../core/data/quiz_repository.dart';
 import '../../common/browser_exit_guard.dart';
-
-const String _libraryKey = 'quizmo.quiz-library.v1';
+import 'indexed_db_quiz_library_store.dart';
+import 'shared_preferences_quiz_library.dart';
 
 /// Creates the browser-local persistent quiz repository.
-QuizRepository createQuizRepository() =>
-    PersistentQuizRepository(store: _SharedPreferencesQuizLibraryStore());
-
-final class _SharedPreferencesQuizLibraryStore implements QuizLibraryStore {
-  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
-
-  @override
-  Future<String?> read() async {
-    final contents = await _preferences.getString(_libraryKey);
-    updateBrowserExitGuard(contents);
-    return contents;
-  }
-
-  @override
-  Future<void> write(String contents) async {
-    await _preferences.setString(_libraryKey, contents);
-    updateBrowserExitGuard(contents);
-  }
-}
+///
+/// The library lives in IndexedDB because quizzes embed their media and
+/// `localStorage` only holds a few megabytes. Libraries written to
+/// `localStorage` by older versions are migrated on first save.
+QuizRepository createQuizRepository() => PersistentQuizRepository(
+  store: MigratingQuizLibraryStore(
+    IndexedDbQuizLibraryStore(),
+    legacy: SharedPreferencesQuizLibrary(),
+    onRead: updateBrowserExitGuard,
+    onWrite: updateBrowserExitGuard,
+  ),
+);

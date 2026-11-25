@@ -13,6 +13,9 @@ import '../../../core/data/quiz_repository.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import 'jeopardy_board_editor.dart';
+import 'bulk_edit_dialog.dart';
+import 'joker_editor_panel.dart';
+import 'slides_editor_panel.dart';
 import 'question_editor.dart';
 import 'quiz_editor_cubit.dart';
 import 'selection_dropdown.dart';
@@ -293,9 +296,12 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                   ],
                   if (state.draft.format case PokerFormat(
                     :final startingChips,
+                    :final minStake,
+                    :final maxStake,
                   )) ...[
                     const SizedBox(height: 12),
                     TextFormField(
+                      key: const ValueKey('poker-starting-chips'),
                       initialValue: '$startingChips',
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
@@ -307,10 +313,47 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
                         startingChips: int.tryParse(value) ?? 0,
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            key: const ValueKey('poker-min-stake'),
+                            initialValue: '$minStake',
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: context.tr("Mindesteinsatz pro Frage"),
+                              helperText: context.tr("0 = Aussetzen erlaubt"),
+                            ),
+                            onChanged: (value) => cubit.usePokerFormat(
+                              minStake: int.tryParse(value.trim()) ?? -1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            key: const ValueKey('poker-max-stake'),
+                            initialValue: maxStake == null ? '' : '$maxStake',
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: context.tr("Höchsteinsatz pro Frage"),
+                              helperText: context.tr("Leer = kein Limit"),
+                            ),
+                            onChanged: (value) => value.trim().isEmpty
+                                ? cubit.usePokerFormat(clearMaxStake: true)
+                                : cubit.usePokerFormat(
+                                    maxStake: int.tryParse(value.trim()) ?? 0,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       context.tr(
-                        "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen. Mindestens ein Team anlegen.",
+                        "Jedes Team setzt pro Frage. Richtig: doppelter Einsatz zurück. Falsch oder keine Antwort: Einsatz verloren. 0 Chips = aussetzen, sofern kein Mindesteinsatz gilt. Wer bis zum Schließen weniger setzt, wird auf den Mindesteinsatz angehoben (all-in, wenn die Chips nicht reichen). Mindestens ein Team anlegen.",
                       ),
                     ),
                   ],
@@ -323,6 +366,19 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
               onEdit: (team) => _editTeam(cubit, team),
               onRemove: cubit.removeTeam,
             ),
+            BulkEditPanel(quiz: state.draft, onApply: cubit.bulkEditQuestions),
+            SlidesEditorPanel(
+              quiz: state.draft,
+              createId: widget.createId,
+              onSave: cubit.saveSlide,
+              onRemove: cubit.removeSlide,
+            ),
+            if (JokerEditorPanel.offersJokers(state.draft.format))
+              JokerEditorPanel(
+                quiz: state.draft,
+                onSet: cubit.setJoker,
+                onRemove: cubit.removeJoker,
+              ),
             switch (state.draft.format) {
               JeopardyFormat(:final board) => JeopardyBoardEditorPanel(
                 quiz: state.draft,
@@ -511,6 +567,9 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            // Our own handle only: the default one would sit on top of the
+            // delete button on desktop.
+            buildDefaultDragHandles: false,
             itemCount: widget.questions.length,
             onReorderItem: widget.onReorder,
             itemBuilder: (context, index) {
@@ -553,7 +612,16 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.drag_handle),
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.drag_handle),
+                        ),
+                      ),
+                    ),
                     IconButton(
                       tooltip: context.tr("Delete question"),
                       onPressed: () => widget.onRemove(question.id),

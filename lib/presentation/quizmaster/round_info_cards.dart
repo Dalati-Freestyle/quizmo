@@ -12,6 +12,8 @@ import '../../core/engine/answer_evaluation.dart';
 import '../../core/engine/quiz_engine_event.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
+import '../common/hint_views.dart';
+import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
 import '../l10n/app_localizations.dart';
@@ -20,7 +22,8 @@ import '../l10n/app_localizations.dart';
 enum RoundInfoKind {
   note(Icons.sticky_note_2_outlined, Color(0xFFF2A900)),
   solution(Icons.verified_outlined, Color(0xFF2E9D57)),
-  answers(Icons.forum_outlined, Color(0xFF2F6FDB));
+  answers(Icons.forum_outlined, Color(0xFF2F6FDB)),
+  hints(Icons.lightbulb_outline, Color(0xFF8E44AD));
 
   const RoundInfoKind(this.icon, this.accent);
 
@@ -112,6 +115,129 @@ class HostNoteCard extends StatelessWidget {
     subtitle: context.tr('Nur für dich sichtbar'),
     child: SelectableText(note),
   );
+}
+
+/// The hints of the question on stage, shown to the guests one by one.
+class HintsCard extends StatelessWidget {
+  const HintsCard({
+    required this.game,
+    required this.onShow,
+    required this.onTakeBack,
+    super.key,
+  });
+
+  final GameState game;
+  final ValueChanged<ShowHintEvent>? onShow;
+  final ValueChanged<TakeBackHintEvent>? onTakeBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final round = game.round;
+    final question = round.question;
+    if (question == null || question.hints.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final shown = round.shownHintCount;
+    final next = round.nextHint;
+    return RoundInfoCard(
+      key: const ValueKey('round-card-hints'),
+      kind: RoundInfoKind.hints,
+      title: context.tr('Tipps'),
+      subtitle: hintStatusText(context, game),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (index, hint) in question.hints.indexed)
+            Opacity(
+              opacity: index < shown ? 1 : 0.6,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      index < shown
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      semanticLabel: index < shown
+                          ? context.tr('Gezeigt')
+                          : context.tr('Noch verdeckt'),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            hintTitle(context, game, index),
+                            style: theme.textTheme.labelMedium,
+                          ),
+                          if (hint.text.trim().isNotEmpty) Text(hint.text),
+                          if (hint.media.isNotEmpty)
+                            QuestionMediaView(
+                              key: ValueKey('host-hint-media-$index'),
+                              media: hint.media,
+                              // The host previews hints by hand; only the
+                              // newest shown one follows the media controls.
+                              playing: index != shown - 1
+                                  ? null
+                                  : game.tvMediaPaused
+                                  ? false
+                                  : game.tvMediaCommandRevision > 0
+                                  ? true
+                                  : null,
+                              playbackRevision: game.tvMediaRevision,
+                              commandRevision: game.tvMediaCommandRevision,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (next != null)
+                FilledButton.icon(
+                  key: const ValueKey('show-hint'),
+                  onPressed: game.mayChangeHints && onShow != null
+                      ? () => onShow!(
+                          ShowHintEvent(
+                            questionId: question.id,
+                            shownHints: shown,
+                          ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.lightbulb_outline),
+                  label: Text(
+                    context.tr('{0} zeigen', [hintTitle(context, game, shown)]),
+                  ),
+                ),
+              if (shown > 0)
+                OutlinedButton.icon(
+                  key: const ValueKey('take-back-hint'),
+                  onPressed: game.mayTakeBackHint && onTakeBack != null
+                      ? () => onTakeBack!(
+                          TakeBackHintEvent(
+                            questionId: question.id,
+                            shownHints: shown,
+                          ),
+                        )
+                      : null,
+                  icon: const Icon(Icons.undo),
+                  label: Text(context.tr('Letzten Tipp zurücknehmen')),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The stored solution of the question on stage.

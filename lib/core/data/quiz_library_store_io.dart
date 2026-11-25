@@ -7,15 +7,6 @@ import 'package:path/path.dart' as p;
 
 import 'quiz_repository.dart';
 
-/// Reads or clears the library document of an older storage location.
-abstract interface class LegacyQuizLibrarySource {
-  /// The previously persisted document, or `null` when there is none.
-  Future<String?> read();
-
-  /// Forgets the old document once the file holds the library.
-  Future<void> clear();
-}
-
 /// Persists the library document as a file in [directory].
 ///
 /// Platform key/value stores are unsuitable for libraries with embedded

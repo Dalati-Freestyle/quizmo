@@ -73,6 +73,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * **Everything that hangs on a question belongs on `Question`, not on a format.** Future attachments such as audio, video or images (question *and* solution side) are fields of the `Question` base class, are serialized in `Question.toJson` / `baseJson` and must be redacted in `Question.redacted()` until the reveal. Because they sit on the question, every format gets them for free; do not add per-format media fields.
 * **Formats only override what is format specific.** On a board the points come from the *row* (or the Daily Double wager) and replace the question's own `ScoringRule` (`QuizEngineBloc._ruleFor`); everything else (time limit, solution, buzzer fairness, clock sync) stays the question's business.
 * A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
+* Bulk editing (`QuestionBulkEdit`, editor → "Fragen gemeinsam bearbeiten") only touches the framing of a question (time limit, soft/hard, category, scoring, media details, kind specific options), never its text, answers or solution. A new kind decides in the exhaustive switch of `QuestionBulkEdit.apply` which kind specific options it takes.
 
 ### Adding a New Quiz Format
 1. Add a case to the sealed `QuizFormat` (plus its `fromJson` tag) and increase the quiz `schemaVersion`. A file without a `format` entry stays a standard quiz when imported by the corresponding older-schema importer.
@@ -195,7 +196,47 @@ the release pipeline does this automatically.
 * `PokerFormat` stores configurable starting chips per team. Each question starts with a betting phase; the host explicitly closes betting before answers and resets the answer clock then.
 * Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.
 * Quiz templates may have no predefined teams. Teams created during joining receive the configured starting chips.
+* Since quiz schema 12 `PokerFormat` has an optional `minStake` (default 0 = sitting out allowed) and `maxStake` (`null` = no limit), copied into `PokerState`. `PokerState.allowsStake` is the only range check (engine and player view); a team with fewer chips than `minStake` must go all-in. Closing the betting raises every lower or missing stake of a team with chips to the minimum.
 * All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+
+### Jokers
+* A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means
+  none. `Joker` is a sealed hierarchy in `lib/core/models/joker.dart`; every kind states the formats it can be
+  played in (`Joker.isSupportedBy`), `Quiz.validationErrors()` rejects the others and the editor only offers
+  supported kinds (`kJokerTemplates` in `joker_texts.dart`). Format code never names concrete joker kinds.
+* Live bookkeeping is `GameState.jokers` (`JokerState`: uses per team, plays of the question on stage). It is
+  public in guest snapshots. A team takes part in one joker per question at most (as player or target).
+* Players play jokers with `UseJokerMessage` → `UseJokerEvent`; the host may play or take back
+  (`RevokeJokerEvent`) on behalf of a team. A cancelled question returns its jokers and their price.
+* Poker jokers (played while betting): `CreditJoker` ("Kredit", a miss only costs `maxLoss`) and
+  `ForcedStakeJoker` ("50/50 Chance": forces `stake` on another team, locked; a miss costs `lossFactor` × the
+  stake; the attacker pays `cost`). Settlement goes through `pokerSettlement` in `scoring_rules.dart`.
+* Category phase: with a joker that has `beforeReveal`, every poker question starts with
+  `PokerState.questionHidden` (guest snapshots carry no question, only `PokerState.category`). Order:
+  category → `beforeReveal` jokers → `RevealPokerQuestionEvent` → other jokers and stakes → answers. Player
+  (`PokerCategoryView`) and TV (`TvCategoryStage`) show this phase separately. Players address the round by
+  `roundStartedAt`, never by a question id they cannot know yet.
+
+### Hints
+* `Question.hints` (`QuestionHint`, schema 13: text, media, `cost` in points) belong to every question kind and
+  format. The host shows them in order (`ShowHintEvent`) and may take back the last one (`TakeBackHintEvent`)
+  while the round is open or locked, never during poker betting. `RoundState.hintTimesMicros` holds the host
+  instants; its length is the number of shown hints.
+* Scoring: `applyHintDeduction` lowers only positive points, never below 0, by `RoundState.hintDeductionAt` of the
+  answer's (buzzer press') host timestamp. Penalties stay with the `ScoringRule`. Poker ignores the cost
+  (`GameState.hintsCostPoints`). A steal round keeps the shown hints.
+* Guests receive the number and cost of all hints, but text and media only of the shown ones
+  (`Question.forWire(visibleHints:)`); `serveMedia` serves only media of shown hints.
+* Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
+  `uniquenessKey`.
+
+### Interstitial slides
+* `Quiz.slides` (`InfoSlide`, schema 12): unscored screens with title, text and media, placed before a
+  question (`beforeQuestionId`, `null` = at the end). They are not questions and never enter the question
+  bank, scoring, reports or format rules.
+* `GameState.slides` is host-only (stripped like the question bank); `GameState.activeSlide` is public
+  (`forWire`) and its media are served like question media. `ShowSlideEvent` works only between questions,
+  starting a question hides the slide. TV and player render `InfoSlideView` while `GameState.showsSlide`.
 
 ### Biggest Snowflake format
 * `SnowflakeFormat` (quiz schema 10) stores **no solutions**: the rarest answer of a round wins. `scoring` is `winnerOnly` (only the rarest answer scores) or `graded` (the share falls linearly with every step of more common answers; the most common one earns nothing). The shares come from `snowflakeShares` in `scoring_rules.dart`: equally rare answers share a step, and when at least two participants answer and all agree nobody scores.

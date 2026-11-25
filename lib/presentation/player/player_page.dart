@@ -15,6 +15,11 @@ import '../../core/net/quiz_client.dart';
 import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
+import '../common/hint_views.dart';
+import '../common/info_slide_view.dart';
+import '../common/joker_play_form.dart';
+import 'poker_category_view.dart';
+import '../common/joker_texts.dart';
 import '../common/adaptive_layout.dart';
 import '../common/quizmo_logo.dart';
 import '../common/jeopardy_board_view.dart';
@@ -411,6 +416,13 @@ class _GameBoard extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = state.game;
     final isWide = formFactorOf(context).isWide;
+    final timed =
+        game != null &&
+        remainingAnswerTime(
+              game,
+              context.read<PlayerSessionCubit>().hostNowMicros(),
+            ) !=
+            null;
 
     final stage = LayoutBuilder(
       builder: (context, constraints) => Padding(
@@ -422,23 +434,31 @@ class _GameBoard extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (game != null)
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: RoundCountdown(
-                        game: game,
-                        hostNowMicros: context
-                            .read<PlayerSessionCubit>()
-                            .hostNowMicros,
-                      ),
+            // The countdown floats above the question: on a phone the answers
+            // often need scrolling, and the clock must stay in sight.
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: timed ? RoundCountdown.floatingHeight : 0,
                     ),
-                  _QuestionStage(state: state),
-                ],
-              ),
+                    child: _QuestionStage(state: state),
+                  ),
+                ),
+                if (game != null)
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: RoundCountdown(
+                      game: game,
+                      floating: true,
+                      hostNowMicros: context
+                          .read<PlayerSessionCubit>()
+                          .hostNowMicros,
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -595,6 +615,22 @@ class _QuestionStage extends StatelessWidget {
       return Text(
         context.tr('Frage abgeschlossen. Die Auflösung folgt am Quizende.'),
         style: theme.textTheme.titleLarge,
+      );
+    }
+
+    if (state.game case final game? when game.showsSlide) {
+      return InfoSlideView(
+        key: ValueKey('slide-${game.activeSlide!.id}'),
+        slide: game.activeSlide!,
+        baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
+        playing: false,
+      );
+    }
+
+    if (state.game?.poker case final poker? when poker.questionHidden) {
+      return PokerCategoryView(
+        key: ValueKey('category-${state.game?.round.startedAtHostMicros}'),
+        state: state,
       );
     }
 
@@ -801,6 +837,13 @@ class _QuestionStage extends StatelessWidget {
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)
           AwaitingHostCard(state: state),
+        // Below the answers: a new hint must not move them under a finger.
+        if (state.game case final game?)
+          PlayerHintsView(
+            key: ValueKey('hints-${question.id}'),
+            game: game,
+            baseUri: cubit.mediaBaseUri,
+          ),
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
@@ -817,7 +860,9 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.media,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true
+            playing:
+                state.game?.tvMediaPaused == true ||
+                    latestHintPlays(state.game?.round ?? RoundState.idle)
                 ? false
                 : (state.game?.tvMediaCommandRevision ?? 0) > 0
                 ? true
@@ -875,6 +920,8 @@ class _QuestionStage extends StatelessWidget {
                 color: theme.colorScheme.error,
               ),
             ),
+          for (final line in jokerPlayLines(context, state.game!))
+            Text(line, style: theme.textTheme.titleSmall),
           if (!state.mayAnswerPoker && state.roundStatus.acceptsInput)
             Text(
               context.tr("Dein Team setzt aus oder wurde bereits gewertet."),
@@ -1151,11 +1198,14 @@ class _PokerWagerViewState extends State<PokerWagerView> {
     final game = state.game!;
     final poker = game.poker!;
     final team = state.me?.teamId;
-    final available = (poker.chips[team] ?? 0) + (poker.wagers[team] ?? 0);
+    final available = poker.availableFor(team);
     return (poker.wagers[team] ??
             (poker.startingChips ~/
                 (game.totalQuestionCount > 0 ? game.totalQuestionCount : 1)))
-        .clamp(0, available);
+        .clamp(
+          poker.lowestStakeFor(available),
+          poker.highestStakeFor(available),
+        );
   }
 
   @override
@@ -1167,6 +1217,8 @@ class _PokerWagerViewState extends State<PokerWagerView> {
     if (oldPoker?.chips[team] != poker?.chips[team] ||
         oldPoker?.wagers[team] != poker?.wagers[team] ||
         oldPoker?.startingChips != poker?.startingChips ||
+        oldPoker?.minStake != poker?.minStake ||
+        oldPoker?.maxStake != poker?.maxStake ||
         oldWidget.state.game?.totalQuestionCount !=
             widget.state.game?.totalQuestionCount ||
         oldWidget.state.me?.teamId != team) {
@@ -1185,7 +1237,9 @@ class _PokerWagerViewState extends State<PokerWagerView> {
     final state = widget.state;
     final poker = state.game!.poker!;
     final team = state.me?.teamId;
-    final chips = (poker.chips[team] ?? 0) + (poker.wagers[team] ?? 0);
+    final chips = poker.availableFor(team);
+    final lowest = poker.lowestStakeFor(chips);
+    final highest = poker.highestStakeFor(chips);
     final wager = poker.wagers[team];
     final value = int.tryParse(_controller.text);
     return Column(
@@ -1195,6 +1249,18 @@ class _PokerWagerViewState extends State<PokerWagerView> {
         const SizedBox(height: 16),
         if (team == null)
           Text(context.tr("Der Quizmaster muss dich einem Team zuweisen."))
+        else if (state.game!.jokers?.playAimedAt(team) case final attack?)
+          Text(
+            context.tr(
+              "Euer Team wurde von {0} angegriffen: Zwangseinsatz {1} Chips. Der Einsatz kann nicht mehr geändert werden.",
+              [
+                state.game!.teams[attack.teamId]?.name ?? attack.teamId,
+                wager ?? 0,
+              ],
+            ),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: Theme.of(context).colorScheme.error),
+          )
         else if (chips == 0)
           Text(
             context.tr(
@@ -1206,9 +1272,13 @@ class _PokerWagerViewState extends State<PokerWagerView> {
             controller: _controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: context.tr("Einsatz (0–{0})", [chips]),
+              labelText: lowest == 0 && highest == chips
+                  ? context.tr("Einsatz (0–{0})", [chips])
+                  : context.tr("Einsatz ({0}–{1})", [lowest, highest]),
               helperText: context.tr(
-                "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen.",
+                lowest == 0
+                    ? "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. 0 = aussetzen."
+                    : "Richtig: doppelte Auszahlung. Falsch: Einsatz verloren. Aussetzen ist nicht möglich: Ohne Einsatz gilt der Mindesteinsatz.",
               ),
               helperMaxLines: 4,
             ),
@@ -1216,7 +1286,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: value != null && value >= 0 && value <= chips
+            onPressed: value != null && poker.allowsStake(value, chips)
                 ? () => widget.onWager(value)
                 : null,
             child: Text(
@@ -1226,17 +1296,32 @@ class _PokerWagerViewState extends State<PokerWagerView> {
             ),
           ),
           TextButton(
-            onPressed: () => widget.onWager(chips),
-            child: const Text('All-in'),
+            onPressed: () => widget.onWager(highest),
+            child: Text(
+              highest == chips ? 'All-in' : context.tr("Höchsteinsatz"),
+            ),
           ),
         ],
-        if (wager != null)
+        if (wager != null &&
+            (team == null || state.game!.jokers?.playAimedAt(team) == null))
           Text(
             context.tr(
               "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.",
               [wager],
             ),
           ),
+        if (state.game!.jokers != null && team != null) ...[
+          const SizedBox(height: 16),
+          for (final line in jokerPlayLines(context, state.game!))
+            Text(line, style: Theme.of(context).textTheme.titleSmall),
+          JokerPlayForm(
+            game: state.game!,
+            teamId: team,
+            onUse: (jokerId, _, target) => context
+                .read<PlayerSessionCubit>()
+                .useJoker(jokerId, targetTeamId: target),
+          ),
+        ],
         const SizedBox(height: 16),
         Text(
           state.question!.prompt,

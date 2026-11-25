@@ -38,6 +38,10 @@ const List<Question> sampleQuestionBank = [
     scoringRule: SpeedBonusRule(basePoints: 10, maxSpeedBonus: 10),
     timeLimit: Duration(seconds: 25),
     adminNotes: 'Einfachauswahl mit Zeitbonus. Richtige Antwort: Canberra.',
+    hints: [
+      QuestionHint(text: 'Es ist nicht die größte Stadt des Landes.'),
+      QuestionHint(text: 'Sie liegt im Landesinneren.', cost: 3),
+    ],
     solutionMedia: [
       GeoAttachment(
         latitude: -35.2809,

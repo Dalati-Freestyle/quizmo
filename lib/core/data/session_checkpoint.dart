@@ -327,6 +327,12 @@ final class SessionCheckpoint {
         'round clock.',
       );
       require(
+        round.hintTimesMicros.length <= (q?.hints.length ?? 0) &&
+            (archived ||
+                round.hintTimesMicros.every((t) => t <= game.hostTimeMicros)),
+        'shown hints.',
+      );
+      require(
         (round.timerRestartedAtHostMicros == null ||
                 round.timerRestartedAtHostMicros! <= game.hostTimeMicros) &&
             round.acceptedElapsedMicros.values.every((v) => v >= 0),
@@ -571,11 +577,13 @@ final class SessionCheckpoint {
             'pending Jeopardy cell.',
           );
         }
-      case PokerFormat(:final startingChips):
+      case PokerFormat(:final startingChips, :final minStake, :final maxStake):
         final poker = game.poker;
         require(
           poker != null &&
               poker.startingChips == startingChips &&
+              poker.minStake == minStake &&
+              poker.maxStake == maxStake &&
               game.jeopardy == null &&
               game.mode is TeamMode,
           'poker configuration.',
@@ -592,6 +600,28 @@ final class SessionCheckpoint {
           );
         }
     }
+    final jokers = game.jokers;
+    require(
+      quiz.jokers.isEmpty
+          ? jokers == null
+          : jokers != null &&
+                jokers.jokers.length == quiz.jokers.length &&
+                jokers.jokers.indexed.every(
+                  (entry) => entry.$2 == quiz.jokers[entry.$1],
+                ) &&
+                jokers.used.keys.every(game.teams.containsKey) &&
+                jokers.plays.every(
+                  (play) => play.teamIds.every(game.teams.containsKey),
+                ),
+      'joker configuration.',
+    );
+    require(
+      game.slides.length == quiz.slides.length &&
+          game.slides.indexed.every(
+            (entry) => entry.$2 == quiz.slides[entry.$1],
+          ),
+      'interstitial slides.',
+    );
   }
 
   GameState pausedGame() => game.copyWith(

@@ -42,6 +42,11 @@ sealed class ClientMessage extends Equatable {
           questionId: json.readString('questionId'),
           wager: json.readInt('wager'),
         ),
+        UseJokerMessage._type => UseJokerMessage(
+          roundStartedAt: json.readInt('roundStartedAt'),
+          jokerId: json.readString('jokerId'),
+          targetTeamId: json.readStringOrNull('targetTeamId'),
+        ),
         LeaveNotice._type => const LeaveNotice(),
         DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
         final unknown => throw JsonContractException(
@@ -569,6 +574,34 @@ final class PokerWagerMessage extends ClientMessage {
   };
   @override
   List<Object?> get props => [questionId, wager];
+}
+
+/// A player plays a joker for their team in the question on stage.
+final class UseJokerMessage extends ClientMessage {
+  const UseJokerMessage({
+    required this.roundStartedAt,
+    required this.jokerId,
+    this.targetTeamId,
+  });
+
+  static const String _type = 'useJoker';
+
+  /// Start of the round on stage; guests do not know the question during
+  /// the category phase.
+  final int roundStartedAt;
+  final String jokerId;
+  final String? targetTeamId;
+
+  @override
+  JsonMap toJson() => {
+    'type': _type,
+    'roundStartedAt': roundStartedAt,
+    'jokerId': jokerId,
+    if (targetTeamId != null) 'targetTeamId': targetTeamId,
+  };
+
+  @override
+  List<Object?> get props => [roundStartedAt, jokerId, targetTeamId];
 }
 
 final class JeopardyPickMessage extends ClientMessage {
