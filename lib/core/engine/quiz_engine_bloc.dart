@@ -57,6 +57,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     this.buzzerGraceWindow = const Duration(milliseconds: 350),
     this.autoContinueBuzzer = true,
     this.answerCountdown = Duration.zero,
+    this.draftGrace = Duration.zero,
     NowMicros now = systemNowMicros,
     Timer Function(Duration, void Function()) createTimer = Timer.new,
     GameState? restoredGame,
@@ -183,6 +184,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<NextQuestionEvent>(_onNextQuestion);
     on<SubmitAnswerEvent>(_onSubmitAnswer);
     on<EndAnswerCountdownEvent>(_onEndAnswerCountdown);
+    on<UpdateDraftEvent>(_onUpdateDraft);
+    on<AdoptDraftsEvent>(_onAdoptDrafts);
     on<BuzzerPressEvent>(_onBuzzerPress);
     on<LockBuzzerEvent>(_onLockBuzzer);
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
@@ -354,32 +357,229 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         _onLockBuzzer(const LockBuzzerEvent(), emit);
         return;
       }
-      final locked = game.copyWith(
-        round: round.copyWith(status: RoundStatus.locked),
-      );
-      // On a board, running out of time is a miss of the picking team: the
-      // other teams may steal right away, as after a wrong answer. Answers
-      // that still need the host's verdict keep the round locked.
-      if (locked.jeopardy?.isStealRound == false &&
-          locked.round.pendingGradeCount == 0) {
-        final scored = _scoreRound(locked, round.question!);
-        if (_canOpenSteal(scored)) {
-          emit(
-            _publish(
-              _openStealRound(scored),
-              notice: 'Zeit abgelaufen. Die anderen Teams dürfen stehlen.',
-            ),
-          );
-          return;
-        }
-      }
-      emit(
-        _publish(
-          locked,
-          notice: 'Zeit abgelaufen. Antworten sind geschlossen.',
-        ),
-      );
+      final end =
+          round.timerStartedAtHostMicros! +
+          round.question!.timeLimit.inMicroseconds;
+      if (_waitsForDrafts(game, end, event, emit)) return;
+      _expire(_settleDrafts(game, end), emit);
     });
+  }
+
+  /// Closes the answers of a round whose time is up.
+  void _expire(GameState game, Emitter<QuizEngineState> emit) {
+    final round = game.round;
+    final locked = game.copyWith(
+      round: round.copyWith(status: RoundStatus.locked),
+    );
+    // On a board, running out of time is a miss of the picking team: the
+    // other teams may steal right away, as after a wrong answer. Answers
+    // that still need the host's verdict keep the round locked.
+    if (locked.jeopardy?.isStealRound == false &&
+        locked.round.pendingGradeCount == 0) {
+      final scored = _scoreRound(locked, round.question!);
+      if (_canOpenSteal(scored)) {
+        emit(
+          _publish(
+            _openStealRound(scored),
+            notice: 'Zeit abgelaufen. Die anderen Teams dürfen stehlen.',
+          ),
+        );
+        return;
+      }
+    }
+    emit(
+      _publish(locked, notice: 'Zeit abgelaufen. Antworten sind geschlossen.'),
+    );
+  }
+
+  void _onUpdateDraft(UpdateDraftEvent event, Emitter<QuizEngineState> emit) {
+    final draft = event.draft;
+    final game = state.game;
+    final round = game.round;
+    final question = round.question;
+    if (question == null ||
+        !question.supportsDrafts ||
+        !_belongsToRound(draft, round) ||
+        (game.poker?.betting ?? false) ||
+        _rejectParticipant(round, draft.playerId) != null) {
+      return;
+    }
+    final wait = _draftWait;
+    final end = wait != null
+        ? wait.endMicros
+        : question.hasTimeLimit && !round.hasSoftTimer
+        ? round.timerStartedAtHostMicros! + question.timeLimit.inMicroseconds
+        : null;
+    final time = draft.hostTimestampMicros;
+    if ((wait == null && !round.status.acceptsInput) ||
+        (wait == null && end != null && _now() >= end) ||
+        (end != null && time >= end) ||
+        time < round.startedAtHostMicros! ||
+        // A clock that runs ahead must not push a draft behind the others.
+        time > _now() + 250000) {
+      return;
+    }
+    final previous = draftOf(draft.playerId);
+    if (previous != null && previous.hostTimestampMicros > time) return;
+    final content = draft.content;
+    if (content != null && !_draftCounts(game, content)) return;
+    _drafts[draft.playerId] = draft;
+    _draftChanges.add(draft.playerId);
+  }
+
+  /// Whether [content] would count if the answers closed now.
+  bool _draftCounts(GameState game, AnswerSubmission content) =>
+      content.questionId == game.round.question?.id &&
+      // Biggest Snowflake compares complete answers only.
+      (game.round.snowflake != null
+          ? game.round.question!.supportsDrafts &&
+                game.round.question!.accepts(content)
+          : game.round.question!.acceptsDraft(content));
+
+  /// Whether somebody who may answer did not, so that a draft could count.
+  bool _draftsMayCount(GameState game) {
+    final round = game.round;
+    if (!round.status.acceptsInput ||
+        !(round.question?.supportsDrafts ?? false) ||
+        (game.poker?.betting ?? false)) {
+      return false;
+    }
+    return game.players.values.any((player) {
+      if (_rejectParticipant(round, player.id) != null) return false;
+      final teamId = game.sharedAnswerTeamOf(player.id);
+      return teamId == null
+          ? !round.answers.containsKey(player.id)
+          : game.teamAnswerOf(teamId) == null;
+    });
+  }
+
+  /// Closes the answers at [endMicros] and, when drafts may count, waits a
+  /// moment for those under way. [resume] then goes on; returns whether it
+  /// was postponed.
+  bool _waitsForDrafts(
+    GameState game,
+    int endMicros,
+    QuizEngineEvent resume,
+    Emitter<QuizEngineState> emit,
+  ) {
+    if (draftGrace <= Duration.zero ||
+        _draftWait != null ||
+        !_draftsMayCount(game)) {
+      return false;
+    }
+    final round = game.round;
+    _draftWait = _DraftWait(
+      questionId: round.question!.id,
+      startedAt: round.startedAtHostMicros!,
+      endMicros: endMicros,
+      resume: resume,
+    );
+    emit(
+      _publish(
+        game.copyWith(round: round.copyWith(status: RoundStatus.locked)),
+      ),
+    );
+    final event = AdoptDraftsEvent(
+      round.question!.id,
+      round.startedAtHostMicros!,
+    );
+    _draftTimer = _createTimer(draftGrace, () {
+      if (!isClosed) add(event);
+    });
+    return true;
+  }
+
+  /// Takes over the drafts of a round that closed at [endMicros], or earlier
+  /// when it was waiting for drafts.
+  GameState _settleDrafts(GameState game, int endMicros) {
+    final wait = _draftWait;
+    _draftTimer?.cancel();
+    _draftWait = null;
+    if (wait != null) return _withAdoptedDrafts(game, wait.endMicros);
+    return _draftsMayCount(game) ? _withAdoptedDrafts(game, endMicros) : game;
+  }
+
+  void _onAdoptDrafts(AdoptDraftsEvent event, Emitter<QuizEngineState> emit) {
+    final wait = _draftWait;
+    final round = state.game.round;
+    if (wait == null ||
+        wait.questionId != event.questionId ||
+        wait.startedAt != event.startedAt ||
+        round.question?.id != wait.questionId ||
+        round.startedAtHostMicros != wait.startedAt) {
+      return;
+    }
+    final game = _settleDrafts(state.game, wait.endMicros);
+    switch (wait.resume) {
+      case ExpireRoundEvent():
+        _expire(game, emit);
+      case EndRoundEvent():
+        _endRound(game, emit);
+      default:
+        _revealRound(game, emit);
+    }
+  }
+
+  /// Counts the last draft of every team (or player) without a sent answer,
+  /// as if it had been given exactly when the answers closed.
+  GameState _withAdoptedDrafts(GameState game, int endMicros) {
+    final round = game.round;
+    final question = round.question!;
+    final best = <String, AnswerDraft>{};
+    for (final draft in _drafts.values) {
+      final content = draft.content;
+      final player = game.players[draft.playerId];
+      if (content == null ||
+          player == null ||
+          !_belongsToRound(draft, round) ||
+          draft.hostTimestampMicros >= endMicros ||
+          !_draftCounts(game, content) ||
+          _rejectParticipant(round, player.id) != null) {
+        continue;
+      }
+      final teamId = game.sharedAnswerTeamOf(player.id);
+      if (teamId == null
+          ? round.answers.containsKey(player.id)
+          : game.teamAnswerOf(teamId) != null) {
+        continue;
+      }
+      final key = teamId == null ? 'player:${player.id}' : 'team:$teamId';
+      final previous = best[key];
+      if (previous == null ||
+          draft.hostTimestampMicros > previous.hostTimestampMicros ||
+          (draft.hostTimestampMicros == previous.hostTimestampMicros &&
+              draft.playerId.compareTo(previous.playerId) > 0)) {
+        best[key] = draft;
+      }
+    }
+    if (best.isEmpty) return game;
+    final elapsed = round.timerElapsedAt(endMicros).inMicroseconds;
+    final limit = question.timeLimit.inMicroseconds;
+    return game.copyWith(
+      round: round.copyWith(
+        answers: {
+          ...round.answers,
+          for (final draft in best.values)
+            draft.playerId: AnswerSubmission.fromJson({
+              ...draft.content!.toJson(),
+              'playerId': draft.playerId,
+              'clientTimestampMicros': endMicros,
+              'clockOffsetMicros': 0,
+              'hostTimestampMicros': endMicros,
+            }),
+        },
+        // Without a time bonus.
+        acceptedElapsedMicros: {
+          ...round.acceptedElapsedMicros,
+          for (final draft in best.values)
+            draft.playerId: elapsed < limit ? limit : elapsed,
+        },
+        adoptedPlayerIds: {
+          ...round.adoptedPlayerIds,
+          for (final draft in best.values) draft.playerId,
+        },
+      ),
+    );
   }
 
   /// How long the engine waits for in-flight presses before locking the buzzer.
@@ -400,6 +600,36 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   final Duration answerCountdown;
 
   Timer? _countdownTimer;
+
+  /// Grace in a hosted or previewed game, see [draftGrace].
+  static const defaultDraftGrace = Duration(milliseconds: 500);
+
+  /// How long the host waits for drafts that were under way when the answers
+  /// closed; only drafts from before that instant count. Zero: no wait.
+  final Duration draftGrace;
+
+  /// The last draft of every player in the running round.
+  final Map<String, AnswerDraft> _drafts = {};
+
+  /// Set while the host waits for drafts of a closed round.
+  _DraftWait? _draftWait;
+  Timer? _draftTimer;
+  final StreamController<String> _draftChanges = StreamController.broadcast(
+    sync: true,
+  );
+
+  /// Players whose draft changed.
+  Stream<String> get draftChanges => _draftChanges.stream;
+
+  /// The current draft of [playerId] in the running round.
+  AnswerDraft? draftOf(String playerId) => switch (_drafts[playerId]) {
+    final draft? when _belongsToRound(draft, state.game.round) => draft,
+    _ => null,
+  };
+
+  static bool _belongsToRound(AnswerDraft draft, RoundState round) =>
+      draft.questionId == round.question?.id &&
+      draft.roundStartedAt == round.startedAtHostMicros;
   final String? recoverySessionId;
   final Map<String, String> resumeTokenHashes;
   final SessionAccess access;
@@ -511,6 +741,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     _graceTimer?.cancel();
     _roundTimer?.cancel();
     _countdownTimer?.cancel();
+    _draftTimer?.cancel();
+    unawaited(_draftChanges.close());
     unawaited(access.close());
     return super.close();
   }
@@ -720,6 +952,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
     _graceTimer?.cancel();
+    if (_waitsForDrafts(game, _now(), event, emit)) return;
+    _endRound(_settleDrafts(game, _now()), emit);
+  }
+
+  void _endRound(GameState game, Emitter<QuizEngineState> emit) {
+    final question = game.round.question!;
     if (_awaitManualGrades(game, emit)) return;
     final scored = question is BuzzerQuestion
         ? game
@@ -2027,6 +2265,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         (game.poker?.betting ?? false)) {
       return;
     }
+    if (_waitsForDrafts(game, _now(), event, emit)) return;
+    _revealRound(_settleDrafts(game, _now()), emit);
+  }
+
+  void _revealRound(GameState game, Emitter<QuizEngineState> emit) {
+    final question = game.round.question!;
     if (_awaitManualGrades(game, emit)) return;
 
     final scored = _scoreRound(game, question);
@@ -2465,6 +2709,14 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     _roundTimer?.cancel();
     _countdownTimer?.cancel();
     final round = game.round;
+    if (_draftWait case final wait?
+        when wait.questionId != round.question?.id ||
+            wait.startedAt != round.startedAtHostMicros ||
+            round.status == RoundStatus.revealed) {
+      _draftTimer?.cancel();
+      _draftWait = null;
+    }
+    _drafts.removeWhere((_, draft) => !_belongsToRound(draft, round));
     if (round.answerDeadlineMicros case final deadline?
         when !game.recoveryPaused) {
       final remaining = deadline - _now();
@@ -2693,6 +2945,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     if (state.game.players[playerId]?.isConnected != true) {
       return 'Unknown or disconnected player.';
     }
+    return _rejectParticipant(round, playerId);
+  }
+
+  /// Why [playerId] may not answer the question on stage in this format.
+  String? _rejectParticipant(RoundState round, String playerId) {
     if (state.game.poker case final poker?) {
       final teamId = state.game.players[playerId]?.teamId;
       if (poker.betting) return 'Die Einsatzphase läuft noch.';
@@ -2748,7 +3005,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return result;
     }
     final submissions = round.answers.values.toList(growable: false)
-      ..sort((a, b) => a.hostTimestampMicros.compareTo(b.hostTimestampMicros));
+      ..sort(compareAnswerOrder);
 
     var scores = game.scores;
     var correctRank = 0;
@@ -3082,4 +3339,23 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       if (!isClosed) add(const LockBuzzerEvent());
     });
   }
+}
+
+/// The answers are closed, drafts under way may still arrive.
+final class _DraftWait {
+  const _DraftWait({
+    required this.questionId,
+    required this.startedAt,
+    required this.endMicros,
+    required this.resume,
+  });
+
+  final String questionId;
+  final int startedAt;
+
+  /// Only drafts from before this host instant count.
+  final int endMicros;
+
+  /// What closed the answers and goes on after the wait.
+  final QuizEngineEvent resume;
 }

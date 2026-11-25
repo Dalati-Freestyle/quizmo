@@ -25,6 +25,7 @@ final class PreviewSession {
       mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
       autoContinueBuzzer: false,
       answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
+      draftGrace: QuizEngineBloc.defaultDraftGrace,
       revealMode: switch (quiz.format) {
         StandardFormat(:final revealMode) => revealMode,
         JeopardyFormat() ||

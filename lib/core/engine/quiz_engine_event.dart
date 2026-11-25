@@ -319,6 +319,23 @@ final class RevealRoundEvent extends QuizEngineEvent {
   const RevealRoundEvent();
 }
 
+/// A player changed their input without sending it.
+final class UpdateDraftEvent extends QuizEngineEvent {
+  const UpdateDraftEvent(this.draft);
+  final AnswerDraft draft;
+  @override
+  List<Object?> get props => [draft];
+}
+
+/// The wait for drafts that were under way when the answers closed is over.
+final class AdoptDraftsEvent extends QuizEngineEvent {
+  const AdoptDraftsEvent(this.questionId, this.startedAt);
+  final String questionId;
+  final int startedAt;
+  @override
+  List<Object?> get props => [questionId, startedAt];
+}
+
 /// Closes the answers after every team answered: sent by the countdown
 /// ([deadlineMicros] set) or by the host to skip it.
 final class EndAnswerCountdownEvent extends QuizEngineEvent {

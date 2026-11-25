@@ -180,6 +180,8 @@ class ProtocolView extends StatelessWidget {
                                 tr(protocolStatusKey(answer.status)),
                                 if (answer.wager case final wager?)
                                   tr('Einsatz: {0}', [wager]),
+                                if (answer.adopted)
+                                  tr('beim Ablauf übernommen'),
                                 if (answer.practice) tr('Nur Übung'),
                               ].join(' · '),
                             ),

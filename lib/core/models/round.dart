@@ -61,6 +61,7 @@ final class RoundState extends Equatable {
     this.hintTimesMicros = const [],
     this.replacedAnswers = const [],
     this.answerDeadlineMicros,
+    this.adoptedPlayerIds = const {},
   });
 
   /// Restores a round from [json].
@@ -74,6 +75,9 @@ final class RoundState extends Equatable {
         ? const []
         : json.readList('replacedAnswers', AnswerSubmission.fromJson),
     answerDeadlineMicros: json.readIntOrNull('answerDeadlineMicros'),
+    adoptedPlayerIds: json['adoptedPlayerIds'] == null
+        ? const {}
+        : json.readStringList('adoptedPlayerIds').toSet(),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -178,6 +182,10 @@ final class RoundState extends Equatable {
   /// Host instant at which the answers close by themselves, because every team
   /// answered; until then teams may still replace their answer.
   final int? answerDeadlineMicros;
+
+  /// Players whose entry in [answers] was never sent: their input was taken
+  /// over when the answers closed.
+  final Set<String> adoptedPlayerIds;
 
   /// Everything that was submitted, including replaced answers.
   Iterable<AnswerSubmission> get allSubmissions =>
@@ -354,7 +362,9 @@ final class RoundState extends Equatable {
     List<int>? hintTimesMicros,
     List<AnswerSubmission>? replacedAnswers,
     Object? answerDeadlineMicros = _unset,
+    Set<String>? adoptedPlayerIds,
   }) => RoundState(
+    adoptedPlayerIds: adoptedPlayerIds ?? this.adoptedPlayerIds,
     replacedAnswers: replacedAnswers ?? this.replacedAnswers,
     answerDeadlineMicros: identical(answerDeadlineMicros, _unset)
         ? this.answerDeadlineMicros
@@ -416,6 +426,8 @@ final class RoundState extends Equatable {
       'replacedAnswers': [
         for (final answer in replacedAnswers) answer.toJson(),
       ],
+    if (adoptedPlayerIds.isNotEmpty)
+      'adoptedPlayerIds': adoptedPlayerIds.toList(growable: false),
     if (answerDeadlineMicros != null)
       'answerDeadlineMicros': answerDeadlineMicros,
   };
@@ -443,5 +455,6 @@ final class RoundState extends Equatable {
     hintTimesMicros,
     replacedAnswers,
     answerDeadlineMicros,
+    adoptedPlayerIds,
   ];
 }

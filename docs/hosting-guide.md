@@ -124,6 +124,7 @@ opening untrusted content in a spreadsheet.
 | `evaluated_answers`, `fully_correct_answers`, `hit_rate_ratio`, `mean_response_time_ms` | Counts, 0–1 hit rate, mean milliseconds; team question summaries aggregate actual submissions for that phase. |
 | `correction_id`, `reason`, `value_before`, `value_after`, `reverses_correction`, `score_delta` | Correction audit; before/after values are verdicts (0/1) for answer/buzzer corrections and points/chips for balance corrections; signed delta uses `score_unit`. |
 | `eliminated_at_question` | Poker team summaries: question a team went out at (`0`: unknown). Added with `report_version` 2. |
+| `adopted_at_close` | Answer rows: the input was never sent but taken over when the answers closed. Added with `report_version` 2. |
 
 `N/A` explicitly denotes unavailable or inapplicable values, never zero.
 Choice/ordering answers contain JSON arrays of option IDs and labels; matching

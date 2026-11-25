@@ -533,6 +533,7 @@ void main() {
       'reverses_correction',
       'score_delta',
       'eliminated_at_question',
+      'adopted_at_close',
     ]);
   });
 

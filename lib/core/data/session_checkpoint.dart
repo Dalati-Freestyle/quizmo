@@ -345,6 +345,8 @@ final class SessionCheckpoint {
               (archived || game.players.containsKey(e.key)) &&
               e.value.questionId == q?.id &&
               ((q?.accepts(e.value) ?? false) ||
+                  (round.adoptedPlayerIds.contains(e.key) &&
+                      (q?.acceptsDraft(e.value) ?? false)) ||
                   (e.value is VerbalAnswer && round.verbal)),
         ),
         'accepted answers.',
@@ -357,6 +359,10 @@ final class SessionCheckpoint {
               (q?.accepts(answer) ?? false),
         ),
         'replaced answers.',
+      );
+      require(
+        round.adoptedPlayerIds.every(round.answers.containsKey),
+        'adopted answers.',
       );
       require(
         round.buzzerQueue.every(

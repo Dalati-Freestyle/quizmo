@@ -64,6 +64,7 @@ class HostDashboardPage extends StatelessWidget {
             questionBank: quiz.questions,
             autoContinueBuzzer: false,
             answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
+            draftGrace: QuizEngineBloc.defaultDraftGrace,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
             revealMode: switch (quiz.format) {

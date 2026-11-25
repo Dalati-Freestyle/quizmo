@@ -449,6 +449,11 @@ class _WrittenAnswers extends StatelessWidget {
                         TextSpan(
                           text: answerLabel(answer, question, context: context),
                         ),
+                        if (round.adoptedPlayerIds.contains(answer.playerId))
+                          TextSpan(
+                            text: ' (${context.tr('beim Ablauf übernommen')})',
+                            style: const TextStyle(fontStyle: FontStyle.italic),
+                          ),
                       ],
                     ),
                     style: theme.textTheme.bodyMedium,

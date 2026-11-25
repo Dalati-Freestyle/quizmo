@@ -579,6 +579,7 @@ final class GameState extends Equatable {
               ),
         answers: publicAnswers,
         replacedAnswers: const [],
+        adoptedPlayerIds: hideAnswers ? const {} : round.adoptedPlayerIds,
         hiddenAnswerCount: round.answers.length - publicAnswers.length,
         acceptedElapsedMicros: hideAnswers
             ? const {}

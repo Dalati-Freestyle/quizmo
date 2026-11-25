@@ -36,8 +36,11 @@ final class ReportAnswer {
     required this.dailyDouble,
     required this.buzzer,
     required this.pointsAtStake,
+    this.adopted = false,
   });
 
+  /// Whether the answer was never sent but taken over when the answers closed.
+  final bool adopted;
   final int phase;
   final String questionId;
   final String question;
@@ -210,6 +213,7 @@ final class SessionReport {
             dailyDouble: record.isDailyDouble,
             buzzer: question is BuzzerQuestion,
             pointsAtStake: record.pointsAtStake,
+            adopted: round.adoptedPlayerIds.contains(player.id),
           ),
         );
       }
@@ -401,6 +405,7 @@ final class SessionReport {
     'reverses_correction',
     'score_delta',
     'eliminated_at_question',
+    'adopted_at_close',
   ];
 
   String toCsv() {
@@ -466,6 +471,7 @@ final class SessionReport {
         'points_at_stake': entry.pointsAtStake,
         'steal': entry.steal,
         'daily_double': entry.dailyDouble,
+        'adopted_at_close': entry.adopted,
       });
     }
     for (final phase in answers.map((a) => a.phase).toSet()) {

@@ -702,6 +702,17 @@ class _QuestionStage extends StatelessWidget {
           _ => const [],
         },
         onSubmitMultiple: cubit.chooseMultiple,
+        onChanged: (optionIds) => cubit.updateDraft(
+          optionIds.isEmpty
+              ? null
+              : (id, timestamp, offset) => MultipleChoiceAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  optionIds: optionIds,
+                ),
+        ),
         question: question,
         status: state.roundStatus,
         selectedOptionId: state.lastSubmittedOptionId,
@@ -715,6 +726,17 @@ class _QuestionStage extends StatelessWidget {
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value == null
+              ? null
+              : (id, timestamp, offset) => ShortAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  text: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => ShortAnswer(
             playerId: id,
@@ -733,6 +755,15 @@ class _QuestionStage extends StatelessWidget {
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          (id, timestamp, offset) => OrderingAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            itemIds: value,
+          ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => OrderingAnswer(
             playerId: id,
@@ -751,6 +782,17 @@ class _QuestionStage extends StatelessWidget {
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value.isEmpty
+              ? null
+              : (id, timestamp, offset) => MatchingAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  pairs: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => MatchingAnswer(
             playerId: id,
@@ -769,6 +811,17 @@ class _QuestionStage extends StatelessWidget {
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value == null
+              ? null
+              : (id, timestamp, offset) => EstimationAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  value: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => EstimationAnswer(
             playerId: id,
@@ -849,6 +902,7 @@ class _QuestionStage extends StatelessWidget {
             hostNowMicros: cubit.hostNowMicros,
           ),
         input,
+        AdoptedAnswerCard(state: state),
         TeamAnswerCard(state: state, onResend: cubit.resend),
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)

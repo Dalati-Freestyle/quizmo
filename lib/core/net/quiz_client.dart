@@ -379,6 +379,29 @@ class QuizClient {
     _send(SubmissionMessage(build(id, _now(), clock.clockOffsetMicros)));
   }
 
+  /// Reports input that is not sent yet; [content] builds it, `null` clears.
+  void sendDraft({
+    required String questionId,
+    required int roundStartedAt,
+    required int changedAtMicros,
+    AnswerSubmission? content,
+  }) {
+    final id = _playerId;
+    if (id == null) return;
+    _send(
+      DraftMessage(
+        AnswerDraft(
+          playerId: id,
+          questionId: questionId,
+          roundStartedAt: roundStartedAt,
+          clientTimestampMicros: changedAtMicros,
+          clockOffsetMicros: clock.clockOffsetMicros,
+          content: content,
+        ),
+      ),
+    );
+  }
+
   /// Closes the socket and stops the re-sync timer.
   Future<void> disconnect() async {
     _connectionGeneration++;

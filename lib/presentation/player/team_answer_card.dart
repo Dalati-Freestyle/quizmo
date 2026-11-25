@@ -96,3 +96,53 @@ class TeamAnswerCard extends StatelessWidget {
     );
   }
 }
+
+/// Tells that input which was never sent counts, because the answers closed.
+class AdoptedAnswerCard extends StatelessWidget {
+  const AdoptedAnswerCard({required this.state, super.key});
+
+  final PlayerSessionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final answers = state.answers;
+    final valid = answers?.valid;
+    if (answers == null || valid == null || !answers.isAdopted) {
+      return const SizedBox.shrink();
+    }
+    final mine = valid.playerId == state.playerId;
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      key: const ValueKey('adopted-answer'),
+      margin: const EdgeInsets.only(top: 16),
+      color: scheme.tertiaryContainer,
+      child: Semantics(
+        liveRegion: true,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.hourglass_bottom),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  mine
+                      ? context.tr(
+                          'Zeit abgelaufen: Deine Eingabe wurde übernommen.',
+                        )
+                      : context.tr(
+                          'Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.',
+                          [
+                            state.game?.players[valid.playerId]?.name ??
+                                valid.playerId,
+                          ],
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

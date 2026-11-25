@@ -214,6 +214,13 @@ the release pipeline does this automatically.
   travels as `PlayerAnswers` per connection (`GameSnapshotMessage.answers`), in the preview through
   `PlayerSessionCubit.local(answers:)`.
 
+### Drafts
+* Input that is not sent yet (`AnswerDraft`) is reported by the players (`DraftMessage`, at most every 300 ms) and kept
+  by the engine outside `GameState`, only the last one per player. When the answers close (expiry, end or reveal by the
+  host) the engine locks the round, waits `draftGrace` for drafts under way and counts the last draft of every team (or
+  player) without a sent answer, ordered and bounded by host timestamps, never by arrival
+  (`RoundState.adoptedPlayerIds`, no time bonus). Every new question kind states `supportsDrafts` / `acceptsDraft`.
+
 ### Jokers
 * A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means
   none. `Joker` is a sealed hierarchy in `lib/core/models/joker.dart`; every kind states the formats it can be

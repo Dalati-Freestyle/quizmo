@@ -40,6 +40,17 @@ final class _Connection {
   Timer? handshakeTimeout;
   Timer? identityRetry;
   int lastFrameAt = 0;
+  int _draftWindowStart = 0;
+  int _drafts = 0;
+
+  /// At most ten drafts per second; a player sends about three.
+  bool allowsDraft(int now) {
+    if (now - _draftWindowStart >= 1000000) {
+      _draftWindowStart = now;
+      _drafts = 0;
+    }
+    return ++_drafts <= 10;
+  }
 
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
@@ -675,6 +686,14 @@ class SocketHub {
             // Only the host records spoken answers; clients cannot send one.
             return;
         }
+
+      case DraftMessage(:final draft):
+        final playerId = connection.playerId;
+        if (playerId == null || connection.isSpectator) return;
+        // Never trust the client's self reported identity. Too many drafts
+        // are dropped; the client repeats its last state.
+        if (!connection.allowsDraft(_now())) return;
+        _engine.add(UpdateDraftEvent(draft.withPlayerId(playerId)));
 
       case JeopardyPickMessage(:final questionId):
         final id = connection.playerId;

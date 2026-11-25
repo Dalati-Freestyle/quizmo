@@ -15,6 +15,7 @@ final class PlayerAnswers extends Equatable {
     this.valid,
     this.team = const [],
     this.isFinal = false,
+    this.isAdopted = false,
   });
 
   factory PlayerAnswers.fromJson(JsonMap json) => PlayerAnswers(
@@ -30,6 +31,7 @@ final class PlayerAnswers extends Equatable {
         ? const []
         : json.readList('team', AnswerSubmission.fromJson),
     isFinal: json.readBool('isFinal', orElse: false),
+    isAdopted: json.readBool('isAdopted', orElse: false),
   );
 
   /// The last answer this player sent in the round.
@@ -45,15 +47,19 @@ final class PlayerAnswers extends Equatable {
   /// Whether the host judged [valid] already, so it cannot be replaced.
   final bool isFinal;
 
+  /// Whether [valid] was taken over from input that was never sent.
+  final bool isAdopted;
+
   JsonMap toJson() => {
     if (own != null) 'own': own!.toJson(),
     if (valid != null) 'valid': valid!.toJson(),
     if (team.isNotEmpty) 'team': [for (final answer in team) answer.toJson()],
     if (isFinal) 'isFinal': true,
+    if (isAdopted) 'isAdopted': true,
   };
 
   @override
-  List<Object?> get props => [own, valid, team, isFinal];
+  List<Object?> get props => [own, valid, team, isFinal, isAdopted];
 }
 
 /// The answers of the round on stage that [playerId] may see in [game], the
@@ -62,7 +68,13 @@ PlayerAnswers playerAnswersOf(GameState game, String playerId) {
   final round = game.round;
   final own = round.lastSubmissionOf(playerId);
   final teamId = game.sharedAnswerTeamOf(playerId);
-  if (teamId == null) return PlayerAnswers(own: own, valid: own);
+  if (teamId == null) {
+    return PlayerAnswers(
+      own: own,
+      valid: own,
+      isAdopted: round.adoptedPlayerIds.contains(playerId),
+    );
+  }
   final valid = game.teamAnswerOf(teamId);
   return PlayerAnswers(
     own: own,
@@ -72,5 +84,6 @@ PlayerAnswers playerAnswersOf(GameState game, String playerId) {
         if (member.teamId == teamId) ?round.lastSubmissionOf(member.id),
     ],
     isFinal: valid != null && round.answerVerdicts.containsKey(valid.playerId),
+    isAdopted: valid != null && round.adoptedPlayerIds.contains(valid.playerId),
   );
 }

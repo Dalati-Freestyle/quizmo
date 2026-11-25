@@ -30,6 +30,7 @@ sealed class ClientMessage extends Equatable {
         SyncPing._type => SyncPing.fromJson(json),
         ClockReport._type => ClockReport.fromJson(json),
         SubmissionMessage._type => SubmissionMessage.fromJson(json),
+        DraftMessage._type => DraftMessage.fromJson(json),
         WatchRequest._type => WatchRequest(
           joinCode: json.readStringOrNull('joinCode'),
         ),
@@ -209,6 +210,24 @@ final class SubmissionMessage extends ClientMessage {
 
   @override
   List<Object?> get props => [submission];
+}
+
+/// Reports input that is not sent yet, throttled by the client.
+final class DraftMessage extends ClientMessage {
+  const DraftMessage(this.draft);
+
+  factory DraftMessage.fromJson(JsonMap json) =>
+      DraftMessage(AnswerDraft.fromJson(json.readObject('payload')));
+
+  static const String _type = 'draft';
+
+  final AnswerDraft draft;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'payload': draft.toJson()};
+
+  @override
+  List<Object?> get props => [draft];
 }
 
 /// Registers the connection as a read-only spectator, for example a TV.

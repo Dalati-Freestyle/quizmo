@@ -121,6 +121,7 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
               status: _status(answer.status),
               wager: answer.wager,
               practice: answer.practice,
+              adopted: answer.adopted,
               points: poker
                   ? _chipChange(chipsByPhase, phase, answer.teamId)
                   : earnedIn(phase, question.id, answer.playerId),

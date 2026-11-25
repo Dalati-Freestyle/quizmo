@@ -445,7 +445,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         );
         return;
       }
-      if (status != QuizClientStatus.connected) _restoringSnapshot = true;
+      if (status != QuizClientStatus.connected) {
+        _restoringSnapshot = true;
+        // The host may have missed the last input: repeat it afterwards.
+        _draftPending = _draft != null;
+      }
       emit(
         state.copyWith(
           status:
@@ -700,6 +704,72 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     );
   }
 
+  /// How often changed input is reported at most.
+  static const draftInterval = Duration(milliseconds: 300);
+
+  /// The input of the running round that is not reported yet.
+  AnswerDraft? _draft;
+  bool _draftPending = false;
+  Timer? _draftTimer;
+
+  /// Reports changed input that is not sent; [build] is `null` when the input
+  /// was cleared. Throttled, the last state always follows.
+  void updateDraft(
+    AnswerSubmission Function(String playerId, int timestamp, int offset)?
+    build,
+  ) {
+    final question = state.question;
+    final startedAt = state.game?.round.startedAtHostMicros;
+    final id = state.playerId;
+    if (question == null ||
+        startedAt == null ||
+        id == null ||
+        !question.supportsDrafts ||
+        !state.roundStatus.acceptsInput) {
+      return;
+    }
+    final now = _localNow?.call() ?? systemNowMicros();
+    final offset = _localNow == null ? state.clockOffsetMicros : 0;
+    _draft = AnswerDraft(
+      playerId: id,
+      questionId: question.id,
+      roundStartedAt: startedAt,
+      clientTimestampMicros: now,
+      clockOffsetMicros: offset,
+      content: build?.call(id, now, offset),
+    );
+    _draftPending = true;
+    if (_draftTimer?.isActive ?? false) return;
+    _flushDraft();
+    _draftTimer = Timer(draftInterval, _flushDraft);
+  }
+
+  /// Reports the last input now; also after a reconnect and when time is up.
+  void _flushDraft() {
+    final draft = _draft;
+    if (isClosed || !_draftPending || draft == null || !state.isConnected) {
+      return;
+    }
+    if (_localSend case final send?) {
+      _draftPending = false;
+      send(UpdateDraftEvent(draft));
+      return;
+    }
+    // Hosts of older versions do not know drafts.
+    if (state.answers == null) return;
+    _draftPending = false;
+    try {
+      _client!.sendDraft(
+        questionId: draft.questionId,
+        roundStartedAt: draft.roundStartedAt,
+        changedAtMicros: draft.clientTimestampMicros,
+        content: draft.content,
+      );
+    } on StateError {
+      _draftPending = true;
+    }
+  }
+
   /// Sends the own last answer again after a team mate replaced it.
   void resend(AnswerSubmission answer) => submit(
     (id, timestamp, offset) => AnswerSubmission.fromJson({
@@ -873,7 +943,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         id != null &&
         game.round.buzzerQueue.any((press) => press.playerId == id);
     final hasBuzzed = stillQueued;
-    if (isNewRound) _pendingTimestamp = null;
+    if (isNewRound) {
+      _pendingTimestamp = null;
+      _draft = null;
+      _draftPending = false;
+    }
     final answer = answers?.own ?? game.round.answers[id];
     final pendingTimestamp = _pendingTimestamp;
     final confirmed = answers != null && answer != null
@@ -921,10 +995,13 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
             : SubmissionStatus.idle,
       ),
     );
+    // After a reconnect, and when the answers were just closed.
+    if (restored || !game.round.status.acceptsInput) _flushDraft();
   }
 
   Future<void> _teardown() async {
     _submissionTimer?.cancel();
+    _draftTimer?.cancel();
     _restoringSnapshot = true;
     _retryTimer?.cancel();
     _retryTimer = null;

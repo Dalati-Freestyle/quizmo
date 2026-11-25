@@ -125,6 +125,29 @@ void main() {
     expect(find.textContaining('Gültige Teamantwort: Bonn'), findsOneWidget);
     expect(player.state.submissionStatus, SubmissionStatus.accepted);
     expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets('input that was not sent counts when the answers close', (
+    tester,
+  ) async {
+    await open(tester, _text);
+    await tester.enterText(find.byType(TextField), 'Berlin');
+    await tester.pump(const Duration(milliseconds: 300));
+    await settle(tester);
+    session.send(const RevealRoundEvent());
+    await settle(tester);
+    expect(player.state.roundStatus, RoundStatus.locked);
+    await tester.runAsync(
+      () => session.advance(QuizEngineBloc.defaultDraftGrace),
+    );
+    await tester.pump();
+    expect(player.state.roundStatus, RoundStatus.revealed);
+    expect(
+      find.text('Zeit abgelaufen: Deine Eingabe wurde übernommen.'),
+      findsOneWidget,
+    );
+    expect(session.engine.state.game.teamScores['a'], greaterThan(0));
   });
 
   testWidgets('a press on the other option replaces the team answer', (

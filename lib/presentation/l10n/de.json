@@ -1422,5 +1422,8 @@
   "Die Spielleitung hat eure Antwort schon bewertet. Sie kann nicht mehr geändert werden.": "Die Spielleitung hat eure Antwort schon bewertet. Sie kann nicht mehr geändert werden.",
   "Meine Antwort wieder einsetzen": "Meine Antwort wieder einsetzen",
   "Frühere Antworten ({0})": "Frühere Antworten ({0})",
-  "Die Antwort des Teams wurde schon bewertet.": "Die Antwort des Teams wurde schon bewertet."
+  "Die Antwort des Teams wurde schon bewertet.": "Die Antwort des Teams wurde schon bewertet.",
+  "beim Ablauf übernommen": "beim Ablauf übernommen",
+  "Zeit abgelaufen: Deine Eingabe wurde übernommen.": "Zeit abgelaufen: Deine Eingabe wurde übernommen.",
+  "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen.": "Zeit abgelaufen: Die Eingabe von {0} wurde übernommen."
 }

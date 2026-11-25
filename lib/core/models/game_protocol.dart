@@ -113,6 +113,7 @@ final class ProtocolAnswer extends Equatable {
     this.points,
     this.wager,
     this.practice = false,
+    this.adopted = false,
   });
 
   /// Restores a row from [json].
@@ -128,6 +129,7 @@ final class ProtocolAnswer extends Equatable {
     points: json.readIntOrNull('points'),
     wager: json.readIntOrNull('wager'),
     practice: json.readBool('practice'),
+    adopted: json.readBool('adopted', orElse: false),
   );
 
   /// Player id.
@@ -155,6 +157,9 @@ final class ProtocolAnswer extends Equatable {
   /// Whether the team only played for practice (bankrupt poker team).
   final bool practice;
 
+  /// Whether the answer was never sent but taken over when the answers closed.
+  final bool adopted;
+
   /// Serializes the row.
   JsonMap toJson() => {
     'playerId': playerId,
@@ -165,6 +170,7 @@ final class ProtocolAnswer extends Equatable {
     'points': points,
     'wager': wager,
     'practice': practice,
+    if (adopted) 'adopted': true,
   };
 
   @override
@@ -177,6 +183,7 @@ final class ProtocolAnswer extends Equatable {
     points,
     wager,
     practice,
+    adopted,
   ];
 }
 

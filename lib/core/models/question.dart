@@ -86,6 +86,14 @@ sealed class Question extends Equatable {
   ];
 
   bool accepts(AnswerSubmission answer);
+
+  /// Whether input of this kind exists before it is sent and may count when
+  /// the answers close (`AnswerDraft`).
+  bool get supportsDrafts => false;
+
+  /// Whether [content] may be taken over as an answer that was not sent.
+  bool acceptsDraft(AnswerSubmission content) =>
+      supportsDrafts && accepts(content);
   double accuracy(AnswerSubmission answer);
 
   /// Whether written answers require an explicit host verdict before scoring.
@@ -253,6 +261,10 @@ final class MultipleChoiceQuestion extends Question {
   final List<String>? correctOptionIds;
   final bool allowMultipleAnswers;
   List<String> get solutionOptionIds => correctOptionIds ?? [?correctOptionId];
+
+  /// A single choice is sent with the press.
+  @override
+  bool get supportsDrafts => allowMultipleAnswers;
 
   @override
   bool get hasSolution => correctOptionIds != null || correctOptionId != null;
@@ -484,6 +496,9 @@ final class ShortAnswerQuestion extends Question {
 
   @override
   bool get requiresManualGrading => manualGrading;
+
+  @override
+  bool get supportsDrafts => true;
   factory ShortAnswerQuestion.fromJson(JsonMap json) => ShortAnswerQuestion(
     id: json.readString('id'),
     prompt: json.readString('prompt'),
@@ -605,6 +620,8 @@ final class OrderingQuestion extends Question {
   @override
   String get kindLabel => 'Reihenfolge';
   @override
+  bool get supportsDrafts => true;
+  @override
   bool accepts(AnswerSubmission answer) =>
       answer is OrderingAnswer &&
       isPermutation(answer.itemIds, items.map((i) => i.id).toList());
@@ -712,6 +729,17 @@ final class MatchingQuestion extends Question {
   bool get hasSolution => correctPairs != null;
   @override
   String get kindLabel => 'Zuordnung';
+  @override
+  bool get supportsDrafts => true;
+
+  /// The pairs so far count, also when some are still missing.
+  @override
+  bool acceptsDraft(AnswerSubmission content) =>
+      content is MatchingAnswer &&
+      content.pairs.isNotEmpty &&
+      content.pairs.values.toSet().length == content.pairs.length &&
+      content.pairs.keys.every((id) => leftItems.any((i) => i.id == id)) &&
+      content.pairs.values.every((id) => rightItems.any((i) => i.id == id));
   @override
   bool accepts(AnswerSubmission answer) =>
       answer is MatchingAnswer &&
@@ -862,6 +890,8 @@ final class EstimationQuestion extends Question {
   bool get hasSolution => correctValue != null;
   @override
   String get kindLabel => 'Schätzfrage';
+  @override
+  bool get supportsDrafts => true;
   @override
   bool accepts(AnswerSubmission answer) =>
       answer is EstimationAnswer && answer.value.isFinite;
