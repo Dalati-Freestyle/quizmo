@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models/answer.dart';
 import '../models/game_state.dart';
 import '../models/question.dart';
+import '../models/standings.dart';
 
 enum ReportAnswerStatus {
   correct,
@@ -67,6 +68,7 @@ final class ReportSummary {
     required this.meanElapsedMicros,
     required this.connected,
     required this.inRoster,
+    this.eliminatedAt,
   });
 
   final String id;
@@ -78,6 +80,9 @@ final class ReportSummary {
   final double? meanElapsedMicros;
   final bool connected;
   final bool inRoster;
+
+  /// Question a poker team went out at (0: unknown), `null` while it is in.
+  final int? eliminatedAt;
   double? get hitRate => evaluated == 0 ? null : correct / evaluated;
 }
 
@@ -265,6 +270,7 @@ final class SessionReport {
         meanElapsedMicros: metrics.meanElapsedMicros,
         connected: connected,
         inRoster: inRoster,
+        eliminatedAt: isTeam ? game.poker?.eliminations[id] : null,
       );
     }
 
@@ -300,7 +306,9 @@ final class SessionReport {
           if (a.isTeam != b.isTeam) return a.isTeam ? -1 : 1;
           if (a.finalScore == null && b.finalScore != null) return 1;
           if (b.finalScore == null && a.finalScore != null) return -1;
-          final score = (b.finalScore ?? 0).compareTo(a.finalScore ?? 0);
+          final score = a.isTeam
+              ? compareTeams(game, a.id, b.id)
+              : (b.finalScore ?? 0).compareTo(a.finalScore ?? 0);
           return score != 0 ? score : a.id.compareTo(b.id);
         });
     return SessionReport._(
@@ -389,6 +397,7 @@ final class SessionReport {
     'value_after',
     'reverses_correction',
     'score_delta',
+    'eliminated_at_question',
   ];
 
   String toCsv() {
@@ -396,7 +405,7 @@ final class SessionReport {
     void add(Map<String, Object?> values) => lines.add([
       for (final column in columns)
         switch (column) {
-          'report_version' => 1,
+          'report_version' => 2,
           'quiz' => title,
           'format' => format,
           'finished' => finished,
@@ -408,6 +417,7 @@ final class SessionReport {
     for (final entry in summaries) {
       add({
         'row_type': 'summary',
+        'eliminated_at_question': entry.eliminatedAt,
         'entity_type': entry.isTeam ? 'team' : 'player',
         'entity_id': entry.id,
         'name': entry.name,

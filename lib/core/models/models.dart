@@ -24,6 +24,7 @@ export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
 export 'snowflake.dart';
+export 'standings.dart';
 export 'team.dart';
 export 'team_color.dart';
 

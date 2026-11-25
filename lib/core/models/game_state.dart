@@ -527,6 +527,7 @@ final class GameState extends Equatable {
           ? totalQuestionCount
           : questionBank.length,
       jeopardy: jeopardy?.redacted(),
+      poker: resultsHidden ? poker?.copyWith(eliminations: const {}) : poker,
       scores: resultsHidden ? const ScoreState() : scores,
       roundHistory: showFinalReview
           ? [

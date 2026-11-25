@@ -1400,5 +1400,7 @@
   "Maximal zehn Medien pro Tipp.": "Maximal zehn Medien pro Tipp.",
   "Maximal zehn Tipps pro Frage.": "Maximal zehn Tipps pro Frage.",
   "Hints need schemaVersion 13.": "Tipps brauchen schemaVersion 13.",
-  "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.": "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar."
+  "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.": "Gleiche Werte rechts dürfen mehrfach vorkommen; sie sind untereinander austauschbar.",
+  "Ausgeschieden": "Ausgeschieden",
+  "Ausgeschieden bei Frage {0}": "Ausgeschieden bei Frage {0}"
 }

@@ -1299,6 +1299,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       chipDeltas: poker == null
           ? const {}
           : {(team?.id ?? player!.teamId)!: event.delta},
+      beforeEliminations: {
+        if (next > 0)
+          for (final entry in {...?poker?.eliminations}.entries)
+            if (entry.key == (team?.id ?? player!.teamId))
+              entry.key: entry.value,
+      },
     );
     emit(
       _publish(
@@ -1371,7 +1377,10 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       case CorrectionKind.buzzer:
         if (game.round != entry.afterRound ||
             game.jeopardy != entry.afterJeopardy ||
-            game.poker?.copyWith(chips: entry.afterPoker?.chips) !=
+            game.poker?.copyWith(
+                  chips: entry.afterPoker?.chips,
+                  eliminations: entry.afterPoker?.eliminations,
+                ) !=
                 entry.afterPoker ||
             game.isFinished != entry.afterFinished) {
           return 'Weitere Spielaktionen hängen von dieser Bewertung ab.';
@@ -1432,7 +1441,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       chipDeltas: original.chipDeltas.map((id, delta) => MapEntry(id, -delta)),
       teamDeltas: original.teamDeltas.map((id, delta) => MapEntry(id, -delta)),
     );
-    var updated = _applyCorrectionDeltas(game, inverse);
+    var updated = _applyCorrectionDeltas(
+      game,
+      inverse,
+      restored: _formerEliminations(game, original),
+    );
     if (original.kind == CorrectionKind.answer) {
       final verdicts = {...game.round.answerVerdicts}
         ..remove(original.playerId);
@@ -1491,7 +1504,30 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     );
   }
 
-  GameState _applyCorrectionDeltas(GameState game, ManualCorrection entry) {
+  /// When the teams of [original] had gone out before corrections that are all
+  /// undone together with [original] brought them back.
+  Map<String, int> _formerEliminations(
+    GameState game,
+    ManualCorrection original,
+  ) {
+    final reversed = {
+      original.id,
+      for (final entry in game.corrections) ?entry.reversesId,
+    };
+    return {
+      for (final entry in game.corrections)
+        if (reversed.contains(entry.id))
+          for (final moment in entry.beforeEliminations.entries)
+            if (original.chipDeltas.containsKey(moment.key))
+              moment.key: moment.value,
+    };
+  }
+
+  GameState _applyCorrectionDeltas(
+    GameState game,
+    ManualCorrection entry, {
+    Map<String, int> restored = const {},
+  }) {
     var scores = game.scores;
     for (final delta in entry.scoreDeltas.entries) {
       scores = scores.apply(
@@ -1509,17 +1545,34 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         atHostMicros: entry.atHostMicros,
       );
     }
-    final poker = game.poker;
-    return game.copyWith(
-      scores: scores,
-      poker: poker?.copyWith(
-        chips: {
-          ...poker.chips,
-          for (final delta in entry.chipDeltas.entries)
-            delta.key: poker.chips[delta.key]! + delta.value,
+    var poker = game.poker;
+    if (poker != null && entry.chipDeltas.isNotEmpty) {
+      poker = poker
+          .copyWith(
+            chips: {
+              ...poker.chips,
+              for (final delta in entry.chipDeltas.entries)
+                delta.key: poker.chips[delta.key]! + delta.value,
+            },
+          )
+          .withReturnedTeams();
+      poker = poker.copyWith(
+        eliminations: {
+          ...poker.eliminations,
+          for (final moment in restored.entries)
+            if (poker.ownedBy(moment.key) == 0) moment.key: moment.value,
         },
-      ),
-    );
+      );
+      // While a question runs, its settlement decides who goes out.
+      if (game.round.question == null ||
+          game.round.status == RoundStatus.revealed) {
+        poker = poker.withEliminations(
+          game.reportRounds.length,
+          teamIds: entry.chipDeltas.keys,
+        );
+      }
+    }
+    return game.copyWith(scores: scores, poker: poker);
   }
 
   void _onBuzzerPress(BuzzerPressEvent event, Emitter<QuizEngineState> emit) {
@@ -2421,6 +2474,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     return game.copyWith(reportRounds: records);
   }
 
+  /// One-based number of the question on stage in the order of play.
+  int _playedQuestionNumber(GameState game) {
+    final index = game.reportRounds.lastIndexWhere(
+      (entry) =>
+          entry.round.question?.id == game.round.question?.id &&
+          entry.round.startedAtHostMicros == game.round.startedAtHostMicros,
+    );
+    return (index < 0 ? game.reportRounds.length : index) + 1;
+  }
+
   /// Marks the round revealed and files the question as played.
   ///
   /// A question played from the board also passes the pick on to the next team.
@@ -2429,7 +2492,11 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       for (final teamId in poker.wagers.keys) {
         game = _settlePoker(game, teamId, false);
       }
-      game = game.copyWith(poker: game.poker!.copyWith(betting: false));
+      game = game.copyWith(
+        poker: game.poker!
+            .copyWith(betting: false)
+            .withEliminations(_playedQuestionNumber(game)),
+      );
     }
     final question = game.round.question;
     final jeopardy = game.jeopardy;

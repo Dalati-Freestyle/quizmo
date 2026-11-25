@@ -497,7 +497,7 @@ void main() {
     },
   );
 
-  test('CSV version 1 fixes the exact column order', () {
+  test('CSV version 2 fixes the exact column order', () {
     expect(SessionReport.columns, [
       'report_version',
       'row_type',
@@ -536,6 +536,7 @@ void main() {
       'value_after',
       'reverses_correction',
       'score_delta',
+      'eliminated_at_question',
     ]);
   });
 

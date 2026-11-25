@@ -197,6 +197,10 @@ the release pipeline does this automatically.
 * Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.
 * Quiz templates may have no predefined teams. Teams created during joining receive the configured starting chips.
 * Since quiz schema 12 `PokerFormat` has an optional `minStake` (default 0 = sitting out allowed) and `maxStake` (`null` = no limit), copied into `PokerState`. `PokerState.allowsStake` is the only range check (engine and player view); a team with fewer chips than `minStake` must go all-in. Closing the betting raises every lower or missing stake of a team with chips to the minimum.
+* `PokerState.eliminations` records when a team went out (number of the played question, 0 = unknown in old saves).
+  It is set after a settled question (`_reveal`) or a chip correction between questions, never by an all-in, and is
+  restored when the correction that brought the team back is undone. Every ranking (host, players, TV, protocol,
+  report) comes from `rankTeams` / `rankPlayers` in `lib/core/models/standings.dart`; never sort teams elsewhere.
 * All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
 
 ### Jokers

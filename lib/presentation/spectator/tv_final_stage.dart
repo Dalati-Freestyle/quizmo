@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/game_protocol.dart';
 import '../l10n/app_localizations.dart';
+import '../common/elimination_label.dart';
 
 /// Final standings for the 1920×1080 TV canvas.
 ///
@@ -175,9 +176,14 @@ class _TvFinalStageState extends State<TvFinalStage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (standing.memberNames.isNotEmpty)
+                if ([
+                      ?eliminatedAtLabel(context.tr, standing.eliminatedAt),
+                      if (standing.memberNames.isNotEmpty)
+                        standing.memberNames.join(', '),
+                    ]
+                    case final details when details.isNotEmpty)
                   Text(
-                    standing.memberNames.join(', '),
+                    details.join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

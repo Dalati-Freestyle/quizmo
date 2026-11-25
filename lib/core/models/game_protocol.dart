@@ -33,6 +33,7 @@ final class ProtocolStanding extends Equatable {
     required this.place,
     this.memberIds = const [],
     this.memberNames = const [],
+    this.eliminatedAt,
   });
 
   /// Restores a row from [json].
@@ -48,6 +49,7 @@ final class ProtocolStanding extends Equatable {
     memberNames: json['memberNames'] == null
         ? const []
         : json.readStringList('memberNames'),
+    eliminatedAt: json.readIntOrNull('eliminatedAt'),
   );
 
   /// Team or player id.
@@ -71,6 +73,9 @@ final class ProtocolStanding extends Equatable {
   /// Names of [memberIds], in the same order.
   final List<String> memberNames;
 
+  /// Question a poker team went out at (0: unknown), `null` while it is in.
+  final int? eliminatedAt;
+
   /// Serializes the row.
   JsonMap toJson() => {
     'id': id,
@@ -80,6 +85,7 @@ final class ProtocolStanding extends Equatable {
     'place': place,
     if (memberIds.isNotEmpty) 'memberIds': memberIds,
     if (memberNames.isNotEmpty) 'memberNames': memberNames,
+    if (eliminatedAt != null) 'eliminatedAt': eliminatedAt,
   };
 
   @override
@@ -91,6 +97,7 @@ final class ProtocolStanding extends Equatable {
     place,
     memberIds,
     memberNames,
+    eliminatedAt,
   ];
 }
 
@@ -431,26 +438,3 @@ final class GameProtocol extends Equatable {
 
 /// Quiz format recorded in a protocol.
 enum ProtocolFormat { standard, jeopardy, poker, snowflake }
-
-/// Assigns competition places (1, 1, 3, …) to [scores], best first.
-///
-/// Returns the entries sorted by score (descending) and then by [tieBreak].
-List<(T, int)> rankByScore<T>(
-  Iterable<T> entries,
-  int Function(T entry) score, {
-  int Function(T a, T b)? tieBreak,
-}) {
-  final sorted = entries.toList()
-    ..sort((a, b) {
-      final byScore = score(b).compareTo(score(a));
-      return byScore != 0 || tieBreak == null ? byScore : tieBreak(a, b);
-    });
-  final ranked = <(T, int)>[];
-  for (final (index, entry) in sorted.indexed) {
-    final place = index > 0 && score(sorted[index - 1]) == score(entry)
-        ? ranked[index - 1].$2
-        : index + 1;
-    ranked.add((entry, place));
-  }
-  return ranked;
-}

@@ -52,6 +52,7 @@ import 'tv_launch.dart';
 import 'tv_final_stage.dart';
 import 'tv_standings.dart';
 import 'animated_score_value.dart';
+import '../common/elimination_label.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -2628,9 +2629,13 @@ class _StandingRow extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (entry.subtitle case final subtitle?)
+                  if ([
+                        ?eliminatedAtLabel(context.tr, entry.eliminatedAt),
+                        ?entry.subtitle,
+                      ]
+                      case final details when details.isNotEmpty)
                     Text(
-                      subtitle,
+                      details.join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(

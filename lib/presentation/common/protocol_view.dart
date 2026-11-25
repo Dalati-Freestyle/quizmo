@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/game_protocol.dart';
 import '../l10n/app_localizations.dart';
 import 'protocol_labels.dart';
+import 'elimination_label.dart';
 
 /// Final standings with shared places; the row of [highlightId] is accented.
 class FinalStandingsList extends StatelessWidget {
@@ -77,6 +78,9 @@ class FinalStandingsList extends StatelessWidget {
                           standing.memberNames.join(', '),
                           style: theme.textTheme.bodySmall,
                         ),
+                      if (eliminatedAtLabel(tr, standing.eliminatedAt)
+                          case final label?)
+                        Text(label, style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),

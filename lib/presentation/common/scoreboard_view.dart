@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 import '../../core/models/models.dart';
+import 'elimination_label.dart';
 
 /// Renders solo or team standings, depending on [GameState.mode].
 ///
@@ -112,24 +113,24 @@ class _TeamStandings extends StatelessWidget {
       );
     }
 
-    final ordered = game.teams.values.toList(growable: false)
-      ..sort((a, b) => (totals[b.id] ?? 0).compareTo(totals[a.id] ?? 0));
+    final ranked = rankTeams(game);
     final myTeamId = highlightPlayerId == null
         ? null
         : game.players[highlightPlayerId]?.teamId;
 
     return Column(
       children: [
-        for (var index = 0; index < ordered.length; index++) ...[
+        for (final (team, place) in ranked) ...[
           _ScoreRow(
-            rank: index + 1,
-            label: ordered[index].name,
-            points: totals[ordered[index].id] ?? 0,
-            isHighlighted: ordered[index].id == myTeamId,
-            accent: Color(ordered[index].colorValue),
+            rank: place,
+            label: team.name,
+            points: totals[team.id] ?? 0,
+            isHighlighted: team.id == myTeamId,
+            accent: Color(team.colorValue),
+            detail: eliminationLabel(context.tr, game.poker, team.id),
           ),
           for (final player in game.players.values.where(
-            (player) => player.teamId == ordered[index].id,
+            (player) => player.teamId == team.id,
           ))
             Padding(
               padding: const EdgeInsets.only(left: 28, bottom: 2),
@@ -167,6 +168,7 @@ class _ScoreRow extends StatelessWidget {
     required this.points,
     required this.isHighlighted,
     this.accent,
+    this.detail,
   });
 
   final int rank;
@@ -174,6 +176,9 @@ class _ScoreRow extends StatelessWidget {
   final int points;
   final bool isHighlighted;
   final Color? accent;
+
+  /// Small second line, such as when a poker team went out.
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -197,12 +202,26 @@ class _ScoreRow extends StatelessWidget {
             child: Text('$rank.', style: theme.textTheme.labelMedium),
           ),
           Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: isHighlighted ? FontWeight.w800 : FontWeight.w600,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: isHighlighted
+                        ? FontWeight.w800
+                        : FontWeight.w600,
+                  ),
+                ),
+                if (detail case final detail?)
+                  Text(
+                    detail,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
           ),
           Text(

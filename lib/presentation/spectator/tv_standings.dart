@@ -14,6 +14,7 @@ final class TvStanding extends Equatable {
     required this.points,
     this.colorValue,
     this.subtitle,
+    this.eliminatedAt,
     this.isOnline = true,
     this.id,
   });
@@ -33,6 +34,9 @@ final class TvStanding extends Equatable {
   /// Secondary line, for example the members of a team.
   final String? subtitle;
 
+  /// Question a poker team went out at (0: unknown), `null` while it is in.
+  final int? eliminatedAt;
+
   /// Whether the player (or any member of the team) is connected.
   final bool isOnline;
   final String? id;
@@ -44,6 +48,7 @@ final class TvStanding extends Equatable {
     points,
     colorValue,
     subtitle,
+    eliminatedAt,
     isOnline,
     id,
   ];
@@ -115,36 +120,26 @@ List<TvStanding> _playerRows(GameState game) {
 
 List<TvStanding> _teamRows(GameState game) {
   final totals = game.teamScores;
-  final teams = game.teams.values.toList(growable: false)
-    ..sort((a, b) {
-      final byScore = (totals[b.id] ?? 0).compareTo(totals[a.id] ?? 0);
-      return byScore != 0
-          ? byScore
-          : a.name.toLowerCase().compareTo(b.name.toLowerCase());
-    });
-
-  return _ranked([
-    for (final team in teams)
-      (
-        points: totals[team.id] ?? 0,
-        build: (int rank) {
-          final members = game.players.values
-              .where((player) => player.teamId == team.id)
-              .toList(growable: false);
-          return TvStanding(
-            id: team.id,
-            rank: rank,
-            label: team.name,
-            points: totals[team.id] ?? 0,
-            colorValue: team.colorValue,
-            subtitle: members.isEmpty
-                ? null
-                : members.map((player) => player.name).join(' · '),
-            isOnline: members.any((player) => player.isConnected),
-          );
-        },
-      ),
-  ]);
+  return [
+    for (final (team, place) in rankTeams(game))
+      () {
+        final members = game.players.values
+            .where((player) => player.teamId == team.id)
+            .toList(growable: false);
+        return TvStanding(
+          id: team.id,
+          rank: place,
+          label: team.name,
+          points: totals[team.id] ?? 0,
+          colorValue: team.colorValue,
+          subtitle: members.isEmpty
+              ? null
+              : members.map((player) => player.name).join(' · '),
+          isOnline: members.any((player) => player.isConnected),
+          eliminatedAt: game.poker?.eliminations[team.id],
+        );
+      }(),
+  ];
 }
 
 /// Assigns competition ranks (1, 1, 3, …) to rows that are already sorted.

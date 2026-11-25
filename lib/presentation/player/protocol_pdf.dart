@@ -16,6 +16,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../core/models/game_protocol.dart';
 import '../common/protocol_labels.dart';
 import 'emoji_rasterizer.dart';
+import '../common/elimination_label.dart';
 
 /// Matches emoji (incl. ZWJ sequences, flags and keycaps).
 final _emoji = RegExp(
@@ -171,9 +172,12 @@ Future<Uint8List> buildProtocolPdf(
             for (final standing in protocol.standings)
               [
                 '${standing.place}.',
-                standing.memberNames.isEmpty
-                    ? standing.name
-                    : '${standing.name} (${standing.memberNames.join(', ')})',
+                [
+                  standing.memberNames.isEmpty
+                      ? standing.name
+                      : '${standing.name} (${standing.memberNames.join(', ')})',
+                  ?eliminatedAtLabel(tr, standing.eliminatedAt),
+                ].join(' · '),
                 '${standing.score}',
               ],
           ],

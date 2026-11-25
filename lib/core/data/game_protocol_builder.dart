@@ -6,6 +6,7 @@ import '../models/game_protocol.dart';
 import '../models/game_state.dart';
 import '../models/manual_correction.dart';
 import '../models/question.dart';
+import '../models/standings.dart';
 import 'session_report.dart';
 
 /// Reason the engine stores on score events booked by manual corrections.
@@ -22,12 +23,7 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
 
   final standings = <ProtocolStanding>[];
   if (teamMode) {
-    final ranked = rankByScore(
-      game.teams.values,
-      (team) => game.teamScores[team.id] ?? 0,
-      tieBreak: (a, b) => a.name.compareTo(b.name),
-    );
-    for (final (team, place) in ranked) {
+    for (final (team, place) in rankTeams(game)) {
       final members = [
         for (final id in game.playerOrder)
           if (game.players[id] case final player? when player.teamId == team.id)
@@ -43,18 +39,14 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
           isTeam: true,
           score: game.teamScores[team.id] ?? 0,
           place: place,
+          eliminatedAt: game.poker?.eliminations[team.id],
           memberIds: [for (final player in members) player.id],
           memberNames: [for (final player in members) player.name],
         ),
       );
     }
   } else {
-    final ranked = rankByScore(
-      game.players.values,
-      (player) => game.scores.scoreOf(player.id),
-      tieBreak: (a, b) => a.name.compareTo(b.name),
-    );
-    for (final (player, place) in ranked) {
+    for (final (player, place) in rankPlayers(game)) {
       standings.add(
         ProtocolStanding(
           id: player.id,
