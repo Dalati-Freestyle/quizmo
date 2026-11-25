@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 
 import '../../core/engine/answer_evaluation.dart';
+import '../../core/engine/geo.dart';
 import '../../core/models/models.dart';
 import 'snowflake_result_view.dart';
 
@@ -162,6 +163,11 @@ String answerLabel(
     question is EstimationQuestion
         ? question.valueLabel(value)
         : formatNumber(value),
+  LocationAnswer(:final latitude, :final longitude) => [
+    GeoPoint(latitude, longitude).label,
+    if (question case final LocationQuestion location)
+      if (location.distanceOf(answer) case final km?) formatDistance(km),
+  ].join(' · '),
   TrueFalseAnswer(:final value) =>
     value
         ? (context?.tr("Wahr") ?? 'Wahr')

@@ -94,6 +94,14 @@ void main() {
                   clockOffsetMicros: offset,
                   text: q.requiresManualGrading ? 'Hamburg' : 'Berln',
                 ),
+                LocationQuestion() => LocationAnswer(
+                  playerId: id,
+                  questionId: q.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  latitude: q.target?.latitude ?? 0,
+                  longitude: q.target?.longitude ?? 0,
+                ),
                 OrderingQuestion() => OrderingAnswer(
                   playerId: id,
                   questionId: q.id,

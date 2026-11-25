@@ -83,6 +83,16 @@ AnswerSubmission botAnswer(
       'kind': 'estimation',
       'value': correct ? question.correctValue! : _wrongEstimate(question),
     },
+    LocationQuestion(:final target) => {
+      'kind': 'location',
+      'latitude': correct ? target!.latitude : -target!.latitude,
+      // The far side of the earth is beyond every allowed radius.
+      'longitude': correct
+          ? target.longitude
+          : (target.longitude > 0
+                ? target.longitude - 180
+                : target.longitude + 180),
+    },
     TrueFalseQuestion() => {
       'kind': 'trueFalse',
       'value': correct ? question.correctAnswer! : !question.correctAnswer!,
@@ -129,8 +139,12 @@ Map<String, Object?> _freeChoice(Question question, int variant) {
         turned([for (final item in rightItems) item.id]),
       ),
     },
-    BuzzerQuestion() || ShortAnswerQuestion() || EstimationQuestion() =>
-      throw StateError('Cannot pick a free answer for ${question.id}.'),
+    BuzzerQuestion() ||
+    ShortAnswerQuestion() ||
+    EstimationQuestion() ||
+    LocationQuestion() => throw StateError(
+      'Cannot pick a free answer for ${question.id}.',
+    ),
   };
 }
 

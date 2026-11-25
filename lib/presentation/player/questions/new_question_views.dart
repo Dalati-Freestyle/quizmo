@@ -6,6 +6,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
+import '../../common/location_map.dart';
 
 /// How a question view behaves when the team shares one answer: it stays
 /// editable after sending, and sending again replaces [valid].
@@ -526,6 +527,97 @@ class _TrueFalseQuestionViewState extends State<TrueFalseQuestionView> {
       children: [
         option(true, Icons.check, "Wahr"),
         option(false, Icons.close, "Falsch"),
+      ],
+    );
+  }
+}
+
+/// Players move and zoom the map, put their marker and confirm it.
+class LocationQuestionView extends StatefulWidget {
+  const LocationQuestionView({
+    required this.question,
+    required this.enabled,
+    required this.onSubmit,
+    this.submitted = false,
+    this.team,
+    this.onChanged,
+    super.key,
+  });
+  final LocationQuestion question;
+  final bool enabled;
+  final ValueChanged<GeoPoint> onSubmit;
+  final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every new marker, before it is sent.
+  final ValueChanged<GeoPoint>? onChanged;
+
+  @override
+  State<LocationQuestionView> createState() => _LocationQuestionViewState();
+}
+
+class _LocationQuestionViewState extends State<LocationQuestionView> {
+  GeoPoint? marker;
+
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: LocationAnswer(:final latitude, :final longitude)) =>
+      marker == GeoPoint(latitude, longitude),
+    _ => false,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final height = (MediaQuery.sizeOf(context).height * 0.55).clamp(
+      220.0,
+      520.0,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.tr('Tippe auf die Karte, um deine Markierung zu setzen.'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: height,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LocationMap(
+              center: widget.question.startCenter,
+              zoom: widget.question.startZoom,
+              pins: [
+                if (marker case final point?)
+                  LocationPin(
+                    point: point,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+              ],
+              onTap: widget.enabled
+                  ? (point) {
+                      setState(() => marker = point);
+                      widget.onChanged?.call(point);
+                    }
+                  : null,
+            ),
+          ),
+        ),
+        if (marker case final point?) ...[
+          const SizedBox(height: 4),
+          Text(point.label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+        const SizedBox(height: 12),
+        AnswerSubmitButton(
+          sent: sent,
+          replaces: widget.team?.valid != null,
+          onPressed: widget.enabled && marker != null && !sent
+              ? () => widget.onSubmit(marker!)
+              : null,
+          label: context.tr('Markierung bestätigen'),
+        ),
       ],
     );
   }

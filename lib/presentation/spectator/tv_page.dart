@@ -58,6 +58,7 @@ import '../common/elimination_label.dart';
 import '../common/media_playback.dart';
 import '../common/tv_instruction.dart';
 import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -1500,6 +1501,7 @@ class _QuestionStage extends StatelessWidget {
           MatchingQuestion() => true,
           BuzzerQuestion() => round.buzzerQueue.isNotEmpty,
           ShortAnswerQuestion() ||
+          LocationQuestion() ||
           EstimationQuestion() ||
           TrueFalseQuestion() => false,
         };
@@ -1729,11 +1731,17 @@ class _QuestionStage extends StatelessWidget {
                           columns: hasMedia ? 1 : 2,
                           chosenColor: Color(picker?.colorValue ?? 0xff1565c0),
                         ),
+                      LocationQuestion() when isRevealed => LocationResultView(
+                        game: game,
+                        question: current,
+                        large: true,
+                      ),
                       MultipleChoiceQuestion() ||
                       ShortAnswerQuestion() ||
                       OrderingQuestion() ||
                       MatchingQuestion() ||
                       EstimationQuestion() ||
+                      LocationQuestion() ||
                       TrueFalseQuestion() => _FitDown(
                         child: QuestionResultView(
                           question: current,

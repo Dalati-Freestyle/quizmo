@@ -44,6 +44,7 @@ import 'team_answer_card.dart';
 import 'team_inputs_view.dart';
 import '../common/media_playback.dart';
 import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// Player facing screen.
 ///
@@ -878,6 +879,35 @@ class _QuestionStage extends StatelessWidget {
           ),
         ),
       ),
+      LocationQuestion() => LocationQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        team: team,
+        question: question,
+        enabled: enabled,
+        submitted: submitted,
+        onChanged: (point) => cubit.updateDraft(
+          (id, timestamp, offset) => LocationAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            latitude: point.latitude,
+            longitude: point.longitude,
+          ),
+        ),
+        onSubmit: (point) => cubit.submit(
+          (id, timestamp, offset) => LocationAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            latitude: point.latitude,
+            longitude: point.longitude,
+          ),
+        ),
+      ),
       BuzzerQuestion() => BuzzerQuestionView(
         enabled: state.isConnected && state.mayAnswerQuestion,
         question: question,
@@ -971,6 +1001,9 @@ class _QuestionStage extends StatelessWidget {
           const SizedBox(height: 24),
           if (state.game case final game? when game.round.snowflake != null)
             SnowflakeResultView(game: game, fontSize: 16)
+          else if (question case final LocationQuestion location
+              when state.game != null)
+            LocationResultView(game: state.game!, question: location)
           else if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
             Text(

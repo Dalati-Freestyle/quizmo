@@ -2,6 +2,7 @@
 library;
 
 import '../engine/answer_evaluation.dart';
+import '../engine/geo.dart';
 import '../models/answer.dart';
 import '../models/game_protocol.dart';
 import '../models/game_state.dart';
@@ -228,6 +229,11 @@ String protocolAnswerLabel(AnswerSubmission answer, Question question) {
             ? '${find(question.leftItems, entry.key)} → ${find(question.rightItems, entry.value)}'
             : '${entry.key} → ${entry.value}',
     ].join('; '),
+    LocationAnswer(:final latitude, :final longitude) => [
+      GeoPoint(latitude, longitude).label,
+      if (question case final LocationQuestion location)
+        if (location.distanceOf(answer) case final km?) formatDistance(km),
+    ].join(' · '),
     BuzzerPress() => 'Buzzer',
     VerbalAnswer() => 'Mündlich beantwortet',
   };

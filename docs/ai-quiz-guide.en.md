@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **15**
+Quizmo schema version of this guide: **16**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -97,7 +97,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 15,              // always exactly 15
+  "schemaVersion": 16,              // always exactly 16
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -260,6 +260,7 @@ To show a character such as `*` literally, write `\*`. All other fields
 | `matching` | `leftItems`, `rightItems` (each a list of `{"id","label"}`), `correctPairs` (`{"leftId": "rightId"}`) | Matching. Equally many items on the left and the right; pair every left ID with exactly one right ID of its own. If a value fits several left items (e.g. two dishes with pork), add it several times on the right with the same `label` and different IDs: equal values are interchangeable. |
 | `estimation` | `correctValue` (number), `zeroScale` (> 0), `unit`, optional `minAccepted` and `maxAccepted` | Estimation. Proportional points `max(0, 1 − |answer − target| / |target|)`; with target 0, `zeroScale` replaces the denominator. With `minAccepted`/`maxAccepted` (always both, target in between, limits included) every answer in the range counts as fully correct. Always set them in the poker format, because only a fully correct answer pays out there. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | True/false. |
+| `location` | `target` (`{"latitude","longitude"}`), `targetLabel`, `fullPointsKm`, `zeroPointsKm`, `startCenter` (`{"latitude","longitude"}`), `startZoom` (1–18) | Place on the map: players mark on a map where the place is. Full points up to `fullPointsKm`, none from `zeroPointsKm` (> `fullPointsKm`, at most 20000) on, evenly fewer in between (great-circle distance). `targetLabel` names the place in the solution. Best start with the world map (`startCenter` 20/0, `startZoom` 1.5) so the view tells nothing. Not in the snowflake format. In the poker format only a mark within `fullPointsKm` counts as correct. |
 
 ## 6. Media
 
@@ -324,7 +325,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 15` is at the very top.
+- [ ] `"schemaVersion": 16` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -353,7 +354,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 15,
+  "schemaVersion": 16,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -507,6 +508,24 @@ The following files are valid and import unchanged.
       ],
       "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
       "correctAnswer": true
+    },
+    {
+      "type": "location",
+      "id": "q-karte",
+      "prompt": "Where is the Eiffel Tower?",
+      "timeLimitMs": 45000,
+      "softTimeLimit": false,
+      "category": "Buildings",
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": 0},
+      "target": {"latitude": 48.8584, "longitude": 2.2945},
+      "targetLabel": "Eiffel Tower, Paris",
+      "fullPointsKm": 5,
+      "zeroPointsKm": 800,
+      "startCenter": {"latitude": 20, "longitude": 0},
+      "startZoom": 1.5
     }
   ],
   "teams": [],
@@ -520,7 +539,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 15,
+  "schemaVersion": 16,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -590,7 +609,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 15,
+  "schemaVersion": 16,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -635,7 +654,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 15,
+  "schemaVersion": 16,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

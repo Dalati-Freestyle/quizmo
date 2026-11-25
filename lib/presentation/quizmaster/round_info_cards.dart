@@ -18,6 +18,7 @@ import '../common/snowflake_result_view.dart';
 import '../l10n/app_localizations.dart';
 import '../common/media_playback.dart';
 import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// The kinds of round information, each with its own look.
 enum RoundInfoKind {
@@ -273,11 +274,21 @@ class SolutionCard extends StatelessWidget {
               context.tr('Keine Lösung hinterlegt.'),
               style: TextStyle(color: theme.colorScheme.outline),
             )
-          : SelectableText(
-              label,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SelectableText(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                // The host sees the place and every guess right away.
+                if (question case final LocationQuestion location) ...[
+                  const SizedBox(height: 8),
+                  LocationResultView(game: game, question: location),
+                ],
+              ],
             ),
     );
   }

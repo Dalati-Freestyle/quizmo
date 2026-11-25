@@ -8,6 +8,7 @@ import '../../common/question_media_view.dart';
 import '../../settings/media_upload_settings.dart';
 import 'image_optimization_dialog.dart';
 import 'media_upload.dart';
+import '../../../core/models/media_aspect.dart';
 
 enum _MediaKind { image, audio, video, youtube, code, geo }
 
@@ -189,6 +190,21 @@ class _MediaEditorState extends State<MediaEditor> {
                     if (attachment case VideoAttachment(youtubeId: _?))
                       const YoutubeEmbedWarning(),
                     QuestionMediaView(media: [attachment], maxMediaHeight: 360),
+                    if (attachment case ImageAttachment(:final asset)
+                        when asset.bytes != null &&
+                            hasGpsMetadata(asset.bytes!))
+                      Padding(
+                        key: const ValueKey('gps-warning'),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          context.tr(
+                            'Achtung: Dieses Foto enthält GPS-Koordinaten des Aufnahmeorts. Wer die Datei herunterlädt, kann den Ort auslesen. Entferne sie vor dem Hochladen, wenn der Ort geheim bleiben soll.',
+                          ),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                      ),
                     if (attachment is AudioAttachment ||
                         attachment is VideoAttachment &&
                             attachment.asset != null)

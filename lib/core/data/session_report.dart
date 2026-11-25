@@ -572,6 +572,12 @@ String reportAnswerLabel(
     question is EstimationQuestion
         ? question.valueLabel(value)
         : formatNumber(value),
+  LocationAnswer(:final latitude, :final longitude) => [
+    GeoPoint(latitude, longitude).label,
+    if (question case final LocationQuestion location)
+      if (location.distanceOf(answer) case final km?)
+        '${km.toStringAsFixed(3)} km',
+  ].join(' '),
   TrueFalseAnswer(:final value) => value ? 'true' : 'false',
   MultipleChoiceAnswer(:final selectedOptionIds) => jsonEncode([
     for (final id in selectedOptionIds)

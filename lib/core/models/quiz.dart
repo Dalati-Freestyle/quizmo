@@ -48,7 +48,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 15;
+  static const int currentSchemaVersion = 16;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -80,6 +80,7 @@ final class Quiz extends Equatable {
       13 => Quiz._fromJsonV13(json),
       14 => Quiz._fromJsonV14(json),
       15 => Quiz._fromJsonV15(json),
+      16 => Quiz._fromJsonV16(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -218,7 +219,19 @@ final class Quiz extends Equatable {
       'slides': json.readList('slides', escapeSlideText),
   });
 
+  /// Schema 15 has no map questions; everything else is equal.
   factory Quiz._fromJsonV15(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question['type'] == 'location') {
+        throw const JsonContractException(
+          'Map questions need schemaVersion 16.',
+        );
+      }
+    }
+    return Quiz._fromJsonV16(json);
+  }
+
+  factory Quiz._fromJsonV16(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -568,6 +581,7 @@ List<String> _questionValidationErrors(
     ShortAnswerQuestion() ||
     OrderingQuestion() ||
     MatchingQuestion() ||
+    LocationQuestion() ||
     EstimationQuestion() ||
     TrueFalseQuestion() => [
       ..._baseQuestionValidationErrors(

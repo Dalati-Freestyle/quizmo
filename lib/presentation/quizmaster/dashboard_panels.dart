@@ -669,6 +669,7 @@ class QuestionBankPanel extends StatelessWidget {
                         MatchingQuestion() => Icons.compare_arrows,
                         EstimationQuestion() => Icons.numbers,
                         TrueFalseQuestion() => Icons.rule,
+                        LocationQuestion() => Icons.place_outlined,
                       },
                       size: 16,
                       color: theme.colorScheme.primary,
@@ -1791,6 +1792,7 @@ class _QuestionContent extends StatelessWidget {
           '${leftItems[i].label}  ·  ${i < rightItems.length ? rightItems[i].label : ''}',
       ],
       ShortAnswerQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() ||
       BuzzerQuestion() => const [],

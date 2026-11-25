@@ -149,6 +149,13 @@ TvInstruction? tvInstruction(InstructionTr tr, GameState game) {
                   )
                 : say('Wählt eine Antwort.', 'Wähl eine Antwort.'),
           ),
+          LocationQuestion() => (
+            icon: Icons.place_outlined,
+            text: say(
+              'Markiert den Ort auf der Karte auf eurem Gerät.',
+              'Markier den Ort auf der Karte auf deinem Gerät.',
+            ),
+          ),
           BuzzerQuestion() => (
             icon: Icons.bolt,
             text: say(

@@ -124,7 +124,7 @@ void main() {
 
     test('imports with escaped texts that look as before', () {
       final quiz = parseQuizImport(source);
-      expect(quiz.schemaVersion, 15);
+      expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
       final question = quiz.questions.first;
       final raw = (original['questions'] as List).first as JsonMap;
       for (final (shown, before) in [

@@ -2411,6 +2411,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ShortAnswerQuestion() ||
         OrderingQuestion() ||
         MatchingQuestion() ||
+        LocationQuestion() ||
         EstimationQuestion() ||
         TrueFalseQuestion() => _scoreAnswers(game, question),
         BuzzerQuestion() => game,

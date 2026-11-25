@@ -689,6 +689,7 @@ class SocketHub {
               ShortAnswer() ||
               OrderingAnswer() ||
               MatchingAnswer() ||
+              LocationAnswer() ||
               EstimationAnswer() ||
               TrueFalseAnswer():
             _engine.add(SubmitAnswerEvent(trusted));

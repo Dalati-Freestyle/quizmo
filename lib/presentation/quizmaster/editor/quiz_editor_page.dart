@@ -584,6 +584,7 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                   OrderingQuestion() => Icons.sort,
                   MatchingQuestion() => Icons.compare_arrows,
                   EstimationQuestion() => Icons.numbers,
+                  LocationQuestion() => Icons.place_outlined,
                   TrueFalseQuestion() => Icons.rule,
                 }),
                 title: Text(

@@ -116,6 +116,7 @@ void main() {
           case ShortAnswerQuestion() ||
               OrderingQuestion() ||
               MatchingQuestion() ||
+              LocationQuestion() ||
               EstimationQuestion() ||
               TrueFalseQuestion():
             player.submit(

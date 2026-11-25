@@ -13,6 +13,7 @@ import 'hints_editor.dart';
 import 'media_editor.dart';
 import 'selection_dropdown.dart';
 import 'markdown_field.dart';
+import 'location_question_fields.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
@@ -118,6 +119,12 @@ final List<QuestionTemplate> kQuestionTemplates = [
       correctOptionId: 'option-a',
       scoringRule: const FixedPointsRule(),
     ),
+  ),
+  QuestionTemplate(
+    label: 'Ort auf der Karte',
+    icon: Icons.place_outlined,
+    create: (id) =>
+        LocationQuestion(id: id, timeLimit: Duration.zero, prompt: ''),
   ),
   QuestionTemplate(
     label: 'Fast buzzer',
@@ -281,6 +288,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         ShortAnswerQuestion() ||
         OrderingQuestion() ||
         MatchingQuestion() ||
+        LocationQuestion() ||
         EstimationQuestion() ||
         TrueFalseQuestion() => '',
         BuzzerQuestion(:final expectedAnswer) => expectedAnswer ?? '',
@@ -294,6 +302,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => [],
     };
@@ -303,6 +312,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => null,
     };
@@ -315,6 +325,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => true,
       BuzzerQuestion(:final lockOutOnMiss) => lockOutOnMiss,
@@ -368,6 +379,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => false,
     };
@@ -461,6 +473,10 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               ),
             ),
             switch (widget.question) {
+              final LocationQuestion location => LocationQuestionFields(
+                question: location,
+                onChanged: (fields) => _contentFields = fields,
+              ),
               MultipleChoiceQuestion() => _multipleChoicePanel(),
               BuzzerQuestion() => _buzzerPanel(),
               ShortAnswerQuestion() ||
@@ -793,6 +809,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => Question.fromJson({
         ...widget.question.toJson(),

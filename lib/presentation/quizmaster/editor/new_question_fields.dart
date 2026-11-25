@@ -58,7 +58,10 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
             '${i.label} = ${(correctPairs == null ? rightItems.elementAtOrNull(index) : rightItems.where((r) => r.id == correctPairs[i.id]).firstOrNull)?.label ?? ''}',
         ].join('\n'),
       EstimationQuestion(:final correctValue) => _number(correctValue),
-      TrueFalseQuestion() || MultipleChoiceQuestion() || BuzzerQuestion() => '',
+      LocationQuestion() ||
+      TrueFalseQuestion() ||
+      MultipleChoiceQuestion() ||
+      BuzzerQuestion() => '',
     };
     edits = q is ShortAnswerQuestion ? q.maxEdits : 1;
     manualGrading = q is ShortAnswerQuestion && q.manualGrading;
@@ -104,7 +107,9 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       TrueFalseQuestion() => <String, Object?>{
         if (widget.showSolution) 'correctAnswer': truth,
       },
-      MultipleChoiceQuestion() || BuzzerQuestion() => <String, Object?>{},
+      LocationQuestion() ||
+      MultipleChoiceQuestion() ||
+      BuzzerQuestion() => <String, Object?>{},
     };
     widget.onChanged(fields);
   }
@@ -206,6 +211,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                             "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)",
                           ),
                   EstimationQuestion() => context.tr("Korrekte Zahl"),
+                  LocationQuestion() ||
                   TrueFalseQuestion() ||
                   MultipleChoiceQuestion() ||
                   BuzzerQuestion() => 'Lösung',

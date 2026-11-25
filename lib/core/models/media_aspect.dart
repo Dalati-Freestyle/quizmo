@@ -5,6 +5,37 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+/// Whether a JPEG photo carries GPS coordinates in its EXIF data, which would
+/// tell players where it was taken.
+bool hasGpsMetadata(Uint8List bytes) {
+  if (bytes.length < 4 || bytes[0] != 0xFF || bytes[1] != 0xD8) return false;
+  final data = ByteData.sublistView(bytes);
+  var offset = 2;
+  while (offset + 4 < bytes.length && bytes[offset] == 0xFF) {
+    final marker = bytes[offset + 1];
+    final length = data.getUint16(offset + 2);
+    if (marker == 0xDA) break;
+    if (marker == 0xE1 &&
+        offset + 10 < bytes.length &&
+        String.fromCharCodes(bytes, offset + 4, offset + 8) == 'Exif') {
+      final tiff = offset + 10;
+      if (tiff + 8 > bytes.length) return false;
+      final endian = bytes[tiff] == 0x49 ? Endian.little : Endian.big;
+      final directory = tiff + data.getUint32(tiff + 4, endian);
+      if (directory + 2 > bytes.length) return false;
+      final entries = data.getUint16(directory, endian);
+      for (var i = 0; i < entries; i++) {
+        final entry = directory + 2 + i * 12;
+        if (entry + 2 > bytes.length) break;
+        if (data.getUint16(entry, endian) == 0x8825) return true;
+      }
+      return false;
+    }
+    offset += 2 + length;
+  }
+  return false;
+}
+
 /// Width divided by height, `null` when [bytes] do not tell.
 double? mediaAspectRatio(Uint8List bytes, String mimeType) {
   try {

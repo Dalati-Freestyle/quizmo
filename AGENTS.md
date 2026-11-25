@@ -121,6 +121,13 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * Importers of schema 14 and older escape the four fields, so old quizzes look as before; a recovered game with an
   older quiz escapes its slides too.
 
+### Map questions
+* `LocationQuestion` (quiz schema 16): target, optional `targetLabel`, radii `fullPointsKm` / `zeroPointsKm` (linear in
+  between, great-circle distance from `core/engine/geo.dart`) and the players' start view. The target and its label are
+  part of the solution and redacted. `LocationMap` (flutter_map + OpenStreetMap) is shared by editor, players and the
+  result (`LocationResultView`); a tap only sets a marker, the button sends. The place search (`PlaceSearch`,
+  Nominatim) runs in the editor only, on an explicit search, with nothing but the search words.
+
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs
 the LAN address — no install, no second web server.
