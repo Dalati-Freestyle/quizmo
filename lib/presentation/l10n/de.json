@@ -1599,5 +1599,9 @@
   "alle Medien geladen": "alle Medien geladen",
   "lädt {0} %": "lädt {0} %",
   "Vorladen deaktiviert": "Vorladen deaktiviert",
-  "Fehler, neuer Versuch ({0} %)": "Fehler, neuer Versuch ({0} %)"
+  "Fehler, neuer Versuch ({0} %)": "Fehler, neuer Versuch ({0} %)",
+  "Höchstens vorladen": "Höchstens vorladen",
+  "Größere Quizze werden nicht vorgeladen; ihre Medien laden erst im Quiz.": "Größere Quizze werden nicht vorgeladen; ihre Medien laden erst im Quiz.",
+  "Unbegrenzt": "Unbegrenzt",
+  "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.": "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht."
 }

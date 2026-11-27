@@ -215,8 +215,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
        super(const PlayerSessionState()) {
     final settings = MediaPreloadSettings.instance;
     unawaited(settings.load());
-    preloader.setEnabled(settings.enabled.value);
+    _preloadSettingChanged();
     settings.enabled.addListener(_preloadSettingChanged);
+    settings.maxMegabytes.addListener(_preloadSettingChanged);
   }
 
   /// Media of the quiz, preloaded encrypted in the lobby. Kept across
@@ -224,8 +225,12 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   final MediaPreloader preloader = MediaPreloader();
   late final _preloadLink = MediaPreloadLink(preloader);
 
-  void _preloadSettingChanged() =>
-      preloader.setEnabled(MediaPreloadSettings.instance.enabled.value);
+  void _preloadSettingChanged() {
+    final settings = MediaPreloadSettings.instance;
+    preloader
+      ..setEnabled(settings.enabled.value)
+      ..setMaxBytes(settings.maxBytes);
+  }
 
   PlayerSessionCubit.local({
     required String playerId,
@@ -962,6 +967,9 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _intentionalDisconnect = true;
     await _teardown();
     MediaPreloadSettings.instance.enabled.removeListener(
+      _preloadSettingChanged,
+    );
+    MediaPreloadSettings.instance.maxMegabytes.removeListener(
       _preloadSettingChanged,
     );
     _preloadLink.dispose();

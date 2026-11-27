@@ -34,6 +34,13 @@ final class MediaPreloader {
   MediaPreloadManifest _manifest = const MediaPreloadManifest();
   Uri? _baseUri;
   bool _enabled = true;
+  int? _maxBytes;
+
+  /// Whether the quiz is larger than the limit set on this device.
+  bool get overLimit => _maxBytes != null && _manifest.totalBytes > _maxBytes!;
+
+  /// Whether files are downloaded: switched on and within the limit.
+  bool get _active => _enabled && !overLimit;
   bool _disposed = false;
   bool _failed = false;
   bool _running = false;
@@ -65,7 +72,8 @@ final class MediaPreloader {
       }
     }
     return MediaPreloadStatus(
-      phase: !_enabled
+      // Over the limit counts as switched off: media load on demand.
+      phase: !_active
           ? MediaPreloadPhase.disabled
           : files == _manifest.items.length
           ? MediaPreloadPhase.done
@@ -111,6 +119,18 @@ final class MediaPreloader {
     _pump();
   }
 
+  /// Preloads only quizzes of at most [maxBytes]; `null` means no limit.
+  void setMaxBytes(int? maxBytes) {
+    if (_maxBytes == maxBytes) return;
+    _maxBytes = maxBytes;
+    if (!_active) {
+      _retry?.cancel();
+      _client?.close();
+    }
+    _changed();
+    _pump();
+  }
+
   /// Keys the host released with a snapshot.
   void addKeys(Iterable<MediaPreloadKey> keys) {
     for (final key in keys) {
@@ -145,7 +165,7 @@ final class MediaPreloader {
   }
 
   void _pump() {
-    if (_running || _disposed || !_enabled || _baseUri == null) return;
+    if (_running || _disposed || !_active || _baseUri == null) return;
     final next = _manifest.items
         .where((item) => !_complete.containsKey(item.handle))
         .firstOrNull;
@@ -162,7 +182,7 @@ final class MediaPreloader {
         },
         onError: (Object _) {
           _running = false;
-          if (_disposed || !_enabled) return;
+          if (_disposed || !_active) return;
           _failed = true;
           _changed();
           _retry = Timer(retryDelay, _pump);
@@ -179,7 +199,7 @@ final class MediaPreloader {
         () => BytesBuilder(copy: false),
       );
       while (builder.length < item.size) {
-        if (_disposed || !_enabled) throw StateError('Preloading stopped.');
+        if (_disposed || !_active) throw StateError('Preloading stopped.');
         final start = builder.length;
         final end = (start + mediaChunkBytes).clamp(0, item.size) - 1;
         final uri = sessionMediaUri(
@@ -198,7 +218,7 @@ final class MediaPreloader {
           throw const FormatException('The host ignored the range.');
         }
         await for (final chunk in response.stream.timeout(timeout)) {
-          if (_disposed || !_enabled) throw StateError('Preloading stopped.');
+          if (_disposed || !_active) throw StateError('Preloading stopped.');
           builder.add(chunk);
           if (builder.length > item.size) {
             _partial.remove(item.handle);

@@ -197,6 +197,42 @@ void main() {
       );
     });
 
+    test('a quiz above the limit is not preloaded', () async {
+      final engine = engineWith();
+      addTearDown(engine.close);
+      var requests = 0;
+      final preloader = MediaPreloader(
+        createClient: () => MockClient.streaming((request, _) async {
+          requests++;
+          final response = get(
+            engine,
+            request.url.pathSegments.last,
+            range: request.headers['range'],
+          );
+          return http.StreamedResponse(
+            response.read(),
+            response.statusCode,
+            headers: response.headers,
+          );
+        }),
+      )..setMaxBytes(10);
+      addTearDown(preloader.dispose);
+      preloader.offer(
+        engine.mediaPreload.manifest,
+        Uri.parse('http://localhost:8080'),
+      );
+      await pumpEventQueue();
+      expect(requests, 0);
+      expect(preloader.overLimit, isTrue);
+      expect(preloader.status.phase, MediaPreloadPhase.disabled);
+      // A larger limit lets it start.
+      preloader.setMaxBytes(1000000);
+      await preloader.changes.firstWhere(
+        (s) => s.phase == MediaPreloadPhase.done,
+      );
+      expect(requests, greaterThan(0));
+    });
+
     test('switched off, nothing is downloaded', () async {
       final engine = engineWith();
       addTearDown(engine.close);

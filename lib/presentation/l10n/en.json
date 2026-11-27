@@ -1599,5 +1599,9 @@
   "alle Medien geladen": "all media loaded",
   "lädt {0} %": "loading {0} %",
   "Vorladen deaktiviert": "preloading switched off",
-  "Fehler, neuer Versuch ({0} %)": "error, retrying ({0} %)"
+  "Fehler, neuer Versuch ({0} %)": "error, retrying ({0} %)",
+  "Höchstens vorladen": "Preload at most",
+  "Größere Quizze werden nicht vorgeladen; ihre Medien laden erst im Quiz.": "Larger quizzes are not preloaded; their media load during the quiz.",
+  "Unbegrenzt": "No limit",
+  "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.": "The quiz ({0}) is larger than your preload limit: media load when a question needs them."
 }

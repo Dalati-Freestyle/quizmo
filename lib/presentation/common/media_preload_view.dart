@@ -43,6 +43,10 @@ class MediaPreloadView extends StatelessWidget {
         ? const TextStyle(fontSize: 24)
         : theme.textTheme.bodySmall;
     final line = switch (status.phase) {
+      MediaPreloadPhase.disabled when preloader.overLimit => context.tr(
+        'Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.',
+        [formatMegabytes(status.totalBytes)],
+      ),
       MediaPreloadPhase.disabled => context.tr(
         'Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.',
       ),
