@@ -247,7 +247,7 @@ void main() {
 
     test('schema 15 imports and may not contain map questions', () {
       final quiz = parseQuizImport(source);
-      expect(quiz.schemaVersion, 16);
+      expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
       expect(quiz.questions.first.prompt, startsWith('**Fett**'));
       expect(parseQuizImport(exportQuizJson(quiz)).questions, quiz.questions);
       final json = jsonDecode(source) as JsonMap;

@@ -1561,5 +1561,12 @@
   "Gültig wird die Änderung erst mit „Frage speichern“.": "The change only applies with \"Save question\".",
   "Fragetyp ändern": "Change kind",
   "Die Zeilen stehen in der richtigen Reihenfolge.": "The lines are in the right order.",
-  "Die richtige Reihenfolge muss noch festgelegt werden.": "The right order still has to be set."
+  "Die richtige Reihenfolge muss noch festgelegt werden.": "The right order still has to be set.",
+  "Nach Abweichung": "By deviation",
+  "Nur Toleranz (richtig/falsch)": "Tolerance only (right/wrong)",
+  "Innerhalb der Grenzen volle Punkte, außerhalb keine.": "Full points within the limits, none outside.",
+  "Toleranz": "Tolerance",
+  "Pflichtfeld bei „Nur Toleranz“.": "Required for \"tolerance only\".",
+  "Für „Nur Toleranz“ Unter- und Obergrenze angeben.": "Enter a lower and an upper limit for \"tolerance only\".",
+  "The scoring mode \"tolerance only\" needs schemaVersion 17.": "The scoring mode \"tolerance only\" needs schemaVersion 17."
 }

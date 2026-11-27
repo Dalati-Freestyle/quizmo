@@ -33,6 +33,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
   late String scale;
   late String minAccepted;
   late String maxAccepted;
+  late bool toleranceOnly;
 
   /// `null`: not chosen yet (after a change of the kind).
   late bool? truth;
@@ -75,6 +76,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
     scale = q is EstimationQuestion ? _number(q.zeroScale) : '1';
     minAccepted = q is EstimationQuestion ? _number(q.minAccepted) : '';
     maxAccepted = q is EstimationQuestion ? _number(q.maxAccepted) : '';
+    toleranceOnly = q is EstimationQuestion && q.toleranceOnly;
     truth = q is TrueFalseQuestion ? q.correctAnswer : true;
     orderConfirmed = q is! OrderingQuestion || q.correctOrder != null;
   }
@@ -89,6 +91,12 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
       (text ?? '').trim().isEmpty || (_parse(text!)?.isFinite ?? false)
       ? null
       : context.tr('Endliche Zahl angeben.');
+
+  /// The limits are required in the mode "tolerance only".
+  String? _boundary(String? text) =>
+      toleranceOnly && (text ?? '').trim().isEmpty
+      ? context.tr('Pflichtfeld bei „Nur Toleranz“.')
+      : _optionalNumber(text);
 
   List<String> get lines => content
       .split('\n')
@@ -110,6 +118,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         'zeroScale': _parse(scale),
         'minAccepted': _parse(minAccepted),
         'maxAccepted': _parse(maxAccepted),
+        'toleranceOnly': toleranceOnly,
       },
       TrueFalseQuestion() => <String, Object?>{
         if (widget.showSolution) 'correctAnswer': truth,
@@ -235,8 +244,15 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                   BuzzerQuestion() => 'Lösung',
                 },
               ),
+              validator: widget.question is EstimationQuestion
+                  ? _optionalNumber
+                  : null,
+              autovalidateMode: widget.question is EstimationQuestion
+                  ? AutovalidateMode.onUserInteraction
+                  : null,
               onChanged: (v) {
-                content = v;
+                // The field for the target 0 appears and disappears.
+                setState(() => content = v);
                 changed();
               },
             ),
@@ -328,25 +344,70 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               },
             ),
             const SizedBox(height: 20),
-            TextFormField(
-              initialValue: scale,
-              decoration: InputDecoration(
-                labelText: context.tr("Abweichung für 0 Punkte bei Zielwert 0"),
-              ),
-              onChanged: (v) {
-                scale = v;
+            DropdownButtonFormField<bool>(
+              key: const ValueKey('estimation-mode'),
+              initialValue: toleranceOnly,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: context.tr('Wertung')),
+              items: [
+                DropdownMenuItem(
+                  value: false,
+                  child: Text(
+                    context.tr('Nach Abweichung'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: true,
+                  child: Text(
+                    context.tr('Nur Toleranz (richtig/falsch)'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => toleranceOnly = value);
                 changed();
               },
             ),
             const SizedBox(height: 12),
-            Text(
-              context.tr(
-                "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+            if (toleranceOnly)
+              Text(
+                context.tr(
+                  'Innerhalb der Grenzen volle Punkte, außerhalb keine.',
+                ),
+              )
+            else ...[
+              Text(
+                context.tr(
+                  "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+                ),
               ),
-            ),
+              // Only the target 0 needs a scale: the relative deviation is
+              // undefined there. A stored scale is kept while hidden.
+              if (_parse(content) == 0) ...[
+                const SizedBox(height: 20),
+                TextFormField(
+                  key: const ValueKey('estimation-zero-scale'),
+                  initialValue: scale,
+                  decoration: InputDecoration(
+                    labelText: context.tr(
+                      "Abweichung für 0 Punkte bei Zielwert 0",
+                    ),
+                  ),
+                  onChanged: (v) {
+                    scale = v;
+                    changed();
+                  },
+                ),
+              ],
+            ],
             const SizedBox(height: 20),
             Text(
-              context.tr('Toleranz (optional)'),
+              toleranceOnly
+                  ? context.tr('Toleranz')
+                  : context.tr('Toleranz (optional)'),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
@@ -367,7 +428,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                     decoration: InputDecoration(
                       labelText: context.tr('Untergrenze'),
                     ),
-                    validator: _optionalNumber,
+                    validator: _boundary,
                     onChanged: (v) {
                       minAccepted = v;
                       changed();
@@ -382,7 +443,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                     decoration: InputDecoration(
                       labelText: context.tr('Obergrenze'),
                     ),
-                    validator: _optionalNumber,
+                    validator: _boundary,
                     onChanged: (v) {
                       maxAccepted = v;
                       changed();

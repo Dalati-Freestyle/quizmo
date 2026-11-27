@@ -50,18 +50,21 @@ String formatNumber(double value) =>
     : '$value';
 
 /// Accuracy of an estimation that may have a tolerance: everything from [min]
-/// to [max] (both included) is fully correct, nothing outside ever is.
+/// to [max] (both included) is fully correct, nothing outside ever is. With
+/// [toleranceOnly] an answer outside the tolerance earns nothing at all.
 double estimationAccuracyWithin(
   double value,
   double target,
   double zeroScale, {
   double? min,
   double? max,
+  bool toleranceOnly = false,
 }) {
   if (min == null || max == null) {
     return estimationAccuracy(value, target, zeroScale);
   }
   if (value >= min && value <= max) return 1;
+  if (toleranceOnly) return 0;
   return math.min(estimationAccuracy(value, target, zeroScale), 0.999999);
 }
 

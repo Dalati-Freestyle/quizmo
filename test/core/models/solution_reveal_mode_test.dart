@@ -49,7 +49,10 @@ void main() {
       for (final mode in SolutionRevealMode.values) {
         final source = old.copyWith(format: StandardFormat(revealMode: mode));
         final exported = exportQuizJson(source);
-        expect(jsonDecode(exported)['schemaVersion'], Quiz.currentSchemaVersion);
+        expect(
+          jsonDecode(exported)['schemaVersion'],
+          Quiz.currentSchemaVersion,
+        );
         final restored = parseQuizImport(exported);
         expect(restored, source);
         expect(
