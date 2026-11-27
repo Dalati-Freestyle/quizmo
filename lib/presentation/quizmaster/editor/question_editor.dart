@@ -12,6 +12,8 @@ import 'new_question_fields.dart';
 import 'hints_editor.dart';
 import 'media_editor.dart';
 import 'selection_dropdown.dart';
+import 'markdown_field.dart';
+import 'location_question_fields.dart';
 
 enum _ScoringRuleKind { fixed, speedBonus, firstBuzzer }
 
@@ -119,6 +121,12 @@ final List<QuestionTemplate> kQuestionTemplates = [
     ),
   ),
   QuestionTemplate(
+    label: 'Ort auf der Karte',
+    icon: Icons.place_outlined,
+    create: (id) =>
+        LocationQuestion(id: id, timeLimit: Duration.zero, prompt: ''),
+  ),
+  QuestionTemplate(
     label: 'Fast buzzer',
     icon: Icons.bolt,
     create: (id) => BuzzerQuestion(
@@ -190,15 +198,161 @@ class QuestionTemplateDropdown extends StatelessWidget {
   );
 }
 
-/// Edits [question] and returns a replacement when the host saves it.
+/// Edits [question] and returns a replacement when the host saves it. The
+/// kind can be changed: the form is then rebuilt for the new kind, with
+/// everything that could be taken over.
 class QuestionEditorPage extends StatefulWidget {
   /// Creates an editor for [question].
-  ///
   const QuestionEditorPage({
     required this.question,
     required this.format,
     super.key,
   });
+
+  final Question question;
+  final QuizFormat format;
+
+  @override
+  State<QuestionEditorPage> createState() => _QuestionEditorPageState();
+}
+
+class _QuestionEditorPageState extends State<QuestionEditorPage> {
+  late Question _question = widget.question;
+  int _generation = 0;
+
+  /// The content each kind had when it was left, to come back to it.
+  final Map<Type, Question> _byKind = {};
+
+  bool get _withSolution => switch (widget.format) {
+    SnowflakeFormat() => false,
+    StandardFormat() || JeopardyFormat() || PokerFormat() => true,
+  };
+
+  Future<bool> _changeKind(Question draft, QuestionTemplate template) async {
+    final kind = template.create(draft.id);
+    if (kind.runtimeType == draft.runtimeType) return true;
+    final conversion = convertQuestion(
+      draft,
+      kind,
+      withSolution: _withSolution,
+    );
+    if (conversion.losesSomething || conversion.notes.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => _KindChangeDialog(
+          conversion: conversion,
+          from: draft,
+          to: template,
+        ),
+      );
+      if (confirmed != true || !mounted) return false;
+    }
+    final remembered = _byKind[kind.runtimeType];
+    _byKind[draft.runtimeType] = draft;
+    setState(() {
+      _question = remembered == null
+          ? conversion.question
+          : withSharedFields(remembered, draft);
+      _generation++;
+    });
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) => _QuestionForm(
+    key: ValueKey(_generation),
+    question: _question,
+    format: widget.format,
+    onKindChanged: _changeKind,
+  );
+}
+
+/// Asks before a kind change empties anything; names what goes and what is
+/// still to fill in.
+class _KindChangeDialog extends StatelessWidget {
+  const _KindChangeDialog({
+    required this.conversion,
+    required this.from,
+    required this.to,
+  });
+
+  final QuestionConversion conversion;
+  final Question from;
+  final QuestionTemplate to;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    String text(ConversionText entry) => context.tr(entry.key, entry.args);
+    Widget section(String title, List<ConversionText> entries) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text(title, style: theme.textTheme.titleSmall),
+        for (final entry in entries) Text('• ${text(entry)}'),
+      ],
+    );
+    return AlertDialog(
+      key: const ValueKey('kind-change-dialog'),
+      title: Text(
+        context.tr('Fragetyp ändern: {0} → {1}', [
+          context.tr(from.kindLabel),
+          context.tr(to.label),
+        ]),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              context.tr(
+                'Gemeinsame Inhalte wie Fragetext, Medien, Tipps und Wertung bleiben erhalten.',
+              ),
+            ),
+            if (conversion.lost.isNotEmpty)
+              section(context.tr('Wird entfernt'), conversion.lost),
+            if (conversion.notes.isNotEmpty)
+              section(context.tr('Hinweis'), conversion.notes),
+            if (conversion.todo.isNotEmpty)
+              section(context.tr('Danach noch ausfüllen'), conversion.todo),
+            const SizedBox(height: 12),
+            Text(
+              context.tr(
+                'Gültig wird die Änderung erst mit „Frage speichern“.',
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(context.tr('Abbrechen')),
+        ),
+        FilledButton(
+          key: const ValueKey('confirm-kind-change'),
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(context.tr('Fragetyp ändern')),
+        ),
+      ],
+    );
+  }
+}
+
+/// The form of one kind.
+class _QuestionForm extends StatefulWidget {
+  const _QuestionForm({
+    required this.question,
+    required this.format,
+    required this.onKindChanged,
+    super.key,
+  });
+
+  /// Called with the current, unsaved input; `false` keeps the kind.
+  final Future<bool> Function(Question draft, QuestionTemplate kind)
+  onKindChanged;
 
   /// Question variant being edited.
   final Question question;
@@ -223,11 +377,12 @@ class QuestionEditorPage extends StatefulWidget {
   };
 
   @override
-  State<QuestionEditorPage> createState() => _QuestionEditorPageState();
+  State<_QuestionForm> createState() => _QuestionFormState();
 }
 
-class _QuestionEditorPageState extends State<QuestionEditorPage> {
+class _QuestionFormState extends State<_QuestionForm> {
   final _formKey = GlobalKey<FormState>();
+  int _kindPicker = 0;
   Map<String, Object?> _contentFields = {};
   late List<MediaAttachment> _media;
   late List<MediaAttachment> _solutionMedia;
@@ -280,6 +435,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
         ShortAnswerQuestion() ||
         OrderingQuestion() ||
         MatchingQuestion() ||
+        LocationQuestion() ||
         EstimationQuestion() ||
         TrueFalseQuestion() => '',
         BuzzerQuestion(:final expectedAnswer) => expectedAnswer ?? '',
@@ -293,6 +449,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => [],
     };
@@ -302,6 +459,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => null,
     };
@@ -314,6 +472,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => true,
       BuzzerQuestion(:final lockOutOnMiss) => lockOutOnMiss,
@@ -367,6 +526,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => false,
     };
@@ -396,25 +556,43 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
-                    controller: _promptController,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Prompt"),
-                    ),
-                    minLines: 2,
-                    maxLines: 4,
-                    validator: _requiredText(
-                      context.tr("Enter a question prompt."),
-                    ),
+                  QuestionTemplateDropdown(
+                    key: ValueKey('kind-picker-$_kindPicker'),
+                    value: kQuestionTemplates
+                        .where(
+                          (template) =>
+                              template.create('').runtimeType ==
+                              widget.question.runtimeType,
+                        )
+                        .firstOrNull,
+                    templates: questionTemplatesFor(widget.format),
+                    onChanged: (template) async {
+                      if (template == null) return;
+                      final draft = _draft();
+                      final changed = await widget.onKindChanged(
+                        draft,
+                        template,
+                      );
+                      // Cancelled: the picker shows the old kind again.
+                      if (!changed && mounted) setState(() => _kindPicker++);
+                    },
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _notesController,
-                    minLines: 2,
+                  MarkdownField(
+                    key: const ValueKey('prompt-field'),
+                    controller: _promptController,
+                    label: context.tr("Prompt"),
                     maxLines: 6,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Admin-Notizen (nur Spielleiter)"),
-                    ),
+                    // Markdown without anything visible is empty, too.
+                    validator: (value) => isBlankMarkdown(value ?? '')
+                        ? context.tr("Enter a question prompt.")
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  MarkdownField(
+                    key: const ValueKey('notes-field'),
+                    controller: _notesController,
+                    label: context.tr("Admin-Notizen (nur Spielleiter)"),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -464,6 +642,10 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
               ),
             ),
             switch (widget.question) {
+              final LocationQuestion location => LocationQuestionFields(
+                question: location,
+                onChanged: (fields) => _contentFields = fields,
+              ),
               MultipleChoiceQuestion() => _multipleChoicePanel(),
               BuzzerQuestion() => _buzzerPanel(),
               ShortAnswerQuestion() ||
@@ -770,14 +952,66 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     }
   }
 
+  /// The question as entered so far, without checking it: what a kind
+  /// change takes over. Unreadable numbers keep their former value.
+  Question _draft() {
+    T attempt<T>(T Function() read, T fallback) {
+      try {
+        return read();
+      } on Object {
+        return fallback;
+      }
+    }
+
+    return attempt(
+      () => _buildQuestion(
+        timeLimit: attempt(_timeLimit, widget.question.timeLimit),
+        rule: widget.usesQuestionPoints
+            ? attempt(_buildScoringRule, widget.question.scoringRule)
+            : widget.question.scoringRule,
+      ),
+      () {
+        // Kind specific input that does not parse yet stays as it was.
+        _contentFields = {};
+        return _buildQuestion(
+          timeLimit: attempt(_timeLimit, widget.question.timeLimit),
+          rule: widget.question.scoringRule,
+        );
+      }(),
+    );
+  }
+
+  Duration _timeLimit() => _hasTimeLimit
+      ? Duration(seconds: int.parse(_timeLimitController.text))
+      : Duration.zero;
+
   void _saveValid() {
     if (!_formKey.currentState!.validate()) return;
-    final timeLimit = _hasTimeLimit
-        ? Duration(seconds: int.parse(_timeLimitController.text))
-        : Duration.zero;
-    final rule = widget.usesQuestionPoints
-        ? _buildScoringRule()
-        : widget.question.scoringRule;
+    final question = _buildQuestion(
+      timeLimit: _timeLimit(),
+      rule: widget.usesQuestionPoints
+          ? _buildScoringRule()
+          : widget.question.scoringRule,
+    );
+    final errors = [
+      ...question.structureErrors,
+      if (!widget.hidesSolution) ...question.solutionErrors,
+      for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
+      for (final hint in _hints) ...hint.validationErrors,
+    ];
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errors.map(context.tr).join(' '))));
+      return;
+    }
+    Navigator.of(context).pop(question);
+  }
+
+  Question _buildQuestion({
+    required Duration timeLimit,
+    required ScoringRule rule,
+  }) {
     var question = switch (widget.question) {
       MultipleChoiceQuestion(:final id) => MultipleChoiceQuestion(
         id: id,
@@ -796,6 +1030,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       ShortAnswerQuestion() ||
       OrderingQuestion() ||
       MatchingQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() => Question.fromJson({
         ...widget.question.toJson(),
@@ -826,19 +1061,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       'hints': _hints.map((hint) => hint.toJson()).toList(),
     });
     if (widget.hidesSolution) question = question.withoutSolution();
-    final errors = [
-      ...question.structureErrors,
-      if (!widget.hidesSolution) ...question.solutionErrors,
-      for (final m in [..._media, ..._solutionMedia]) ...m.validationErrors,
-      for (final hint in _hints) ...hint.validationErrors,
-    ];
-    if (errors.isNotEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errors.map(context.tr).join(' '))));
-      return;
-    }
-    Navigator.of(context).pop(question);
+    return question;
   }
 
   ScoringRule _buildScoringRule() => switch (_scoringKind) {
@@ -857,9 +1080,6 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
       rankDecay: int.parse(_tertiaryPointsController.text),
     ),
   };
-
-  FormFieldValidator<String> _requiredText(String message) =>
-      (value) => value == null || value.trim().isEmpty ? message : null;
 
   FormFieldValidator<String> _positiveInt(String message) => (value) {
     final parsed = int.tryParse(value ?? '');

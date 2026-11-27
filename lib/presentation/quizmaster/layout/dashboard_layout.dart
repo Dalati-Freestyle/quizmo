@@ -34,7 +34,8 @@ enum DashboardSection {
   corrections('Korrekturverlauf', required: false),
   report('Ergebnisbericht', required: false),
   players('Spieler', required: true),
-  serverLog('Server-Log', required: false);
+  serverLog('Server-Log', required: false),
+  tvPreview('TV-Vorschau', required: false);
 
   const DashboardSection(this.titleKey, {required this.required});
 
@@ -132,6 +133,7 @@ final class DashboardLayout {
     DashboardSection.players,
     DashboardSection.scoreboard,
     DashboardSection.corrections,
+    DashboardSection.tvPreview,
     DashboardSection.media,
     DashboardSection.poker,
     DashboardSection.server,
@@ -263,7 +265,8 @@ final class DashboardLayout {
         colorIndex: section.index % kDashboardPaletteSize,
         visible:
             section != DashboardSection.serverLog &&
-            section != DashboardSection.recovery,
+            section != DashboardSection.recovery &&
+            section != DashboardSection.tvPreview,
         expanded: section != DashboardSection.serverLog,
       );
 

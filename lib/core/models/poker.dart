@@ -10,6 +10,7 @@ final class PokerState extends Equatable {
     this.chips = const {},
     this.wagers = const {},
     this.settledTeamIds = const {},
+    this.eliminations = const {},
     this.betting = false,
     this.questionHidden = false,
     this.category,
@@ -27,18 +28,34 @@ final class PokerState extends Equatable {
     chips: {for (final id in teams) id: startingChips},
   );
 
-  factory PokerState.fromJson(JsonMap json) => PokerState(
-    startingChips: json.readInt('startingChips'),
-    // Checkpoints and snapshots of older versions have no stake limits.
-    minStake: json.readIntOrNull('minStake') ?? 0,
-    maxStake: json.readIntOrNull('maxStake'),
-    chips: json.readIntMap('chips'),
-    wagers: json.readIntMap('wagers'),
-    settledTeamIds: json.readStringList('settledTeamIds').toSet(),
-    betting: json.readBool('betting'),
-    questionHidden: json.readBool('questionHidden'),
-    category: json.readStringOrNull('category'),
-  );
+  factory PokerState.fromJson(JsonMap json) {
+    final chips = json.readIntMap('chips');
+    final wagers = json.readIntMap('wagers');
+    final settled = json.readStringList('settledTeamIds').toSet();
+    return PokerState(
+      startingChips: json.readInt('startingChips'),
+      // Checkpoints and snapshots of older versions have no stake limits.
+      minStake: json.readIntOrNull('minStake') ?? 0,
+      maxStake: json.readIntOrNull('maxStake'),
+      chips: chips,
+      wagers: wagers,
+      settledTeamIds: settled,
+      // Saved games of older versions did not record when a team went out; those
+      // teams count as the first ones to leave.
+      eliminations: json['eliminations'] == null
+          ? {
+              for (final entry in chips.entries)
+                if (entry.value == 0 &&
+                    (settled.contains(entry.key) ||
+                        (wagers[entry.key] ?? 0) == 0))
+                  entry.key: 0,
+            }
+          : json.readIntMap('eliminations'),
+      betting: json.readBool('betting'),
+      questionHidden: json.readBool('questionHidden'),
+      category: json.readStringOrNull('category'),
+    );
+  }
 
   final int startingChips;
 
@@ -51,6 +68,39 @@ final class PokerState extends Equatable {
   final Map<String, int> chips;
   final Map<String, int> wagers;
   final Set<String> settledTeamIds;
+
+  /// Teams that lost all their chips, with the number of the played question
+  /// whose settlement (or correction) took the last ones. `0` means that the
+  /// moment is unknown (saved games of older versions).
+  final Map<String, int> eliminations;
+
+  /// Chips [teamId] owns: its balance plus a stake that is still reserved.
+  int ownedBy(String teamId) =>
+      (chips[teamId] ?? 0) +
+      (settledTeamIds.contains(teamId) ? 0 : wagers[teamId] ?? 0);
+
+  /// A copy in which every team of [teamIds] (default: all) without chips is
+  /// out since [question] and no team with chips is out. Teams that are out
+  /// already keep their moment.
+  PokerState withEliminations(int question, {Iterable<String>? teamIds}) {
+    final updated = {...eliminations};
+    for (final id in teamIds ?? chips.keys) {
+      if (ownedBy(id) > 0) {
+        updated.remove(id);
+      } else {
+        updated.putIfAbsent(id, () => question);
+      }
+    }
+    return copyWith(eliminations: updated);
+  }
+
+  /// A copy in which no team with chips counts as eliminated.
+  PokerState withReturnedTeams() => copyWith(
+    eliminations: {
+      for (final entry in eliminations.entries)
+        if (ownedBy(entry.key) == 0) entry.key: entry.value,
+    },
+  );
   final bool betting;
 
   /// Category phase before the reveal: guests only see [category] and may
@@ -65,6 +115,7 @@ final class PokerState extends Equatable {
     Map<String, int>? chips,
     Map<String, int>? wagers,
     Set<String>? settledTeamIds,
+    Map<String, int>? eliminations,
     bool? betting,
     bool? questionHidden,
     Object? category = _unset,
@@ -75,6 +126,7 @@ final class PokerState extends Equatable {
     chips: chips ?? this.chips,
     wagers: wagers ?? this.wagers,
     settledTeamIds: settledTeamIds ?? this.settledTeamIds,
+    eliminations: eliminations ?? this.eliminations,
     betting: betting ?? this.betting,
     questionHidden: questionHidden ?? this.questionHidden,
     category: identical(category, _unset) ? this.category : category as String?,
@@ -105,6 +157,7 @@ final class PokerState extends Equatable {
     'chips': chips,
     'wagers': wagers,
     'settledTeamIds': settledTeamIds.toList(),
+    'eliminations': eliminations,
     'betting': betting,
     if (questionHidden) 'questionHidden': true,
     if (category != null) 'category': category,
@@ -118,6 +171,7 @@ final class PokerState extends Equatable {
     chips,
     wagers,
     settledTeamIds,
+    eliminations,
     betting,
     questionHidden,
     category,

@@ -22,6 +22,8 @@ import 'correction_history_panel.dart';
 import 'dashboard_panels.dart';
 import 'layout/dashboard_layout.dart';
 import 'session_report_panel.dart';
+import 'grading_dialog.dart';
+import 'tv_preview_panel.dart';
 
 /// Builds the game sections for [engineState] of [engine].
 ///
@@ -35,6 +37,8 @@ Map<DashboardSection, Widget> buildGameSections(
   required String quizName,
   bool connectionsAvailable = true,
   List<Widget> startExtras = const [],
+  Uri? tvJoinUri,
+  GuestWifi? guestWifi,
 }) {
   final game = engineState.game;
   return {
@@ -75,7 +79,6 @@ Map<DashboardSection, Widget> buildGameSections(
           resolvedAttempts: game.round.resolvedAttempts,
         ),
       ),
-      onJudgeAnswer: engine.add,
       onJudgeBuzzer: engine.add,
       onShowHint: engine.add,
       onTakeBackHint: engine.add,
@@ -87,6 +90,8 @@ Map<DashboardSection, Widget> buildGameSections(
       onReopenBuzzerForAll: () =>
           engine.add(const ReopenBuzzerEvent(forAll: true)),
       onEndRound: () => engine.add(const EndRoundEvent()),
+      onSkipCountdown: () => engine.add(const EndAnswerCountdownEvent()),
+      hostNowMicros: () => engine.hostNowMicros,
       onNext: () {
         if (game.isStarted) engine.add(const NextQuestionEvent());
       },
@@ -94,48 +99,63 @@ Map<DashboardSection, Widget> buildGameSections(
       onFinish: () => engine.add(const FinishQuizEvent()),
       onFinishEarly: () => engine.add(const FinishQuizEvent(early: true)),
     ),
-    if (game.round.question case final question?)
-      if ([
-        ...question.media,
-        if (game.round.status == RoundStatus.revealed)
+    if ([
+      if (game.showsSlide) ...game.activeSlide!.media,
+      if (game.round.question case final question?) ...[
+        if (!game.showsSlide) ...question.media,
+        if (game.round.status == RoundStatus.revealed && !game.showsSlide)
           ...question.solutionMedia
-        else
+        else if (!game.showsSlide)
           for (final hint in game.round.shownHints) ...hint.media,
-      ].any((m) => m is AudioAttachment || m is VideoAttachment))
-        DashboardSection.media: PanelCard(
-          title: context.tr("Medienwiedergabe"),
-          icon: Icons.live_tv,
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              FilledButton.icon(
-                onPressed: () =>
-                    engine.add(const ControlTvMediaEvent(TvMediaAction.play)),
-                icon: const Icon(Icons.play_arrow),
-                label: Text(context.tr("Abspielen")),
-              ),
-              OutlinedButton.icon(
-                onPressed: () =>
-                    engine.add(const ControlTvMediaEvent(TvMediaAction.pause)),
-                icon: const Icon(Icons.pause),
-                label: Text(context.tr("Pause")),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => engine.add(
-                  const ControlTvMediaEvent(TvMediaAction.restart),
+      ],
+    ].any((m) => m is AudioAttachment || m is VideoAttachment))
+      DashboardSection.media: PanelCard(
+        title: context.tr("Medienwiedergabe"),
+        icon: Icons.live_tv,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _BlockedTvNotice(screens: engine.mediaScreens),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: () =>
+                      engine.add(const ControlTvMediaEvent(TvMediaAction.play)),
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text(context.tr("Abspielen")),
                 ),
-                icon: const Icon(Icons.replay),
-                label: Text(context.tr("Neu starten")),
-              ),
-              Text(
-                game.tvMediaPaused
-                    ? context.tr("TV: pausiert")
-                    : context.tr("TV: Wiedergabe angefordert"),
-              ),
-            ],
-          ),
+                OutlinedButton.icon(
+                  onPressed: () => engine.add(
+                    const ControlTvMediaEvent(TvMediaAction.pause),
+                  ),
+                  icon: const Icon(Icons.pause),
+                  label: Text(context.tr("Pause")),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => engine.add(
+                    const ControlTvMediaEvent(TvMediaAction.restart),
+                  ),
+                  icon: const Icon(Icons.replay),
+                  label: Text(context.tr("Neu starten")),
+                ),
+                Text(
+                  game.tvMediaPaused
+                      ? context.tr('Überall pausiert')
+                      : context.tr('TV spielt, andere Geräte nur auf Wunsch.'),
+                ),
+              ],
+            ),
+          ],
         ),
+      ),
+    DashboardSection.tvPreview: TvPreviewPanel(
+      game: game,
+      quizName: quizName,
+      joinUri: tvJoinUri,
+      guestWifi: guestWifi,
+    ),
     if (game.poker case final poker?)
       DashboardSection.poker: PanelCard(
         title: context.tr("Pokerchips"),
@@ -340,7 +360,7 @@ class JeopardyPickConfirmation extends StatelessWidget {
                     state.game.players[playerId]?.name ?? "Spieler",
                     pick.board.categoryNameOf(id),
                     pick.board.pointsFor(id),
-                    question?.prompt ?? "",
+                    markdownToPlain(question?.prompt ?? ''),
                   ],
                 ),
               ),
@@ -366,7 +386,8 @@ class JeopardyPickConfirmation extends StatelessWidget {
             );
           }
         },
-        child: child,
+        // The grading pop-up never overlaps a pick: a pick needs an idle round.
+        child: GradingHost(engine: engine, child: child),
       );
 }
 
@@ -440,4 +461,39 @@ class _WithSlides extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Warns while a TV waits for somebody to allow sound on it.
+class _BlockedTvNotice extends StatelessWidget {
+  const _BlockedTvNotice({required this.screens});
+
+  final MediaScreens screens;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<bool>(
+    stream: screens.changes,
+    initialData: screens.anyBlocked,
+    builder: (context, snapshot) => snapshot.data ?? false
+        ? Padding(
+            key: const ValueKey('tv-media-blocked'),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.volume_off,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.tr(
+                      'Der Browser am TV blockiert die Wiedergabe mit Ton. Bitte am TV bestätigen.',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        : const SizedBox.shrink(),
+  );
 }

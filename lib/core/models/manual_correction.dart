@@ -24,6 +24,7 @@ final class ManualCorrection extends Equatable {
     this.scoreDeltas = const {},
     this.chipDeltas = const {},
     this.teamDeltas = const {},
+    this.beforeEliminations = const {},
     this.beforeRound,
     this.afterRound,
     this.beforeJeopardy,
@@ -56,6 +57,9 @@ final class ManualCorrection extends Equatable {
     reversesId: json.readStringOrNull('reversesId'),
     scoreDeltas: json.readIntMap('scoreDeltas'),
     chipDeltas: json.readIntMap('chipDeltas'),
+    beforeEliminations: json['beforeEliminations'] == null
+        ? const {}
+        : json.readIntMap('beforeEliminations'),
     teamDeltas: json['teamDeltas'] == null
         ? const {}
         : json.readIntMap('teamDeltas'),
@@ -110,6 +114,10 @@ final class ManualCorrection extends Equatable {
   final Map<String, int> scoreDeltas;
   final Map<String, int> chipDeltas;
 
+  /// Poker teams this correction brought back into the game, with the moment
+  /// they had gone out (`PokerState.eliminations`); restored by the undo.
+  final Map<String, int> beforeEliminations;
+
   /// Points booked directly on teams (no player), per team id.
   final Map<String, int> teamDeltas;
 
@@ -141,6 +149,7 @@ final class ManualCorrection extends Equatable {
     'scoreDeltas': scoreDeltas,
     'chipDeltas': chipDeltas,
     if (teamDeltas.isNotEmpty) 'teamDeltas': teamDeltas,
+    if (beforeEliminations.isNotEmpty) 'beforeEliminations': beforeEliminations,
     'beforeRound': beforeRound?.toJson(),
     'afterRound': afterRound?.toJson(),
     'beforeJeopardy': beforeJeopardy?.toJson(),
@@ -169,6 +178,7 @@ final class ManualCorrection extends Equatable {
     scoreDeltas,
     chipDeltas,
     teamDeltas,
+    beforeEliminations,
     beforeRound,
     afterRound,
     beforeJeopardy,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';
+import 'package:quizmo/presentation/common/media_playback.dart';
 import 'package:quizmo/presentation/common/question_media_view.dart';
 import 'package:quizmo/presentation/quizmaster/dashboard_panels.dart';
 
@@ -105,8 +106,8 @@ void main() {
       expect(
         tester
             .widget<QuestionMediaView>(find.byType(QuestionMediaView))
-            .playing,
-        isFalse,
+            .playback,
+        MediaPlayback.paused,
       );
       expect(tester.takeException(), isNull);
     },

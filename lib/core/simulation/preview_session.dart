@@ -24,6 +24,8 @@ final class PreviewSession {
       teams: quiz.teamsById,
       mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
       autoContinueBuzzer: false,
+      answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
+      draftGrace: QuizEngineBloc.defaultDraftGrace,
       revealMode: switch (quiz.format) {
         StandardFormat(:final revealMode) => revealMode,
         JeopardyFormat() ||
@@ -190,6 +192,12 @@ final class PreviewSession {
     return _work;
   }
 
+  /// What [playerId] may see of the answers, as a real host sends it.
+  PlayerAnswers answersOf(String playerId) => playerAnswersOf(
+    engine.state.game,
+    playerId,
+  ).withDrafts(engine.teamDraftsOf(playerId));
+
   Future<void> flush() => advance(Duration.zero);
 
   bool _maySubmit(GameState game, String id) {
@@ -197,7 +205,7 @@ final class PreviewSession {
     if (!round.status.acceptsInput ||
         game.players[id]?.isConnected != true ||
         !game.mayAnswerQuestion(id) ||
-        round.answers.containsKey(id) ||
+        round.hasSubmitted(id) ||
         round.lockedOutPlayerIds.contains(id) ||
         round.buzzerQueue.any((press) => press.playerId == id)) {
       return false;
@@ -212,13 +220,8 @@ final class PreviewSession {
         return false;
       }
     }
-    if (game.jeopardy != null || game.poker != null) {
-      if (game.mode is TeamMode &&
-          round.answers.keys.any((id) => game.players[id]?.teamId == teamId)) {
-        return false;
-      }
-    }
-    return true;
+    // Bots never replace the answer of their team.
+    return game.teamAnswerOf(game.sharedAnswerTeamOf(id)) == null;
   }
 
   void _plan(GameState game) {

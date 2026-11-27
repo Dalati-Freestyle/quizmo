@@ -40,6 +40,17 @@ final class _Connection {
   Timer? handshakeTimeout;
   Timer? identityRetry;
   int lastFrameAt = 0;
+  int _draftWindowStart = 0;
+  int _drafts = 0;
+
+  /// At most ten drafts per second; a player sends about three.
+  bool allowsDraft(int now) {
+    if (now - _draftWindowStart >= 1000000) {
+      _draftWindowStart = now;
+      _drafts = 0;
+    }
+    return ++_drafts <= 10;
+  }
 
   /// Authoritative player id; `null` until the join request was accepted.
   String? playerId;
@@ -75,6 +86,7 @@ class SocketHub {
        _guestWifi = guestWifi {
     _knownPlayerIds = _engine.state.game.players.keys.toSet();
     _engineSubscription = _engine.stream.listen(_broadcastState);
+    _draftSubscription = _engine.draftChanges.listen(_onDraftChanged);
     _accessSubscription = _engine.access.stream.listen(_accessChanged);
     _guestWifiSubscription = guestWifi?.stream.listen(_guestWifiChanged);
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -102,6 +114,14 @@ class SocketHub {
   final Map<String, _Connection> _connections = <String, _Connection>{};
 
   StreamSubscription<QuizEngineState>? _engineSubscription;
+  StreamSubscription<String>? _draftSubscription;
+
+  /// Players whose team still has to learn about a changed draft.
+  final Set<String> _changedDrafts = {};
+  Timer? _draftTimer;
+
+  /// Collects the drafts of fast typing players into one message per team.
+  static const draftInterval = Duration(milliseconds: 120);
   StreamSubscription<SessionAccessState>? _accessSubscription;
   int _codeWindowStart = 0;
   int _failedCodes = 0;
@@ -202,6 +222,9 @@ class SocketHub {
     await _guestWifiSubscription?.cancel();
     await _engineSubscription?.cancel();
     _engineSubscription = null;
+    _draftTimer?.cancel();
+    await _draftSubscription?.cancel();
+    _draftSubscription = null;
     final connections = _connections.values.toList(growable: false);
     _connections.clear();
     for (final connection in connections) {
@@ -666,6 +689,7 @@ class SocketHub {
               ShortAnswer() ||
               OrderingAnswer() ||
               MatchingAnswer() ||
+              LocationAnswer() ||
               EstimationAnswer() ||
               TrueFalseAnswer():
             _engine.add(SubmitAnswerEvent(trusted));
@@ -675,6 +699,14 @@ class SocketHub {
             // Only the host records spoken answers; clients cannot send one.
             return;
         }
+
+      case DraftMessage(:final draft):
+        final playerId = connection.playerId;
+        if (playerId == null || connection.isSpectator) return;
+        // Never trust the client's self reported identity. Too many drafts
+        // are dropped; the client repeats its last state.
+        if (!connection.allowsDraft(_now())) return;
+        _engine.add(UpdateDraftEvent(draft.withPlayerId(playerId)));
 
       case JeopardyPickMessage(:final questionId):
         final id = connection.playerId;
@@ -726,6 +758,10 @@ class SocketHub {
           _deviceCheck = check.confirm(playerId);
         }
 
+      case MediaBlockedReport(:final blocked):
+        if (!connection.isSpectator) return;
+        _engine.mediaScreens.report(connection.id, blocked: blocked);
+
       case LeaveNotice():
         _onDisconnected(connection);
         connection.closeSocket();
@@ -735,6 +771,7 @@ class SocketHub {
   void _onDisconnected(_Connection connection) {
     if (_connections.remove(connection.id) == null) return;
     _engine.access.revokeReadCredential(connection.id);
+    _engine.mediaScreens.report(connection.id, blocked: false);
     connection.handshakeTimeout?.cancel();
     connection.identityRetry?.cancel();
     connection.subscription?.cancel();
@@ -877,7 +914,58 @@ class SocketHub {
     return GameSnapshotMessage(
       redacted ?? guestSnapshotOf(game, title: serverName),
       ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
+      answers: id == null ? null : _answersOf(game, id),
     );
+  }
+
+  /// The own and team answers of [playerId], with the live drafts as long as
+  /// the published snapshot shows the round they belong to.
+  PlayerAnswers _answersOf(GameState game, String playerId) {
+    final answers = playerAnswersOf(game, playerId);
+    final round = _engine.state.game.round;
+    return game.round.question?.id == round.question?.id &&
+            game.round.startedAtHostMicros == round.startedAtHostMicros
+        ? answers.withDrafts(_engine.teamDraftsOf(playerId))
+        : answers;
+  }
+
+  void _onDraftChanged(String playerId) {
+    _changedDrafts.add(playerId);
+    _draftTimer ??= Timer(draftInterval, () {
+      _draftTimer = null;
+      _sendTeamDrafts();
+    });
+  }
+
+  /// Sends changed drafts to the connected members of the same team only.
+  void _sendTeamDrafts() {
+    final game = _engine.state.game;
+    final round = game.round;
+    final teams = {
+      for (final id in _changedDrafts) ?game.sharedAnswerTeamOf(id),
+    };
+    _changedDrafts.clear();
+    final questionId = round.question?.id;
+    final startedAt = round.startedAtHostMicros;
+    if (teams.isEmpty || questionId == null || startedAt == null) return;
+    final published = _engine.publishedGame.round;
+    // Guests only know the round they were shown.
+    if (published.question?.id != questionId ||
+        published.startedAtHostMicros != startedAt) {
+      return;
+    }
+    for (final connection in _connections.values.toList(growable: false)) {
+      final id = connection.playerId;
+      if (id == null || connection.isSpectator) continue;
+      if (!teams.contains(game.sharedAnswerTeamOf(id))) continue;
+      connection.send(
+        TeamDraftsMessage(
+          questionId: questionId,
+          roundStartedAt: startedAt,
+          drafts: _engine.teamDraftsOf(id),
+        ),
+      );
+    }
   }
 
   LobbySnapshotMessage _lobbySnapshot() => LobbySnapshotMessage(

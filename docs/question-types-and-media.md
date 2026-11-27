@@ -10,7 +10,8 @@ dieselben Vorlagen beim Bearbeiten einer Zelle verfügbar.
 | Freitext | Akzeptierte Antworten, eine pro Zeile. Groß-/Kleinschreibung und mehrfache Leerzeichen werden normalisiert. 0–5 Zeichenänderungen (Levenshtein-Distanz) sind einstellbar. Optional bewertet die Spielleitung von Hand (`manualGrading`). |
 | Reihenfolge | Elemente in der richtigen Reihenfolge eingeben. Spieler sortieren mit Hoch-/Runter-Buttons. Nur eine vollständige korrekte Reihenfolge zählt. |
 | Zuordnung | Je Zeile `links = rechts`. Spieler wählen für jedes linke Element einen eindeutigen Partner. Nur die vollständige korrekte Zuordnung zählt. Derselbe Wert darf rechts mehrfach vorkommen (z. B. zwei Gerichte mit Schwein); gleiche Werte sind untereinander austauschbar. |
-| Schätzfrage | Endliche Zielzahl und optionale Einheit. Anteil der Maximalpunkte: `max(0, 1 - abs(Antwort - Ziel) / abs(Ziel))`. Bei Ziel 0 ersetzt die einstellbare Null-Skala den Nenner. Ganze Punkte werden gerundet. |
+| Schätzfrage | Endliche Zielzahl und optionale Einheit. Anteil der Maximalpunkte: `max(0, 1 - abs(Antwort - Ziel) / abs(Ziel))`. Bei Ziel 0 ersetzt die einstellbare Null-Skala den Nenner. Ganze Punkte werden gerundet. Optionale Toleranz mit Unter- und Obergrenze: Antworten im Bereich (einschließlich der Grenzen) sind vollständig richtig, alle anderen nie. |
+| Ort auf der Karte | Zielort (Marker, Ortssuche oder Koordinaten), Radien „volle Punkte bis“ und „keine Punkte ab“ sowie der Startausschnitt der Spieler. Anteil der Punkte nach Luftlinie: bis zum ersten Radius alle, ab dem zweiten keine, dazwischen linear. Die Karte braucht auf jedem Gerät Internet. Fotos mit GPS-Daten verraten den Ort; der Editor warnt davor. |
 | Wahr/Falsch | Binäre Lösung und Auswahl. |
 
 Die bestehende Punkte-Regel bestimmt die Maximalpunkte. Auf einem Jeopardy-Board

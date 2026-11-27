@@ -82,7 +82,7 @@ void main() {
     expect(find.text('Science'), findsOneWidget);
     expect(find.text('History'), findsOneWidget);
     expect(find.text('100'), findsNWidgets(2));
-    expect(find.text('Red Foxes picks the next question'), findsOneWidget);
+    expect(find.text('Red Foxes wählt ein Feld.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -136,7 +136,7 @@ void main() {
     );
 
     expect(find.text('DAILY DOUBLE'), findsOneWidget);
-    expect(find.textContaining('place your wager'), findsOneWidget);
+    expect(find.text('Red Foxes legt den Einsatz fest.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

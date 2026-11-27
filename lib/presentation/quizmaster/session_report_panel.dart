@@ -7,6 +7,7 @@ import '../../core/data/session_report.dart';
 import '../../core/models/game_state.dart';
 import '../common/adaptive_layout.dart';
 import '../l10n/app_localizations.dart';
+import '../common/elimination_label.dart';
 
 class SessionReportPanel extends StatefulWidget {
   const SessionReportPanel({
@@ -92,26 +93,29 @@ class _SessionReportPanelState extends State<SessionReportPanel> {
             '${context.tr(entry.isTeam ? 'Team' : 'Player')}: ${entry.name}',
           ),
           subtitle: Text(
-            context.tr(
-              'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}',
-              [
-                entry.correct,
-                entry.evaluated,
-                metric(entry.hitRate == null ? null : entry.hitRate! * 100),
-                metric(
-                  entry.meanElapsedMicros == null
-                      ? null
-                      : entry.meanElapsedMicros! / 1000,
-                ),
-                context.tr(
-                  !entry.inRoster
-                      ? 'Removed from roster'
-                      : entry.connected
-                      ? 'Connected at end'
-                      : 'Disconnected at end',
-                ),
-              ],
-            ),
+            [
+              ?eliminatedAtLabel(context.tr, entry.eliminatedAt),
+              context.tr(
+                'Correct: {0}/{1} judged; hit rate: {2} %; mean time: {3} ms; {4}',
+                [
+                  entry.correct,
+                  entry.evaluated,
+                  metric(entry.hitRate == null ? null : entry.hitRate! * 100),
+                  metric(
+                    entry.meanElapsedMicros == null
+                        ? null
+                        : entry.meanElapsedMicros! / 1000,
+                  ),
+                  context.tr(
+                    !entry.inRoster
+                        ? 'Removed from roster'
+                        : entry.connected
+                        ? 'Connected at end'
+                        : 'Disconnected at end',
+                  ),
+                ],
+              ),
+            ].join('\n'),
           ),
           trailing: SizedBox(
             width: 100,

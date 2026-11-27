@@ -91,12 +91,21 @@ class _QuestionBulkEditDialogState extends State<QuestionBulkEditDialog> {
   bool? _zoom;
   bool? _manualGrading;
   final _maxEdits = TextEditingController();
+  final _fullKm = TextEditingController();
+  final _zeroKm = TextEditingController();
   bool? _lockOut;
   bool? _hostEnds;
 
   @override
   void dispose() {
-    for (final controller in [_seconds, _category, _maxEdits, ..._points]) {
+    for (final controller in [
+      _seconds,
+      _category,
+      _maxEdits,
+      _fullKm,
+      _zeroKm,
+      ..._points,
+    ]) {
       controller.dispose();
     }
     super.dispose();
@@ -147,7 +156,18 @@ class _QuestionBulkEditDialogState extends State<QuestionBulkEditDialog> {
         (maxEdits == null || maxEdits < 0 || maxEdits > 5)) {
       return null;
     }
+    double? km(TextEditingController controller) =>
+        double.tryParse(controller.text.trim().replaceAll(',', '.'));
+    final fullKm = _fullKm.text.trim().isEmpty ? null : km(_fullKm);
+    final zeroKm = _zeroKm.text.trim().isEmpty ? null : km(_zeroKm);
+    if ((_fullKm.text.trim().isNotEmpty && (fullKm == null || fullKm < 0)) ||
+        (_zeroKm.text.trim().isNotEmpty && (zeroKm == null || zeroKm <= 0)) ||
+        (fullKm != null && zeroKm != null && zeroKm <= fullKm)) {
+      return null;
+    }
     return QuestionBulkEdit(
+      fullPointsKm: fullKm,
+      zeroPointsKm: zeroKm,
       timeLimit: switch (_limit) {
         _Limit.unchanged => null,
         _Limit.none => Duration.zero,
@@ -413,6 +433,22 @@ class _QuestionBulkEditDialogState extends State<QuestionBulkEditDialog> {
                 (value) => _hostEnds = value,
                 yes: context.tr("ja"),
                 no: context.tr("nein"),
+              ),
+              _section(context.tr("Ort auf der Karte")),
+              Wrap(
+                spacing: 12,
+                children: [
+                  _number(
+                    'full-km',
+                    _fullKm,
+                    context.tr("Volle Punkte bis (km)"),
+                  ),
+                  _number(
+                    'zero-km',
+                    _zeroKm,
+                    context.tr("Keine Punkte ab (km)"),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Text(

@@ -319,6 +319,57 @@ final class RevealRoundEvent extends QuizEngineEvent {
   const RevealRoundEvent();
 }
 
+/// The host's verdict on one answer.
+typedef AnswerGrade = ({bool correct, String reason});
+
+/// The host judged the closed answers of the round on stage together: all
+/// verdicts are booked and the round is revealed (or passed on) in one step.
+final class ConfirmGradesEvent extends QuizEngineEvent {
+  const ConfirmGradesEvent({
+    required this.questionId,
+    required this.startedAtHostMicros,
+    required this.grades,
+  });
+
+  final String questionId;
+  final int startedAtHostMicros;
+
+  /// Verdicts by the player whose answer is judged.
+  final Map<String, AnswerGrade> grades;
+
+  @override
+  List<Object?> get props => [questionId, startedAtHostMicros, grades];
+}
+
+/// A player changed their input without sending it.
+final class UpdateDraftEvent extends QuizEngineEvent {
+  const UpdateDraftEvent(this.draft);
+  final AnswerDraft draft;
+  @override
+  List<Object?> get props => [draft];
+}
+
+/// The wait for drafts that were under way when the answers closed is over.
+final class AdoptDraftsEvent extends QuizEngineEvent {
+  const AdoptDraftsEvent(this.questionId, this.startedAt);
+  final String questionId;
+  final int startedAt;
+  @override
+  List<Object?> get props => [questionId, startedAt];
+}
+
+/// Closes the answers after every team answered: sent by the countdown
+/// ([deadlineMicros] set) or by the host to skip it.
+final class EndAnswerCountdownEvent extends QuizEngineEvent {
+  const EndAnswerCountdownEvent({this.deadlineMicros});
+
+  /// The countdown that ran out; a restarted one ignores the event.
+  final int? deadlineMicros;
+
+  @override
+  List<Object?> get props => [deadlineMicros];
+}
+
 /// Finishes the game after the last question: guests then get the final
 /// page with standings and protocol, and deferred solutions are published.
 ///

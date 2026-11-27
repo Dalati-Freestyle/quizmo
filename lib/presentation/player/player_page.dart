@@ -39,6 +39,12 @@ import '../common/snowflake_result_view.dart';
 import '../common/quiz_review_view.dart';
 import '../common/round_countdown.dart';
 import 'questions/multiple_choice_question_view.dart';
+import '../common/answer_countdown.dart';
+import 'team_answer_card.dart';
+import 'team_inputs_view.dart';
+import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// Player facing screen.
 ///
@@ -433,7 +439,9 @@ class _GameBoard extends StatelessWidget {
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: BoxConstraints(
+              maxWidth: _hasVisualMedia(game) ? 900 : 560,
+            ),
             // The countdown floats above the question: on a phone the answers
             // often need scrolling, and the clock must stay in sight.
             child: Stack(
@@ -591,6 +599,23 @@ class LocalPlayerBoard extends StatelessWidget {
       );
 }
 
+/// Whether something on stage gains from a wider column.
+bool _hasVisualMedia(GameState? game) {
+  if (game == null) return false;
+  bool visual(MediaAttachment media) => switch (media) {
+    ImageAttachment() || VideoAttachment() || GeoAttachment() => true,
+    AudioAttachment() || CodeAttachment() => false,
+  };
+  if (game.showsSlide) return game.activeSlide!.media.any(visual);
+  final question = game.round.question;
+  return question != null &&
+      [
+        ...question.media,
+        ...question.solutionMedia,
+        for (final hint in game.round.shownHints) ...hint.media,
+      ].any(visual);
+}
+
 class _QuestionStage extends StatelessWidget {
   const _QuestionStage({required this.state});
 
@@ -623,7 +648,9 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey('slide-${game.activeSlide!.id}'),
         slide: game.activeSlide!,
         baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
-        playing: false,
+        playback: MediaPlayback.onDevice(game),
+        playbackRevision: game.tvMediaRevision,
+        commandRevision: game.tvMediaCommandRevision,
       );
     }
 
@@ -678,25 +705,39 @@ class _QuestionStage extends StatelessWidget {
 
     // Exhaustive switch over the sealed `Question` hierarchy: adding a new
     // question type makes this line fail to compile until it has a renderer.
-    final enabled =
-        state.isConnected &&
-        state.roundStatus.acceptsInput &&
-        state.lastSubmittedOptionId == null &&
-        state.mayAnswerQuestion;
+    final enabled = state.mayEditAnswer;
     final submitted = state.lastSubmittedOptionId != null;
-    final myAnswer = state.game?.round.answers[state.playerId];
+    final myAnswer =
+        state.answers?.own ?? state.game?.round.answers[state.playerId];
+    final team = state.sharesTeamAnswer
+        ? TeamAnswerMode(valid: state.answers?.valid, own: state.answers?.own)
+        : null;
     final input = switch (question) {
       MultipleChoiceQuestion() => MultipleChoiceQuestionView(
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
-        enabled: state.isConnected && state.mayAnswerQuestion,
+        team: team,
+        enabled: team == null
+            ? state.isConnected && state.mayAnswerQuestion
+            : enabled,
         submissionAccepted: state.submissionStatus == SubmissionStatus.accepted,
-        selectedOptionIds: switch (state.game?.round.answers[state.playerId]) {
+        selectedOptionIds: switch (myAnswer) {
           MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds,
           _ => const [],
         },
         onSubmitMultiple: cubit.chooseMultiple,
+        onChanged: (optionIds) => cubit.updateDraft(
+          optionIds.isEmpty
+              ? null
+              : (id, timestamp, offset) => MultipleChoiceAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  optionIds: optionIds,
+                ),
+        ),
         question: question,
         status: state.roundStatus,
         selectedOptionId: state.lastSubmittedOptionId,
@@ -706,9 +747,21 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value == null
+              ? null
+              : (id, timestamp, offset) => ShortAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  text: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => ShortAnswer(
             playerId: id,
@@ -723,9 +776,19 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          (id, timestamp, offset) => OrderingAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            itemIds: value,
+          ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => OrderingAnswer(
             playerId: id,
@@ -740,9 +803,21 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value.isEmpty
+              ? null
+              : (id, timestamp, offset) => MatchingAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  pairs: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => MatchingAnswer(
             playerId: id,
@@ -757,9 +832,21 @@ class _QuestionStage extends StatelessWidget {
         key: ValueKey(
           '${question.id}-${state.game?.round.startedAtHostMicros}',
         ),
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
+        onChanged: (value) => cubit.updateDraft(
+          value == null
+              ? null
+              : (id, timestamp, offset) => EstimationAnswer(
+                  playerId: id,
+                  questionId: question.id,
+                  clientTimestampMicros: timestamp,
+                  clockOffsetMicros: offset,
+                  value: value,
+                ),
+        ),
         onSubmit: (value) => cubit.submit(
           (id, timestamp, offset) => EstimationAnswer(
             playerId: id,
@@ -778,6 +865,7 @@ class _QuestionStage extends StatelessWidget {
           TrueFalseAnswer(:final value) => value,
           _ => null,
         },
+        team: team,
         question: question,
         enabled: enabled,
         submitted: submitted,
@@ -788,6 +876,35 @@ class _QuestionStage extends StatelessWidget {
             clientTimestampMicros: timestamp,
             clockOffsetMicros: offset,
             value: value,
+          ),
+        ),
+      ),
+      LocationQuestion() => LocationQuestionView(
+        key: ValueKey(
+          '${question.id}-${state.game?.round.startedAtHostMicros}',
+        ),
+        team: team,
+        question: question,
+        enabled: enabled,
+        submitted: submitted,
+        onChanged: (point) => cubit.updateDraft(
+          (id, timestamp, offset) => LocationAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            latitude: point.latitude,
+            longitude: point.longitude,
+          ),
+        ),
+        onSubmit: (point) => cubit.submit(
+          (id, timestamp, offset) => LocationAnswer(
+            playerId: id,
+            questionId: question.id,
+            clientTimestampMicros: timestamp,
+            clockOffsetMicros: offset,
+            latitude: point.latitude,
+            longitude: point.longitude,
           ),
         ),
       ),
@@ -833,7 +950,15 @@ class _QuestionStage extends StatelessWidget {
               ),
             ),
           ),
+        if (state.game?.round.answerDeadlineMicros case final deadline?)
+          AnswerCountdownBanner(
+            deadlineMicros: deadline,
+            hostNowMicros: cubit.hostNowMicros,
+          ),
         input,
+        AdoptedAnswerCard(state: state),
+        TeamAnswerCard(state: state, onResend: cubit.resend),
+        TeamInputsView(state: state, hostNowMicros: cubit.hostNowMicros),
         if (state.roundStatus != RoundStatus.revealed &&
             question is! BuzzerQuestion)
           AwaitingHostCard(state: state),
@@ -847,7 +972,7 @@ class _QuestionStage extends StatelessWidget {
         const SizedBox(height: 16),
         if (question is! MultipleChoiceQuestion &&
             question is! BuzzerQuestion) ...[
-          Text(
+          QuizMarkdown(
             question.prompt,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
@@ -860,13 +985,13 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.media,
             baseUri: cubit.mediaBaseUri,
-            playing:
-                state.game?.tvMediaPaused == true ||
-                    latestHintPlays(state.game?.round ?? RoundState.idle)
-                ? false
-                : (state.game?.tvMediaCommandRevision ?? 0) > 0
-                ? true
-                : null,
+            playback: MediaPlayback.onDevice(
+              state.game,
+              stopped:
+                  latestHintPlays(state.game?.round ?? RoundState.idle) ||
+                  (state.roundStatus == RoundStatus.revealed &&
+                      question.solutionMedia.isNotEmpty),
+            ),
             playbackRevision: state.game?.tvMediaRevision ?? 0,
             commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
@@ -876,6 +1001,9 @@ class _QuestionStage extends StatelessWidget {
           const SizedBox(height: 24),
           if (state.game case final game? when game.round.snowflake != null)
             SnowflakeResultView(game: game, fontSize: 16)
+          else if (question case final LocationQuestion location
+              when state.game != null)
+            LocationResultView(game: state.game!, question: location)
           else if (question is! MultipleChoiceQuestion &&
               question is! BuzzerQuestion)
             Text(
@@ -888,11 +1016,7 @@ class _QuestionStage extends StatelessWidget {
           QuestionMediaView(
             media: question.solutionMedia,
             baseUri: cubit.mediaBaseUri,
-            playing: state.game?.tvMediaPaused == true
-                ? false
-                : (state.game?.tvMediaCommandRevision ?? 0) > 0
-                ? true
-                : null,
+            playback: MediaPlayback.onDevice(state.game),
             playbackRevision: state.game?.tvMediaRevision ?? 0,
             commandRevision: state.game?.tvMediaCommandRevision ?? 0,
           ),
@@ -1332,7 +1456,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           QuestionMediaView(
             media: state.question!.media,
             baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
-            playing: false,
+            playback: MediaPlayback.stopped,
           ),
       ],
     );

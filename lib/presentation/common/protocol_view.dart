@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/models/game_protocol.dart';
 import '../l10n/app_localizations.dart';
 import 'protocol_labels.dart';
+import 'elimination_label.dart';
+import 'quiz_markdown.dart';
 
 /// Final standings with shared places; the row of [highlightId] is accented.
 class FinalStandingsList extends StatelessWidget {
@@ -77,6 +79,9 @@ class FinalStandingsList extends StatelessWidget {
                           standing.memberNames.join(', '),
                           style: theme.textTheme.bodySmall,
                         ),
+                      if (eliminatedAtLabel(tr, standing.eliminatedAt)
+                          case final label?)
+                        Text(label, style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -137,7 +142,7 @@ class ProtocolView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
+                  QuizMarkdown(
                     '${question.number}. ${question.prompt}',
                     style: theme.textTheme.titleMedium,
                   ),
@@ -176,6 +181,8 @@ class ProtocolView extends StatelessWidget {
                                 tr(protocolStatusKey(answer.status)),
                                 if (answer.wager case final wager?)
                                   tr('Einsatz: {0}', [wager]),
+                                if (answer.adopted)
+                                  tr('beim Ablauf übernommen'),
                                 if (answer.practice) tr('Nur Übung'),
                               ].join(' · '),
                             ),

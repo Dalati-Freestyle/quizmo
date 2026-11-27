@@ -1,11 +1,14 @@
 /// Builds the guest facing [GameProtocol] from the host's full game state.
 library;
 
+import '../engine/answer_evaluation.dart';
+import '../engine/geo.dart';
 import '../models/answer.dart';
 import '../models/game_protocol.dart';
 import '../models/game_state.dart';
 import '../models/manual_correction.dart';
 import '../models/question.dart';
+import '../models/standings.dart';
 import 'session_report.dart';
 
 /// Reason the engine stores on score events booked by manual corrections.
@@ -22,12 +25,7 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
 
   final standings = <ProtocolStanding>[];
   if (teamMode) {
-    final ranked = rankByScore(
-      game.teams.values,
-      (team) => game.teamScores[team.id] ?? 0,
-      tieBreak: (a, b) => a.name.compareTo(b.name),
-    );
-    for (final (team, place) in ranked) {
+    for (final (team, place) in rankTeams(game)) {
       final members = [
         for (final id in game.playerOrder)
           if (game.players[id] case final player? when player.teamId == team.id)
@@ -43,18 +41,14 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
           isTeam: true,
           score: game.teamScores[team.id] ?? 0,
           place: place,
+          eliminatedAt: game.poker?.eliminations[team.id],
           memberIds: [for (final player in members) player.id],
           memberNames: [for (final player in members) player.name],
         ),
       );
     }
   } else {
-    final ranked = rankByScore(
-      game.players.values,
-      (player) => game.scores.scoreOf(player.id),
-      tieBreak: (a, b) => a.name.compareTo(b.name),
-    );
-    for (final (player, place) in ranked) {
+    for (final (player, place) in rankPlayers(game)) {
       standings.add(
         ProtocolStanding(
           id: player.id,
@@ -128,6 +122,7 @@ GameProtocol buildGameProtocol(GameState game, {required String title}) {
               status: _status(answer.status),
               wager: answer.wager,
               practice: answer.practice,
+              adopted: answer.adopted,
               points: poker
                   ? _chipChange(chipsByPhase, phase, answer.teamId)
                   : earnedIn(phase, question.id, answer.playerId),
@@ -217,8 +212,8 @@ String protocolAnswerLabel(AnswerSubmission answer, Question question) {
     ShortAnswer(:final text) => text,
     EstimationAnswer(:final value) =>
       question is EstimationQuestion
-          ? '$value ${question.unit}'.trimRight()
-          : '$value',
+          ? question.valueLabel(value)
+          : formatNumber(value),
     TrueFalseAnswer(:final value) => value ? 'Wahr' : 'Falsch',
     MultipleChoiceAnswer(:final selectedOptionIds) => [
       for (final id in selectedOptionIds)
@@ -234,6 +229,11 @@ String protocolAnswerLabel(AnswerSubmission answer, Question question) {
             ? '${find(question.leftItems, entry.key)} → ${find(question.rightItems, entry.value)}'
             : '${entry.key} → ${entry.value}',
     ].join('; '),
+    LocationAnswer(:final latitude, :final longitude) => [
+      GeoPoint(latitude, longitude).label,
+      if (question case final LocationQuestion location)
+        if (location.distanceOf(answer) case final km?) formatDistance(km),
+    ].join(' · '),
     BuzzerPress() => 'Buzzer',
     VerbalAnswer() => 'Mündlich beantwortet',
   };

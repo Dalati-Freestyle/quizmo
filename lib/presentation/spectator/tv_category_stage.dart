@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/models.dart';
 import '../common/joker_texts.dart';
 import '../l10n/app_localizations.dart';
+import '../common/tv_instruction.dart';
 
 /// Announces the category while the question is still hidden, together with
 /// the attack jokers played so far.
@@ -45,9 +46,10 @@ class TvCategoryStage extends StatelessWidget {
           ),
           const SizedBox(height: 40),
           Text(
-            context.tr(
-              "Angriffs-Joker jetzt spielen – die Frage folgt gleich.",
-            ),
+            [
+              ?tvInstruction(context.tr, game)?.text,
+              context.tr('Die Frage folgt gleich.'),
+            ].join(' '),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 34, color: scheme.onSurfaceVariant),
           ),

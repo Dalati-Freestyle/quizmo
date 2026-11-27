@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../../core/models/models.dart';
 import '../l10n/app_localizations.dart';
 import 'question_media_view.dart';
+import 'media_playback.dart';
+import 'quiz_markdown.dart';
 
 /// Whether [hint] has media that plays (audio or video).
 bool hintPlaysMedia(QuestionHint hint) => hint.media.any(
@@ -97,8 +99,8 @@ class PlayerHintsView extends StatelessWidget {
                   color: scheme.primary,
                 ),
               ),
-              if (hint.text.trim().isNotEmpty)
-                Text(hint.text, style: theme.textTheme.bodyLarge),
+              if (!isBlankMarkdown(hint.text))
+                QuizMarkdown(hint.text, style: theme.textTheme.bodyLarge),
               if (hint.media.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 QuestionMediaView(
@@ -106,12 +108,10 @@ class PlayerHintsView extends StatelessWidget {
                   media: hint.media,
                   baseUri: baseUri,
                   // Only the newest hint follows the host's media controls.
-                  playing:
-                      revealed || game.tvMediaPaused || index < shown.length - 1
-                      ? false
-                      : game.tvMediaCommandRevision > 0
-                      ? true
-                      : null,
+                  playback: MediaPlayback.onDevice(
+                    game,
+                    stopped: revealed || index < shown.length - 1,
+                  ),
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
                 ),

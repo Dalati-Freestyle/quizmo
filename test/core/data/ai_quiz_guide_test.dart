@@ -73,9 +73,10 @@ void main() {
                 MatchingQuestion() => 'matching',
                 EstimationQuestion() => 'estimation',
                 TrueFalseQuestion() => 'trueFalse',
+                LocationQuestion() => 'location',
               },
         };
-        expect(kinds, hasLength(7));
+        expect(kinds, hasLength(8));
         for (final kind in kinds) {
           expect(guide, contains('`$kind`'), reason: 'type table lists $kind');
         }

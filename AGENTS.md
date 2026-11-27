@@ -72,7 +72,10 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 * **Every question kind must work in every format** (the one exception is Biggest Snowflake, which needs a finite answer set; it asks the question through `Question.supportsUniqueness` instead of naming kinds). A Jeopardy cell references a `Question` by id and may hold *any* subtype — multiple choice, buzzer and every kind added later. Format code (`jeopardy.dart`, the Jeopardy parts of `QuizEngineBloc`, `JeopardyBoardView`, the editor board panel) must **never** `switch` on or special-case a concrete question type. Behaviour that differs per kind belongs to the `Question` hierarchy or to the existing exhaustive switches (round monitor, TV stage, player view).
 * **Everything that hangs on a question belongs on `Question`, not on a format.** Future attachments such as audio, video or images (question *and* solution side) are fields of the `Question` base class, are serialized in `Question.toJson` / `baseJson` and must be redacted in `Question.redacted()` until the reveal. Because they sit on the question, every format gets them for free; do not add per-format media fields.
 * **Formats only override what is format specific.** On a board the points come from the *row* (or the Daily Double wager) and replace the question's own `ScoringRule` (`QuizEngineBloc._ruleFor`); everything else (time limit, solution, buzzer fairness, clock sync) stays the question's business.
-* A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell.
+* A new question kind must be added to `kQuestionTemplates` (`question_editor.dart`) so that it can be created from a board cell,
+  and to `convertQuestion` (`question_conversion.dart`, both directions through its neutral essence) so that the kind of
+  an existing question can be changed in the editor. A conversion never guesses a solution and lists every loss before
+  the editor asks; the change only applies with "Save question".
 * Bulk editing (`QuestionBulkEdit`, editor → "Fragen gemeinsam bearbeiten") only touches the framing of a question (time limit, soft/hard, category, scoring, media details, kind specific options), never its text, answers or solution. A new kind decides in the exhaustive switch of `QuestionBulkEdit.apply` which kind specific options it takes.
 
 ### Adding a New Quiz Format
@@ -85,7 +88,7 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
 ### Jeopardy format
 * Board = categories (columns) × rows; `rowPoints` gives the points per row, categories may hold different numbers of cells (missing cells are empty). Rules per quiz: `penalizeWrongAnswers`, `allowSteal`; optional Daily Double flag per cell.
 * The quizmaster clicks the cell the picking team asked for (`SelectJeopardyCellEvent`); the pick rotates through the teams after every question (`SetJeopardyTurnEvent` overrides it). A Daily Double first waits for `PlaceDailyDoubleWagerEvent`; the wager is capped by `QuizEngineBloc.maxDailyDoubleWager`, a miss always costs the wager and a Daily Double can never be stolen.
-* The picking team answers first; with `allowSteal` a miss (or an unanswered question) restarts the question for the *other* teams (`JeopardyState.isStealRound`). On a board only the first answer of a team counts.
+* The picking team answers first; with `allowSteal` a miss (or an unanswered question) restarts the question for the *other* teams (`JeopardyState.isStealRound`). The last answer of a team counts (see *Team answers*).
 * `StartRoundEvent` / `NextQuestionEvent` are routed through the board in a Jeopardy session; do not bypass it.
 
 ### Adding Scoring Rules / Team Modes
@@ -113,6 +116,21 @@ A *quiz format* (`QuizFormat` in `lib/core/models/quiz_format.dart`: `StandardFo
   caps every response to that size (`serveMedia(maxBodyBytes:)`); never reintroduce a whole-file transfer.
 * `docs/ai-quiz-guide.md` (German) and `docs/ai-quiz-guide.en.md` (English) describe the file format for AI assistants and ship in the app (settings → "Quiz mit KI erstellen", in the app language). Every schema bump MUST update both descriptions and examples; `test/core/data/ai_quiz_guide_test.dart` fails until both guides state the new `schemaVersion` and all their examples import cleanly. Team colours are palette names (`TeamColor`), never colour codes.
 
+### Markdown
+* Since quiz schema 15 `prompt`, `adminNotes`, hint texts and slide texts are Markdown (`markdown_text.dart`:
+  `markdownRuns`, `markdownToPlain`, `escapeMarkdown`). Display them with `QuizMarkdown` (links open only for the host),
+  edit them with `MarkdownField`, and use `markdownToPlain` wherever only plain text fits (lists, reports, CSV, PDF,
+  notices). Every other field stays plain text, and player input is never Markdown.
+* Importers of schema 14 and older escape the four fields, so old quizzes look as before; a recovered game with an
+  older quiz escapes its slides too.
+
+### Map questions
+* `LocationQuestion` (quiz schema 16): target, optional `targetLabel`, radii `fullPointsKm` / `zeroPointsKm` (linear in
+  between, great-circle distance from `core/engine/geo.dart`) and the players' start view. The target and its label are
+  part of the solution and redacted. `LocationMap` (flutter_map + OpenStreetMap) is shared by editor, players and the
+  result (`LocationResultView`); a tap only sets a marker, the button sends. The place search (`PlaceSearch`,
+  Nominatim) runs in the editor only, on an explicit search, with nothing but the search words.
+
 ### Changing the Web Player
 The embedded host serves the Flutter Web player itself, so a guest only needs
 the LAN address — no install, no second web server.
@@ -139,11 +157,21 @@ views MUST be checked in both, and the views are shared structurally:
 2. **Player:** joined players see `PlayerGameColumn` (status, device test, game, final page with protocol) inside
    `SessionNotifications`, both in `PlayerPage` and in the preview's `LocalPlayerBoard`.
 3. **TV:** both render `TvScreen` from the redacted guest snapshot (`guestSnapshotOf`).
+   The optional admin section "TV-Vorschau" (`TvPreviewPanel`, also in the preview) renders the same `TvScreen` through
+   `TvCanvas` from the guest snapshot, as a still picture (`StillMedia`: no players, no sound, no input), never as
+   a watching connection.
 4. `test/presentation/preview_parity_test.dart` guards this; extend it when adding views or sections.
 5. A host started with `flutter run` embeds whatever `assets/web_client/bundle.zip` is on disk. If it is stale,
    browser players and TVs miss new features although host and preview have them. The dashboard shows a red
    `OutdatedWebClientBanner` and the tech check fails ("Web-Player"); rebuild the bundle with
    `dart run tool/bundle_web_client.dart` before testing a host on real devices.
+
+### TV instructions
+* `tvInstruction` (`presentation/common/tv_instruction.dart`) tells the room what to do in the current phase, with one
+  sentence per question kind in an exhaustive switch (a new kind must add its own). It is built from the guest
+  snapshot only, never mentions the solution (or how many answers are right) and replaces the former "team answers" /
+  "verbal" pills; the TV keeps its slot even when it is empty. Ordering items and matching terms are mixed on the TV
+  (`mixed`, a seed per question) so they never look like the solution.
 
 ### Changing the TV (Spectator) Screen
 `http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,
@@ -197,7 +225,38 @@ the release pipeline does this automatically.
 * Stakes are reserved per team and may be changed until the host closes betting; replacing a stake refunds the previous reservation. A fully correct answer pays twice the stake; a wrong or absent answer loses the stake. Partial correctness has no payout. Zero stake skips scoring; teams that still have chips skip answering, but bankrupt teams may continue answering for practice without earning points or chips. This practice-only status must stay visible. Chip balances never become negative.
 * Quiz templates may have no predefined teams. Teams created during joining receive the configured starting chips.
 * Since quiz schema 12 `PokerFormat` has an optional `minStake` (default 0 = sitting out allowed) and `maxStake` (`null` = no limit), copied into `PokerState`. `PokerState.allowsStake` is the only range check (engine and player view); a team with fewer chips than `minStake` must go all-in. Closing the betting raises every lower or missing stake of a team with chips to the minimum.
-* All question kinds use the same team chip accounting. A team can answer only once per question; buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+* `PokerState.eliminations` records when a team went out (number of the played question, 0 = unknown in old saves).
+  It is set after a settled question (`_reveal`) or a chip correction between questions, never by an all-in, and is
+  restored when the correction that brought the team back is undone. Every ranking (host, players, TV, protocol,
+  report) comes from `rankTeams` / `rankPlayers` in `lib/core/models/standings.dart`; never sort teams elsewhere.
+* All question kinds use the same team chip accounting. A team is settled exactly once per question, with its valid answer (see *Team answers*); buzzer teams are settled individually. Reset restores starting chips. Players and TV use redacted snapshots, and unrevealed poker answers must not be broadcast.
+
+### Team answers
+* In a team game every team gives **one** answer (`GameState.sharesTeamAnswers`): the last one by calculated host
+  timestamp, whoever sent it. Biggest Snowflake (compared per player) and buzzer rounds are excluded. `RoundState.answers`
+  holds at most that one answer per team, earlier ones are in `replacedAnswers` (host only); `_withValidTeamAnswers` in
+  the engine restores this after every change (also team changes and removals). A judged answer is final.
+* When every team answered, `RoundState.answerDeadlineMicros` starts a countdown (`answerCountdown`) before the answers
+  close; replacing restarts it.
+* Guest snapshots withhold all answers in every format until the reveal. What one player may see (own and team answers)
+  travels as `PlayerAnswers` per connection (`GameSnapshotMessage.answers`), in the preview through
+  `PlayerSessionCubit.local(answers:)`.
+
+### Drafts
+* Input that is not sent yet (`AnswerDraft`) is reported by the players (`DraftMessage`, at most every 300 ms) and kept
+  by the engine outside `GameState`, only the last one per player. When the answers close (expiry, end or reveal by the
+  host) the engine locks the round, waits `draftGrace` for drafts under way and counts the last draft of every team (or
+  player) without a sent answer, ordered and bounded by host timestamps, never by arrival
+  (`RoundState.adoptedPlayerIds`, no time bonus). Every new question kind states `supportsDrafts` / `acceptsDraft`.
+* Team mates see each other's drafts live (`TeamInputsView`): the hub sends `TeamDraftsMessage` (bundled, long text cut
+  off) only to connected members of the same team while that team may answer, and `PlayerAnswers.drafts` with each
+  snapshot. Never put drafts into `GameState`, the server log or anything other teams or TVs receive.
+
+### Grading by the host
+* Answers the host judges (manual free text, verbal rounds) are graded together in `GradingDialog`. `GradingHost` opens it
+  once per round when the answers are closed (`RoundStatus.locked`), shared by dashboard and preview. The choices stay in
+  the host's UI until `ConfirmGradesEvent` books all verdicts and reveals (or opens the steal round) in one state.
+  Verdicts never reach guests before the reveal.
 
 ### Jokers
 * A quiz has jokers only when they are configured at creation (`Quiz.jokers`, schema 12); an empty list means
@@ -229,6 +288,21 @@ the release pipeline does this automatically.
   (`Question.forWire(visibleHints:)`); `serveMedia` serves only media of shown hints.
 * Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
   `uniquenessKey`.
+
+### Media playback
+* `MediaPlayback` (`presentation/common/media_playback.dart`) states what a view may do: the TV plays `automatic`, player
+  devices and the host's device only `onDemand` (never by themselves, whatever the host pressed), `stopped` media stand
+  still but may be started, `paused` (host command, buzzer) locks playback on every device. Always derive it with
+  `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
+* A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
+
+### Media size
+* `QuestionMediaView` shows media as large as the space allows. In scrolling pages: full width, at most `maxMediaHeight`
+  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling or
+  "enlarge". Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
+  (read from the bytes, sent with references in `forWire`, never stored in quiz files) while it loads.
+* On the TV media are always the first child of the row in `_QuestionStage`, so a video keeps running when the layout
+  changes; answers stand next to them and scale down instead of scrolling.
 
 ### Interstitial slides
 * `Quiz.slides` (`InfoSlide`, schema 12): unscored screens with title, text and media, placed before a

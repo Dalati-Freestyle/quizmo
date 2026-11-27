@@ -7,6 +7,7 @@ import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import '../../l10n/app_localizations.dart';
 import 'media_editor.dart';
+import 'markdown_field.dart';
 
 /// Lists the slides in their position between the questions.
 class SlidesEditorPanel extends StatelessWidget {
@@ -32,7 +33,7 @@ class SlidesEditorPanel extends StatelessWidget {
         ? context.tr("Nach der letzten Frage")
         : context.tr("Vor Frage {0}: {1}", [
             index + 1,
-            quiz.questions[index].prompt,
+            markdownToPlain(quiz.questions[index].prompt),
           ]);
   }
 
@@ -76,7 +77,9 @@ class SlidesEditorPanel extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.slideshow_outlined),
                     title: Text(
-                      slide.title.trim().isEmpty ? slide.text : slide.title,
+                      slide.title.trim().isEmpty
+                          ? markdownToPlain(slide.text)
+                          : slide.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -134,12 +137,10 @@ class _SlideEditorDialogState extends State<SlideEditorDialog> {
                     setState(() => _slide = _slide.copyWith(title: value)),
               ),
               const SizedBox(height: 12),
-              TextFormField(
+              MarkdownField(
                 key: const ValueKey('slide-text'),
                 initialValue: _slide.text,
-                minLines: 2,
-                maxLines: 6,
-                decoration: InputDecoration(labelText: context.tr("Text")),
+                label: context.tr("Text"),
                 onChanged: (value) =>
                     setState(() => _slide = _slide.copyWith(text: value)),
               ),
@@ -159,7 +160,7 @@ class _SlideEditorDialogState extends State<SlideEditorDialog> {
                       child: Text(
                         context.tr("Vor Frage {0}: {1}", [
                           index + 1,
-                          question.prompt,
+                          markdownToPlain(question.prompt),
                         ]),
                         overflow: TextOverflow.ellipsis,
                       ),

@@ -16,6 +16,8 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../core/models/game_protocol.dart';
 import '../common/protocol_labels.dart';
 import 'emoji_rasterizer.dart';
+import '../common/elimination_label.dart';
+import '../../core/models/markdown_text.dart';
 
 /// Matches emoji (incl. ZWJ sequences, flags and keycaps).
 final _emoji = RegExp(
@@ -171,9 +173,12 @@ Future<Uint8List> buildProtocolPdf(
             for (final standing in protocol.standings)
               [
                 '${standing.place}.',
-                standing.memberNames.isEmpty
-                    ? standing.name
-                    : '${standing.name} (${standing.memberNames.join(', ')})',
+                [
+                  standing.memberNames.isEmpty
+                      ? standing.name
+                      : '${standing.name} (${standing.memberNames.join(', ')})',
+                  ?eliminatedAtLabel(tr, standing.eliminatedAt),
+                ].join(' · '),
                 '${standing.score}',
               ],
           ],
@@ -190,7 +195,7 @@ Future<Uint8List> buildProtocolPdf(
         for (final question in protocol.questions) ...[
           pw.SizedBox(height: 8),
           text(
-            '${question.number}. ${question.prompt}',
+            '${question.number}. ${markdownToPlain(question.prompt)}',
             pw.TextStyle(font: bold, fontSize: 11),
           ),
           if (protocolQuestionTags(question, tr) case final tags
@@ -218,6 +223,7 @@ Future<Uint8List> buildProtocolPdf(
                     tr(protocolStatusKey(answer.status)),
                     if (answer.wager case final wager?)
                       tr('Einsatz: {0}', [wager]),
+                    if (answer.adopted) tr('beim Ablauf übernommen'),
                     if (answer.practice) tr('Nur Übung'),
                   ].join(' · '),
                   answer.points == null ? '' : signed(answer.points!),

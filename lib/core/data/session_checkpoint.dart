@@ -179,6 +179,19 @@ final class SessionCheckpoint {
     }
 
     final storedGame = decoded.readObject('game');
+    // A game saved with a quiz before Markdown keeps its slides as plain text.
+    if ((quizJson['schemaVersion'] as num?) case final version?
+        when version < 15) {
+      if (storedGame['slides'] case final List<Object?> slides) {
+        storedGame['slides'] = [
+          for (final slide in slides)
+            slide is JsonMap ? escapeSlideText(slide) : slide,
+        ];
+      }
+      if (storedGame['activeSlide'] case final JsonMap slide) {
+        storedGame['activeSlide'] = escapeSlideText(slide);
+      }
+    }
     if (legacy) {
       if (storedGame.containsKey('corrections')) {
         throw const RecoveryException('Unknown legacy recovery fields.');
@@ -345,9 +358,24 @@ final class SessionCheckpoint {
               (archived || game.players.containsKey(e.key)) &&
               e.value.questionId == q?.id &&
               ((q?.accepts(e.value) ?? false) ||
+                  (round.adoptedPlayerIds.contains(e.key) &&
+                      (q?.acceptsDraft(e.value) ?? false)) ||
                   (e.value is VerbalAnswer && round.verbal)),
         ),
         'accepted answers.',
+      );
+      require(
+        round.replacedAnswers.every(
+          (answer) =>
+              (archived || game.players.containsKey(answer.playerId)) &&
+              answer.questionId == q?.id &&
+              (q?.accepts(answer) ?? false),
+        ),
+        'replaced answers.',
+      );
+      require(
+        round.adoptedPlayerIds.every(round.answers.containsKey),
+        'adopted answers.',
       );
       require(
         round.buzzerQueue.every(

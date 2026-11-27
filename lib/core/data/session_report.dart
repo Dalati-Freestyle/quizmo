@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import '../engine/answer_evaluation.dart';
 import '../models/answer.dart';
 import '../models/game_state.dart';
+import '../models/markdown_text.dart';
 import '../models/question.dart';
+import '../models/standings.dart';
 
 enum ReportAnswerStatus {
   correct,
@@ -34,8 +37,11 @@ final class ReportAnswer {
     required this.dailyDouble,
     required this.buzzer,
     required this.pointsAtStake,
+    this.adopted = false,
   });
 
+  /// Whether the answer was never sent but taken over when the answers closed.
+  final bool adopted;
   final int phase;
   final String questionId;
   final String question;
@@ -67,6 +73,7 @@ final class ReportSummary {
     required this.meanElapsedMicros,
     required this.connected,
     required this.inRoster,
+    this.eliminatedAt,
   });
 
   final String id;
@@ -78,6 +85,9 @@ final class ReportSummary {
   final double? meanElapsedMicros;
   final bool connected;
   final bool inRoster;
+
+  /// Question a poker team went out at (0: unknown), `null` while it is in.
+  final int? eliminatedAt;
   double? get hitRate => evaluated == 0 ? null : correct / evaluated;
 }
 
@@ -156,7 +166,9 @@ final class SessionReport {
         final eligible = record.eligiblePlayerIds.contains(player.id);
         final teamAnswered =
             teamMode &&
-            (game.jeopardy != null || poker) &&
+            (game.jeopardy != null ||
+                poker ||
+                (game.snowflake == null && question is! BuzzerQuestion)) &&
             player.teamId != null &&
             [
               ...round.answers.keys,
@@ -186,7 +198,7 @@ final class SessionReport {
           ReportAnswer(
             phase: phase,
             questionId: question.id,
-            question: question.prompt,
+            question: markdownToPlain(question.prompt),
             playerId: player.id,
             player: player.name,
             teamId: teamMode ? player.teamId : null,
@@ -202,6 +214,7 @@ final class SessionReport {
             dailyDouble: record.isDailyDouble,
             buzzer: question is BuzzerQuestion,
             pointsAtStake: record.pointsAtStake,
+            adopted: round.adoptedPlayerIds.contains(player.id),
           ),
         );
       }
@@ -265,6 +278,7 @@ final class SessionReport {
         meanElapsedMicros: metrics.meanElapsedMicros,
         connected: connected,
         inRoster: inRoster,
+        eliminatedAt: isTeam ? game.poker?.eliminations[id] : null,
       );
     }
 
@@ -300,7 +314,9 @@ final class SessionReport {
           if (a.isTeam != b.isTeam) return a.isTeam ? -1 : 1;
           if (a.finalScore == null && b.finalScore != null) return 1;
           if (b.finalScore == null && a.finalScore != null) return -1;
-          final score = (b.finalScore ?? 0).compareTo(a.finalScore ?? 0);
+          final score = a.isTeam
+              ? compareTeams(game, a.id, b.id)
+              : (b.finalScore ?? 0).compareTo(a.finalScore ?? 0);
           return score != 0 ? score : a.id.compareTo(b.id);
         });
     return SessionReport._(
@@ -389,6 +405,8 @@ final class SessionReport {
     'value_after',
     'reverses_correction',
     'score_delta',
+    'eliminated_at_question',
+    'adopted_at_close',
   ];
 
   String toCsv() {
@@ -396,7 +414,7 @@ final class SessionReport {
     void add(Map<String, Object?> values) => lines.add([
       for (final column in columns)
         switch (column) {
-          'report_version' => 1,
+          'report_version' => 2,
           'quiz' => title,
           'format' => format,
           'finished' => finished,
@@ -408,6 +426,7 @@ final class SessionReport {
     for (final entry in summaries) {
       add({
         'row_type': 'summary',
+        'eliminated_at_question': entry.eliminatedAt,
         'entity_type': entry.isTeam ? 'team' : 'player',
         'entity_id': entry.id,
         'name': entry.name,
@@ -453,6 +472,7 @@ final class SessionReport {
         'points_at_stake': entry.pointsAtStake,
         'steal': entry.steal,
         'daily_double': entry.dailyDouble,
+        'adopted_at_close': entry.adopted,
       });
     }
     for (final phase in answers.map((a) => a.phase).toSet()) {
@@ -550,8 +570,14 @@ String reportAnswerLabel(
   ShortAnswer(:final text) => text,
   EstimationAnswer(:final value) =>
     question is EstimationQuestion
-        ? '$value ${question.unit}'.trimRight()
-        : '$value',
+        ? question.valueLabel(value)
+        : formatNumber(value),
+  LocationAnswer(:final latitude, :final longitude) => [
+    GeoPoint(latitude, longitude).label,
+    if (question case final LocationQuestion location)
+      if (location.distanceOf(answer) case final km?)
+        '${km.toStringAsFixed(3)} km',
+  ].join(' '),
   TrueFalseAnswer(:final value) => value ? 'true' : 'false',
   MultipleChoiceAnswer(:final selectedOptionIds) => jsonEncode([
     for (final id in selectedOptionIds)

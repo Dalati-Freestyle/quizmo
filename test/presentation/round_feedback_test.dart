@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
+import 'package:quizmo/presentation/quizmaster/grading_dialog.dart';
 import 'package:quizmo/presentation/common/jeopardy_board_view.dart';
 import 'package:quizmo/presentation/common/question_media_view.dart';
 import 'package:quizmo/presentation/player/questions/new_question_views.dart';
@@ -35,19 +36,21 @@ const mc = MultipleChoiceQuestion(
 void main() {
   Widget panel(QuizEngineBloc engine) => MaterialApp(
     home: Scaffold(
-      body: SingleChildScrollView(
-        child: BlocBuilder<QuizEngineBloc, QuizEngineState>(
-          bloc: engine,
-          builder: (context, state) => LiveRoundPanel(
-            state: state,
-            onJudge: (_) {},
-            onJudgeAnswer: engine.add,
-            onSetVerbalAnswers: (enabled) =>
-                engine.add(SetVerbalAnswersEvent(enabled)),
-            onReveal: () => engine.add(const RevealRoundEvent()),
-            onLock: () {},
-            onNext: () {},
-            onCloseRound: () {},
+      body: GradingHost(
+        engine: engine,
+        child: SingleChildScrollView(
+          child: BlocBuilder<QuizEngineBloc, QuizEngineState>(
+            bloc: engine,
+            builder: (context, state) => LiveRoundPanel(
+              state: state,
+              onJudge: (_) {},
+              onSetVerbalAnswers: (enabled) =>
+                  engine.add(SetVerbalAnswersEvent(enabled)),
+              onReveal: () => engine.add(const RevealRoundEvent()),
+              onLock: () {},
+              onNext: () {},
+              onCloseRound: () {},
+            ),
           ),
         ),
       ),
@@ -125,7 +128,12 @@ void main() {
     engine.add(const StartRoundEvent('mc'));
     await tester.pumpAndSettle();
 
-    final row = find.byKey(const ValueKey('manual-answer-p1'));
+    // Closing the answers opens the pop-up; judging nobody is possible too.
+    final close = find.text('Antworten schließen & bewerten');
+    await tester.ensureVisible(close);
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    final row = find.byKey(const ValueKey('grading-p1'));
     expect(
       find.descendant(
         of: row,
@@ -133,15 +141,15 @@ void main() {
       ),
       findsOneWidget,
     );
-    final correct = find.descendant(
-      of: row,
-      matching: find.widgetWithText(ChoiceChip, 'Richtig'),
-    );
-    await tester.ensureVisible(correct);
-    await tester.tap(correct);
+    await tester.tap(find.byKey(const ValueKey('grade-p1-true')));
+    await tester.pumpAndSettle();
+    expect(engine.state.game.round.answerVerdicts, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('confirm-grades')));
     await tester.pumpAndSettle();
     expect(engine.state.game.round.answerVerdicts, {'p1': 1});
     expect(engine.state.game.round.answers['p1'], isA<VerbalAnswer>());
+    expect(engine.state.game.round.status, RoundStatus.revealed);
+    expect(find.byType(GradingDialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -246,17 +254,13 @@ void main() {
     });
   });
 
-  testWidgets('the TV shows what the team on turn picked', (tester) async {
+  testWidgets('the TV shows what the player on turn picked', (tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final engine = QuizEngineBloc(
       questionBank: const [mc],
-      teams: const {
-        'red': Team(id: 'red', name: 'Red'),
-        'blue': Team(id: 'blue', name: 'Blue'),
-      },
-      mode: const TeamMode(),
+      // Answers of teams stay secret: they may still be replaced.
       jeopardyBoard: const JeopardyBoard(
         rowPoints: [100],
         categories: [
@@ -271,14 +275,8 @@ void main() {
     addTearDown(engine.close);
     engine
       ..add(const StartGameEvent())
-      ..add(
-        const PlayerJoinedEvent(Player(id: 'p1', name: 'Ada', teamId: 'red')),
-      )
-      ..add(
-        const PlayerJoinedEvent(
-          Player(id: 'p2', name: 'Linus', teamId: 'blue'),
-        ),
-      )
+      ..add(const PlayerJoinedEvent(Player(id: 'p1', name: 'Ada')))
+      ..add(const PlayerJoinedEvent(Player(id: 'p2', name: 'Linus')))
       // Judged by the host, so the round stays open after the pick.
       ..add(const SetVerbalAnswersEvent(true))
       ..add(const SelectJeopardyCellEvent('mc'));
@@ -287,7 +285,7 @@ void main() {
     engine.add(
       SubmitAnswerEvent(
         MultipleChoiceAnswer(
-          playerId: turn == 'red' ? 'p1' : 'p2',
+          playerId: turn,
           questionId: 'mc',
           clientTimestampMicros: 1000,
           clockOffsetMicros: 0,

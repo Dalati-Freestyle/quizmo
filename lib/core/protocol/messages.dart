@@ -22,37 +22,40 @@ sealed class ClientMessage extends Equatable {
   String encode() => jsonEncode(toJson());
 
   /// Restores a message from [json].
-  static ClientMessage fromJson(JsonMap json) =>
-      switch (json.readString('type')) {
-        JoinRequest._type => JoinRequest.fromJson(json),
-        'lobby' => const LobbyRequest(),
-        'renameTeam' => RenameTeamMessage(name: json.readString('name')),
-        SyncPing._type => SyncPing.fromJson(json),
-        ClockReport._type => ClockReport.fromJson(json),
-        SubmissionMessage._type => SubmissionMessage.fromJson(json),
-        WatchRequest._type => WatchRequest(
-          joinCode: json.readStringOrNull('joinCode'),
-        ),
-        'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
-        'dailyDoubleWager' => DailyDoubleWagerMessage(
-          questionId: json.readString('questionId'),
-          wager: json.readInt('wager'),
-        ),
-        'pokerWager' => PokerWagerMessage(
-          questionId: json.readString('questionId'),
-          wager: json.readInt('wager'),
-        ),
-        UseJokerMessage._type => UseJokerMessage(
-          roundStartedAt: json.readInt('roundStartedAt'),
-          jokerId: json.readString('jokerId'),
-          targetTeamId: json.readStringOrNull('targetTeamId'),
-        ),
-        LeaveNotice._type => const LeaveNotice(),
-        DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
-        final unknown => throw JsonContractException(
-          'Unknown client message "$unknown".',
-        ),
-      };
+  static ClientMessage fromJson(JsonMap json) => switch (json.readString(
+    'type',
+  )) {
+    JoinRequest._type => JoinRequest.fromJson(json),
+    'lobby' => const LobbyRequest(),
+    'renameTeam' => RenameTeamMessage(name: json.readString('name')),
+    SyncPing._type => SyncPing.fromJson(json),
+    ClockReport._type => ClockReport.fromJson(json),
+    SubmissionMessage._type => SubmissionMessage.fromJson(json),
+    DraftMessage._type => DraftMessage.fromJson(json),
+    WatchRequest._type => WatchRequest(
+      joinCode: json.readStringOrNull('joinCode'),
+    ),
+    'jeopardyPick' => JeopardyPickMessage(json.readString('questionId')),
+    'dailyDoubleWager' => DailyDoubleWagerMessage(
+      questionId: json.readString('questionId'),
+      wager: json.readInt('wager'),
+    ),
+    'pokerWager' => PokerWagerMessage(
+      questionId: json.readString('questionId'),
+      wager: json.readInt('wager'),
+    ),
+    UseJokerMessage._type => UseJokerMessage(
+      roundStartedAt: json.readInt('roundStartedAt'),
+      jokerId: json.readString('jokerId'),
+      targetTeamId: json.readStringOrNull('targetTeamId'),
+    ),
+    LeaveNotice._type => const LeaveNotice(),
+    MediaBlockedReport._type => MediaBlockedReport(json.readBool('blocked')),
+    DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
+    final unknown => throw JsonContractException(
+      'Unknown client message "$unknown".',
+    ),
+  };
 
   /// Decodes a raw web socket frame.
   static ClientMessage decode(String raw) =>
@@ -211,6 +214,24 @@ final class SubmissionMessage extends ClientMessage {
   List<Object?> get props => [submission];
 }
 
+/// Reports input that is not sent yet, throttled by the client.
+final class DraftMessage extends ClientMessage {
+  const DraftMessage(this.draft);
+
+  factory DraftMessage.fromJson(JsonMap json) =>
+      DraftMessage(AnswerDraft.fromJson(json.readObject('payload')));
+
+  static const String _type = 'draft';
+
+  final AnswerDraft draft;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'payload': draft.toJson()};
+
+  @override
+  List<Object?> get props => [draft];
+}
+
 /// Registers the connection as a read-only spectator, for example a TV.
 ///
 /// A spectator is **not** a player: it creates no roster entry, needs no clock
@@ -230,6 +251,21 @@ final class WatchRequest extends ClientMessage {
 
   @override
   List<Object?> get props => [joinCode];
+}
+
+/// A TV tells whether its browser refuses to start media with sound.
+final class MediaBlockedReport extends ClientMessage {
+  const MediaBlockedReport(this.blocked);
+
+  static const String _type = 'mediaBlocked';
+
+  final bool blocked;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'blocked': blocked};
+
+  @override
+  List<Object?> get props => [blocked];
 }
 
 /// Announces a graceful disconnect.
@@ -282,6 +318,7 @@ sealed class ServerMessage extends Equatable {
     ),
     SyncPong._type => SyncPong.fromJson(json),
     GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
+    TeamDraftsMessage._type => TeamDraftsMessage.fromJson(json),
     ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
     final unknown => throw JsonContractException(
       'Unknown server message "$unknown".',
@@ -451,7 +488,11 @@ final class SyncPong extends ServerMessage {
 /// Broadcasts the redacted session state after every engine transition.
 final class GameSnapshotMessage extends ServerMessage {
   /// Wraps [game] for transport.
-  const GameSnapshotMessage(this.game, {this.ownSubmissionAccepted});
+  const GameSnapshotMessage(
+    this.game, {
+    this.ownSubmissionAccepted,
+    this.answers,
+  });
 
   /// Restores the frame from [json].
   factory GameSnapshotMessage.fromJson(JsonMap json) => GameSnapshotMessage(
@@ -459,6 +500,10 @@ final class GameSnapshotMessage extends ServerMessage {
     ownSubmissionAccepted: json['ownSubmissionAccepted'] == null
         ? null
         : json.readBool('ownSubmissionAccepted'),
+    answers: switch (json.readObjectOrNull('answers')) {
+      final value? => PlayerAnswers.fromJson(value),
+      null => null,
+    },
   );
 
   static const String _type = 'snapshot';
@@ -467,16 +512,54 @@ final class GameSnapshotMessage extends ServerMessage {
   final GameState game;
   final bool? ownSubmissionAccepted;
 
+  /// Answers only this player may see; `null` for spectators and from hosts
+  /// of older versions.
+  final PlayerAnswers? answers;
+
   @override
   JsonMap toJson() => {
     'type': _type,
     'game': game.toJson(),
     if (ownSubmissionAccepted != null)
       'ownSubmissionAccepted': ownSubmissionAccepted,
+    if (answers != null) 'answers': answers!.toJson(),
   };
 
   @override
-  List<Object?> get props => [game, ownSubmissionAccepted];
+  List<Object?> get props => [game, ownSubmissionAccepted, answers];
+}
+
+/// What the members of the own team enter right now. Sent only to them, never
+/// part of a snapshot.
+final class TeamDraftsMessage extends ServerMessage {
+  const TeamDraftsMessage({
+    required this.questionId,
+    required this.roundStartedAt,
+    required this.drafts,
+  });
+
+  factory TeamDraftsMessage.fromJson(JsonMap json) => TeamDraftsMessage(
+    questionId: json.readString('questionId'),
+    roundStartedAt: json.readInt('roundStartedAt'),
+    drafts: json.readList('drafts', AnswerDraft.fromJson),
+  );
+
+  static const String _type = 'teamDrafts';
+
+  final String questionId;
+  final int roundStartedAt;
+  final List<AnswerDraft> drafts;
+
+  @override
+  JsonMap toJson() => {
+    'type': _type,
+    'questionId': questionId,
+    'roundStartedAt': roundStartedAt,
+    'drafts': [for (final draft in drafts) draft.toJson()],
+  };
+
+  @override
+  List<Object?> get props => [questionId, roundStartedAt, drafts];
 }
 
 /// Reports a rejected frame without tearing the connection down.

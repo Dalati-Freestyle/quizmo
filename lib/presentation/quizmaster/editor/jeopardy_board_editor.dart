@@ -558,7 +558,7 @@ class _CellTile extends StatelessWidget {
                               child: Text(
                                 current.prompt.isEmpty
                                     ? context.tr("Untitled question")
-                                    : current.prompt,
+                                    : markdownToPlain(current.prompt),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall,

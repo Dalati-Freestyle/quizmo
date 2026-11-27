@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **13**
+Quizmo-Schema-Version dieser Anleitung: **16**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -98,7 +98,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 13,              // immer genau 13
+  "schemaVersion": 16,              // immer genau 16
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -243,6 +243,15 @@ gegen die Punkte der Zeile bzw. den Daily-Double-Einsatz, wähle ihn passend; im
 Pokerformat sind Tipps immer kostenlos. Ordne Tipps von vage nach deutlich, und
 nimm nie die Lösung selbst als Tipp.
 
+**Formatierung (Markdown):** `prompt`, `adminNotes`, der `text` von Tipps und von
+Folien dürfen Markdown enthalten: `**fett**`, `*kursiv*`, `~~durchgestrichen~~`,
+Überschriften `#` bis `###`, Listen (`- Punkt`, `1. Punkt`), Zitate (`> Text`),
+`` `Code` `` und Codeblöcke, Trennlinien (`---`) und Links `[Text](https://…)`.
+Ein einfacher Zeilenumbruch bleibt sichtbar. HTML, Bilder und Tabellen werden
+nicht umgewandelt (Bilder gehören in `media`). Soll ein Zeichen wie `*` als
+Zeichen erscheinen, schreibe `\*`. Alle anderen Felder (Antworten, Lösungen,
+Titel, Kategorien) sind reiner Text.
+
 ## 5. Fragetypen
 
 | `type` | Zusätzliche Felder | Regeln |
@@ -252,8 +261,9 @@ nimm nie die Lösung selbst als Tipp.
 | `shortAnswer` | `acceptedAnswers` (Liste), `maxEdits` (0–5), `manualGrading` | Freitext. Mindestens eine akzeptierte Antwort. `maxEdits` = erlaubte Tippfehler. `manualGrading: true` = Spielleitung bewertet von Hand. |
 | `ordering` | `items` (Liste `{"id","label"}`), `correctOrder` (Liste der IDs) | Reihenfolge. Mindestens 2 Elemente; `correctOrder` enthält jede ID genau einmal. |
 | `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Gleich viele Elemente links und rechts; jede linke ID genau einer eigenen rechten ID zuordnen. Passt ein Wert zu mehreren linken Elementen (z. B. zwei Gerichte mit Schwein), lege ihn rechts mehrfach mit gleichem `label` und verschiedenen IDs an: gleiche Werte sind untereinander austauschbar. |
-| `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner. |
+| `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit`, optional `minAccepted` und `maxAccepted` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner. Mit `minAccepted`/`maxAccepted` (immer beide, Ziel dazwischen, Grenzen zählen mit) gilt jede Antwort im Bereich als vollständig richtig. Im Pokerformat immer angeben, denn dort zahlt nur eine vollständig richtige Antwort aus. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | Wahr/Falsch. |
+| `location` | `target` (`{"latitude","longitude"}`), `targetLabel`, `fullPointsKm`, `zeroPointsKm`, `startCenter` (`{"latitude","longitude"}`), `startZoom` (1–18) | Ort auf der Karte: Die Spieler markieren auf einer Karte, wo der Ort liegt. Bis `fullPointsKm` volle Punkte, ab `zeroPointsKm` (> `fullPointsKm`, höchstens 20000) keine, dazwischen gleichmäßig weniger (Luftlinie). `targetLabel` ist der Name des Orts in der Lösung. Startausschnitt am besten die Weltkarte (`startCenter` 20/0, `startZoom` 1.5), damit er nichts verrät. Nicht im Snowflake-Format. Im Pokerformat zählt nur eine Markierung innerhalb von `fullPointsKm` als richtig. |
 
 ## 6. Medien
 
@@ -318,7 +328,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 13` steht ganz oben.
+- [ ] `"schemaVersion": 16` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -348,7 +358,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 13,
+  "schemaVersion": 16,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -357,7 +367,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
     {
       "type": "multipleChoice",
       "id": "q-hauptstadt",
-      "prompt": "Welche Stadt ist die Hauptstadt von Kanada?",
+      "prompt": "**Welche Stadt ist die Hauptstadt von Kanada**?",
       "timeLimitMs": 25000,
       "softTimeLimit": false,
       "category": "Geografie",
@@ -482,7 +492,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
       "media": [],
       "solutionMedia": [],
       "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": 0},
-      "correctValue": 330,
+      "correctValue": 330, "minAccepted": 320, "maxAccepted": 340,
       "zeroScale": 1,
       "unit": "m"
     },
@@ -502,6 +512,24 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
       ],
       "scoringRule": {"type": "fixed", "correctPoints": 10, "wrongPoints": 0},
       "correctAnswer": true
+    },
+    {
+      "type": "location",
+      "id": "q-karte",
+      "prompt": "Wo steht der Eiffelturm?",
+      "timeLimitMs": 45000,
+      "softTimeLimit": false,
+      "category": "Bauwerke",
+      "adminNotes": "",
+      "media": [],
+      "solutionMedia": [],
+      "scoringRule": {"type": "fixed", "correctPoints": 20, "wrongPoints": 0},
+      "target": {"latitude": 48.8584, "longitude": 2.2945},
+      "targetLabel": "Eiffelturm, Paris",
+      "fullPointsKm": 5,
+      "zeroPointsKm": 800,
+      "startCenter": {"latitude": 20, "longitude": 0},
+      "startZoom": 1.5
     }
   ],
   "teams": [],
@@ -515,7 +543,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 13,
+  "schemaVersion": 16,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -585,7 +613,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 13,
+  "schemaVersion": 16,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -630,7 +658,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 13,
+  "schemaVersion": 16,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

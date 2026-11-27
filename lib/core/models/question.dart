@@ -13,6 +13,7 @@ import 'answer.dart';
 import 'media_attachment.dart';
 import 'question_hint.dart';
 import '../engine/answer_evaluation.dart';
+import '../engine/geo.dart';
 
 /// A single selectable option of a [MultipleChoiceQuestion].
 final class AnswerOption extends Equatable {
@@ -86,6 +87,14 @@ sealed class Question extends Equatable {
   ];
 
   bool accepts(AnswerSubmission answer);
+
+  /// Whether input of this kind exists before it is sent and may count when
+  /// the answers close (`AnswerDraft`).
+  bool get supportsDrafts => false;
+
+  /// Whether [content] may be taken over as an answer that was not sent.
+  bool acceptsDraft(AnswerSubmission content) =>
+      supportsDrafts && accepts(content);
   double accuracy(AnswerSubmission answer);
 
   /// Whether written answers require an explicit host verdict before scoring.
@@ -175,6 +184,7 @@ sealed class Question extends Equatable {
     'matching' => MatchingQuestion.fromJson(json),
     'estimation' => EstimationQuestion.fromJson(json),
     'trueFalse' => TrueFalseQuestion.fromJson(json),
+    'location' => LocationQuestion.fromJson(json),
     final unknown => throw JsonContractException(
       'Unknown question type "$unknown".',
     ),
@@ -253,6 +263,10 @@ final class MultipleChoiceQuestion extends Question {
   final List<String>? correctOptionIds;
   final bool allowMultipleAnswers;
   List<String> get solutionOptionIds => correctOptionIds ?? [?correctOptionId];
+
+  /// A single choice is sent with the press.
+  @override
+  bool get supportsDrafts => allowMultipleAnswers;
 
   @override
   bool get hasSolution => correctOptionIds != null || correctOptionId != null;
@@ -484,6 +498,9 @@ final class ShortAnswerQuestion extends Question {
 
   @override
   bool get requiresManualGrading => manualGrading;
+
+  @override
+  bool get supportsDrafts => true;
   factory ShortAnswerQuestion.fromJson(JsonMap json) => ShortAnswerQuestion(
     id: json.readString('id'),
     prompt: json.readString('prompt'),
@@ -521,13 +538,16 @@ final class ShortAnswerQuestion extends Question {
   @override
   String get solutionLabel => acceptedAnswers?.join(' / ') ?? '';
   @override
-  List<String> get contentErrors => [
+  List<String> get structureErrors => [
+    if (maxEdits < 0 || maxEdits > 5)
+      'Fehlertoleranz muss zwischen 0 und 5 liegen.',
+  ];
+  @override
+  List<String> get solutionErrors => [
     if (acceptedAnswers == null ||
         acceptedAnswers!.isEmpty ||
         acceptedAnswers!.any((a) => a.trim().isEmpty))
       'Mindestens eine Textlösung angeben.',
-    if (maxEdits < 0 || maxEdits > 5)
-      'Fehlertoleranz muss zwischen 0 und 5 liegen.',
   ];
   @override
   ShortAnswerQuestion redacted() => ShortAnswerQuestion(
@@ -604,6 +624,8 @@ final class OrderingQuestion extends Question {
   bool get hasSolution => correctOrder != null;
   @override
   String get kindLabel => 'Reihenfolge';
+  @override
+  bool get supportsDrafts => true;
   @override
   bool accepts(AnswerSubmission answer) =>
       answer is OrderingAnswer &&
@@ -713,6 +735,17 @@ final class MatchingQuestion extends Question {
   @override
   String get kindLabel => 'Zuordnung';
   @override
+  bool get supportsDrafts => true;
+
+  /// The pairs so far count, also when some are still missing.
+  @override
+  bool acceptsDraft(AnswerSubmission content) =>
+      content is MatchingAnswer &&
+      content.pairs.isNotEmpty &&
+      content.pairs.values.toSet().length == content.pairs.length &&
+      content.pairs.keys.every((id) => leftItems.any((i) => i.id == id)) &&
+      content.pairs.values.every((id) => rightItems.any((i) => i.id == id));
+  @override
   bool accepts(AnswerSubmission answer) =>
       answer is MatchingAnswer &&
       validPairs(answer.pairs, leftItems, rightItems);
@@ -732,12 +765,11 @@ final class MatchingQuestion extends Question {
 
   /// Right items with the same label are interchangeable: "pork" may exist
   /// twice, and either of them fits both pork dishes (since quiz schema 13).
-  String _rightKey(String id) => switch (rightItems
-      .where((item) => item.id == id)
-      .firstOrNull) {
-    final item? => item.label.trim().toLowerCase(),
-    null => id,
-  };
+  String _rightKey(String id) =>
+      switch (rightItems.where((item) => item.id == id).firstOrNull) {
+        final item? => item.label.trim().toLowerCase(),
+        null => id,
+      };
   @override
   String get solutionLabel => (correctPairs ?? {}).entries
       .map(
@@ -822,8 +854,18 @@ final class EstimationQuestion extends Question {
     this.correctValue,
     this.zeroScale = 1,
     this.unit = '',
+    this.minAccepted,
+    this.maxAccepted,
   });
   final double? correctValue;
+
+  /// Optional tolerance (quiz schema 14): every answer from [minAccepted] to
+  /// [maxAccepted] counts as fully correct. Both are set or none is. They
+  /// belong to the solution and stay secret until the reveal.
+  final double? minAccepted;
+  final double? maxAccepted;
+
+  bool get hasTolerance => minAccepted != null && maxAccepted != null;
   final double zeroScale;
   final String unit;
   factory EstimationQuestion.fromJson(JsonMap json) => EstimationQuestion(
@@ -842,27 +884,59 @@ final class EstimationQuestion extends Question {
         : readFiniteDouble(json, 'correctValue'),
     zeroScale: readFiniteDouble(json, 'zeroScale'),
     unit: json.readString('unit'),
+    minAccepted: json['minAccepted'] == null
+        ? null
+        : readFiniteDouble(json, 'minAccepted'),
+    maxAccepted: json['maxAccepted'] == null
+        ? null
+        : readFiniteDouble(json, 'maxAccepted'),
   );
   @override
   bool get hasSolution => correctValue != null;
   @override
   String get kindLabel => 'Schätzfrage';
   @override
+  bool get supportsDrafts => true;
+  @override
   bool accepts(AnswerSubmission answer) =>
       answer is EstimationAnswer && answer.value.isFinite;
   @override
   double accuracy(AnswerSubmission answer) =>
       answer is EstimationAnswer && correctValue != null
-      ? estimationAccuracy(answer.value, correctValue!, zeroScale)
+      ? estimationAccuracyWithin(
+          answer.value,
+          correctValue!,
+          zeroScale,
+          min: minAccepted,
+          max: maxAccepted,
+        )
       : 0;
   @override
-  String get solutionLabel => correctValue == null ? '' : '$correctValue $unit';
+  String get solutionLabel => correctValue == null
+      ? ''
+      : hasTolerance
+      ? '${valueLabel(correctValue!)} (${formatNumber(minAccepted!)} – ${valueLabel(maxAccepted!)})'
+      : valueLabel(correctValue!);
+
+  /// [value] with the unit of this question.
+  String valueLabel(double value) => '${formatNumber(value)} $unit'.trimRight();
   @override
-  List<String> get contentErrors => [
-    if (correctValue == null || !correctValue!.isFinite)
-      'Endliche Zielzahl angeben.',
+  List<String> get structureErrors => [
     if (!zeroScale.isFinite || zeroScale <= 0)
       'Skala für Zielwert 0 muss positiv sein.',
+  ];
+  @override
+  List<String> get solutionErrors => [
+    if (correctValue == null || !correctValue!.isFinite)
+      'Endliche Zielzahl angeben.',
+    if ((minAccepted == null) != (maxAccepted == null))
+      'Für die Toleranz Unter- und Obergrenze angeben.',
+    if (hasTolerance && minAccepted! > maxAccepted!)
+      'Die Untergrenze darf nicht über der Obergrenze liegen.'
+    else if (hasTolerance &&
+        correctValue != null &&
+        (correctValue! < minAccepted! || correctValue! > maxAccepted!))
+      'Der Zielwert muss im gültigen Bereich liegen.',
   ];
   @override
   EstimationQuestion redacted() => EstimationQuestion(
@@ -883,6 +957,9 @@ final class EstimationQuestion extends Question {
     'correctValue': correctValue,
     'zeroScale': zeroScale,
     'unit': unit,
+    // Only written when set: questions without a tolerance stay equal.
+    if (minAccepted != null) 'minAccepted': minAccepted,
+    if (maxAccepted != null) 'maxAccepted': maxAccepted,
   };
   @override
   List<Object?> get props => [
@@ -899,6 +976,8 @@ final class EstimationQuestion extends Question {
     correctValue,
     zeroScale,
     unit,
+    minAccepted,
+    maxAccepted,
   ];
 }
 
@@ -987,6 +1066,195 @@ final class TrueFalseQuestion extends Question {
     adminNotes,
     hints,
     correctAnswer,
+  ];
+}
+
+/// A point on the earth.
+final class GeoPoint extends Equatable {
+  const GeoPoint(this.latitude, this.longitude);
+
+  factory GeoPoint.fromJson(JsonMap json) => GeoPoint(
+    readFiniteDouble(json, 'latitude'),
+    readFiniteDouble(json, 'longitude'),
+  );
+
+  final double latitude;
+  final double longitude;
+
+  bool get isValid =>
+      latitude.isFinite &&
+      longitude.isFinite &&
+      latitude.abs() <= 90 &&
+      longitude.abs() <= 180;
+
+  JsonMap toJson() => {'latitude': latitude, 'longitude': longitude};
+
+  /// Five decimals are about one metre.
+  String get label =>
+      '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}';
+
+  @override
+  List<Object?> get props => [latitude, longitude];
+}
+
+/// "Where is this?": players mark a place on a map; the closer to [target],
+/// the more points (quiz schema 16).
+final class LocationQuestion extends Question {
+  const LocationQuestion({
+    required super.id,
+    required super.prompt,
+    super.category,
+    super.timeLimit,
+    super.softTimeLimit,
+    super.scoringRule,
+    super.media,
+    super.solutionMedia,
+    super.adminNotes,
+    super.hints,
+    this.target,
+    this.targetLabel = '',
+    this.fullPointsKm = 25,
+    this.zeroPointsKm = 1000,
+    this.startCenter = const GeoPoint(20, 0),
+    this.startZoom = 1.5,
+  });
+
+  /// The place to find; `null` in snapshots until the reveal.
+  final GeoPoint? target;
+
+  /// Name of the place (from the search), part of the solution.
+  final String targetLabel;
+
+  /// Up to this distance a guess earns all points.
+  final double fullPointsKm;
+
+  /// From this distance on a guess earns nothing.
+  final double zeroPointsKm;
+
+  /// The view players start with; the world by default, so that it tells
+  /// nothing.
+  final GeoPoint startCenter;
+  final double startZoom;
+
+  factory LocationQuestion.fromJson(JsonMap json) => LocationQuestion(
+    id: json.readString('id'),
+    prompt: json.readString('prompt'),
+    category: json.readStringOrNull('category'),
+    adminNotes: json.readStringOrNull('adminNotes') ?? '',
+    timeLimit: json.readDurationMs('timeLimitMs'),
+    softTimeLimit: json.readBool('softTimeLimit', orElse: false),
+    scoringRule: ScoringRule.fromJson(json.readObject('scoringRule')),
+    media: readMedia(json, 'media'),
+    solutionMedia: readMedia(json, 'solutionMedia'),
+    hints: readHints(json),
+    target: switch (json.readObjectOrNull('target')) {
+      final value? => GeoPoint.fromJson(value),
+      null => null,
+    },
+    targetLabel: json.readStringOrNull('targetLabel') ?? '',
+    fullPointsKm: readFiniteDouble(json, 'fullPointsKm'),
+    zeroPointsKm: readFiniteDouble(json, 'zeroPointsKm'),
+    startCenter: GeoPoint.fromJson(json.readObject('startCenter')),
+    startZoom: readFiniteDouble(json, 'startZoom'),
+  );
+
+  /// Distance of [answer] to the target in kilometres, if both are known.
+  double? distanceOf(AnswerSubmission answer) => switch ((answer, target)) {
+    (final LocationAnswer guess, final GeoPoint place) => distanceKm(
+      guess.latitude,
+      guess.longitude,
+      place.latitude,
+      place.longitude,
+    ),
+    _ => null,
+  };
+
+  @override
+  bool get hasSolution => target != null;
+  @override
+  String get kindLabel => 'Ort auf der Karte';
+  @override
+  bool get supportsDrafts => true;
+  @override
+  bool accepts(AnswerSubmission answer) =>
+      answer is LocationAnswer &&
+      GeoPoint(answer.latitude, answer.longitude).isValid;
+  @override
+  double accuracy(AnswerSubmission answer) => switch (distanceOf(answer)) {
+    final distance? when accepts(answer) => locationAccuracy(
+      distance,
+      fullPointsKm,
+      zeroPointsKm,
+    ),
+    _ => 0,
+  };
+  @override
+  String get solutionLabel => target == null
+      ? ''
+      : targetLabel.trim().isEmpty
+      ? target!.label
+      : '${targetLabel.trim()} (${target!.label})';
+  @override
+  List<String> get structureErrors => [
+    if (!fullPointsKm.isFinite ||
+        !zeroPointsKm.isFinite ||
+        fullPointsKm < 0 ||
+        zeroPointsKm <= fullPointsKm)
+      '„Keine Punkte ab“ muss größer sein als „volle Punkte bis“.',
+    if (zeroPointsKm > 20000) '„Keine Punkte ab“ darf höchstens 20000 km sein.',
+    if (!startCenter.isValid ||
+        !startZoom.isFinite ||
+        startZoom < 1 ||
+        startZoom > 18)
+      'Ungültiger Startausschnitt der Karte.',
+  ];
+  @override
+  List<String> get solutionErrors => [
+    if (target == null || !target!.isValid) 'Gültigen Zielort angeben.',
+  ];
+  @override
+  LocationQuestion redacted() => LocationQuestion(
+    id: id,
+    prompt: prompt,
+    category: category,
+    timeLimit: timeLimit,
+    softTimeLimit: softTimeLimit,
+    scoringRule: scoringRule,
+    media: media,
+    hints: concealedHints,
+    fullPointsKm: fullPointsKm,
+    zeroPointsKm: zeroPointsKm,
+    startCenter: startCenter,
+    startZoom: startZoom,
+  );
+  @override
+  JsonMap toJson() => {
+    ...baseJson('location'),
+    'target': target?.toJson(),
+    if (targetLabel.isNotEmpty) 'targetLabel': targetLabel,
+    'fullPointsKm': fullPointsKm,
+    'zeroPointsKm': zeroPointsKm,
+    'startCenter': startCenter.toJson(),
+    'startZoom': startZoom,
+  };
+  @override
+  List<Object?> get props => [
+    id,
+    prompt,
+    category,
+    timeLimit,
+    softTimeLimit,
+    scoringRule,
+    media,
+    solutionMedia,
+    adminNotes,
+    hints,
+    target,
+    targetLabel,
+    fullPointsKm,
+    zeroPointsKm,
+    startCenter,
+    startZoom,
   ];
 }
 

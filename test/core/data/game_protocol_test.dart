@@ -18,7 +18,8 @@ const _q1 = MultipleChoiceQuestion(
 const _q2 = TrueFalseQuestion(
   id: 'q2',
   prompt: 'Ist Wasser nass?',
-  correctAnswer: true);
+  correctAnswer: true,
+);
 const _teams = {
   'red': Team(id: 'red', name: 'Rot'),
   'blue': Team(id: 'blue', name: 'Blau'),
@@ -236,8 +237,8 @@ void main() {
     expect(guestSnapshotOf(engine.state.game, title: 'Q').protocol, isNull);
   });
 
-  test('rankByScore assigns competition places', () {
-    final ranked = rankByScore([5, 9, 5, 1, 9], (v) => v);
+  test('rankEntries assigns competition places', () {
+    final ranked = rankEntries([5, 9, 5, 1, 9], (a, b) => b.compareTo(a));
     expect(ranked.map((r) => r.$2), [1, 1, 3, 3, 5]);
   });
 }

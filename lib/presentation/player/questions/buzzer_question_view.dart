@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../../../core/models/models.dart';
 import '../../../core/sync/clock.dart';
 import '../../common/buzzer_button.dart';
+import '../../common/quiz_markdown.dart';
 
 /// Shows the prompt and the latency compensated buzzer.
 class BuzzerQuestionView extends StatelessWidget {
@@ -87,7 +88,7 @@ class BuzzerQuestionView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text(
+        QuizMarkdown(
           question.prompt,
           textAlign: TextAlign.center,
           style: theme.textTheme.headlineSmall?.copyWith(

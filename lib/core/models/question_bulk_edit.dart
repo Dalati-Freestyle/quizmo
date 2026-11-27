@@ -26,6 +26,8 @@ final class QuestionBulkEdit {
     this.maxEdits,
     this.lockOutOnMiss,
     this.hostEndsRound,
+    this.fullPointsKm,
+    this.zeroPointsKm,
   });
 
   /// New time limit; [Duration.zero] removes it.
@@ -61,6 +63,10 @@ final class QuestionBulkEdit {
   /// Buzzer: the host ends the round instead of the first correct answer.
   final bool? hostEndsRound;
 
+  /// Radii of map questions.
+  final double? fullPointsKm;
+  final double? zeroPointsKm;
+
   /// Whether the edit changes anything at all.
   bool get isEmpty => [
     timeLimit,
@@ -74,6 +80,8 @@ final class QuestionBulkEdit {
     maxEdits,
     lockOutOnMiss,
     hostEndsRound,
+    fullPointsKm,
+    zeroPointsKm,
   ].every((value) => value == null);
 
   /// Returns [question] with this edit applied.
@@ -90,6 +98,10 @@ final class QuestionBulkEdit {
       BuzzerQuestion() => {
         if (lockOutOnMiss != null) 'lockOutOnMiss': lockOutOnMiss,
         if (hostEndsRound != null) 'hostEndsRound': hostEndsRound,
+      },
+      LocationQuestion() => {
+        if (fullPointsKm != null) 'fullPointsKm': fullPointsKm,
+        if (zeroPointsKm != null) 'zeroPointsKm': zeroPointsKm,
       },
       MultipleChoiceQuestion() ||
       OrderingQuestion() ||

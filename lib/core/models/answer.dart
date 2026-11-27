@@ -10,6 +10,35 @@ import 'package:equatable/equatable.dart';
 
 import 'json.dart';
 
+/// Whether [a] and [b] say the same, no matter who sent them when.
+bool sameAnswerContent(AnswerSubmission a, AnswerSubmission b) => switch ((
+  a,
+  b,
+)) {
+  (final MultipleChoiceAnswer a, final MultipleChoiceAnswer b) =>
+    a.selectedOptionIds.length == b.selectedOptionIds.length &&
+        a.selectedOptionIds.toSet().containsAll(b.selectedOptionIds),
+  (final ShortAnswer a, final ShortAnswer b) => a.text.trim() == b.text.trim(),
+  (final OrderingAnswer a, final OrderingAnswer b) =>
+    a.itemIds.length == b.itemIds.length &&
+        a.itemIds.indexed.every((e) => e.$2 == b.itemIds[e.$1]),
+  (final MatchingAnswer a, final MatchingAnswer b) =>
+    a.pairs.length == b.pairs.length &&
+        a.pairs.entries.every((e) => b.pairs[e.key] == e.value),
+  (final EstimationAnswer a, final EstimationAnswer b) => a.value == b.value,
+  (final TrueFalseAnswer a, final TrueFalseAnswer b) => a.value == b.value,
+  (final LocationAnswer a, final LocationAnswer b) =>
+    a.latitude == b.latitude && a.longitude == b.longitude,
+  _ => false,
+};
+
+/// Orders answers of one team: by the calculated host time, never by arrival;
+/// equal instants are told apart by the player id.
+int compareAnswerOrder(AnswerSubmission a, AnswerSubmission b) {
+  final byTime = a.hostTimestampMicros.compareTo(b.hostTimestampMicros);
+  return byTime != 0 ? byTime : a.playerId.compareTo(b.playerId);
+}
+
 /// Base type of every player input that competes for points.
 sealed class AnswerSubmission extends Equatable {
   /// Creates the shared submission metadata.
@@ -56,6 +85,7 @@ sealed class AnswerSubmission extends Equatable {
         'ordering' => OrderingAnswer.fromJson(json),
         'matching' => MatchingAnswer.fromJson(json),
         'estimation' => EstimationAnswer.fromJson(json),
+        'location' => LocationAnswer.fromJson(json),
         'trueFalse' => TrueFalseAnswer.fromJson(json),
         VerbalAnswer._kind => VerbalAnswer.fromJson(json),
         final unknown => throw JsonContractException(
@@ -318,6 +348,52 @@ final class EstimationAnswer extends AnswerSubmission {
     clientTimestampMicros,
     clockOffsetMicros,
     value,
+  ];
+}
+
+/// A place marked on the map.
+final class LocationAnswer extends AnswerSubmission {
+  const LocationAnswer({
+    required super.playerId,
+    required super.questionId,
+    required super.clientTimestampMicros,
+    required super.clockOffsetMicros,
+    required this.latitude,
+    required this.longitude,
+  });
+  final double latitude;
+  final double longitude;
+  factory LocationAnswer.fromJson(JsonMap json) => LocationAnswer(
+    playerId: json.readString('playerId'),
+    questionId: json.readString('questionId'),
+    clientTimestampMicros: json.readInt('clientTimestampMicros'),
+    clockOffsetMicros: json.readInt('clockOffsetMicros'),
+    latitude: readFiniteDouble(json, 'latitude'),
+    longitude: readFiniteDouble(json, 'longitude'),
+  );
+  @override
+  LocationAnswer withPlayerId(String id) => LocationAnswer(
+    playerId: id,
+    questionId: questionId,
+    clientTimestampMicros: clientTimestampMicros,
+    clockOffsetMicros: clockOffsetMicros,
+    latitude: latitude,
+    longitude: longitude,
+  );
+  @override
+  JsonMap toJson() => {
+    ...baseJson('location'),
+    'latitude': latitude,
+    'longitude': longitude,
+  };
+  @override
+  List<Object?> get props => [
+    playerId,
+    questionId,
+    clientTimestampMicros,
+    clockOffsetMicros,
+    latitude,
+    longitude,
   ];
 }
 

@@ -63,6 +63,8 @@ class HostDashboardPage extends StatelessWidget {
             accessState: checkpoint?.accessState ?? const SessionAccessState(),
             questionBank: quiz.questions,
             autoContinueBuzzer: false,
+            answerCountdown: QuizEngineBloc.defaultAnswerCountdown,
+            draftGrace: QuizEngineBloc.defaultDraftGrace,
             teams: quiz.teamsById,
             mode: quiz.teams.isEmpty ? const SoloMode() : const TeamMode(),
             revealMode: switch (quiz.format) {
@@ -399,6 +401,7 @@ class _HostDashboardView extends StatelessWidget {
                         quizName: quizName,
                         connectionsAvailable:
                             serverState.status == HostServerStatus.running,
+                        tvJoinUri: serverState.endpoint?.lanUri,
                         startExtras: [
                           OutlinedButton.icon(
                             key: const ValueKey("open-tech-check"),

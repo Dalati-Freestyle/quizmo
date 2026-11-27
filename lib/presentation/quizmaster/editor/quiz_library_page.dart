@@ -404,7 +404,9 @@ class _QuizCard extends StatelessWidget {
         if (quiz.questions.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
-            context.tr("First question: {0}", [quiz.questions.first.prompt]),
+            context.tr("First question: {0}", [
+              markdownToPlain(quiz.questions.first.prompt),
+            ]),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,

@@ -92,6 +92,15 @@ final class SpectatorSessionState extends Equatable {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  /// Estimated host clock, see [remainingTime].
+  int hostNowMicros(DateTime now) {
+    final receivedAt = snapshotReceivedAt;
+    final base = game?.hostTimeMicros ?? 0;
+    return receivedAt == null || game!.recoveryPaused || !extrapolateTime
+        ? base
+        : base + now.difference(receivedAt).inMicroseconds;
+  }
+
   /// Returns a copy with the given fields replaced.
   SpectatorSessionState copyWith({
     QuizClientStatus? status,
@@ -174,6 +183,17 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
   Future<void> setJoinCode(String code) {
     _joinCode = code;
     return reconnect();
+  }
+
+  final Set<Object> _blockedMedia = {};
+
+  /// Called when a player on this TV could (not) start by itself.
+  void mediaBlocked(Object source, bool blocked) {
+    final before = _blockedMedia.isNotEmpty;
+    blocked ? _blockedMedia.add(source) : _blockedMedia.remove(source);
+    if (before != _blockedMedia.isNotEmpty) {
+      _client?.reportMediaBlocked(_blockedMedia.isNotEmpty);
+    }
   }
 
   Timer? _retryTimer;

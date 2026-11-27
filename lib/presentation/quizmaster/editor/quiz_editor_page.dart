@@ -584,12 +584,13 @@ class _QuestionsPanelState extends State<_QuestionsPanel> {
                   OrderingQuestion() => Icons.sort,
                   MatchingQuestion() => Icons.compare_arrows,
                   EstimationQuestion() => Icons.numbers,
+                  LocationQuestion() => Icons.place_outlined,
                   TrueFalseQuestion() => Icons.rule,
                 }),
                 title: Text(
                   question.prompt.isEmpty
                       ? context.tr("Untitled question")
-                      : question.prompt,
+                      : markdownToPlain(question.prompt),
                 ),
                 subtitle: Text(
                   context.tr("{0} · {1} · {2}", [

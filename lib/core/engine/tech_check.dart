@@ -264,6 +264,8 @@ MediaCheckSummary checkQuizMedia(List<Question> questions) {
   final broken = <String>[];
   final online = <String>[];
   for (final question in questions) {
+    // The answer map of a map question loads its tiles online.
+    if (question is LocationQuestion) online.add('${question.id}: Karte');
     for (final media in [
       ...question.media,
       ...question.solutionMedia,
@@ -637,11 +639,9 @@ TechCheckResult _webPlayer(TechCheckInput input) {
     return TechCheckResult(
       id: TechCheckId.webPlayer,
       status: TechCheckStatus.fail,
-      summary:
-          'Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.',
+      summary: 'Der eingebaute Web-Player ist veraltet ({0}); Spieler- und TV-Browser sehen neue Funktionen nicht.',
       arguments: [version],
-      nextStep:
-          '„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.',
+      nextStep: '„dart run tool/bundle_web_client.dart“ ausführen und den Host danach neu starten oder bauen.',
     );
   }
   return const TechCheckResult(

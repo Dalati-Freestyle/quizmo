@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:equatable/equatable.dart';
 
 import 'json.dart';
+import 'media_aspect.dart';
 
 /// Default upload limit for one media file in the quiz editor.
 ///
@@ -18,12 +19,34 @@ const maxMediaBytes = 20 * 1024 * 1024;
 const mediaChunkBytes = 16 * 1024 * 1024;
 
 final class MediaAsset extends Equatable {
-  const MediaAsset({required this.id, required this.mimeType, this.data});
+  const MediaAsset({
+    required this.id,
+    required this.mimeType,
+    this.data,
+    this.sentAspectRatio,
+  });
   final String id;
   final String mimeType;
   final String? data;
   Uint8List? get bytes => data == null ? null : base64Decode(data!);
   String get route => '/api/media/$id';
+
+  /// Aspect ratio sent by the host along with a reference without bytes.
+  final double? sentAspectRatio;
+
+  static final Map<String, double?> _aspectRatios = {};
+
+  /// Width divided by height of a picture or video, if it is known.
+  double? get aspectRatio =>
+      sentAspectRatio ??
+      (data == null
+          ? null
+          : _aspectRatios.putIfAbsent(
+              id,
+              () => mimeType.startsWith('audio/')
+                  ? null
+                  : mediaAspectRatio(bytes!, mimeType),
+            ));
 
   factory MediaAsset.upload(Uint8List bytes, String extension) {
     if (bytes.isEmpty) {
@@ -56,6 +79,10 @@ final class MediaAsset extends Equatable {
       id: json.readString('id'),
       mimeType: json.readString('mimeType'),
       data: json.readStringOrNull('data'),
+      sentAspectRatio: switch (json['aspectRatio']) {
+        final num ratio when ratio.isFinite && ratio > 0 => ratio.toDouble(),
+        _ => null,
+      },
     );
     asset.validate();
     return asset;
@@ -131,6 +158,12 @@ sealed class MediaAttachment extends Equatable {
       MediaAttachment.fromJson({...toJson(), 'hideDetails': value});
   JsonMap forWire({bool includeData = false}) => {
     ...toJson(includeData: includeData),
+    // Lets the views reserve the right space while the bytes still load.
+    if (asset case final asset? when asset.aspectRatio != null)
+      'asset': {
+        ...asset.toJson(includeData: includeData),
+        'aspectRatio': asset.aspectRatio,
+      },
     if (hideDetails) 'caption': '',
   };
   final String caption;

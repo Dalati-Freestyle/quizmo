@@ -91,7 +91,7 @@ void main() {
     final preview = File(
       'lib/presentation/quizmaster/preview/quiz_preview_page.dart',
     ).readAsStringSync();
-    expect(preview, contains('TvScreen('));
+    expect(preview, contains('TvCanvas('));
     expect(preview, contains('LocalPlayerBoard('));
   });
 

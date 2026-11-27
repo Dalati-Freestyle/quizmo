@@ -83,6 +83,16 @@ AnswerSubmission botAnswer(
       'kind': 'estimation',
       'value': correct ? question.correctValue! : _wrongEstimate(question),
     },
+    LocationQuestion(:final target) => {
+      'kind': 'location',
+      'latitude': correct ? target!.latitude : -target!.latitude,
+      // The far side of the earth is beyond every allowed radius.
+      'longitude': correct
+          ? target.longitude
+          : (target.longitude > 0
+                ? target.longitude - 180
+                : target.longitude + 180),
+    },
     TrueFalseQuestion() => {
       'kind': 'trueFalse',
       'value': correct ? question.correctAnswer! : !question.correctAnswer!,
@@ -129,8 +139,12 @@ Map<String, Object?> _freeChoice(Question question, int variant) {
         turned([for (final item in rightItems) item.id]),
       ),
     },
-    BuzzerQuestion() || ShortAnswerQuestion() || EstimationQuestion() =>
-      throw StateError('Cannot pick a free answer for ${question.id}.'),
+    BuzzerQuestion() ||
+    ShortAnswerQuestion() ||
+    EstimationQuestion() ||
+    LocationQuestion() => throw StateError(
+      'Cannot pick a free answer for ${question.id}.',
+    ),
   };
 }
 
@@ -155,6 +169,15 @@ String _wrongText(ShortAnswerQuestion question) {
 
 double _wrongEstimate(EstimationQuestion question) {
   final target = question.correctValue!;
-  if (target != 0) return target > 0 ? -target : 0;
-  return question.zeroScale;
+  final simple = target != 0
+      ? (target > 0 ? -target : 0.0)
+      : question.zeroScale;
+  final lower = question.minAccepted;
+  final upper = question.maxAccepted;
+  if (lower == null || upper == null || simple < lower || simple > upper) {
+    return simple;
+  }
+  // Inside the tolerance: leave it upwards, far enough for zero credit.
+  final distance = target != 0 ? target.abs() : question.zeroScale;
+  return max(upper, target + distance) + distance;
 }

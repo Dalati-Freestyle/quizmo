@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../core/engine/answer_evaluation.dart';
 import '../../core/engine/quiz_engine_event.dart';
 import '../../core/models/models.dart';
 import '../../core/sync/clock.dart';
@@ -17,6 +16,9 @@ import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
 import '../l10n/app_localizations.dart';
+import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// The kinds of round information, each with its own look.
 enum RoundInfoKind {
@@ -113,7 +115,8 @@ class HostNoteCard extends StatelessWidget {
     kind: RoundInfoKind.note,
     title: context.tr('Admin-Notiz'),
     subtitle: context.tr('Nur für dich sichtbar'),
-    child: SelectableText(note),
+    // Links in notes are for the host and open on a click.
+    child: QuizMarkdown(note, openLinks: true, selectable: true),
   );
 }
 
@@ -174,22 +177,23 @@ class HintsCard extends StatelessWidget {
                             hintTitle(context, game, index),
                             style: theme.textTheme.labelMedium,
                           ),
-                          if (hint.text.trim().isNotEmpty) Text(hint.text),
+                          if (!isBlankMarkdown(hint.text))
+                            QuizMarkdown(hint.text),
                           if (hint.media.isNotEmpty)
                             QuestionMediaView(
                               key: ValueKey('host-hint-media-$index'),
                               media: hint.media,
-                              // The host previews hints by hand; only the
-                              // newest shown one follows the media controls.
-                              playing: index != shown - 1
-                                  ? null
-                                  : game.tvMediaPaused
-                                  ? false
-                                  : game.tvMediaCommandRevision > 0
-                                  ? true
-                                  : null,
+                              // The host previews hints by hand; the
+                              // shown ones stop with the host's pause.
+                              playback: index < shown
+                                  ? MediaPlayback.onDevice(
+                                      game,
+                                      stopped: index != shown - 1,
+                                    )
+                                  : MediaPlayback.onDemand,
                               playbackRevision: game.tvMediaRevision,
                               commandRevision: game.tvMediaCommandRevision,
+                              maxMediaHeight: hostMediaHeight(context),
                             ),
                         ],
                       ),
@@ -270,11 +274,21 @@ class SolutionCard extends StatelessWidget {
               context.tr('Keine Lösung hinterlegt.'),
               style: TextStyle(color: theme.colorScheme.outline),
             )
-          : SelectableText(
-              label,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SelectableText(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                // The host sees the place and every guess right away.
+                if (question case final LocationQuestion location) ...[
+                  const SizedBox(height: 8),
+                  LocationResultView(game: game, question: location),
+                ],
+              ],
             ),
     );
   }
@@ -283,11 +297,9 @@ class SolutionCard extends StatelessWidget {
 /// What the players answered: "no question", "waiting for answers" or the
 /// answers themselves, including the verdict controls of judged rounds.
 class AnswersCard extends StatelessWidget {
-  const AnswersCard({required this.game, this.onJudge, super.key});
+  const AnswersCard({required this.game, super.key});
 
   final GameState game;
-  final ValueChanged<JudgeAnswerEvent>? onJudge;
-
   @override
   Widget build(BuildContext context) {
     final round = game.round;
@@ -307,14 +319,14 @@ class AnswersCard extends StatelessWidget {
     } else if (round.manualGrading) {
       subtitle = round.verbal
           ? context.tr(
-              'Mündlich: Bewerte, was gesagt wurde. Auch ohne getippte Antwort.',
+              'Mündlich: Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.',
             )
-          : context.tr('Du bewertest jede eingegangene Antwort.');
-      body = ManualAnswerMonitor(
-        question: question,
-        game: game,
-        onJudge: onJudge,
-      );
+          : context.tr(
+              'Bewertet wird gemeinsam, sobald die Antworten geschlossen sind.',
+            );
+      body = round.answers.isEmpty
+          ? _waiting(context)
+          : _WrittenAnswers(question: question, game: game);
     } else if (question is BuzzerQuestion) {
       body = _BuzzerAnswers(game: game);
     } else if (round.snowflake != null) {
@@ -337,7 +349,15 @@ class AnswersCard extends StatelessWidget {
               '${round.answerCount} / ${game.connectedPlayers.length}',
               style: theme.textTheme.labelLarge,
             ),
-      child: body,
+      child: round.replacedAnswers.isEmpty || question == null
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                body,
+                _ReplacedAnswers(question: question, game: game),
+              ],
+            ),
     );
   }
 
@@ -356,6 +376,42 @@ class AnswersCard extends StatelessWidget {
     ],
   );
 }
+
+/// Answers teams replaced in this round; they do not count.
+class _ReplacedAnswers extends StatelessWidget {
+  const _ReplacedAnswers({required this.question, required this.game});
+
+  final Question question;
+  final GameState game;
+
+  @override
+  Widget build(BuildContext context) {
+    final answers = [...game.round.replacedAnswers]..sort(compareAnswerOrder);
+    return ExpansionTile(
+      key: const ValueKey('replaced-answers'),
+      tilePadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(context.tr('Frühere Antworten ({0})', [answers.length])),
+      children: [
+        for (final answer in answers)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                '${_nameOf(game, answer.playerId)}: '
+                '${answerLabel(answer, question, context: context)}',
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Media in the host's round monitor: large, but the controls stay close.
+double hostMediaHeight(BuildContext context) =>
+    (MediaQuery.sizeOf(context).height * 0.42).clamp(160, 460);
 
 String _nameOf(GameState game, String playerId) {
   final player = game.players[playerId];
@@ -409,6 +465,11 @@ class _WrittenAnswers extends StatelessWidget {
                         TextSpan(
                           text: answerLabel(answer, question, context: context),
                         ),
+                        if (round.adoptedPlayerIds.contains(answer.playerId))
+                          TextSpan(
+                            text: ' (${context.tr('beim Ablauf übernommen')})',
+                            style: const TextStyle(fontStyle: FontStyle.italic),
+                          ),
                       ],
                     ),
                     style: theme.textTheme.bodyMedium,
@@ -576,234 +637,6 @@ class _BuzzerAnswers extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Verdict controls for a judged round: written answers of a manually
-/// graded question, or every participant in verbal answer mode, including
-/// those who typed nothing.
-class ManualAnswerMonitor extends StatefulWidget {
-  const ManualAnswerMonitor({
-    required this.question,
-    required this.game,
-    required this.onJudge,
-    super.key,
-  });
-
-  final Question question;
-  final GameState game;
-  final ValueChanged<JudgeAnswerEvent>? onJudge;
-
-  @override
-  State<ManualAnswerMonitor> createState() => _ManualAnswerMonitorState();
-}
-
-class _ManualAnswerMonitorState extends State<ManualAnswerMonitor> {
-  final _reason = TextEditingController();
-
-  @override
-  void didUpdateWidget(ManualAnswerMonitor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.game.round.startedAtHostMicros !=
-            widget.game.round.startedAtHostMicros ||
-        oldWidget.question.id != widget.question.id) {
-      _reason.clear();
-    }
-  }
-
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
-  }
-
-  /// Players that get a verdict row, in roster order.
-  List<String> _rows(GameState game) {
-    final round = game.round;
-    final ids = [
-      for (final id in game.orderedPlayerIds)
-        if (round.answers.containsKey(id) ||
-            (round.verbal &&
-                game.players[id]!.isConnected &&
-                game.mayJudgeVerbally(id)))
-          id,
-    ];
-    // On a board and in poker a team answers once: one row per team, the
-    // team mate who typed something first.
-    final onePerTeam =
-        game.mode is TeamMode && (game.jeopardy != null || game.poker != null);
-    if (!onePerTeam) return ids;
-    final byTeam = <String, String>{};
-    final result = <String>[];
-    for (final id in ids) {
-      final teamId = game.players[id]?.teamId;
-      if (teamId == null) {
-        result.add(id);
-        continue;
-      }
-      final existing = byTeam[teamId];
-      if (existing == null) {
-        byTeam[teamId] = id;
-        result.add(id);
-      } else if (!round.answers.containsKey(existing) &&
-          round.answers.containsKey(id)) {
-        result[result.indexOf(existing)] = id;
-        byTeam[teamId] = id;
-      }
-    }
-    return result;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final game = widget.game;
-    final question = widget.question;
-    final onJudge = widget.onJudge;
-    final round = game.round;
-    final theme = Theme.of(context);
-    final revealed = round.status == RoundStatus.revealed;
-    final startedAt = round.startedAtHostMicros;
-    final canJudge = !revealed && startedAt != null && onJudge != null;
-    final rows = _rows(game);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!revealed) ...[
-          TextField(
-            controller: _reason,
-            decoration: InputDecoration(
-              labelText: context.tr('Grund (optional)'),
-              isDense: true,
-            ),
-            enabled: canJudge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            context.tr(
-              'Die Empfehlungen sind unverbindlich. Bewerte jede eingegangene Antwort. Bis zur Auflösung kannst du deine Entscheidung ändern.',
-            ),
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            context.tr('Noch {0} Antworten zu bewerten', [
-              round.pendingGradeCount,
-            ]),
-            style: theme.textTheme.labelLarge,
-          ),
-        ],
-        if (rows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              context.tr('Warte auf Antworten der Spieler…'),
-              style: TextStyle(color: theme.colorScheme.outline),
-            ),
-          ),
-        for (final id in rows)
-          _verdictRow(context, game, question, id, canJudge, startedAt),
-      ],
-    );
-  }
-
-  Widget _verdictRow(
-    BuildContext context,
-    GameState game,
-    Question question,
-    String playerId,
-    bool canJudge,
-    int? startedAt,
-  ) {
-    final theme = Theme.of(context);
-    final round = game.round;
-    final answer = round.answers[playerId];
-    final typed = answer != null && answer is! VerbalAnswer;
-    final verdict = round.answerVerdicts[playerId];
-    final hint = switch ((question, answer)) {
-      _ when round.status == RoundStatus.revealed || !typed => null,
-      (
-        ShortAnswerQuestion(:final acceptedAnswers, :final maxEdits),
-        ShortAnswer(:final text),
-      )
-          when acceptedAnswers != null =>
-        context.tr(switch (recommendTextAnswer(
-          text,
-          acceptedAnswers,
-          maxEdits,
-        )) {
-          TextAnswerRecommendation.exactMatch =>
-            'Empfehlung: Passt zur Lösung.',
-          TextAnswerRecommendation.possibleTypo =>
-            'Empfehlung: Fast richtig, vermutlich ein Tippfehler.',
-          TextAnswerRecommendation.different =>
-            'Empfehlung: Weicht von den hinterlegten Lösungen ab.',
-        }),
-      (ShortAnswerQuestion(), _) => null,
-      (_, final AnswerSubmission submitted) when question.hasSolution =>
-        context.tr(
-          question.accuracy(submitted) == 1
-              ? 'Automatische Prüfung: richtig.'
-              : 'Automatische Prüfung: nicht ganz richtig.',
-        ),
-      _ => null,
-    };
-    return Card(
-      key: ValueKey('manual-answer-$playerId'),
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_nameOf(game, playerId), style: theme.textTheme.titleMedium),
-            if (typed)
-              SelectableText(answerLabel(answer, question, context: context))
-            else
-              Text(
-                context.tr(
-                  answer is VerbalAnswer
-                      ? 'Mündlich beantwortet'
-                      : 'Nichts eingetippt (mündliche Antwort)',
-                ),
-                style: TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            if (hint != null) ...[
-              const SizedBox(height: 4),
-              Text(hint, style: theme.textTheme.bodySmall),
-            ],
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final correct in [true, false])
-                  ChoiceChip(
-                    label: Text(context.tr(correct ? 'Richtig' : 'Wrong')),
-                    selected: verdict == (correct ? 1 : 0),
-                    onSelected: canJudge
-                        ? (_) {
-                            widget.onJudge!(
-                              JudgeAnswerEvent(
-                                playerId: playerId,
-                                questionId: question.id,
-                                startedAtHostMicros: startedAt!,
-                                wasCorrect: correct,
-                                reason: _reason.text.trim(),
-                              ),
-                            );
-                            _reason.clear();
-                          }
-                        : null,
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

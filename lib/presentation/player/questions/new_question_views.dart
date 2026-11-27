@@ -6,6 +6,19 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 import '../../l10n/app_localizations.dart';
 
 import '../../../core/models/models.dart';
+import '../../common/location_map.dart';
+
+/// How a question view behaves when the team shares one answer: it stays
+/// editable after sending, and sending again replaces [valid].
+final class TeamAnswerMode {
+  const TeamAnswerMode({this.valid, this.own});
+
+  /// The answer of the team that counts right now.
+  final AnswerSubmission? valid;
+
+  /// The last answer this player sent.
+  final AnswerSubmission? own;
+}
 
 /// Submit button that stays coloured once the answer was sent, so the
 /// player keeps seeing that the press counted.
@@ -14,18 +27,25 @@ class AnswerSubmitButton extends StatelessWidget {
     required this.label,
     required this.sent,
     required this.onPressed,
+    this.replaces = false,
     super.key,
   });
 
   final String label;
   final bool sent;
+
+  /// Whether sending replaces an answer the team already gave.
+  final bool replaces;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     if (!sent) {
-      return FilledButton(onPressed: onPressed, child: Text(label));
+      return FilledButton(
+        onPressed: onPressed,
+        child: Text(replaces ? context.tr('Antwort ersetzen') : label),
+      );
     }
     return FilledButton.icon(
       key: const ValueKey('answer-sent'),
@@ -46,6 +66,8 @@ class ShortAnswerQuestionView extends StatefulWidget {
     required this.enabled,
     required this.onSubmit,
     this.submitted = false,
+    this.team,
+    this.onChanged,
     super.key,
   });
   final ShortAnswerQuestion question;
@@ -54,6 +76,12 @@ class ShortAnswerQuestionView extends StatefulWidget {
 
   /// Whether this player's answer was sent in the running round.
   final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every change of the input, before it is sent.
+  final ValueChanged<String?>? onChanged;
   @override
   State<ShortAnswerQuestionView> createState() =>
       _ShortAnswerQuestionViewState();
@@ -76,12 +104,16 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
         enabled: widget.enabled,
         maxLength: 2000,
         decoration: InputDecoration(labelText: context.tr("Deine Antwort")),
-        onChanged: (_) => setState(() {}),
+        onChanged: (text) {
+          setState(() {});
+          widget.onChanged?.call(text.trim().isEmpty ? null : text.trim());
+        },
         onSubmitted: (_) => submit(),
       ),
       const SizedBox(height: 16),
       AnswerSubmitButton(
-        sent: widget.submitted,
+        sent: sent,
+        replaces: widget.team?.valid != null,
         onPressed: widget.enabled && controller.text.trim().isNotEmpty
             ? submit
             : null,
@@ -89,8 +121,14 @@ class _ShortAnswerQuestionViewState extends State<ShortAnswerQuestionView> {
       ),
     ],
   );
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: ShortAnswer(:final text)) =>
+      text.trim() == controller.text.trim(),
+    _ => false,
+  };
   void submit() {
-    if (widget.enabled && controller.text.trim().isNotEmpty) {
+    if (widget.enabled && !sent && controller.text.trim().isNotEmpty) {
       widget.onSubmit(controller.text.trim());
     }
   }
@@ -102,12 +140,20 @@ class OrderingQuestionView extends StatefulWidget {
     required this.enabled,
     required this.onSubmit,
     this.submitted = false,
+    this.team,
+    this.onChanged,
     super.key,
   });
   final OrderingQuestion question;
   final bool enabled;
   final ValueChanged<List<String>> onSubmit;
   final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every change of the input, before it is sent.
+  final ValueChanged<List<String>>? onChanged;
   @override
   State<OrderingQuestionView> createState() => _OrderingQuestionViewState();
 }
@@ -121,10 +167,22 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
       ..shuffle(Random(widget.question.id.hashCode));
   }
 
-  void move(int index, int offset) => setState(() {
-    final item = items.removeAt(index);
-    items.insert(index + offset, item);
-  });
+  void move(int index, int offset) {
+    setState(() {
+      final item = items.removeAt(index);
+      items.insert(index + offset, item);
+    });
+    widget.onChanged?.call([for (final item in items) item.id]);
+  }
+
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: OrderingAnswer(:final itemIds)) => sameOrder(
+      itemIds,
+      [for (final item in items) item.id],
+    ),
+    _ => false,
+  };
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,7 +213,8 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
         ),
       const SizedBox(height: 16),
       AnswerSubmitButton(
-        sent: widget.submitted,
+        sent: sent,
+        replaces: widget.team?.valid != null,
         onPressed: widget.enabled
             ? () => widget.onSubmit(items.map((i) => i.id).toList())
             : null,
@@ -171,18 +230,35 @@ class MatchingQuestionView extends StatefulWidget {
     required this.enabled,
     required this.onSubmit,
     this.submitted = false,
+    this.team,
+    this.onChanged,
     super.key,
   });
   final MatchingQuestion question;
   final bool enabled;
   final ValueChanged<Map<String, String>> onSubmit;
   final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every change of the input, before it is sent.
+  final ValueChanged<Map<String, String>>? onChanged;
   @override
   State<MatchingQuestionView> createState() => _MatchingQuestionViewState();
 }
 
 class _MatchingQuestionViewState extends State<MatchingQuestionView> {
   final pairs = <String, String>{};
+
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: MatchingAnswer(pairs: final valid)) =>
+      valid.length == pairs.length &&
+          valid.entries.every((entry) => pairs[entry.key] == entry.value),
+    _ => false,
+  };
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -263,6 +339,7 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
                                 pairs[left.id] = value;
                               }
                             });
+                            widget.onChanged?.call({...pairs});
                           },
                   );
                   return stacked
@@ -282,7 +359,8 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
             ),
           const SizedBox(height: 16),
           AnswerSubmitButton(
-            sent: widget.submitted,
+            sent: sent,
+            replaces: widget.team?.valid != null,
             onPressed:
                 widget.enabled &&
                     pairs.length == widget.question.leftItems.length &&
@@ -303,12 +381,20 @@ class EstimationQuestionView extends StatefulWidget {
     required this.enabled,
     required this.onSubmit,
     this.submitted = false,
+    this.team,
+    this.onChanged,
     super.key,
   });
   final EstimationQuestion question;
   final bool enabled;
   final ValueChanged<double> onSubmit;
   final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every change of the input, before it is sent.
+  final ValueChanged<double?>? onChanged;
   @override
   State<EstimationQuestionView> createState() => _EstimationQuestionViewState();
 }
@@ -319,6 +405,13 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
     final v = double.tryParse(text.replaceAll(',', '.'));
     return v != null && v.isFinite ? v : null;
   }
+
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: EstimationAnswer(value: final valid)) =>
+      valid == value,
+    _ => false,
+  };
 
   @override
   Widget build(BuildContext context) => Column(
@@ -334,11 +427,15 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
           labelText: context.tr("Deine Schätzung"),
           suffixText: widget.question.unit,
         ),
-        onChanged: (v) => setState(() => text = v),
+        onChanged: (v) {
+          setState(() => text = v);
+          widget.onChanged?.call(value);
+        },
       ),
       const SizedBox(height: 16),
       AnswerSubmitButton(
-        sent: widget.submitted,
+        sent: sent,
+        replaces: widget.team?.valid != null,
         onPressed: widget.enabled && value != null
             ? () => widget.onSubmit(value!)
             : null,
@@ -355,6 +452,7 @@ class TrueFalseQuestionView extends StatefulWidget {
     required this.onSubmit,
     this.submitted = false,
     this.chosen,
+    this.team,
     super.key,
   });
   final TrueFalseQuestion question;
@@ -364,6 +462,9 @@ class TrueFalseQuestionView extends StatefulWidget {
 
   /// The answer of this player from the snapshot, when it is known.
   final bool? chosen;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
 
   @override
   State<TrueFalseQuestionView> createState() => _TrueFalseQuestionViewState();
@@ -382,12 +483,22 @@ class _TrueFalseQuestionViewState extends State<TrueFalseQuestionView> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final chosen = widget.chosen ?? (widget.submitted ? _pressed : null);
+    final team = widget.team;
+    // In a team the own last press stays marked while it may be replaced.
+    final chosen =
+        (team == null ? null : _pressed) ??
+        widget.chosen ??
+        (widget.submitted ? _pressed : null);
+    final counts = switch (team?.valid) {
+      TrueFalseAnswer(:final value) => value,
+      _ => null,
+    };
     Widget option(bool value, IconData icon, String label) {
       final selected = chosen == value;
       return FilledButton.icon(
         key: ValueKey('true-false-$value'),
-        onPressed: widget.enabled && chosen == null
+        onPressed:
+            widget.enabled && (team == null ? chosen == null : counts != value)
             ? () {
                 setState(() => _pressed = value);
                 widget.onSubmit(value);
@@ -401,7 +512,12 @@ class _TrueFalseQuestionViewState extends State<TrueFalseQuestionView> {
               )
             : null,
         icon: Icon(selected ? Icons.check_circle : icon),
-        label: Text(context.tr(label)),
+        label: Text(
+          [
+            context.tr(label),
+            if (counts == value) context.tr('Teamantwort'),
+          ].join(' · '),
+        ),
       );
     }
 
@@ -411,6 +527,97 @@ class _TrueFalseQuestionViewState extends State<TrueFalseQuestionView> {
       children: [
         option(true, Icons.check, "Wahr"),
         option(false, Icons.close, "Falsch"),
+      ],
+    );
+  }
+}
+
+/// Players move and zoom the map, put their marker and confirm it.
+class LocationQuestionView extends StatefulWidget {
+  const LocationQuestionView({
+    required this.question,
+    required this.enabled,
+    required this.onSubmit,
+    this.submitted = false,
+    this.team,
+    this.onChanged,
+    super.key,
+  });
+  final LocationQuestion question;
+  final bool enabled;
+  final ValueChanged<GeoPoint> onSubmit;
+  final bool submitted;
+
+  /// Set when the team shares one answer.
+  final TeamAnswerMode? team;
+
+  /// Called with every new marker, before it is sent.
+  final ValueChanged<GeoPoint>? onChanged;
+
+  @override
+  State<LocationQuestionView> createState() => _LocationQuestionViewState();
+}
+
+class _LocationQuestionViewState extends State<LocationQuestionView> {
+  GeoPoint? marker;
+
+  bool get sent => switch (widget.team) {
+    null => widget.submitted,
+    TeamAnswerMode(valid: LocationAnswer(:final latitude, :final longitude)) =>
+      marker == GeoPoint(latitude, longitude),
+    _ => false,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final height = (MediaQuery.sizeOf(context).height * 0.55).clamp(
+      220.0,
+      520.0,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          context.tr('Tippe auf die Karte, um deine Markierung zu setzen.'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: height,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: LocationMap(
+              center: widget.question.startCenter,
+              zoom: widget.question.startZoom,
+              pins: [
+                if (marker case final point?)
+                  LocationPin(
+                    point: point,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+              ],
+              onTap: widget.enabled
+                  ? (point) {
+                      setState(() => marker = point);
+                      widget.onChanged?.call(point);
+                    }
+                  : null,
+            ),
+          ),
+        ),
+        if (marker case final point?) ...[
+          const SizedBox(height: 4),
+          Text(point.label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+        const SizedBox(height: 12),
+        AnswerSubmitButton(
+          sent: sent,
+          replaces: widget.team?.valid != null,
+          onPressed: widget.enabled && marker != null && !sent
+              ? () => widget.onSubmit(marker!)
+              : null,
+          label: context.tr('Markierung bestätigen'),
+        ),
       ],
     );
   }

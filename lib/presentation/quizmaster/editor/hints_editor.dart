@@ -7,6 +7,7 @@ import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
 import '../../l10n/app_localizations.dart';
 import 'media_editor.dart';
+import 'markdown_field.dart';
 
 /// Lists the hints in the order the host shows them.
 class HintsEditor extends StatefulWidget {
@@ -93,9 +94,9 @@ class _HintsEditorState extends State<HintsEditor> {
             contentPadding: EdgeInsets.zero,
             leading: CircleAvatar(radius: 14, child: Text('${index + 1}')),
             title: Text(
-              hint.text.trim().isEmpty
+              markdownToPlain(hint.text).trim().isEmpty
                   ? context.tr('Tipp {0}', [index + 1])
-                  : hint.text,
+                  : markdownToPlain(hint.text),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -170,12 +171,10 @@ class _HintEditorDialogState extends State<HintEditorDialog> {
             children: [
               // Room for the floating label of the first field.
               const SizedBox(height: 8),
-              TextFormField(
+              MarkdownField(
                 key: const ValueKey('hint-text'),
                 initialValue: _text,
-                minLines: 2,
-                maxLines: 6,
-                decoration: InputDecoration(labelText: context.tr('Text')),
+                label: context.tr('Text'),
                 onChanged: (value) => setState(() => _text = value),
               ),
               const SizedBox(height: 12),

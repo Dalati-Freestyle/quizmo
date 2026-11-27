@@ -4,6 +4,8 @@ import '../../core/models/models.dart';
 import '../l10n/app_localizations.dart';
 import 'question_media_view.dart';
 import 'question_result_view.dart';
+import 'media_playback.dart';
+import 'quiz_markdown.dart';
 
 class QuizReviewView extends StatelessWidget {
   const QuizReviewView({
@@ -43,7 +45,7 @@ class QuizReviewView extends StatelessWidget {
           Card(
             child: ExpansionTile(
               key: ValueKey('review-$index'),
-              title: Text('${index + 1}. ${question.prompt}'),
+              title: QuizMarkdown('${index + 1}. ${question.prompt}'),
               subtitle: Text(
                 context.tr('Lösung: {0}', [
                   question is TrueFalseQuestion
@@ -75,21 +77,21 @@ class QuizReviewView extends StatelessWidget {
                 QuestionMediaView(
                   media: question.media,
                   baseUri: mediaBaseUri,
-                  playing: false,
+                  playback: MediaPlayback.stopped,
                 ),
                 for (final hint in round.shownHints) ...[
-                  if (hint.text.trim().isNotEmpty)
-                    Text(context.tr('Tipp: {0}', [hint.text])),
+                  if (!isBlankMarkdown(hint.text))
+                    QuizMarkdown(context.tr('Tipp: {0}', [hint.text])),
                   QuestionMediaView(
                     media: hint.media,
                     baseUri: mediaBaseUri,
-                    playing: false,
+                    playback: MediaPlayback.stopped,
                   ),
                 ],
                 QuestionMediaView(
                   media: question.solutionMedia,
                   baseUri: mediaBaseUri,
-                  playing: false,
+                  playback: MediaPlayback.stopped,
                 ),
               ],
             ),

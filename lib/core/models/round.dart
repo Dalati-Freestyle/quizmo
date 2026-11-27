@@ -59,6 +59,9 @@ final class RoundState extends Equatable {
     this.hiddenAnswerCount = 0,
     this.verbal = false,
     this.hintTimesMicros = const [],
+    this.replacedAnswers = const [],
+    this.answerDeadlineMicros,
+    this.adoptedPlayerIds = const {},
   });
 
   /// Restores a round from [json].
@@ -68,6 +71,13 @@ final class RoundState extends Equatable {
     hintTimesMicros: json['hintTimesMicros'] == null
         ? const []
         : json.readIntList('hintTimesMicros'),
+    replacedAnswers: json['replacedAnswers'] == null
+        ? const []
+        : json.readList('replacedAnswers', AnswerSubmission.fromJson),
+    answerDeadlineMicros: json.readIntOrNull('answerDeadlineMicros'),
+    adoptedPlayerIds: json['adoptedPlayerIds'] == null
+        ? const {}
+        : json.readStringList('adoptedPlayerIds').toSet(),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -118,7 +128,11 @@ final class RoundState extends Equatable {
   /// late because of a slow link can still win the race.
   final List<BuzzerPress> buzzerQueue;
 
-  /// Multiple choice submissions keyed by player id; the first one counts.
+  /// The answers that count, keyed by the player who sent them.
+  ///
+  /// When a team shares one answer (`GameState.sharesTeamAnswers`) it holds at
+  /// most one entry per team: the last one. Otherwise the first answer of each
+  /// player counts.
   final Map<String, AnswerSubmission> answers;
 
   /// Player that currently holds the floor, if any.
@@ -160,6 +174,34 @@ final class RoundState extends Equatable {
   /// Host instants at which the hints of the question were shown, in order;
   /// its length is the number of hints on stage.
   final List<int> hintTimesMicros;
+
+  /// Answers of the round that a team replaced, in no particular order.
+  /// Host only: guests never receive them in a snapshot.
+  final List<AnswerSubmission> replacedAnswers;
+
+  /// Host instant at which the answers close by themselves, because every team
+  /// answered; until then teams may still replace their answer.
+  final int? answerDeadlineMicros;
+
+  /// Players whose entry in [answers] was never sent: their input was taken
+  /// over when the answers closed.
+  final Set<String> adoptedPlayerIds;
+
+  /// Everything that was submitted, including replaced answers.
+  Iterable<AnswerSubmission> get allSubmissions =>
+      answers.values.followedBy(replacedAnswers);
+
+  /// The last answer [playerId] sent, replaced or not.
+  AnswerSubmission? lastSubmissionOf(String? playerId) {
+    AnswerSubmission? last;
+    for (final answer in allSubmissions) {
+      if (answer.playerId == playerId &&
+          (last == null || compareAnswerOrder(answer, last) > 0)) {
+        last = answer;
+      }
+    }
+    return last;
+  }
 
   /// Number of hints the guests currently see.
   int get shownHintCount {
@@ -274,7 +316,7 @@ final class RoundState extends Equatable {
 
   /// Whether [playerId] already produced input for this round.
   bool hasSubmitted(String playerId) =>
-      answers.containsKey(playerId) || rankOf(playerId) >= 0;
+      lastSubmissionOf(playerId) != null || rankOf(playerId) >= 0;
 
   /// Time between the round start and [hostMicros].
   Duration elapsedAt(int hostMicros) =>
@@ -318,7 +360,15 @@ final class RoundState extends Equatable {
     int? hiddenAnswerCount,
     bool? verbal,
     List<int>? hintTimesMicros,
+    List<AnswerSubmission>? replacedAnswers,
+    Object? answerDeadlineMicros = _unset,
+    Set<String>? adoptedPlayerIds,
   }) => RoundState(
+    adoptedPlayerIds: adoptedPlayerIds ?? this.adoptedPlayerIds,
+    replacedAnswers: replacedAnswers ?? this.replacedAnswers,
+    answerDeadlineMicros: identical(answerDeadlineMicros, _unset)
+        ? this.answerDeadlineMicros
+        : answerDeadlineMicros as int?,
     hintTimesMicros: hintTimesMicros ?? this.hintTimesMicros,
     snowflake: snowflake,
     verbal: verbal ?? this.verbal,
@@ -372,6 +422,14 @@ final class RoundState extends Equatable {
     if (hiddenAnswerCount != 0) 'hiddenAnswerCount': hiddenAnswerCount,
     if (verbal) 'verbal': true,
     if (hintTimesMicros.isNotEmpty) 'hintTimesMicros': hintTimesMicros,
+    if (replacedAnswers.isNotEmpty)
+      'replacedAnswers': [
+        for (final answer in replacedAnswers) answer.toJson(),
+      ],
+    if (adoptedPlayerIds.isNotEmpty)
+      'adoptedPlayerIds': adoptedPlayerIds.toList(growable: false),
+    if (answerDeadlineMicros != null)
+      'answerDeadlineMicros': answerDeadlineMicros,
   };
 
   @override
@@ -395,5 +453,8 @@ final class RoundState extends Equatable {
     hiddenAnswerCount,
     verbal,
     hintTimesMicros,
+    replacedAnswers,
+    answerDeadlineMicros,
+    adoptedPlayerIds,
   ];
 }

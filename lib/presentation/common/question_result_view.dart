@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 
+import '../../core/engine/answer_evaluation.dart';
+import '../../core/engine/geo.dart';
 import '../../core/models/models.dart';
 import 'snowflake_result_view.dart';
 
@@ -10,11 +14,16 @@ class QuestionResultView extends StatelessWidget {
     required this.question,
     required this.game,
     this.host = false,
+    this.tv = false,
     super.key,
   });
   final Question question;
   final GameState game;
   final bool host;
+
+  /// On the TV the instruction replaces the kind, and lists are mixed so
+  /// that they never look like the solution.
+  final bool tv;
   @override
   Widget build(BuildContext context) {
     final revealed =
@@ -23,11 +32,12 @@ class QuestionResultView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          context.tr(question.kindLabel),
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        if (question.requiresManualGrading && !host && !revealed)
+        if (!tv)
+          Text(
+            context.tr(question.kindLabel),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        if (question.requiresManualGrading && !host && !revealed && !tv)
           Text(
             context.tr('Der Spielleiter bewertet die Antworten.'),
             style: const TextStyle(fontSize: 22),
@@ -42,14 +52,54 @@ class QuestionResultView extends StatelessWidget {
               style: const TextStyle(fontSize: 24),
             ),
         if (question case OrderingQuestion(:final items))
-          for (final item in items)
+          for (final item in tv ? mixed(items, question.id) : items)
             Text('• ${item.label}', style: const TextStyle(fontSize: 24)),
         if (question case MatchingQuestion(:final leftItems, :final rightItems))
-          for (var i = 0; i < leftItems.length; i++)
-            Text(
-              '${leftItems[i].label}    |    ${i < rightItems.length ? rightItems[i].label : ''}',
-              style: const TextStyle(fontSize: 24),
-            ),
+          if (tv)
+            Row(
+              key: const ValueKey('tv-matching-lists'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final (side, items) in [
+                  ('a', leftItems),
+                  ('b', rightItems),
+                ]) ...[
+                  if (side == 'b') const SizedBox(width: 32),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final item in mixed(
+                              items,
+                              '${question.id}/$side',
+                            ))
+                              Text(
+                                '• ${item.label}',
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          else
+            for (var i = 0; i < leftItems.length; i++)
+              Text(
+                '${leftItems[i].label}    |    ${i < rightItems.length ? rightItems[i].label : ''}',
+                style: const TextStyle(fontSize: 24),
+              ),
         if ((host || revealed) && game.round.snowflake != null) ...[
           const SizedBox(height: 12),
           SnowflakeResultView(game: game, maxGroups: host ? 50 : 8),
@@ -94,13 +144,30 @@ class QuestionResultView extends StatelessWidget {
   }
 }
 
+/// [items] in an order that only depends on [seed], on every platform.
+List<AnswerOption> mixed(List<AnswerOption> items, String seed) {
+  var hash = 17;
+  for (final unit in seed.codeUnits) {
+    hash = (hash * 31 + unit) & 0x7fffffff;
+  }
+  return [...items]..shuffle(Random(hash));
+}
+
 String answerLabel(
   AnswerSubmission answer,
   Question question, {
   BuildContext? context,
 }) => switch (answer) {
   ShortAnswer(:final text) => text,
-  EstimationAnswer(:final value) => '$value',
+  EstimationAnswer(:final value) =>
+    question is EstimationQuestion
+        ? question.valueLabel(value)
+        : formatNumber(value),
+  LocationAnswer(:final latitude, :final longitude) => [
+    GeoPoint(latitude, longitude).label,
+    if (question case final LocationQuestion location)
+      if (location.distanceOf(answer) case final km?) formatDistance(km),
+  ].join(' · '),
   TrueFalseAnswer(:final value) =>
     value
         ? (context?.tr("Wahr") ?? 'Wahr')

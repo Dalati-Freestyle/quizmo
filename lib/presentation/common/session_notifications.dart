@@ -88,7 +88,12 @@ class _SessionNotificationsState extends State<SessionNotifications> {
         final scores = teamCompetition ? game.teamScores : game.scores.byPlayer;
         final myScore = scores[teamCompetition ? me.teamId : me.id] ?? 0;
         final place =
-            1 + scores.values.where((score) => score > myScore).length;
+            1 +
+            (teamCompetition
+                ? scores.keys
+                      .where((id) => compareTeams(game, id, me.teamId!) < 0)
+                      .length
+                : scores.values.where((score) => score > myScore).length);
         _showPlacement(
           PointerInterceptor(
             child: AlertDialog(

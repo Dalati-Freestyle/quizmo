@@ -5,6 +5,7 @@
 library;
 
 export 'answer.dart';
+export 'answer_draft.dart';
 export 'game_protocol.dart';
 export 'game_state.dart';
 export 'guest_wifi.dart';
@@ -13,10 +14,13 @@ export 'jeopardy.dart';
 export 'joker.dart';
 export 'json.dart';
 export 'manual_correction.dart';
+export 'markdown_text.dart';
 export 'player.dart';
+export 'player_answers.dart';
 export 'poker.dart';
 export 'question.dart';
 export 'question_bulk_edit.dart';
+export 'question_conversion.dart';
 export 'question_hint.dart';
 export 'quiz.dart';
 export 'quiz_format.dart';
@@ -24,6 +28,7 @@ export 'report_round.dart';
 export 'round.dart';
 export 'score.dart';
 export 'snowflake.dart';
+export 'standings.dart';
 export 'team.dart';
 export 'team_color.dart';
 

@@ -32,6 +32,7 @@ final class PlayerSessionState extends Equatable {
     this.lobby,
     this.waitingForApproval = false,
     this.submissionStatus = SubmissionStatus.idle,
+    this.answers,
     this.deviceCheckId,
   });
 
@@ -64,6 +65,22 @@ final class PlayerSessionState extends Equatable {
   final LobbySnapshotMessage? lobby;
   final bool waitingForApproval;
   final SubmissionStatus submissionStatus;
+
+  /// The own answers and those of the team in the running round.
+  final PlayerAnswers? answers;
+
+  /// Whether the own team gives one answer together in the running round.
+  bool get sharesTeamAnswer => game?.sharedAnswerTeamOf(playerId) != null;
+
+  /// Whether the player may send an answer now: the first one, or in a team
+  /// also one that replaces the answer of the team.
+  bool get mayEditAnswer =>
+      isConnected &&
+      roundStatus.acceptsInput &&
+      mayAnswerQuestion &&
+      (sharesTeamAnswer
+          ? mayAnswerPoker && !(answers?.isFinal ?? false)
+          : lastSubmittedOptionId == null);
 
   /// Running device check of the host's technical check that this device
   /// has not confirmed yet; `null` otherwise.
@@ -110,10 +127,7 @@ final class PlayerSessionState extends Equatable {
         me?.teamId != null &&
         ((poker.wagers[me?.teamId] ?? 0) > 0 ||
             (poker.chips[me?.teamId] ?? 0) == 0) &&
-        !poker.settledTeamIds.contains(me?.teamId) &&
-        !game!.round.answers.keys.any(
-          (id) => game!.players[id]?.teamId == me?.teamId,
-        );
+        !poker.settledTeamIds.contains(me?.teamId);
   }
 
   /// Estimated one way latency to the host.
@@ -135,6 +149,7 @@ final class PlayerSessionState extends Equatable {
     LobbySnapshotMessage? lobby,
     bool? waitingForApproval,
     SubmissionStatus? submissionStatus,
+    Object? answers = _unset,
     String? deviceCheckId,
     bool clearDeviceCheck = false,
   }) => PlayerSessionState(
@@ -154,6 +169,9 @@ final class PlayerSessionState extends Equatable {
     submissionStatus:
         submissionStatus ??
         (clearSubmission ? SubmissionStatus.idle : this.submissionStatus),
+    answers: identical(answers, _unset)
+        ? this.answers
+        : answers as PlayerAnswers?,
     deviceCheckId: clearDeviceCheck
         ? null
         : deviceCheckId ?? this.deviceCheckId,
@@ -173,9 +191,12 @@ final class PlayerSessionState extends Equatable {
     lobby,
     waitingForApproval,
     submissionStatus,
+    answers,
     deviceCheckId,
   ];
 }
+
+const Object _unset = Object();
 
 /// Drives one player client: handshake, join, buzz and answer.
 class PlayerSessionCubit extends Cubit<PlayerSessionState> {
@@ -187,6 +208,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
        _createClient = createClient ?? ((host) => QuizClient(baseUri: host)),
        _localSend = null,
        _localNow = null,
+       _localAnswers = null,
        super(const PlayerSessionState());
 
   PlayerSessionCubit.local({
@@ -195,10 +217,13 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     required Stream<GameState> snapshots,
     required void Function(QuizEngineEvent) send,
     required NowMicros now,
+    PlayerAnswers Function()? answers,
+    Stream<void>? draftChanges,
   }) : _store = PlayerSessionStore(),
        _createClient = ((host) => QuizClient(baseUri: host)),
        _localSend = send,
        _localNow = now,
+       _localAnswers = answers,
        super(
          PlayerSessionState(
            status: QuizClientStatus.connected,
@@ -206,12 +231,24 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
            game: initialGame,
          ),
        ) {
-    _onSnapshot(initialGame);
-    _gameSubscription = snapshots.listen(_onSnapshot);
+    _onSnapshot(initialGame, answers: _localAnswers?.call());
+    _gameSubscription = snapshots.listen(
+      (game) => _onSnapshot(game, answers: _localAnswers?.call()),
+    );
+    _localDraftSubscription = draftChanges?.listen((_) {
+      final answers = _localAnswers?.call();
+      if (!isClosed && answers != null) emit(state.copyWith(answers: answers));
+    });
   }
 
   final void Function(QuizEngineEvent)? _localSend;
   final NowMicros? _localNow;
+  final PlayerAnswers Function()? _localAnswers;
+  StreamSubscription<void>? _localDraftSubscription;
+  StreamSubscription<TeamDraftsMessage>? _teamDraftsSubscription;
+
+  /// Client timestamp of the answer whose confirmation is awaited.
+  int? _pendingTimestamp;
   final PlayerSessionStore _store;
   final QuizClient Function(Uri) _createClient;
   SavedPlayerSession? _saved;
@@ -400,8 +437,27 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
       );
     });
 
+    _teamDraftsSubscription = client.teamDrafts.listen((message) {
+      final round = state.game?.round;
+      if (isClosed ||
+          round?.question?.id != message.questionId ||
+          round?.startedAtHostMicros != message.roundStartedAt) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          answers: (state.answers ?? const PlayerAnswers()).withDrafts(
+            message.drafts,
+          ),
+        ),
+      );
+    });
     _snapshotSubscription = client.snapshots.listen((snapshot) {
-      _onSnapshot(snapshot.game, accepted: snapshot.ownSubmissionAccepted);
+      _onSnapshot(
+        snapshot.game,
+        accepted: snapshot.ownSubmissionAccepted,
+        answers: snapshot.answers,
+      );
     });
     _statusSubscription = client.statuses.listen((status) {
       if (isClosed) return;
@@ -411,7 +467,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         );
         return;
       }
-      if (status != QuizClientStatus.connected) _restoringSnapshot = true;
+      if (status != QuizClientStatus.connected) {
+        _restoringSnapshot = true;
+        // The host may have missed the last input: repeat it afterwards.
+        _draftPending = _draft != null;
+      }
       emit(
         state.copyWith(
           status:
@@ -651,46 +711,114 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         !state.roundStatus.acceptsInput ||
         !state.mayAnswerQuestion ||
         !state.mayAnswerPoker ||
-        question is! MultipleChoiceQuestion ||
-        state.lastSubmittedOptionId != null) {
+        question is! MultipleChoiceQuestion) {
       return;
     }
-    _beginSubmission(optionId: optionId);
-    if (_localSend case final send?) {
-      send(
-        SubmitAnswerEvent(
-          MultipleChoiceAnswer(
-            playerId: state.playerId!,
-            questionId: question.id,
-            clientTimestampMicros: _localNow!(),
-            clockOffsetMicros: 0,
-            optionId: optionId,
-          ),
-        ),
-      );
-    } else {
-      _deliverSubmission(
-        () =>
-            _client!.submitChoice(questionId: question.id, optionId: optionId),
-      );
-    }
+    submit(
+      (id, timestamp, offset) => MultipleChoiceAnswer(
+        playerId: id,
+        questionId: question.id,
+        clientTimestampMicros: timestamp,
+        clockOffsetMicros: offset,
+        optionId: optionId,
+      ),
+      optionId: optionId,
+    );
   }
 
-  void submit(
-    AnswerSubmission Function(String playerId, int timestamp, int offset) build,
+  /// How often changed input is reported at most.
+  static const draftInterval = Duration(milliseconds: 300);
+
+  /// The input of the running round that is not reported yet.
+  AnswerDraft? _draft;
+  bool _draftPending = false;
+  Timer? _draftTimer;
+
+  /// Reports changed input that is not sent; [build] is `null` when the input
+  /// was cleared. Throttled, the last state always follows.
+  void updateDraft(
+    AnswerSubmission Function(String playerId, int timestamp, int offset)?
+    build,
   ) {
-    if (!state.mayAnswerQuestion ||
-        !state.mayAnswerPoker ||
-        !state.isConnected ||
-        state.lastSubmittedOptionId != null ||
+    final question = state.question;
+    final startedAt = state.game?.round.startedAtHostMicros;
+    final id = state.playerId;
+    if (question == null ||
+        startedAt == null ||
+        id == null ||
+        !question.supportsDrafts ||
         !state.roundStatus.acceptsInput) {
       return;
     }
-    _beginSubmission();
+    final now = _localNow?.call() ?? systemNowMicros();
+    final offset = _localNow == null ? state.clockOffsetMicros : 0;
+    _draft = AnswerDraft(
+      playerId: id,
+      questionId: question.id,
+      roundStartedAt: startedAt,
+      clientTimestampMicros: now,
+      clockOffsetMicros: offset,
+      content: build?.call(id, now, offset),
+    );
+    _draftPending = true;
+    if (_draftTimer?.isActive ?? false) return;
+    _flushDraft();
+    _draftTimer = Timer(draftInterval, _flushDraft);
+  }
+
+  /// Reports the last input now; also after a reconnect and when time is up.
+  void _flushDraft() {
+    final draft = _draft;
+    if (isClosed || !_draftPending || draft == null || !state.isConnected) {
+      return;
+    }
     if (_localSend case final send?) {
-      send(SubmitAnswerEvent(build(state.playerId!, _localNow!(), 0)));
+      _draftPending = false;
+      send(UpdateDraftEvent(draft));
+      return;
+    }
+    // Hosts of older versions do not know drafts.
+    if (state.answers == null) return;
+    _draftPending = false;
+    try {
+      _client!.sendDraft(
+        questionId: draft.questionId,
+        roundStartedAt: draft.roundStartedAt,
+        changedAtMicros: draft.clientTimestampMicros,
+        content: draft.content,
+      );
+    } on StateError {
+      _draftPending = true;
+    }
+  }
+
+  /// Sends the own last answer again after a team mate replaced it.
+  void resend(AnswerSubmission answer) => submit(
+    (id, timestamp, offset) => AnswerSubmission.fromJson({
+      ...answer.toJson(),
+      'playerId': id,
+      'clientTimestampMicros': timestamp,
+      'clockOffsetMicros': offset,
+      'hostTimestampMicros': timestamp - offset,
+    }),
+  );
+
+  void submit(
+    AnswerSubmission Function(String playerId, int timestamp, int offset)
+    build, {
+    String? optionId,
+  }) {
+    if (!state.mayAnswerPoker || !state.mayEditAnswer) return;
+    AnswerSubmission stamped(String id, int timestamp, int offset) {
+      _pendingTimestamp = timestamp;
+      return build(id, timestamp, offset);
+    }
+
+    _beginSubmission(optionId: optionId);
+    if (_localSend case final send?) {
+      send(SubmitAnswerEvent(stamped(state.playerId!, _localNow!(), 0)));
     } else {
-      _deliverSubmission(() => _client!.submitAnswer(build));
+      _deliverSubmission(() => _client!.submitAnswer(stamped));
     }
   }
 
@@ -819,7 +947,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     return super.close();
   }
 
-  void _onSnapshot(GameState game, {bool? accepted}) {
+  void _onSnapshot(GameState game, {bool? accepted, PlayerAnswers? answers}) {
     if (isClosed) return;
     final questionId = game.round.question?.id;
     final isNewRound =
@@ -837,13 +965,22 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         id != null &&
         game.round.buzzerQueue.any((press) => press.playerId == id);
     final hasBuzzed = stillQueued;
-    final answer = game.round.answers[id];
-    final confirmed = accepted ?? (id != null && game.round.hasSubmitted(id));
+    if (isNewRound) {
+      _pendingTimestamp = null;
+      _draft = null;
+      _draftPending = false;
+    }
+    final answer = answers?.own ?? game.round.answers[id];
+    final pendingTimestamp = _pendingTimestamp;
+    final confirmed = answers != null && answer != null
+        // A replacement is confirmed by itself, not by the answer before it.
+        ? pendingTimestamp == null ||
+              answer.clientTimestampMicros >= pendingTimestamp
+        : accepted ?? (id != null && game.round.hasSubmitted(id));
     final receiptKnown =
         accepted != null ||
+        answers != null ||
         _localSend != null ||
-        // Poker and snowflake snapshots withhold the answers until the reveal.
-        (game.poker == null && game.snowflake == null) ||
         game.round.status == RoundStatus.revealed;
     final restored = _restoringSnapshot;
     _restoringSnapshot = false;
@@ -861,6 +998,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
         playerId: id,
         clockOffsetMicros: client?.clock.clockOffsetMicros,
         roundTripMicros: client?.clock.roundTripMicros,
+        answers: answers,
         clearSubmission: !confirmed && !keepPending,
         lastSubmittedOptionId: answer is MultipleChoiceAnswer
             ? (answer.optionIds == null ? answer.optionId : 'submitted')
@@ -879,10 +1017,13 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
             : SubmissionStatus.idle,
       ),
     );
+    // After a reconnect, and when the answers were just closed.
+    if (restored || !game.round.status.acceptsInput) _flushDraft();
   }
 
   Future<void> _teardown() async {
     _submissionTimer?.cancel();
+    _draftTimer?.cancel();
     _restoringSnapshot = true;
     _retryTimer?.cancel();
     _retryTimer = null;
@@ -893,6 +1034,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     await _lobbySubscription?.cancel();
     await _admissionSubscription?.cancel();
     await _deviceCheckSubscription?.cancel();
+    await _teamDraftsSubscription?.cancel();
+    await _localDraftSubscription?.cancel();
     _gameSubscription = null;
     _snapshotSubscription = null;
     _statusSubscription = null;
@@ -900,6 +1043,8 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _lobbySubscription = null;
     _admissionSubscription = null;
     _deviceCheckSubscription = null;
+    _teamDraftsSubscription = null;
+    _localDraftSubscription = null;
     _lastQuestionId = null;
     await _client?.dispose();
     _client = null;

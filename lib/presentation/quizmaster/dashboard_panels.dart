@@ -1,6 +1,7 @@
 /// Panels of the quizmaster dashboard.
 library;
 
+import '../common/answer_countdown.dart';
 import '../common/hint_views.dart';
 import '../common/question_media_view.dart';
 
@@ -19,6 +20,9 @@ import '../common/adaptive_layout.dart';
 import '../common/jeopardy_board_view.dart';
 import 'host_server_cubit.dart';
 import 'round_info_cards.dart';
+import 'grading_dialog.dart';
+import '../common/media_playback.dart';
+import '../common/quiz_markdown.dart';
 
 /// Start/stop control and reachability information of the embedded server.
 class ServerControlPanel extends StatelessWidget {
@@ -665,6 +669,7 @@ class QuestionBankPanel extends StatelessWidget {
                         MatchingQuestion() => Icons.compare_arrows,
                         EstimationQuestion() => Icons.numbers,
                         TrueFalseQuestion() => Icons.rule,
+                        LocationQuestion() => Icons.place_outlined,
                       },
                       size: 16,
                       color: theme.colorScheme.primary,
@@ -675,7 +680,7 @@ class QuestionBankPanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            question.prompt,
+                            markdownToPlain(question.prompt),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -752,7 +757,9 @@ class SlideControlRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  slide.title.trim().isEmpty ? slide.text : slide.title,
+                  slide.title.trim().isEmpty
+                      ? markdownToPlain(slide.text)
+                      : slide.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -1114,13 +1121,20 @@ class LiveRoundPanel extends StatelessWidget {
     this.onReopenBuzzer,
     this.onReopenBuzzerForAll,
     this.onEndRound,
-    this.onJudgeAnswer,
     this.onJudgeBuzzer,
     this.onSetVerbalAnswers,
     this.onShowHint,
     this.onTakeBackHint,
+    this.onSkipCountdown,
+    this.hostNowMicros,
     super.key,
   });
+
+  /// Closes the answers before the countdown of the teams ends.
+  final VoidCallback? onSkipCountdown;
+
+  /// Host clock of the countdown.
+  final int Function()? hostNowMicros;
 
   /// Shows the next hint of the question on stage.
   final ValueChanged<ShowHintEvent>? onShowHint;
@@ -1203,7 +1217,6 @@ class LiveRoundPanel extends StatelessWidget {
   final VoidCallback? onReopenBuzzer;
   final VoidCallback? onReopenBuzzerForAll;
   final VoidCallback? onEndRound;
-  final ValueChanged<JudgeAnswerEvent>? onJudgeAnswer;
   final ValueChanged<JudgeBuzzerEvent>? onJudgeBuzzer;
 
   /// The host switch for answers given aloud.
@@ -1320,7 +1333,7 @@ class LiveRoundPanel extends StatelessWidget {
                   _JeopardyRoundBanner(game: game, jeopardy: jeopardy),
                   const SizedBox(height: 10),
                 ],
-                Text(
+                QuizMarkdown(
                   question.prompt,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -1330,13 +1343,13 @@ class LiveRoundPanel extends StatelessWidget {
                 _QuestionContent(question: question),
                 QuestionMediaView(
                   media: question.media,
-                  playing: game.tvMediaPaused || latestHintPlays(round)
-                      ? false
-                      : game.tvMediaCommandRevision > 0
-                      ? true
-                      : null,
+                  playback: MediaPlayback.onDevice(
+                    game,
+                    stopped: latestHintPlays(round),
+                  ),
                   playbackRevision: game.tvMediaRevision,
                   commandRevision: game.tvMediaCommandRevision,
+                  maxMediaHeight: hostMediaHeight(context),
                 ),
                 const SizedBox(height: 6),
                 // Note, solution and answers each get their own card so they
@@ -1352,15 +1365,18 @@ class LiveRoundPanel extends StatelessWidget {
                 if (game.round.status == RoundStatus.revealed)
                   QuestionMediaView(
                     media: question.solutionMedia,
-                    playing: game.tvMediaPaused
-                        ? false
-                        : game.tvMediaCommandRevision > 0
-                        ? true
-                        : null,
+                    playback: MediaPlayback.onDevice(game),
                     playbackRevision: game.tvMediaRevision,
                     commandRevision: game.tvMediaCommandRevision,
+                    maxMediaHeight: hostMediaHeight(context),
                   ),
-                AnswersCard(game: game, onJudge: onJudgeAnswer),
+                if (game.round.answerDeadlineMicros case final deadline?)
+                  AnswerCountdownBanner(
+                    deadlineMicros: deadline,
+                    hostNowMicros: hostNowMicros ?? () => game.hostTimeMicros,
+                    onSkip: onSkipCountdown,
+                  ),
+                AnswersCard(game: game),
                 ?_verbalSwitch(context, game),
                 const SizedBox(height: 12),
                 _RoundActions(
@@ -1544,8 +1560,7 @@ class _RoundActionsState extends State<_RoundActions> {
         game.teams.length > 1;
 
     final question = round.question;
-    if (question?.requiresManualGrading == true &&
-        round.status != RoundStatus.revealed) {
+    if (round.manualGrading && round.status != RoundStatus.revealed) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1556,15 +1571,16 @@ class _RoundActionsState extends State<_RoundActions> {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: round.status.acceptsInput || round.pendingGradeCount == 0
+            key: const ValueKey('open-grading'),
+            onPressed: round.status.acceptsInput
                 ? onReveal
-                : null,
+                : GradingHost.maybeOf(context)?.open,
             icon: const Icon(Icons.fact_check_outlined),
             label: Text(
               context.tr(
                 round.status.acceptsInput
                     ? 'Antworten schließen & bewerten'
-                    : 'Bewertung abschließen',
+                    : 'Bewertung öffnen',
               ),
             ),
           ),
@@ -1776,6 +1792,7 @@ class _QuestionContent extends StatelessWidget {
           '${leftItems[i].label}  ·  ${i < rightItems.length ? rightItems[i].label : ''}',
       ],
       ShortAnswerQuestion() ||
+      LocationQuestion() ||
       EstimationQuestion() ||
       TrueFalseQuestion() ||
       BuzzerQuestion() => const [],

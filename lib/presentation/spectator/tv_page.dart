@@ -30,6 +30,7 @@ import '../common/quizmo_logo.dart';
 import '../common/question_result_view.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,6 +53,12 @@ import 'tv_launch.dart';
 import 'tv_final_stage.dart';
 import 'tv_standings.dart';
 import 'animated_score_value.dart';
+import '../common/answer_countdown.dart';
+import '../common/elimination_label.dart';
+import '../common/media_playback.dart';
+import '../common/tv_instruction.dart';
+import '../common/quiz_markdown.dart';
+import '../common/location_map.dart';
 
 /// Width of the logical design canvas.
 const double kTvCanvasWidth = 1920;
@@ -130,7 +137,7 @@ class TvPage extends StatelessWidget {
 class _TvView extends StatefulWidget {
   const _TvView({required this.joinUri, required this.initialBrightness});
 
-  final Uri joinUri;
+  final Uri? joinUri;
   final Brightness initialBrightness;
 
   @override
@@ -247,9 +254,14 @@ class _TvViewState extends State<_TvView> {
                           >(
                             builder: (context, state) => SessionMediaAccess(
                               baseUri: state.mediaBaseUri,
-                              child: TvScreen(
-                                state: state,
-                                joinUri: widget.joinUri,
+                              child: MediaBlockReporter(
+                                onChanged: context
+                                    .read<SpectatorSessionCubit>()
+                                    .mediaBlocked,
+                                child: TvScreen(
+                                  state: state,
+                                  joinUri: widget.joinUri,
+                                ),
                               ),
                             ),
                           ),
@@ -326,10 +338,12 @@ class _TvViewState extends State<_TvView> {
 /// Pure function of its inputs (no networking), which keeps it testable.
 class TvScreen extends StatelessWidget {
   /// Creates the canvas content.
-  const TvScreen({required this.state, required this.joinUri, super.key});
+  const TvScreen({required this.state, this.joinUri, super.key});
 
   final SpectatorSessionState state;
-  final Uri joinUri;
+
+  /// Address players are told; `null` before the server runs (preview).
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -390,7 +404,7 @@ class TvScreen extends StatelessWidget {
           const SizedBox(height: 32),
           Expanded(
             child: game == null
-                ? _ConnectingStage(state: state, joinUri: joinUri)
+                ? _ConnectingStage(state: state, joinUri: joinUri ?? Uri())
                 : game.isFinished && game.protocol != null
                 ? TvFinalStage(
                     protocol: game.protocol!,
@@ -681,7 +695,7 @@ class _MainStage extends StatelessWidget {
 
   final GameState game;
   final SpectatorSessionState state;
-  final Uri joinUri;
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
@@ -712,22 +726,13 @@ class _MainStage extends StatelessWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 350),
         child: switch ((question, jeopardy)) {
-          _ when game.showsSlide => Center(
+          _ when game.showsSlide => InfoSlideView(
             key: ValueKey('slide-${game.activeSlide!.id}'),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: SizedBox(
-                width: 1600,
-                child: InfoSlideView(
-                  slide: game.activeSlide!,
-                  large: true,
-                  playing: !game.tvMediaPaused,
-                  playbackRevision: game.tvMediaRevision,
-                  commandRevision: game.tvMediaCommandRevision,
-                  maxVideoHeight: 560,
-                ),
-              ),
-            ),
+            slide: game.activeSlide!,
+            large: true,
+            playback: MediaPlayback.onTv(game),
+            playbackRevision: game.tvMediaRevision,
+            commandRevision: game.tvMediaCommandRevision,
           ),
           _ when game.poker?.questionHidden ?? false => TvCategoryStage(
             key: ValueKey('category-${game.round.startedAtHostMicros}'),
@@ -805,7 +810,7 @@ class _FinalReviewStageState extends State<_FinalReviewStage> {
   Widget build(BuildContext context) {
     final rounds = widget.game.roundHistory;
     final round = rounds[_index % rounds.length];
-    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: true);
+    final reviewGame = widget.game.copyWith(round: round, tvMediaPaused: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -853,6 +858,7 @@ class _FinalReviewStageState extends State<_FinalReviewStage> {
             game: reviewGame,
             question: round.question!,
             state: widget.state.copyWith(game: reviewGame),
+            review: true,
           ),
         ),
       ],
@@ -871,14 +877,13 @@ class _JeopardyBoardStage extends StatelessWidget {
 
   final GameState game;
   final JeopardyState jeopardy;
-  final Uri joinUri;
+  final Uri? joinUri;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final picker = game.teams[jeopardy.currentTeamId];
-    final pickerName = game.participantName(jeopardy.currentTeamId);
     final remaining = jeopardy.board.questionIds
         .where((id) => !game.completedQuestionIds.contains(id))
         .length;
@@ -900,16 +905,16 @@ class _JeopardyBoardStage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               )
-            else if (pickerName != null)
+            else if (tvInstruction(context.tr, game) case final instruction?)
               _Pill(
-                label: context.tr("{0} picks the next question", [pickerName]),
+                label: instruction.text,
                 color: Color(picker?.colorValue ?? 0xff1565c0)
                     .withValues(alpha: 0.35),
                 dotColor: Color(picker?.colorValue ?? 0xff1565c0),
               ),
-            if (isOpening)
+            if (isOpening && joinUri != null)
               Text(
-                context.tr("Join: {0}", [joinUri.authority]),
+                context.tr("Join: {0}", [joinUri!.authority]),
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
@@ -970,9 +975,10 @@ class _DailyDoubleStage extends StatelessWidget {
             _Pill(label: category, color: scheme.tertiaryContainer),
           const SizedBox(height: 32),
           Text(
-            context.tr("{0}, place your wager!", [
-              pickerName ?? context.tr('The picking team'),
-            ]),
+            tvInstruction(context.tr, game)?.text ??
+                context.tr('{0} legt den Einsatz fest.', [
+                  pickerName ?? context.tr('The picking team'),
+                ]),
             textAlign: TextAlign.center,
             style: theme.textTheme.headlineMedium?.copyWith(
               fontSize: 56,
@@ -985,6 +991,28 @@ class _DailyDoubleStage extends StatelessWidget {
   }
 }
 
+/// Takes the place of the QR code while no server runs (TV preview).
+class _NoServerYet extends StatelessWidget {
+  const _NoServerYet();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('tv-no-server'),
+    padding: const EdgeInsets.all(32),
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Text(
+      context.tr(
+        'Der Server läuft noch nicht. Der QR-Code erscheint, sobald er gestartet ist.',
+      ),
+      textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 30),
+    ),
+  );
+}
+
 class _LobbyStage extends StatelessWidget {
   const _LobbyStage({
     required this.game,
@@ -994,7 +1022,7 @@ class _LobbyStage extends StatelessWidget {
   });
 
   final GameState game;
-  final Uri joinUri;
+  final Uri? joinUri;
   final GuestWifi? wifi;
 
   /// Before the first question the lobby shows the Wi-Fi code prominently;
@@ -1056,17 +1084,22 @@ class _LobbyStage extends StatelessWidget {
                           : context.tr('Password: {0}', [wifi.password]),
                     ),
                     const SizedBox(width: 72),
-                    _QrStep(
-                      step: 2,
-                      title: context.tr('Scan to join with your phone'),
-                      data: joinUri.toString(),
-                      semanticsLabel: context.tr('QR code to join at {0}', [
-                        joinUri,
-                      ]),
-                      caption: joinUri.authority,
-                    ),
+                    if (joinUri case final joinUri?)
+                      _QrStep(
+                        step: 2,
+                        title: context.tr('Scan to join with your phone'),
+                        data: joinUri.toString(),
+                        semanticsLabel: context.tr('QR code to join at {0}', [
+                          joinUri,
+                        ]),
+                        caption: joinUri.authority,
+                      )
+                    else
+                      const _NoServerYet(),
                   ],
                 )
+              else if (joinUri == null)
+                const _NoServerYet()
               else
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1080,13 +1113,13 @@ class _LobbyStage extends StatelessWidget {
                       ),
                       padding: const EdgeInsets.all(20),
                       child: QrImageView(
-                        data: joinUri.toString(),
+                        data: joinUri!.toString(),
                         size: 300,
                         padding: EdgeInsets.zero,
                         backgroundColor: Colors.white,
                         errorCorrectionLevel: QrErrorCorrectLevel.M,
                         semanticsLabel: context.tr("QR code to join at {0}", [
-                          joinUri,
+                          joinUri!,
                         ]),
                       ),
                     ),
@@ -1112,7 +1145,7 @@ class _LobbyStage extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            joinUri.authority,
+                            joinUri!.authority,
                             style: theme.textTheme.displaySmall?.copyWith(
                               fontSize: 64,
                               fontWeight: FontWeight.w800,
@@ -1291,7 +1324,7 @@ class _JoinColumn extends StatelessWidget {
   const _JoinColumn({required this.joinUri, required this.game, this.wifi});
 
   final GuestWifi? wifi;
-  final Uri joinUri;
+  final Uri? joinUri;
   final GameState game;
 
   /// The board is shown but nothing was played yet.
@@ -1332,14 +1365,17 @@ class _JoinColumn extends StatelessWidget {
               ),
               const SizedBox(height: 28),
             ],
-            _QrStep(
-              step: wifi == null ? null : 2,
-              title: context.tr('Scan to join with your phone'),
-              data: joinUri.toString(),
-              semanticsLabel: context.tr('QR code to join at {0}', [joinUri]),
-              caption: joinUri.authority,
-              qrSize: wifi == null ? 300 : 200,
-            ),
+            if (joinUri case final joinUri?)
+              _QrStep(
+                step: wifi == null ? null : 2,
+                title: context.tr('Scan to join with your phone'),
+                data: joinUri.toString(),
+                semanticsLabel: context.tr('QR code to join at {0}', [joinUri]),
+                caption: joinUri.authority,
+                qrSize: wifi == null ? 300 : 200,
+              )
+            else
+              const _NoServerYet(),
             const SizedBox(height: 20),
             Text(
               online == 0
@@ -1426,8 +1462,15 @@ class _QuestionStage extends StatelessWidget {
     required this.game,
     required this.question,
     required this.state,
+    this.review = false,
     super.key,
   });
+
+  /// In the final review nothing plays by itself.
+  final bool review;
+
+  MediaPlayback _playback({bool silent = false}) =>
+      review ? MediaPlayback.stopped : MediaPlayback.onTv(game, silent: silent);
 
   final GameState game;
   final Question question;
@@ -1445,6 +1488,23 @@ class _QuestionStage extends StatelessWidget {
     final boardCategory = jeopardy?.board.categoryNameOf(question.id);
     final picker = game.teams[jeopardy?.currentTeamId];
     final pickerName = game.participantName(jeopardy?.currentTeamId);
+    final hasMedia =
+        question.media.isNotEmpty ||
+        (isRevealed && question.solutionMedia.isNotEmpty);
+    // Next to media only what has something to read: options, items, who
+    // buzzed, the solution.
+    final listsAnswers =
+        isRevealed ||
+        switch (current) {
+          MultipleChoiceQuestion() ||
+          OrderingQuestion() ||
+          MatchingQuestion() => true,
+          BuzzerQuestion() => round.buzzerQueue.isNotEmpty,
+          ShortAnswerQuestion() ||
+          LocationQuestion() ||
+          EstimationQuestion() ||
+          TrueFalseQuestion() => false,
+        };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1469,11 +1529,6 @@ class _QuestionStage extends StatelessWidget {
                   if (!isRevealed)
                     if (hintStatusText(context, game) case final hints?)
                       _Pill(label: hints, color: scheme.secondaryContainer),
-                  if (round.verbal && !isRevealed)
-                    _Pill(
-                      label: context.tr("MÜNDLICH ANTWORTEN"),
-                      color: scheme.secondaryContainer,
-                    ),
                   if (jeopardy != null && jeopardy.hasActiveQuestion) ...[
                     _Pill(
                       label: context.tr("{0} pts", [jeopardy.activePoints]),
@@ -1484,19 +1539,6 @@ class _QuestionStage extends StatelessWidget {
                         label: context.tr("DAILY DOUBLE"),
                         color: scheme.tertiary.withValues(alpha: 0.4),
                         dotColor: scheme.tertiary,
-                      ),
-                    if (pickerName != null && !isRevealed)
-                      _Pill(
-                        label: game.round.buzzerOpenForAll
-                            ? context.tr("BUZZER: everyone may answer")
-                            : jeopardy.isStealRound
-                            ? context.tr("STEAL: everyone but {0}", [
-                                pickerName,
-                              ])
-                            : context.tr("{0} answers", [pickerName]),
-                        color: Color(picker?.colorValue ?? 0xff1565c0)
-                            .withValues(alpha: 0.35),
-                        dotColor: Color(picker?.colorValue ?? 0xff1565c0),
                       ),
                   ] else
                     _Pill(
@@ -1510,18 +1552,30 @@ class _QuestionStage extends StatelessWidget {
             _RoundStatusPill(status: round.status),
           ],
         ),
-        const SizedBox(height: 32),
-        Text(
+        SizedBox(height: hasMedia ? 16 : 32),
+        QuizMarkdown(
           question.prompt,
-          maxLines: 5,
+          maxLines: hasMedia ? 3 : 5,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.displaySmall?.copyWith(
-            fontSize: _promptSize(question.prompt.length),
+            fontSize: math.min(
+              // The visible text decides, not the Markdown characters.
+              _promptSize(markdownToPlain(question.prompt).length),
+              // Media are the centre of attention.
+              hasMedia ? 48 : double.infinity,
+            ),
             fontWeight: FontWeight.w800,
             height: 1.15,
           ),
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: hasMedia ? 8 : 16),
+        TvInstructionLine(
+          game: game,
+          color: jeopardy?.hasActiveQuestion == true && picker != null
+              ? Color(picker.colorValue)
+              : null,
+        ),
+        SizedBox(height: hasMedia ? 8 : 12),
         if (game.poker case final poker?
             when poker.betting && game.totalQuestionCount > 0) ...[
           Text(
@@ -1568,7 +1622,13 @@ class _QuestionStage extends StatelessWidget {
               ? _CountdownBar(state: state, limit: question.timeLimit)
               : null,
         ),
-        const SizedBox(height: 28),
+        SizedBox(height: hasMedia ? 8 : 28),
+        if (round.answerDeadlineMicros case final deadline?)
+          AnswerCountdownBanner(
+            deadlineMicros: deadline,
+            hostNowMicros: () => state.hostNowMicros(DateTime.now()),
+            fontSize: 26,
+          ),
         if (!isRevealed && game.onTurnAnswers.isNotEmpty) ...[
           _OnTurnAnswerBanner(
             game: game,
@@ -1586,111 +1646,130 @@ class _QuestionStage extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Always the first child of this row, so the media of the
-              // question keeps its state when a hint with media appears.
-              Expanded(
-                // Exhaustive over the sealed hierarchy: a new question type
-                // does not compile until the TV knows how to render it.
-                child:
-                    question.media.isNotEmpty ||
-                        (isRevealed && question.solutionMedia.isNotEmpty)
-                    ? LayoutBuilder(
-                        builder: (context, constraints) =>
-                            SingleChildScrollView(
-                              child: Column(
-                                children: [
-                                  QuestionMediaView(
-                                    key: ValueKey(
-                                      'question-media-${question.id}',
-                                    ),
-                                    media: question.media,
-                                    playing:
-                                        !game.tvMediaPaused &&
-                                        !latestHintPlays(round) &&
-                                        (!isRevealed ||
-                                            question.solutionMedia.isEmpty),
-                                    playbackRevision: game.tvMediaRevision,
-                                    commandRevision:
-                                        game.tvMediaCommandRevision,
-                                    maxVideoHeight: (constraints.maxHeight - 24)
-                                        .clamp(40, 300),
+              // Media come first in this row in every phase, so a running
+              // video keeps its state when a hint or the solution appears.
+              if (hasMedia)
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (question.media.isNotEmpty)
+                              Expanded(
+                                flex: 2,
+                                child: QuestionMediaView(
+                                  key: ValueKey(
+                                    'question-media-${question.id}',
                                   ),
-                                  if (isRevealed)
-                                    QuestionMediaView(
-                                      key: ValueKey(
-                                        'solution-media-${question.id}',
-                                      ),
-                                      media: question.solutionMedia,
-                                      playing: !game.tvMediaPaused,
-                                      playbackRevision: game.tvMediaRevision,
-                                      commandRevision:
-                                          game.tvMediaCommandRevision,
-                                      maxVideoHeight:
-                                          (constraints.maxHeight - 24).clamp(
-                                            40,
-                                            300,
-                                          ),
-                                    ),
-                                  QuestionResultView(
-                                    question: question,
-                                    game: game,
+                                  media: question.media,
+                                  fill: true,
+                                  playback: _playback(
+                                    silent:
+                                        latestHintPlays(round) ||
+                                        (isRevealed &&
+                                            question.solutionMedia.isNotEmpty),
                                   ),
-                                ],
+                                  playbackRevision: game.tvMediaRevision,
+                                  commandRevision: game.tvMediaCommandRevision,
+                                ),
                               ),
-                            ),
-                      )
-                    : _ShrinkToFit(
-                        child: switch (current) {
-                          // A revealed snowflake round has no right option to mark;
-                          // it shows the answers by rarity like every other kind.
-                          MultipleChoiceQuestion()
-                              when !(isRevealed && round.snowflake != null) =>
-                            _ChoiceBoard(
-                              question: current,
-                              game: game,
-                              chosenColor: Color(
-                                picker?.colorValue ?? 0xff1565c0,
+                            if (isRevealed &&
+                                question.solutionMedia.isNotEmpty) ...[
+                              if (question.media.isNotEmpty)
+                                const SizedBox(width: 24),
+                              Expanded(
+                                flex: 3,
+                                child: QuestionMediaView(
+                                  key: ValueKey(
+                                    'solution-media-${question.id}',
+                                  ),
+                                  media: question.solutionMedia,
+                                  fill: true,
+                                  playback: _playback(),
+                                  playbackRevision: game.tvMediaRevision,
+                                  commandRevision: game.tvMediaCommandRevision,
+                                ),
                               ),
-                            ),
-                          MultipleChoiceQuestion() ||
-                          ShortAnswerQuestion() ||
-                          OrderingQuestion() ||
-                          MatchingQuestion() ||
-                          EstimationQuestion() ||
-                          TrueFalseQuestion() => SingleChildScrollView(
-                            child: QuestionResultView(
-                              question: current,
-                              game: game,
-                            ),
-                          ),
-                          BuzzerQuestion() => _BuzzerBoard(
-                            question: current,
-                            game: game,
-                          ),
-                        },
+                            ],
+                          ],
+                        ),
                       ),
-              ),
+                      // Nothing to choose from: one line is enough.
+                      if (!listsAnswers)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            context.tr('{0} / {1} Antworten', [
+                              round.answerCount,
+                              game.connectedPlayers.length,
+                            ]),
+                            style: const TextStyle(fontSize: 26),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              if (hasMedia && listsAnswers) const SizedBox(width: 32),
+              if (!hasMedia || listsAnswers)
+                Expanded(
+                  flex: hasMedia ? 2 : 3,
+                  // Exhaustive over the sealed hierarchy: a new question type
+                  // does not compile until the TV knows how to render it.
+                  child: _ShrinkToFit(
+                    minHeight: hasMedia ? 520 : _ShrinkToFit.defaultMinHeight,
+                    child: switch (current) {
+                      // A revealed snowflake round has no right option to mark;
+                      // it shows the answers by rarity like every other kind.
+                      MultipleChoiceQuestion()
+                          when !(isRevealed && round.snowflake != null) =>
+                        _ChoiceBoard(
+                          question: current,
+                          game: game,
+                          columns: hasMedia ? 1 : 2,
+                          chosenColor: Color(picker?.colorValue ?? 0xff1565c0),
+                        ),
+                      LocationQuestion() when isRevealed => LocationResultView(
+                        game: game,
+                        question: current,
+                        large: true,
+                      ),
+                      MultipleChoiceQuestion() ||
+                      ShortAnswerQuestion() ||
+                      OrderingQuestion() ||
+                      MatchingQuestion() ||
+                      EstimationQuestion() ||
+                      LocationQuestion() ||
+                      TrueFalseQuestion() => _FitDown(
+                        child: QuestionResultView(
+                          question: current,
+                          game: game,
+                          tv: true,
+                        ),
+                      ),
+                      BuzzerQuestion() => _BuzzerBoard(
+                        question: current,
+                        game: game,
+                      ),
+                    },
+                  ),
+                ),
               if (!isRevealed)
                 if (round.shownHints.lastWithMedia case final hint?) ...[
                   const SizedBox(width: 32),
                   Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        child: QuestionMediaView(
-                          key: ValueKey(
-                            'hint-media-${round.shownHints.indexOf(hint)}',
-                          ),
-                          media: hint.media,
-                          playing:
-                              !game.tvMediaPaused && latestHintPlays(round),
-                          playbackRevision: game.tvMediaRevision,
-                          commandRevision: game.tvMediaCommandRevision,
-                          maxVideoHeight: (constraints.maxHeight - 24).clamp(
-                            40,
-                            300,
-                          ),
-                        ),
+                    flex: 3,
+                    child: QuestionMediaView(
+                      key: ValueKey(
+                        'hint-media-${round.shownHints.indexOf(hint)}',
                       ),
+                      media: hint.media,
+                      fill: true,
+                      playback: _playback(silent: !latestHintPlays(round)),
+                      playbackRevision: game.tvMediaRevision,
+                      commandRevision: game.tvMediaCommandRevision,
                     ),
                   ),
                 ],
@@ -1714,11 +1793,12 @@ class _QuestionStage extends StatelessWidget {
 /// Scales [child] down when hints leave less than [minHeight] for it, so the
 /// answers stay complete on the canvas instead of overflowing.
 class _ShrinkToFit extends StatelessWidget {
-  const _ShrinkToFit({required this.child});
+  const _ShrinkToFit({required this.child, this.minHeight = defaultMinHeight});
 
   final Widget child;
+  final double minHeight;
 
-  static const double minHeight = 400;
+  static const double defaultMinHeight = 400;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1733,6 +1813,22 @@ class _ShrinkToFit extends StatelessWidget {
         ),
       );
     },
+  );
+}
+
+/// Scales text content down until all of it is visible without scrolling.
+class _FitDown extends StatelessWidget {
+  const _FitDown({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.topLeft,
+      child: SizedBox(width: constraints.maxWidth, child: child),
+    ),
   );
 }
 
@@ -1774,8 +1870,8 @@ class _HintStrip extends StatelessWidget {
                 Icon(Icons.lightbulb, size: 30, color: scheme.primary),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    hint.text.trim().isEmpty
+                  child: QuizMarkdown(
+                    isBlankMarkdown(hint.text)
                         ? hintTitle(context, game, index)
                         : '${hintTitle(context, game, index)}: ${hint.text}',
                     // Only the newest hint gets room for a second line.
@@ -1921,7 +2017,11 @@ class _ChoiceBoard extends StatelessWidget {
     required this.question,
     required this.game,
     required this.chosenColor,
+    this.columns = 2,
   });
+
+  /// One column next to media, two otherwise.
+  final int columns;
 
   final MultipleChoiceQuestion question;
   final GameState game;
@@ -1964,24 +2064,25 @@ class _ChoiceBoard extends StatelessWidget {
           : _ChoiceVerdict.wrong,
     );
 
-    final rowCount = (options.length + 1) ~/ 2;
+    final rowCount = (options.length + columns - 1) ~/ columns;
     return Column(
       children: [
         Expanded(
           child: Column(
             children: [
               for (var row = 0; row < rowCount; row++) ...[
-                if (row > 0) const SizedBox(height: 24),
+                if (row > 0) SizedBox(height: columns == 1 ? 12 : 24),
                 Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: tile(row * 2)),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        child: row * 2 + 1 < options.length
-                            ? tile(row * 2 + 1)
-                            : const SizedBox.shrink(),
-                      ),
+                      for (var column = 0; column < columns; column++) ...[
+                        if (column > 0) const SizedBox(width: 24),
+                        Expanded(
+                          child: row * columns + column < options.length
+                              ? tile(row * columns + column)
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -2406,16 +2507,6 @@ class _PulsingBuzzerHintState extends State<_PulsingBuzzerHint>
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 12),
-              Text(
-                context.tr(
-                  widget.ready ? "Be the first to hit your buzzer." : "Der Buzzer ist geschlossen. Warte auf die Freigabe durch den Spielleiter.",
-                ),
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontSize: 34,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
             ],
           ),
         ),
@@ -2628,9 +2719,13 @@ class _StandingRow extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (entry.subtitle case final subtitle?)
+                  if ([
+                        ?eliminatedAtLabel(context.tr, entry.eliminatedAt),
+                        ?entry.subtitle,
+                      ]
+                      case final details when details.isNotEmpty)
                     Text(
-                      subtitle,
+                      details.join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(

@@ -46,7 +46,12 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byType(QuestionTemplateDropdown));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Fast buzzer'));
+      // The menu builds its entries lazily: scroll to the last one.
+      await tester.scrollUntilVisible(
+        find.text('Fast buzzer'),
+        48,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Fast buzzer'));
       await tester.pumpAndSettle();
