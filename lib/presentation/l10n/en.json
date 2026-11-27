@@ -1586,5 +1586,18 @@
   "Du bist dran!": "Your turn!",
   "Gib jetzt deine Antwort ein.": "Enter your answer now.",
   "Der Buzzer ist frei.": "The buzzer is open.",
-  "Setz jetzt deine Chips.": "Place your chips now."
+  "Setz jetzt deine Chips.": "Place your chips now.",
+  "Medien in der Lobby vorladen": "Preload media in the lobby",
+  "Lädt Bilder, Audio und Videos des Quiz vor dem Start verschlüsselt herunter, damit im Quiz nichts mehr nachlädt. Aus: erst bei Bedarf laden (spart mobile Daten und Speicher).": "Downloads the pictures, audio and videos of the quiz encrypted before the start, so nothing loads during the quiz. Off: load when needed (saves mobile data and memory).",
+  "Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.": "Preloading is off: media load when a question needs them.",
+  "Alle Medien geladen ({0})": "All media loaded ({0})",
+  "Medien {0}/{1} · {2} / {3}": "Media {0}/{1} · {2} / {3}",
+  "Download unterbrochen, wird erneut versucht …": "Download interrupted, retrying …",
+  "{0} Online-Medien (YouTube, Karten) laden erst im Quiz.": "{0} online media (YouTube, maps) load during the quiz.",
+  "Medien-Sync ({0} Dateien, {1})": "Media sync ({0} files, {1})",
+  "Noch kein Gerät meldet seinen Stand.": "No device reported its progress yet.",
+  "alle Medien geladen": "all media loaded",
+  "lädt {0} %": "loading {0} %",
+  "Vorladen deaktiviert": "preloading switched off",
+  "Fehler, neuer Versuch ({0} %)": "error, retrying ({0} %)"
 }

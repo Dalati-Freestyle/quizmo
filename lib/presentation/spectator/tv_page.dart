@@ -21,6 +21,7 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/media_preload_view.dart';
 import '../common/media_timeline.dart';
 import '../common/media_volume.dart';
 import '../common/reveal_media.dart';
@@ -275,6 +276,9 @@ class _TvViewState extends State<_TvView> {
                           >(
                             builder: (context, state) => SessionMediaAccess(
                               baseUri: state.mediaBaseUri,
+                              preloader: context
+                                  .read<SpectatorSessionCubit>()
+                                  .preloader,
                               child: MediaVolumeScope(
                                 volume: _volume,
                                 child: MediaBlockReporter(
@@ -1092,6 +1096,11 @@ class _LobbyStage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
+              if (isPregame(game))
+                const SizedBox(
+                  width: 900,
+                  child: MediaPreloadView(large: true),
+                ),
               const SizedBox(height: 40),
               if (wifi case final wifi? when isPregame(game))
                 Row(

@@ -16,6 +16,7 @@ import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/hint_views.dart';
+import '../common/media_preload_view.dart';
 import '../common/reveal_media.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_play_form.dart';
@@ -171,6 +172,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
             baseUri: state.playerId == null
                 ? null
                 : context.read<PlayerSessionCubit>().mediaBaseUri,
+            preloader: context.read<PlayerSessionCubit>().preloader,
             child: SessionNotifications(
               game: state.game,
               playerId: state.playerId,
@@ -701,6 +703,8 @@ class _QuestionStage extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
           ),
+          const SizedBox(height: 16),
+          const MediaPreloadView(),
         ],
       );
     }

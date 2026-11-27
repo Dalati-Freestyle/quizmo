@@ -1586,5 +1586,18 @@
   "Du bist dran!": "Du bist dran!",
   "Gib jetzt deine Antwort ein.": "Gib jetzt deine Antwort ein.",
   "Der Buzzer ist frei.": "Der Buzzer ist frei.",
-  "Setz jetzt deine Chips.": "Setz jetzt deine Chips."
+  "Setz jetzt deine Chips.": "Setz jetzt deine Chips.",
+  "Medien in der Lobby vorladen": "Medien in der Lobby vorladen",
+  "Lädt Bilder, Audio und Videos des Quiz vor dem Start verschlüsselt herunter, damit im Quiz nichts mehr nachlädt. Aus: erst bei Bedarf laden (spart mobile Daten und Speicher).": "Lädt Bilder, Audio und Videos des Quiz vor dem Start verschlüsselt herunter, damit im Quiz nichts mehr nachlädt. Aus: erst bei Bedarf laden (spart mobile Daten und Speicher).",
+  "Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.": "Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.",
+  "Alle Medien geladen ({0})": "Alle Medien geladen ({0})",
+  "Medien {0}/{1} · {2} / {3}": "Medien {0}/{1} · {2} / {3}",
+  "Download unterbrochen, wird erneut versucht …": "Download unterbrochen, wird erneut versucht …",
+  "{0} Online-Medien (YouTube, Karten) laden erst im Quiz.": "{0} Online-Medien (YouTube, Karten) laden erst im Quiz.",
+  "Medien-Sync ({0} Dateien, {1})": "Medien-Sync ({0} Dateien, {1})",
+  "Noch kein Gerät meldet seinen Stand.": "Noch kein Gerät meldet seinen Stand.",
+  "alle Medien geladen": "alle Medien geladen",
+  "lädt {0} %": "lädt {0} %",
+  "Vorladen deaktiviert": "Vorladen deaktiviert",
+  "Fehler, neuer Versuch ({0} %)": "Fehler, neuer Versuch ({0} %)"
 }

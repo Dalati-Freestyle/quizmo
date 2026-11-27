@@ -1,6 +1,9 @@
 /// Player side controller wrapping the pure Dart [QuizClient].
 library;
 
+import '../../core/net/media_preloader.dart';
+import '../settings/media_preload_settings.dart';
+
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
@@ -209,7 +212,20 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
        _localSend = null,
        _localNow = null,
        _localAnswers = null,
-       super(const PlayerSessionState());
+       super(const PlayerSessionState()) {
+    final settings = MediaPreloadSettings.instance;
+    unawaited(settings.load());
+    preloader.setEnabled(settings.enabled.value);
+    settings.enabled.addListener(_preloadSettingChanged);
+  }
+
+  /// Media of the quiz, preloaded encrypted in the lobby. Kept across
+  /// reconnects; a new session replaces them.
+  final MediaPreloader preloader = MediaPreloader();
+  late final _preloadLink = MediaPreloadLink(preloader);
+
+  void _preloadSettingChanged() =>
+      preloader.setEnabled(MediaPreloadSettings.instance.enabled.value);
 
   PlayerSessionCubit.local({
     required String playerId,
@@ -421,6 +437,7 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
     _baseUri = baseUri;
     final client = _createClient(baseUri);
     _client = client;
+    if (_localSend == null) _preloadLink.attach(client);
     _joiningName = name;
     _lobbySubscription = client.lobbies.listen((lobby) {
       if (!isClosed) emit(state.copyWith(lobby: lobby));
@@ -944,6 +961,11 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   Future<void> close() async {
     _intentionalDisconnect = true;
     await _teardown();
+    MediaPreloadSettings.instance.enabled.removeListener(
+      _preloadSettingChanged,
+    );
+    _preloadLink.dispose();
+    preloader.dispose();
     return super.close();
   }
 

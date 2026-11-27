@@ -570,6 +570,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendPreload(connection);
         _sendDeviceCheck(connection);
         _log(ServerLogLevel.info, 'Participant $playerId joined.');
 
@@ -630,6 +631,7 @@ class SocketHub {
           ),
         );
         connection.send(_snapshotFor(connection));
+        _sendPreload(connection);
         _sendDeviceCheck(connection);
         if (_guestWifi case final guestWifi?) {
           // Also sent when empty, so a reconnecting TV drops a stale code.
@@ -762,6 +764,18 @@ class SocketHub {
         if (!connection.isSpectator) return;
         _engine.mediaScreens.report(connection.id, blocked: blocked);
 
+      case MediaPreloadReport(:final status):
+        final playerId = connection.playerId;
+        if (!connection.isSpectator && playerId == null) return;
+        _engine.mediaPreloadStatuses.report(
+          connection.id,
+          name: connection.isSpectator
+              ? 'TV'
+              : _engine.publishedGame.players[playerId]?.name ?? playerId!,
+          tv: connection.isSpectator,
+          status: status,
+        );
+
       case LeaveNotice():
         _onDisconnected(connection);
         connection.closeSocket();
@@ -772,6 +786,7 @@ class SocketHub {
     if (_connections.remove(connection.id) == null) return;
     _engine.access.revokeReadCredential(connection.id);
     _engine.mediaScreens.report(connection.id, blocked: false);
+    _engine.mediaPreloadStatuses.remove(connection.id);
     connection.handshakeTimeout?.cancel();
     connection.identityRetry?.cancel();
     connection.subscription?.cancel();
@@ -886,6 +901,7 @@ class SocketHub {
         ),
       );
       connection.send(_snapshotFor(connection));
+      _sendPreload(connection);
       _sendDeviceCheck(connection);
     } on Object {
       connection.send(
@@ -915,7 +931,16 @@ class SocketHub {
       redacted ?? guestSnapshotOf(game, title: serverName),
       ownSubmissionAccepted: id == null ? null : game.round.hasSubmitted(id),
       answers: id == null ? null : _answersOf(game, id),
+      // Only keys of media guests may see right now.
+      mediaKeys: _engine.mediaPreload.keysFor(game),
     );
+  }
+
+  /// Offers the encrypted uploads of the quiz for preloading.
+  void _sendPreload(_Connection connection) {
+    final manifest = _engine.mediaPreload.manifest;
+    if (manifest.items.isEmpty) return;
+    connection.send(MediaPreloadMessage(manifest));
   }
 
   /// The own and team answers of [playerId], with the live drafts as long as

@@ -98,6 +98,10 @@ class QuizClient {
   Stream<GuestWifi?> get guestWifi => _guestWifi.stream;
 
   final _deviceChecks = StreamController<String?>.broadcast();
+  final _preloads = StreamController<MediaPreloadManifest>.broadcast();
+
+  /// The encrypted media the host offers for preloading.
+  Stream<MediaPreloadManifest> get preloads => _preloads.stream;
 
   /// Device checks of the host's technical check: an id asks the player to
   /// confirm the device by a tap, `null` ends the request.
@@ -384,6 +388,15 @@ class QuizClient {
     _send(SubmissionMessage(build(id, _now(), clock.clockOffsetMicros)));
   }
 
+  /// Tells the host how far this device got with preloading.
+  void reportPreload(MediaPreloadStatus status) {
+    try {
+      _send(MediaPreloadReport(status));
+    } on StateError {
+      // Not connected; the next report after reconnecting counts.
+    }
+  }
+
   /// Tells the host that this TV cannot start media by itself (any more).
   void reportMediaBlocked(bool blocked) {
     try {
@@ -459,6 +472,7 @@ class QuizClient {
     await _teamDrafts.close();
     await _guestWifi.close();
     await _deviceChecks.close();
+    await _preloads.close();
     await _admissions.close();
   }
 
@@ -632,6 +646,8 @@ class QuizClient {
         if (!_guestWifi.isClosed) _guestWifi.add(wifi);
       case DeviceCheckMessage(:final checkId):
         if (!_deviceChecks.isClosed) _deviceChecks.add(checkId);
+      case MediaPreloadMessage(:final manifest):
+        if (!_preloads.isClosed) _preloads.add(manifest);
       case GameSnapshotMessage(:final game):
         if (!_games.isClosed) _games.add(game);
         if (!_snapshots.isClosed) _snapshots.add(message);

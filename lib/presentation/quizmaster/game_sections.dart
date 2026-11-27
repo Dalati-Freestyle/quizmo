@@ -14,6 +14,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
 import '../common/media_timeline.dart';
+import 'media_preload_status_view.dart';
 import '../common/adaptive_layout.dart';
 import '../common/joker_play_form.dart';
 import '../common/joker_texts.dart';
@@ -62,6 +63,8 @@ Map<DashboardSection, Widget> buildGameSections(
               icon: const Icon(Icons.play_arrow),
               label: Text(context.tr("Quiz jetzt starten")),
             ),
+            // Whether the devices have the media before the first question.
+            MediaPreloadStatusView(engine: engine),
             for (final extra in startExtras) ...[
               const SizedBox(height: 8),
               extra,

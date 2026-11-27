@@ -289,6 +289,17 @@ the release pipeline does this automatically.
 * Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
   `uniquenessKey`.
 
+### Media preloading
+* In the lobby players (unless switched off in their settings, `MediaPreloadSettings`) and TVs download every upload
+  of the quiz **encrypted** (`MediaPreloader`, ChaCha20 in `core/net/chacha20.dart`). The host offers them once per
+  connection (`MediaPreloadMessage`) under random handles at `/api/media/<handle>` (`MediaPreloadRegistry`, one random
+  key per upload, created per session); the plain route keeps serving only visible media.
+* Keys travel with the snapshot (`GameSnapshotMessage.mediaKeys`) only for media guests may see now
+  (`visibleGuestMedia`, the same rule as `serveMedia`); never send a key earlier. The client checks the SHA-256 asset ID
+  after decrypting; `SessionMediaCache` asks the preloader before it downloads.
+* Devices report their progress (`MediaPreloadReport`, at most once a second) to `engine.mediaPreloadStatuses`; the
+  host sees it in the start panel (`MediaPreloadStatusView`). YouTube and maps cannot be preloaded and count as online.
+
 ### Media playback
 * `MediaPlayback` (`presentation/common/media_playback.dart`) states what a view may do: the TV plays `automatic`, player
   devices and the host's device only `onDemand` (never by themselves, whatever the host pressed), `stopped` media stand

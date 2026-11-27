@@ -31,15 +31,26 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/models.dart';
 import '../../core/net/media_cache.dart';
+import '../../core/net/media_preloader.dart';
 
 class SessionMediaAccess extends StatefulWidget {
   const SessionMediaAccess({
     required this.baseUri,
     required this.child,
+    this.preloader,
     super.key,
   });
   final Uri? baseUri;
   final Widget child;
+
+  /// Media preloaded in the lobby, used before anything is downloaded.
+  final MediaPreloader? preloader;
+
+  /// The preloader of the surrounding session, if any.
+  static MediaPreloader? preloaderOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_SessionMediaScope>()
+      ?.cache
+      .preloader;
   @override
   State<SessionMediaAccess> createState() => _SessionMediaAccessState();
 }
@@ -50,15 +61,21 @@ class _SessionMediaAccessState extends State<SessionMediaAccess> {
   @override
   void initState() {
     super.initState();
-    cache = SessionMediaCache(baseUri: widget.baseUri ?? Uri.base);
+    cache = _create();
   }
+
+  SessionMediaCache _create() => SessionMediaCache(
+    baseUri: widget.baseUri ?? Uri.base,
+    preloader: widget.preloader,
+  );
 
   @override
   void didUpdateWidget(SessionMediaAccess oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.baseUri != oldWidget.baseUri) {
+    if (widget.baseUri != oldWidget.baseUri ||
+        widget.preloader != oldWidget.preloader) {
       cache.dispose();
-      cache = SessionMediaCache(baseUri: widget.baseUri ?? Uri.base);
+      cache = _create();
     }
   }
 
