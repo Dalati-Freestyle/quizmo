@@ -1582,5 +1582,9 @@
   "Stummschalten": "Mute",
   "Lautstärke {0} %": "Volume {0} %",
   "Position / Länge": "Position / length",
-  "Limit: {0} s": "Limit: {0} s"
+  "Limit: {0} s": "Limit: {0} s",
+  "Du bist dran!": "Your turn!",
+  "Gib jetzt deine Antwort ein.": "Enter your answer now.",
+  "Der Buzzer ist frei.": "The buzzer is open.",
+  "Setz jetzt deine Chips.": "Place your chips now."
 }

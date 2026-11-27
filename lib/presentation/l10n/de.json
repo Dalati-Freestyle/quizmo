@@ -1582,5 +1582,9 @@
   "Stummschalten": "Stummschalten",
   "Lautstärke {0} %": "Lautstärke {0} %",
   "Position / Länge": "Position / Länge",
-  "Limit: {0} s": "Limit: {0} s"
+  "Limit: {0} s": "Limit: {0} s",
+  "Du bist dran!": "Du bist dran!",
+  "Gib jetzt deine Antwort ein.": "Gib jetzt deine Antwort ein.",
+  "Der Buzzer ist frei.": "Der Buzzer ist frei.",
+  "Setz jetzt deine Chips.": "Setz jetzt deine Chips."
 }

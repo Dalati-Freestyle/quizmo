@@ -34,6 +34,7 @@ import 'player_session_cubit.dart';
 import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
+import 'your_turn.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
@@ -107,8 +108,14 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(context.tr(state.error!)))),
       builder: (context, state) {
+        final scheme = Theme.of(context).colorScheme;
+        // Red while the host waits for this device.
+        final yourTurn = pendingTurn(state) != null;
         return Scaffold(
           appBar: AppBar(
+            key: const ValueKey('player-app-bar'),
+            backgroundColor: yourTurn ? scheme.error : null,
+            foregroundColor: yourTurn ? scheme.onError : null,
             title: Row(
               children: [
                 const QuizmoLogo(size: 32),
@@ -560,27 +567,30 @@ class PlayerGameColumn extends StatelessWidget {
   final Widget notJoined;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      ...header,
-      SubmissionStatusView(state: state),
-      if (state.deviceCheckId != null && state.isConnected)
-        const DeviceCheckBanner(),
-      Expanded(
-        child:
-            state.playerId != null &&
-                state.game?.isFinished == true &&
-                state.game?.protocol != null
-            // Stays usable after the host closed the room.
-            ? PlayerFinalPage(game: state.game!, playerId: state.playerId)
-            : state.playerId != null && state.game != null
-            ? AbsorbPointer(
-                absorbing: !state.isConnected,
-                child: _GameBoard(state: state),
-              )
-            : notJoined,
-      ),
-    ],
+  Widget build(BuildContext context) => YourTurnSignal(
+    state: state,
+    child: Column(
+      children: [
+        ...header,
+        SubmissionStatusView(state: state),
+        if (state.deviceCheckId != null && state.isConnected)
+          const DeviceCheckBanner(),
+        Expanded(
+          child:
+              state.playerId != null &&
+                  state.game?.isFinished == true &&
+                  state.game?.protocol != null
+              // Stays usable after the host closed the room.
+              ? PlayerFinalPage(game: state.game!, playerId: state.playerId)
+              : state.playerId != null && state.game != null
+              ? AbsorbPointer(
+                  absorbing: !state.isConnected,
+                  child: _GameBoard(state: state),
+                )
+              : notJoined,
+        ),
+      ],
+    ),
   );
 }
 
