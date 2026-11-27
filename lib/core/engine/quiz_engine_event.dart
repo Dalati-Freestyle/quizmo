@@ -500,6 +500,15 @@ final class ControlTvMediaEvent extends QuizEngineEvent {
   List<Object?> get props => [action];
 }
 
+/// After the reveal the host switches the TV between the solution media
+/// (default) and the media of the question.
+final class ShowRevealMediaEvent extends QuizEngineEvent {
+  const ShowRevealMediaEvent({required this.questionMedia});
+  final bool questionMedia;
+  @override
+  List<Object?> get props => [questionMedia];
+}
+
 final class KickPlayerEvent extends QuizEngineEvent {
   const KickPlayerEvent(this.playerId, {this.ban = false});
   final String playerId;

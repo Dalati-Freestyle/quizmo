@@ -263,6 +263,25 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       );
     });
+    on<ShowRevealMediaEvent>((event, emit) {
+      final game = state.game;
+      final round = game.round;
+      final question = round.question;
+      if (question == null ||
+          round.status != RoundStatus.revealed ||
+          question.media.isEmpty ||
+          question.solutionMedia.isEmpty ||
+          round.showsQuestionMedia == event.questionMedia) {
+        return;
+      }
+      emit(
+        _publish(
+          game.copyWith(
+            round: round.copyWith(showsQuestionMedia: event.questionMedia),
+          ),
+        ),
+      );
+    });
     on<PlaceDailyDoubleWagerEvent>(_onPlaceDailyDoubleWager);
     on<SetJeopardyTurnEvent>(_onSetJeopardyTurn);
     if (pokerStartingChips != null &&

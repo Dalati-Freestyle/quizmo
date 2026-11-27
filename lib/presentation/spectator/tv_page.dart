@@ -21,6 +21,7 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/reveal_media.dart';
 import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_texts.dart';
@@ -1488,9 +1489,14 @@ class _QuestionStage extends StatelessWidget {
     final boardCategory = jeopardy?.board.categoryNameOf(question.id);
     final picker = game.teams[jeopardy?.currentTeamId];
     final pickerName = game.participantName(jeopardy?.currentTeamId);
-    final hasMedia =
-        question.media.isNotEmpty ||
-        (isRevealed && question.solutionMedia.isNotEmpty);
+    // After the reveal the solution media replace those of the question,
+    // unless the host switches back to them.
+    final visible = visibleQuestionMedia(
+      question,
+      round.status,
+      questionSide: round.showsQuestionMedia,
+    );
+    final hasMedia = visible.question || visible.solution;
     // Next to media only what has something to read: options, items, who
     // buzzed, the solution.
     final listsAnswers =
@@ -1657,7 +1663,7 @@ class _QuestionStage extends StatelessWidget {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (question.media.isNotEmpty)
+                            if (visible.question)
                               Expanded(
                                 flex: 2,
                                 child: QuestionMediaView(
@@ -1667,19 +1673,14 @@ class _QuestionStage extends StatelessWidget {
                                   media: question.media,
                                   fill: true,
                                   playback: _playback(
-                                    silent:
-                                        latestHintPlays(round) ||
-                                        (isRevealed &&
-                                            question.solutionMedia.isNotEmpty),
+                                    silent: latestHintPlays(round),
                                   ),
                                   playbackRevision: game.tvMediaRevision,
                                   commandRevision: game.tvMediaCommandRevision,
                                 ),
                               ),
-                            if (isRevealed &&
-                                question.solutionMedia.isNotEmpty) ...[
-                              if (question.media.isNotEmpty)
-                                const SizedBox(width: 24),
+                            if (visible.solution) ...[
+                              if (visible.question) const SizedBox(width: 24),
                               Expanded(
                                 flex: 3,
                                 child: QuestionMediaView(

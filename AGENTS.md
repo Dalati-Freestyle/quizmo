@@ -294,6 +294,10 @@ the release pipeline does this automatically.
   devices and the host's device only `onDemand` (never by themselves, whatever the host pressed), `stopped` media stand
   still but may be started, `paused` (host command, buzzer) locks playback on every device. Always derive it with
   `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
+* After the reveal only the solution media are on screen when there are some (`visibleQuestionMedia` in
+  `common/reveal_media.dart`); the hidden side is removed, so question and solution audio never play together.
+  `RevealMediaToggle` switches back: on the host it sends `ShowRevealMediaEvent` and the TV follows
+  `RoundState.showsQuestionMedia`, players switch locally (`LocalRevealMedia`). Every new question starts again.
 * A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
 
 ### Media size

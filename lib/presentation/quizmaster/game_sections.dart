@@ -82,6 +82,7 @@ Map<DashboardSection, Widget> buildGameSections(
       onJudgeBuzzer: engine.add,
       onShowHint: engine.add,
       onTakeBackHint: engine.add,
+      onShowRevealMedia: engine.add,
       onSetVerbalAnswers: (enabled) =>
           engine.add(SetVerbalAnswersEvent(enabled)),
       onReveal: () => engine.add(const RevealRoundEvent()),

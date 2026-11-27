@@ -661,6 +661,7 @@ const englishMessages = <String, String>{
   "Fixed {0} pts": "Fixed {0} pts",
   "Forget": "Forget",
   "Format": "Format",
+  "Frage": "Question",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Question complete. Solutions will be revealed at the end of the quiz.",
   "Frage abschließen": "Finish question",
@@ -2603,6 +2604,7 @@ const germanMessages = <String, String>{
   "Fixed {0} pts": "Fest {0} Punkte",
   "Forget": "Vergessen",
   "Format": "Format",
+  "Frage": "Frage",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Frage abgeschlossen. Die Auflösung folgt am Quizende.",
   "Frage abschließen": "Frage abschließen",

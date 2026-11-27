@@ -16,6 +16,7 @@ import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/hint_views.dart';
+import '../common/reveal_media.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_play_form.dart';
 import 'poker_category_view.dart';
@@ -981,46 +982,64 @@ class _QuestionStage extends StatelessWidget {
             Text(context.tr('Der Spielleiter bewertet die Antworten.')),
           const SizedBox(height: 24),
         ],
-        if (question.media.isNotEmpty) ...[
-          QuestionMediaView(
-            media: question.media,
-            baseUri: cubit.mediaBaseUri,
-            playback: MediaPlayback.onDevice(
-              state.game,
-              stopped:
-                  latestHintPlays(state.game?.round ?? RoundState.idle) ||
-                  (state.roundStatus == RoundStatus.revealed &&
-                      question.solutionMedia.isNotEmpty),
-            ),
-            playbackRevision: state.game?.tvMediaRevision ?? 0,
-            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+        // After the reveal only the solution media show; each player may
+        // switch back to the media of the question on the own device.
+        LocalRevealMedia(
+          key: ValueKey('reveal-media-${question.id}'),
+          question: question,
+          status: state.roundStatus,
+          builder: (context, visible, toggle) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (state.roundStatus == RoundStatus.revealed &&
+                  toggle != null) ...[
+                toggle,
+                const SizedBox(height: 12),
+              ],
+              if (visible.question) ...[
+                QuestionMediaView(
+                  media: question.media,
+                  baseUri: cubit.mediaBaseUri,
+                  playback: MediaPlayback.onDevice(
+                    state.game,
+                    stopped: latestHintPlays(
+                      state.game?.round ?? RoundState.idle,
+                    ),
+                  ),
+                  playbackRevision: state.game?.tvMediaRevision ?? 0,
+                  commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (state.roundStatus == RoundStatus.revealed) ...[
+                const SizedBox(height: 24),
+                if (state.game case final game?
+                    when game.round.snowflake != null)
+                  SnowflakeResultView(game: game, fontSize: 16)
+                else if (question case final LocationQuestion location
+                    when state.game != null)
+                  LocationResultView(game: state.game!, question: location)
+                else if (question is! MultipleChoiceQuestion &&
+                    question is! BuzzerQuestion)
+                  Text(
+                    context.tr("Lösung: {0}", [
+                      question is TrueFalseQuestion
+                          ? context.tr(question.solutionLabel)
+                          : question.solutionLabel,
+                    ]),
+                  ),
+                if (visible.solution)
+                  QuestionMediaView(
+                    media: question.solutionMedia,
+                    baseUri: cubit.mediaBaseUri,
+                    playback: MediaPlayback.onDevice(state.game),
+                    playbackRevision: state.game?.tvMediaRevision ?? 0,
+                    commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+                  ),
+              ],
+            ],
           ),
-          const SizedBox(height: 16),
-        ],
-        if (state.roundStatus == RoundStatus.revealed) ...[
-          const SizedBox(height: 24),
-          if (state.game case final game? when game.round.snowflake != null)
-            SnowflakeResultView(game: game, fontSize: 16)
-          else if (question case final LocationQuestion location
-              when state.game != null)
-            LocationResultView(game: state.game!, question: location)
-          else if (question is! MultipleChoiceQuestion &&
-              question is! BuzzerQuestion)
-            Text(
-              context.tr("Lösung: {0}", [
-                question is TrueFalseQuestion
-                    ? context.tr(question.solutionLabel)
-                    : question.solutionLabel,
-              ]),
-            ),
-          QuestionMediaView(
-            media: question.solutionMedia,
-            baseUri: cubit.mediaBaseUri,
-            playback: MediaPlayback.onDevice(state.game),
-            playbackRevision: state.game?.tvMediaRevision ?? 0,
-            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
-          ),
-        ],
+        ),
       ],
     );
     if (state.game?.poker case final poker?) {

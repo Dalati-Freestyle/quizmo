@@ -3,6 +3,7 @@ library;
 
 import '../common/answer_countdown.dart';
 import '../common/hint_views.dart';
+import '../common/reveal_media.dart';
 import '../common/question_media_view.dart';
 
 import 'package:flutter/material.dart';
@@ -1125,6 +1126,7 @@ class LiveRoundPanel extends StatelessWidget {
     this.onSetVerbalAnswers,
     this.onShowHint,
     this.onTakeBackHint,
+    this.onShowRevealMedia,
     this.onSkipCountdown,
     this.hostNowMicros,
     super.key,
@@ -1141,6 +1143,9 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Takes back the hint shown last.
   final ValueChanged<TakeBackHintEvent>? onTakeBackHint;
+
+  /// Switches the TV (and this view) between solution and question media.
+  final ValueChanged<ShowRevealMediaEvent>? onShowRevealMedia;
 
   /// Switches the verbal answer mode; `null` hides the switch.
   final ValueChanged<bool>? onSetVerbalAnswers;
@@ -1341,16 +1346,33 @@ class LiveRoundPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 _QuestionContent(question: question),
-                QuestionMediaView(
-                  media: question.media,
-                  playback: MediaPlayback.onDevice(
-                    game,
-                    stopped: latestHintPlays(round),
+                // The host's choice is the TV's: after the reveal the
+                // solution media, or again those of the question.
+                if (offersRevealMediaToggle(question, round.status) &&
+                    onShowRevealMedia != null) ...[
+                  RevealMediaToggle(
+                    questionSide: round.showsQuestionMedia,
+                    onChanged: (value) => onShowRevealMedia!(
+                      ShowRevealMediaEvent(questionMedia: value),
+                    ),
                   ),
-                  playbackRevision: game.tvMediaRevision,
-                  commandRevision: game.tvMediaCommandRevision,
-                  maxMediaHeight: hostMediaHeight(context),
-                ),
+                  const SizedBox(height: 8),
+                ],
+                if (visibleQuestionMedia(
+                  question,
+                  round.status,
+                  questionSide: round.showsQuestionMedia,
+                ).question)
+                  QuestionMediaView(
+                    media: question.media,
+                    playback: MediaPlayback.onDevice(
+                      game,
+                      stopped: latestHintPlays(round),
+                    ),
+                    playbackRevision: game.tvMediaRevision,
+                    commandRevision: game.tvMediaCommandRevision,
+                    maxMediaHeight: hostMediaHeight(context),
+                  ),
                 const SizedBox(height: 6),
                 // Note, solution and answers each get their own card so they
                 // cannot be mistaken for one another during a game.
@@ -1362,7 +1384,11 @@ class LiveRoundPanel extends StatelessWidget {
                   onTakeBack: onTakeBackHint,
                 ),
                 SolutionCard(question: question, game: game),
-                if (game.round.status == RoundStatus.revealed)
+                if (visibleQuestionMedia(
+                  question,
+                  round.status,
+                  questionSide: round.showsQuestionMedia,
+                ).solution)
                   QuestionMediaView(
                     media: question.solutionMedia,
                     playback: MediaPlayback.onDevice(game),

@@ -223,8 +223,11 @@ void main() {
             expect(tester.takeException(), isNull, reason: reason);
             expect(
               images,
+              // After the reveal the solution media replace the others.
               findsNWidgets(
-                media.length + (revealed ? question.solutionMedia.length : 0),
+                revealed && question.solutionMedia.isNotEmpty
+                    ? question.solutionMedia.length
+                    : media.length,
               ),
               reason: reason,
             );
