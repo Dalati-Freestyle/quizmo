@@ -473,8 +473,11 @@ class _ReadyMediaView extends QuestionMediaView {
                   playbackRevision: playbackRevision,
                   commandRevision: commandRevision,
                 ),
-                // The timeline below the player.
-                extra: _youtubeOpensBrowser ? 0 : _videoControls,
+                // Our timeline below the player replaces YouTube's own
+                // controls, which "hide details" switches off.
+                extra: _youtubeOpensBrowser || !attachment.hideDetails
+                    ? 0
+                    : _videoControls,
               )
             : _bounded(
                 _PlaybackRetry(
@@ -1606,32 +1609,38 @@ class _YoutubeViewState extends State<_YoutubeView>
           ),
         );
 
-  /// The player with the timeline (and the TV's volume) below it. YouTube's
-  /// own controls are off with "hide details", this one shows no title.
+  /// The player with our timeline (and the TV's volume) below it. The
+  /// timeline only stands in for YouTube's own controls, which "hide details"
+  /// switches off; it shows no title.
   Widget _withControls(Widget player) {
     final locked =
         widget.playback == MediaPlayback.paused || StillMedia.of(context);
+    final timeline = widget.hideDetails;
+    if (!timeline && _volume == null) return player;
     return Column(
       children: [
         Expanded(child: player),
         Row(
           children: [
-            Expanded(
-              child: StreamBuilder<YoutubeVideoState>(
-                stream: controller!.videoStateStream,
-                builder: (context, snapshot) {
-                  final duration = controller!.value.metaData.duration;
-                  return MediaTimeline(
-                    position: snapshot.data?.position ?? Duration.zero,
-                    duration: duration == Duration.zero ? null : duration,
-                    onSeek: locked
-                        ? null
-                        : (position) =>
-                              unawaited(_seekTo(position, report: true)),
-                  );
-                },
+            if (!timeline)
+              const Spacer()
+            else
+              Expanded(
+                child: StreamBuilder<YoutubeVideoState>(
+                  stream: controller!.videoStateStream,
+                  builder: (context, snapshot) {
+                    final duration = controller!.value.metaData.duration;
+                    return MediaTimeline(
+                      position: snapshot.data?.position ?? Duration.zero,
+                      duration: duration == Duration.zero ? null : duration,
+                      onSeek: locked
+                          ? null
+                          : (position) =>
+                                unawaited(_seekTo(position, report: true)),
+                    );
+                  },
+                ),
               ),
-            ),
             const MediaVolumeControl(),
           ],
         ),
