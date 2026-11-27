@@ -298,6 +298,10 @@ the release pipeline does this automatically.
   `common/reveal_media.dart`); the hidden side is removed, so question and solution audio never play together.
   `RevealMediaToggle` switches back: on the host it sends `ShowRevealMediaEvent` and the TV follows
   `RoundState.showsQuestionMedia`, players switch locally (`LocalRevealMedia`). Every new question starts again.
+* Audio, MP4 and YouTube share one control row: `MediaTimeline` (times only, never a title) and on the TV
+  `MediaVolumeControl` (`MediaVolume`, stored on the TV). A jump on the host (`MediaSeekReporter` around the live
+  round) becomes `SeekTvMediaEvent` → `GameState.tvMediaSeek`, which the TV follows (`MediaSeekCommand`,
+  `FollowsHostSeek`); jumps of players stay on their device.
 * A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
 
 ### Media size

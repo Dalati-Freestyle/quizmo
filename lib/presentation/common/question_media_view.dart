@@ -8,6 +8,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import 'media_playback.dart';
 import 'media_playback_source.dart';
+import 'media_timeline.dart';
 import 'media_volume.dart';
 
 import 'package:flutter/material.dart';
@@ -455,10 +456,13 @@ class _ReadyMediaView extends QuestionMediaView {
                   playbackRevision: playbackRevision,
                   commandRevision: commandRevision,
                 ),
+                // The timeline below the player.
+                extra: _youtubeOpensBrowser ? 0 : _videoControls,
               )
             : _bounded(
                 _PlaybackRetry(
                   builder: (retry) => _VideoView(
+                    mediaKey: attachment.asset!.id,
                     source: source(attachment.asset!, context),
                     onRetry: retry,
                     playback: playback,
@@ -930,7 +934,8 @@ class _AudioView extends StatefulWidget {
   State<_AudioView> createState() => _AudioViewState();
 }
 
-class _AudioViewState extends State<_AudioView> with _BlockedStartState {
+class _AudioViewState extends State<_AudioView>
+    with _BlockedStartState, FollowsHostSeek {
   final player = AudioPlayer();
 
   @override
@@ -939,6 +944,22 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
     // The TV's own volume; elsewhere the device decides.
     if (MediaVolumeScope.of(context) case final volume?) {
       unawaited(player.setVolume(volume.effective).catchError((Object _) {}));
+    }
+    followHostSeek(widget.attachment.asset.id, (position) {
+      unawaited(_seekTo(position));
+    });
+  }
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) {
+      MediaSeekReporter.of(context)
+          ?.onSeek(widget.attachment.asset.id, position);
+    }
+    try {
+      await player.seek(position);
+    } on Object {
+      /* Not loaded yet: the next jump works. */
     }
   }
 
@@ -1104,14 +1125,27 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
                   : () => unawaited(_restartHere()),
             ),
             Expanded(
-              child: StreamBuilder<Duration>(
-                stream: player.positionStream,
-                builder: (context, snapshot) => Text(
-                  '${(snapshot.data ?? Duration.zero).inSeconds} s${widget.attachment.playbackLimitSeconds == null ? '' : ' / ${widget.attachment.playbackLimitSeconds} s'}',
-                  style: const TextStyle(fontSize: 22),
+              child: StreamBuilder<Duration?>(
+                stream: player.durationStream,
+                initialData: player.duration,
+                builder: (context, duration) => StreamBuilder<Duration>(
+                  stream: player.positionStream,
+                  builder: (context, snapshot) => MediaTimeline(
+                    position: snapshot.data ?? Duration.zero,
+                    duration: duration.data,
+                    onSeek: locked || still
+                        ? null
+                        : (position) =>
+                              unawaited(_seekTo(position, report: true)),
+                  ),
                 ),
               ),
             ),
+            if (widget.attachment.playbackLimitSeconds case final limit?)
+              Text(
+                context.tr('Limit: {0} s', [limit]),
+                style: const TextStyle(fontSize: 18),
+              ),
             const MediaVolumeControl(),
           ],
         );
@@ -1122,6 +1156,7 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
 
 class _VideoView extends StatefulWidget {
   const _VideoView({
+    required this.mediaKey,
     required this.source,
     required this.onRetry,
     this.playback = MediaPlayback.onDemand,
@@ -1132,16 +1167,35 @@ class _VideoView extends StatefulWidget {
   final int playbackRevision;
   final int commandRevision;
   final Uri source;
+  final String mediaKey;
   final VoidCallback onRetry;
   @override
   State<_VideoView> createState() => _VideoViewState();
 }
 
-class _VideoViewState extends State<_VideoView> with _BlockedStartState {
+class _VideoViewState extends State<_VideoView>
+    with _BlockedStartState, FollowsHostSeek {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _applyVolume();
+    followHostSeek(widget.mediaKey, (position) {
+      unawaited(_seekTo(position));
+    });
+  }
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) {
+      MediaSeekReporter.of(context)?.onSeek(widget.mediaKey, position);
+    }
+    final video = controller;
+    if (video == null || !video.value.isInitialized) return;
+    try {
+      await video.seekTo(position);
+    } on Object {
+      /* The next jump works. */
+    }
   }
 
   /// The TV's own volume; elsewhere the device decides.
@@ -1287,9 +1341,7 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
             ),
           ),
         ),
-        VideoProgressIndicator(controller, allowScrubbing: !locked && !still),
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
               tooltip: locked
@@ -1304,6 +1356,15 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
                         : controller.play(),
               icon: Icon(
                 controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+              ),
+            ),
+            Expanded(
+              child: MediaTimeline(
+                position: controller.value.position,
+                duration: controller.value.duration,
+                onSeek: locked || still
+                    ? null
+                    : (position) => unawaited(_seekTo(position, report: true)),
               ),
             ),
             const MediaVolumeControl(),
@@ -1331,7 +1392,8 @@ class _YoutubeView extends StatefulWidget {
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
 
-class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
+class _YoutubeViewState extends State<_YoutubeView>
+    with _BlockedStartState, FollowsHostSeek {
   MediaVolume? _volume;
 
   @override
@@ -1339,6 +1401,22 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
     super.didChangeDependencies();
     _volume = MediaVolumeScope.of(context);
     _applyVolume();
+    followHostSeek(_mediaKey, (position) => unawaited(_seekTo(position)));
+  }
+
+  String get _mediaKey => 'youtube:${widget.id}';
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) MediaSeekReporter.of(context)?.onSeek(_mediaKey, position);
+    try {
+      await controller?.seekTo(
+        seconds: position.inMilliseconds / 1000,
+        allowSeekAhead: true,
+      );
+    } on Object {
+      /* The next jump works. */
+    }
   }
 
   /// The TV's own volume; elsewhere the device decides.
@@ -1511,15 +1589,38 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
           ),
         );
 
-  /// The player with the TV's volume below it.
-  Widget _withControls(Widget player) => _volume == null
-      ? player
-      : Column(
+  /// The player with the timeline (and the TV's volume) below it. YouTube's
+  /// own controls are off with "hide details", this one shows no title.
+  Widget _withControls(Widget player) {
+    final locked =
+        widget.playback == MediaPlayback.paused || StillMedia.of(context);
+    return Column(
+      children: [
+        Expanded(child: player),
+        Row(
           children: [
-            Expanded(child: player),
+            Expanded(
+              child: StreamBuilder<YoutubeVideoState>(
+                stream: controller!.videoStateStream,
+                builder: (context, snapshot) {
+                  final duration = controller!.value.metaData.duration;
+                  return MediaTimeline(
+                    position: snapshot.data?.position ?? Duration.zero,
+                    duration: duration == Duration.zero ? null : duration,
+                    onSeek: locked
+                        ? null
+                        : (position) =>
+                              unawaited(_seekTo(position, report: true)),
+                  );
+                },
+              ),
+            ),
             const MediaVolumeControl(),
           ],
-        );
+        ),
+      ],
+    );
+  }
 }
 
 /// Opens the video on youtube.com (desktop hosts and refused embeds).

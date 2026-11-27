@@ -1580,5 +1580,7 @@
   "Frage": "Frage",
   "Ton einschalten": "Ton einschalten",
   "Stummschalten": "Stummschalten",
-  "Lautstärke {0} %": "Lautstärke {0} %"
+  "Lautstärke {0} %": "Lautstärke {0} %",
+  "Position / Länge": "Position / Länge",
+  "Limit: {0} s": "Limit: {0} s"
 }

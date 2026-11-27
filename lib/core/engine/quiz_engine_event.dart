@@ -500,6 +500,15 @@ final class ControlTvMediaEvent extends QuizEngineEvent {
   List<Object?> get props => [action];
 }
 
+/// The host jumped to [position] in the medium [mediaKey]; the TV follows.
+final class SeekTvMediaEvent extends QuizEngineEvent {
+  const SeekTvMediaEvent({required this.mediaKey, required this.position});
+  final String mediaKey;
+  final Duration position;
+  @override
+  List<Object?> get props => [mediaKey, position];
+}
+
 /// After the reveal the host switches the TV between the solution media
 /// (default) and the media of the question.
 final class ShowRevealMediaEvent extends QuizEngineEvent {

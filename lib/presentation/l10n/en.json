@@ -1580,5 +1580,7 @@
   "Frage": "Question",
   "Ton einschalten": "Sound on",
   "Stummschalten": "Mute",
-  "Lautstärke {0} %": "Volume {0} %"
+  "Lautstärke {0} %": "Volume {0} %",
+  "Position / Länge": "Position / length",
+  "Limit: {0} s": "Limit: {0} s"
 }

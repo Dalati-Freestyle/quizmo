@@ -21,6 +21,7 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/media_timeline.dart';
 import '../common/media_volume.dart';
 import '../common/reveal_media.dart';
 import '../common/hint_views.dart';
@@ -373,7 +374,11 @@ class TvScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        _content(context),
+        // Jumps of the host in a medium; still pictures never follow.
+        MediaSeekCommand(
+          seek: state.game?.tvMediaSeek,
+          child: _content(context),
+        ),
         if (state.deviceCheckActive)
           Positioned(
             left: 0,

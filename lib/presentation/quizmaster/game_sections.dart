@@ -13,6 +13,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
 import '../../core/models/models.dart';
+import '../common/media_timeline.dart';
 import '../common/adaptive_layout.dart';
 import '../common/joker_play_form.dart';
 import '../common/joker_texts.dart';
@@ -68,37 +69,41 @@ Map<DashboardSection, Widget> buildGameSections(
           ],
         ),
       ),
-    DashboardSection.liveRound: LiveRoundPanel(
-      state: engineState,
-      onJudge: (wasCorrect) => engine.add(
-        JudgeBuzzerEvent(
-          wasCorrect: wasCorrect,
-          playerId: game.round.activePlayerId,
-          questionId: game.round.question?.id,
-          startedAtHostMicros: game.round.startedAtHostMicros,
-          resolvedAttempts: game.round.resolvedAttempts,
+    DashboardSection.liveRound: MediaSeekReporter(
+      onSeek: (mediaKey, position) =>
+          engine.add(SeekTvMediaEvent(mediaKey: mediaKey, position: position)),
+      child: LiveRoundPanel(
+        state: engineState,
+        onJudge: (wasCorrect) => engine.add(
+          JudgeBuzzerEvent(
+            wasCorrect: wasCorrect,
+            playerId: game.round.activePlayerId,
+            questionId: game.round.question?.id,
+            startedAtHostMicros: game.round.startedAtHostMicros,
+            resolvedAttempts: game.round.resolvedAttempts,
+          ),
         ),
+        onJudgeBuzzer: engine.add,
+        onShowHint: engine.add,
+        onTakeBackHint: engine.add,
+        onShowRevealMedia: engine.add,
+        onSetVerbalAnswers: (enabled) =>
+            engine.add(SetVerbalAnswersEvent(enabled)),
+        onReveal: () => engine.add(const RevealRoundEvent()),
+        onLock: () => engine.add(const LockBuzzerEvent()),
+        onReopenBuzzer: () => engine.add(const ReopenBuzzerEvent()),
+        onReopenBuzzerForAll: () =>
+            engine.add(const ReopenBuzzerEvent(forAll: true)),
+        onEndRound: () => engine.add(const EndRoundEvent()),
+        onSkipCountdown: () => engine.add(const EndAnswerCountdownEvent()),
+        hostNowMicros: () => engine.hostNowMicros,
+        onNext: () {
+          if (game.isStarted) engine.add(const NextQuestionEvent());
+        },
+        onCloseRound: () => engine.add(const CloseRoundEvent()),
+        onFinish: () => engine.add(const FinishQuizEvent()),
+        onFinishEarly: () => engine.add(const FinishQuizEvent(early: true)),
       ),
-      onJudgeBuzzer: engine.add,
-      onShowHint: engine.add,
-      onTakeBackHint: engine.add,
-      onShowRevealMedia: engine.add,
-      onSetVerbalAnswers: (enabled) =>
-          engine.add(SetVerbalAnswersEvent(enabled)),
-      onReveal: () => engine.add(const RevealRoundEvent()),
-      onLock: () => engine.add(const LockBuzzerEvent()),
-      onReopenBuzzer: () => engine.add(const ReopenBuzzerEvent()),
-      onReopenBuzzerForAll: () =>
-          engine.add(const ReopenBuzzerEvent(forAll: true)),
-      onEndRound: () => engine.add(const EndRoundEvent()),
-      onSkipCountdown: () => engine.add(const EndAnswerCountdownEvent()),
-      hostNowMicros: () => engine.hostNowMicros,
-      onNext: () {
-        if (game.isStarted) engine.add(const NextQuestionEvent());
-      },
-      onCloseRound: () => engine.add(const CloseRoundEvent()),
-      onFinish: () => engine.add(const FinishQuizEvent()),
-      onFinishEarly: () => engine.add(const FinishQuizEvent(early: true)),
     ),
     if ([
       if (game.showsSlide) ...game.activeSlide!.media,

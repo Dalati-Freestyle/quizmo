@@ -263,6 +263,22 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
       );
     });
+    on<SeekTvMediaEvent>((event, emit) {
+      final game = state.game;
+      if (game.round.question == null && !game.showsSlide) return;
+      if (event.mediaKey.isEmpty || event.position.isNegative) return;
+      emit(
+        _publish(
+          game.copyWith(
+            tvMediaSeek: TvMediaSeek(
+              mediaKey: event.mediaKey,
+              positionMicros: event.position.inMicroseconds,
+              revision: (game.tvMediaSeek?.revision ?? 0) + 1,
+            ),
+          ),
+        ),
+      );
+    });
     on<ShowRevealMediaEvent>((event, emit) {
       final game = state.game;
       final round = game.round;
