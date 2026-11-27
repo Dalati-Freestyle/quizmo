@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import 'media_playback.dart';
@@ -100,7 +101,9 @@ class QuestionMediaView extends StatelessWidget {
   final int commandRevision;
   final double? maxMediaHeight;
 
-  /// Fills the parent: no scrolling and no "enlarge" button.
+  /// Fills the parent without scrolling (TV). Pictures, videos and maps get
+  /// a small button that shows them on (almost) the whole screen instead of
+  /// the "enlarge" button below them.
   final bool fill;
   final List<MediaAttachment> media;
   final Uri? baseUri;
@@ -468,6 +471,16 @@ class _ReadyMediaView extends QuestionMediaView {
       GeoAttachment() => _bounded(_map(attachment)),
     };
     final grows = fill && attachment is! AudioAttachment;
+    final enlargeable =
+        fill &&
+        !StillMedia.of(context) &&
+        switch (attachment) {
+          ImageAttachment(:final zoom) => zoom,
+          // YouTube has a full screen button of its own.
+          VideoAttachment(:final youtubeId) => youtubeId == null,
+          GeoAttachment() => true,
+          AudioAttachment() || CodeAttachment() => false,
+        };
     return Padding(
       key: ValueKey('${attachment.hashCode}'),
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -475,7 +488,12 @@ class _ReadyMediaView extends QuestionMediaView {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: grows ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          if (grows) Expanded(child: content) else content,
+          if (grows)
+            Expanded(
+              child: enlargeable ? _Enlargeable(child: content) : content,
+            )
+          else
+            content,
           if (playback == MediaPlayback.paused &&
               (attachment is AudioAttachment || attachment is VideoAttachment))
             const _PausedByHost(),
@@ -580,6 +598,106 @@ class _ReadyMediaView extends QuestionMediaView {
       ],
     ),
   );
+}
+
+/// A medium on the TV that can be shown on (almost) the whole screen.
+///
+/// The medium moves into the overlay with a [GlobalKey], so a running video
+/// keeps its position and nothing loads again. Closes with the button, Esc
+/// or a click next to it, and by itself when the medium leaves the stage.
+class _Enlargeable extends StatefulWidget {
+  const _Enlargeable({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Enlargeable> createState() => _EnlargeableState();
+}
+
+class _EnlargeableState extends State<_Enlargeable> {
+  final _controller = OverlayPortalController();
+  final _medium = GlobalKey();
+  bool _enlarged = false;
+
+  void _toggle(bool enlarged) {
+    setState(() => _enlarged = enlarged);
+    enlarged ? _controller.show() : _controller.hide();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final medium = KeyedSubtree(key: _medium, child: widget.child);
+    return OverlayPortal(
+      controller: _controller,
+      overlayChildBuilder: (context) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              _toggle(false),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Stack(
+            key: const ValueKey('media-enlarged'),
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  key: const ValueKey('media-enlarged-backdrop'),
+                  onTap: () => _toggle(false),
+                  child: const ColoredBox(color: Colors.black87),
+                ),
+              ),
+              Positioned.fill(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Material(
+                      color: Colors.black,
+                      child: _enlarged ? medium : null,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 32,
+                top: 32,
+                child: SafeArea(
+                  child: PointerInterceptor(
+                    child: IconButton.filledTonal(
+                      key: const ValueKey('media-shrink'),
+                      iconSize: 36,
+                      tooltip: context.tr('Schließen'),
+                      onPressed: () => _toggle(false),
+                      icon: const Icon(Icons.fullscreen_exit),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (!_enlarged) medium,
+          Positioned(
+            right: 8,
+            top: 8,
+            // A video is a platform view on the web; it would take the click.
+            child: PointerInterceptor(
+              child: IconButton.filledTonal(
+                key: const ValueKey('media-enlarge'),
+                iconSize: 32,
+                tooltip: context.tr('Vergrößern'),
+                onPressed: _enlarged ? null : () => _toggle(true),
+                icon: const Icon(Icons.fullscreen),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Stands for audio or video in a picture of another screen: no player is

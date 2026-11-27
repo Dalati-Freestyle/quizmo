@@ -298,8 +298,9 @@ the release pipeline does this automatically.
 
 ### Media size
 * `QuestionMediaView` shows media as large as the space allows. In scrolling pages: full width, at most `maxMediaHeight`
-  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling or
-  "enlarge". Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
+  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling.
+  On the TV pictures (with zoom), MP4 videos and maps have a corner button that shows them on almost the whole screen
+  (`_Enlargeable`, moved with a `GlobalKey` so a video keeps running); never replace it by a dialog with a new player. Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
   (read from the bytes, sent with references in `forWire`, never stored in quiz files) while it loads.
 * On the TV media are always the first child of the row in `_QuestionStage`, so a video keeps running when the layout
   changes; answers stand next to them and scale down instead of scrolling.
