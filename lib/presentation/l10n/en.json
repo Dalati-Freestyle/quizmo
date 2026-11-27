@@ -1577,5 +1577,8 @@
   "Zeit ({0})": "Time ({0})",
   "Format": "Format",
   "Zahl": "Number",
-  "Frage": "Question"
+  "Frage": "Question",
+  "Ton einschalten": "Sound on",
+  "Stummschalten": "Mute",
+  "Lautstärke {0} %": "Volume {0} %"
 }

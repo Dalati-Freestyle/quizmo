@@ -8,6 +8,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import 'media_playback.dart';
 import 'media_playback_source.dart';
+import 'media_volume.dart';
 
 import 'package:flutter/material.dart';
 
@@ -931,6 +932,16 @@ class _AudioView extends StatefulWidget {
 
 class _AudioViewState extends State<_AudioView> with _BlockedStartState {
   final player = AudioPlayer();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The TV's own volume; elsewhere the device decides.
+    if (MediaVolumeScope.of(context) case final volume?) {
+      unawaited(player.setVolume(volume.effective).catchError((Object _) {}));
+    }
+  }
+
   @override
   void didUpdateWidget(_AudioView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1101,6 +1112,7 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
                 ),
               ),
             ),
+            const MediaVolumeControl(),
           ],
         );
       },
@@ -1126,6 +1138,20 @@ class _VideoView extends StatefulWidget {
 }
 
 class _VideoViewState extends State<_VideoView> with _BlockedStartState {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyVolume();
+  }
+
+  /// The TV's own volume; elsewhere the device decides.
+  void _applyVolume() {
+    final volume = MediaVolumeScope.of(context);
+    final video = controller;
+    if (volume == null || video == null || !video.value.isInitialized) return;
+    unawaited(video.setVolume(volume.effective).catchError((Object _) {}));
+  }
+
   @override
   void didUpdateWidget(_VideoView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1182,6 +1208,7 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
       controller = video;
       video.addListener(_update);
       await video.initialize().timeout(const Duration(seconds: 30));
+      if (mounted) _applyVolume();
       if (mounted) await _applyPlayback(false);
       _update();
     } on Object {
@@ -1261,20 +1288,26 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
           ),
         ),
         VideoProgressIndicator(controller, allowScrubbing: !locked && !still),
-        IconButton(
-          tooltip: locked
-              ? context.tr('Von der Spielleitung pausiert')
-              : controller.value.isPlaying
-              ? context.tr("Pause")
-              : context.tr("Abspielen"),
-          onPressed: locked || still
-              ? null
-              : () => controller.value.isPlaying
-                    ? controller.pause()
-                    : controller.play(),
-          icon: Icon(
-            controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              tooltip: locked
+                  ? context.tr('Von der Spielleitung pausiert')
+                  : controller.value.isPlaying
+                  ? context.tr("Pause")
+                  : context.tr("Abspielen"),
+              onPressed: locked || still
+                  ? null
+                  : () => controller.value.isPlaying
+                        ? controller.pause()
+                        : controller.play(),
+              icon: Icon(
+                controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+              ),
+            ),
+            const MediaVolumeControl(),
+          ],
         ),
       ],
     );
@@ -1299,6 +1332,29 @@ class _YoutubeView extends StatefulWidget {
 }
 
 class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
+  MediaVolume? _volume;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _volume = MediaVolumeScope.of(context);
+    _applyVolume();
+  }
+
+  /// The TV's own volume; elsewhere the device decides.
+  void _applyVolume() {
+    final volume = _volume;
+    final player = controller;
+    if (volume == null || player == null) return;
+    final level = (volume.effective * 100).round();
+    unawaited(
+      (level == 0
+              ? player.mute()
+              : player.unMute().then((_) => player.setVolume(level)))
+          .catchError((Object _) {}),
+    );
+  }
+
   @override
   void didUpdateWidget(_YoutubeView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1335,6 +1391,7 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
   }
 
   YoutubePlayerController? controller;
+  bool _volumeApplied = false;
   StreamSubscription<YoutubePlayerValue>? _errors;
   Timer? _startWatch;
 
@@ -1379,6 +1436,11 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
         setState(() => _error = value.error);
       }
       if (value.playerState == youtube.PlayerState.playing) {
+        // The iframe only takes a volume once its player exists.
+        if (!_volumeApplied) {
+          _volumeApplied = true;
+          _applyVolume();
+        }
         setStartBlocked(false);
         // A press on YouTube's own controls must not undo the host's pause.
         if (widget.playback == MediaPlayback.paused ||
@@ -1429,22 +1491,34 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
           error: _error,
           hideDetails: widget.hideDetails,
         )
-      : Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                YoutubePlayer(controller: controller!),
-                // While the host paused, nobody may press play in the frame.
-                if (widget.playback == MediaPlayback.paused ||
-                    StillMedia.of(context))
-                  PointerInterceptor(
-                    child: const AbsorbPointer(child: SizedBox.expand()),
-                  ),
-              ],
+      : _withControls(
+          Center(
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  YoutubePlayer(controller: controller!),
+                  // While the host paused, nobody may press play in the frame.
+                  if (widget.playback == MediaPlayback.paused ||
+                      StillMedia.of(context))
+                    PointerInterceptor(
+                      child: const AbsorbPointer(child: SizedBox.expand()),
+                    ),
+                ],
+              ),
             ),
           ),
+        );
+
+  /// The player with the TV's volume below it.
+  Widget _withControls(Widget player) => _volume == null
+      ? player
+      : Column(
+          children: [
+            Expanded(child: player),
+            const MediaVolumeControl(),
+          ],
         );
 }
 

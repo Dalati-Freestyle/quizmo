@@ -21,6 +21,7 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/media_volume.dart';
 import '../common/reveal_media.dart';
 import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
@@ -82,8 +83,13 @@ class TvPage extends StatelessWidget {
     this.brightness,
     this.launchUri,
     this.clientFactory,
+    this.volumeStore,
     super.key,
   });
+
+  /// Replaces the storage of the TV volume (tests).
+  @visibleForTesting
+  final MediaVolumeStore? volumeStore;
 
   /// Replaces the network client; widget tests inject a fake host here.
   @visibleForTesting
@@ -114,6 +120,7 @@ class TvPage extends StatelessWidget {
         return cubit;
       },
       child: _TvView(
+        volumeStore: volumeStore,
         joinUri: joinUri ?? host,
         initialBrightness: brightness ?? tvBrightnessFor(launchUri ?? Uri.base),
       ),
@@ -136,8 +143,13 @@ class TvPage extends StatelessWidget {
 }
 
 class _TvView extends StatefulWidget {
-  const _TvView({required this.joinUri, required this.initialBrightness});
+  const _TvView({
+    required this.joinUri,
+    required this.initialBrightness,
+    this.volumeStore,
+  });
 
+  final MediaVolumeStore? volumeStore;
   final Uri? joinUri;
   final Brightness initialBrightness;
 
@@ -155,9 +167,15 @@ class _TvViewState extends State<_TvView> {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
+  /// The TV's own volume for every medium, kept between visits.
+  late final _volume = MediaVolume(
+    store: widget.volumeStore ?? MediaVolumeStore(),
+  );
+
   @override
   void initState() {
     super.initState();
+    unawaited(_volume.load());
     if (_isHandheldApp) {
       // The canvas is 16:9, so a phone in portrait would show a tiny strip.
       unawaited(
@@ -174,6 +192,7 @@ class _TvViewState extends State<_TvView> {
 
   @override
   void dispose() {
+    _volume.dispose();
     if (_isHandheldApp) {
       unawaited(SystemChrome.setPreferredOrientations(const []));
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
@@ -255,13 +274,16 @@ class _TvViewState extends State<_TvView> {
                           >(
                             builder: (context, state) => SessionMediaAccess(
                               baseUri: state.mediaBaseUri,
-                              child: MediaBlockReporter(
-                                onChanged: context
-                                    .read<SpectatorSessionCubit>()
-                                    .mediaBlocked,
-                                child: TvScreen(
-                                  state: state,
-                                  joinUri: widget.joinUri,
+                              child: MediaVolumeScope(
+                                volume: _volume,
+                                child: MediaBlockReporter(
+                                  onChanged: context
+                                      .read<SpectatorSessionCubit>()
+                                      .mediaBlocked,
+                                  child: TvScreen(
+                                    state: state,
+                                    joinUri: widget.joinUri,
+                                  ),
                                 ),
                               ),
                             ),
