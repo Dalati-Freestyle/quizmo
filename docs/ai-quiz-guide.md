@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **17**
+Quizmo-Schema-Version dieser Anleitung: **18**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -98,7 +98,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 17,              // immer genau 17
+  "schemaVersion": 18,              // immer genau 18
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -261,7 +261,7 @@ Titel, Kategorien) sind reiner Text.
 | `shortAnswer` | `acceptedAnswers` (Liste), `maxEdits` (0–5), `manualGrading` | Freitext. Mindestens eine akzeptierte Antwort. `maxEdits` = erlaubte Tippfehler. `manualGrading: true` = Spielleitung bewertet von Hand. |
 | `ordering` | `items` (Liste `{"id","label"}`), `correctOrder` (Liste der IDs) | Reihenfolge. Mindestens 2 Elemente; `correctOrder` enthält jede ID genau einmal. |
 | `matching` | `leftItems`, `rightItems` (je Liste `{"id","label"}`), `correctPairs` (`{"linkeId": "rechteId"}`) | Zuordnung. Gleich viele Elemente links und rechts; jede linke ID genau einer eigenen rechten ID zuordnen. Passt ein Wert zu mehreren linken Elementen (z. B. zwei Gerichte mit Schwein), lege ihn rechts mehrfach mit gleichem `label` und verschiedenen IDs an: gleiche Werte sind untereinander austauschbar. |
-| `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit`, optional `minAccepted` und `maxAccepted`, optional `toleranceOnly` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner (sonst `1` lassen). Mit `minAccepted`/`maxAccepted` (immer beide, Ziel dazwischen, Grenzen zählen mit) gilt jede Antwort im Bereich als vollständig richtig. Im Pokerformat immer angeben, denn dort zahlt nur eine vollständig richtige Antwort aus. `"toleranceOnly": true` (braucht beide Grenzen) wertet nur richtig/falsch: im Bereich volle Punkte, außerhalb keine. |
+| `estimation` | `correctValue` (Zahl), `zeroScale` (> 0), `unit`, optional `minAccepted` und `maxAccepted`, optional `toleranceOnly`, optional `valueFormat` | Schätzfrage. Punkte anteilig `max(0, 1 − |Antwort − Ziel| / |Ziel|)`; bei Ziel 0 ersetzt `zeroScale` den Nenner (sonst `1` lassen). Mit `minAccepted`/`maxAccepted` (immer beide, Ziel dazwischen, Grenzen zählen mit) gilt jede Antwort im Bereich als vollständig richtig. Im Pokerformat immer angeben, denn dort zahlt nur eine vollständig richtige Antwort aus. `"toleranceOnly": true` (braucht beide Grenzen) wertet nur richtig/falsch: im Bereich volle Punkte, außerhalb keine. Für Zeiten `"valueFormat": "minutesSeconds"` (mm:ss) oder `"hoursMinutesSeconds"` (h:mm:ss): Alle Zahlen (`correctValue`, Grenzen, `zeroScale`) stehen dann in **Sekunden**, z. B. 33:58 = `2038`; die Spieler geben die Zeit als mm:ss ein. Ohne Angabe sind es normale Zahlen. |
 | `trueFalse` | `correctAnswer` (`true`/`false`) | Wahr/Falsch. |
 | `location` | `target` (`{"latitude","longitude"}`), `targetLabel`, `fullPointsKm`, `zeroPointsKm`, `startCenter` (`{"latitude","longitude"}`), `startZoom` (1–18) | Ort auf der Karte: Die Spieler markieren auf einer Karte, wo der Ort liegt. Bis `fullPointsKm` volle Punkte, ab `zeroPointsKm` (> `fullPointsKm`, höchstens 20000) keine, dazwischen gleichmäßig weniger (Luftlinie). `targetLabel` ist der Name des Orts in der Lösung. Startausschnitt am besten die Weltkarte (`startCenter` 20/0, `startZoom` 1.5), damit er nichts verrät. Nicht im Snowflake-Format. Im Pokerformat zählt nur eine Markierung innerhalb von `fullPointsKm` als richtig. |
 
@@ -328,7 +328,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 17` steht ganz oben.
+- [ ] `"schemaVersion": 18` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -358,7 +358,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 17,
+  "schemaVersion": 18,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -543,7 +543,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 17,
+  "schemaVersion": 18,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -613,7 +613,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 17,
+  "schemaVersion": 18,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -658,7 +658,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 17,
+  "schemaVersion": 18,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

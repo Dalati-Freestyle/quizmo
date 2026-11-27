@@ -10,6 +10,7 @@ import 'package:equatable/equatable.dart';
 import '../engine/scoring_rules.dart';
 import 'json.dart';
 import 'answer.dart';
+import 'estimation_format.dart';
 import 'media_attachment.dart';
 import 'question_hint.dart';
 import '../engine/answer_evaluation.dart';
@@ -857,8 +858,13 @@ final class EstimationQuestion extends Question {
     this.minAccepted,
     this.maxAccepted,
     this.toleranceOnly = false,
+    this.valueFormat = EstimationValueFormat.number,
   });
   final double? correctValue;
+
+  /// How values are entered and shown (quiz schema 18); the time formats
+  /// store seconds. Public: players need it to enter their answer.
+  final EstimationValueFormat valueFormat;
 
   /// Scoring mode "tolerance only" (quiz schema 17): an answer from
   /// [minAccepted] to [maxAccepted] earns the full points, every other none.
@@ -901,6 +907,9 @@ final class EstimationQuestion extends Question {
         ? null
         : readFiniteDouble(json, 'maxAccepted'),
     toleranceOnly: json.readBool('toleranceOnly', orElse: false),
+    valueFormat: json['valueFormat'] == null
+        ? EstimationValueFormat.number
+        : EstimationValueFormat.fromJson(json['valueFormat']),
   );
   @override
   bool get hasSolution => correctValue != null;
@@ -927,11 +936,19 @@ final class EstimationQuestion extends Question {
   String get solutionLabel => correctValue == null
       ? ''
       : hasTolerance
-      ? '${valueLabel(correctValue!)} (${formatNumber(minAccepted!)} – ${valueLabel(maxAccepted!)})'
+      ? '${valueLabel(correctValue!)} (${valueFormat.format(minAccepted!)} – ${valueLabel(maxAccepted!)})'
       : valueLabel(correctValue!);
 
-  /// [value] with the unit of this question.
-  String valueLabel(double value) => '${formatNumber(value)} $unit'.trimRight();
+  /// [value] in the format and with the unit of this question.
+  String valueLabel(double value) =>
+      '${valueFormat.format(value)} $unit'.trimRight();
+
+  /// How far [value] is off the target, e.g. `+0:12`; `null` before the
+  /// reveal, when the target is unknown.
+  String? deviationLabel(double value) => correctValue == null
+      ? null
+      : '${valueFormat.formatDeviation(value - correctValue!)} $unit'
+            .trimRight();
   @override
   List<String> get structureErrors => [
     if (!zeroScale.isFinite || zeroScale <= 0)
@@ -965,6 +982,7 @@ final class EstimationQuestion extends Question {
     zeroScale: zeroScale,
     unit: unit,
     toleranceOnly: toleranceOnly,
+    valueFormat: valueFormat,
   );
   @override
   JsonMap toJson() => {
@@ -976,6 +994,8 @@ final class EstimationQuestion extends Question {
     if (minAccepted != null) 'minAccepted': minAccepted,
     if (maxAccepted != null) 'maxAccepted': maxAccepted,
     if (toleranceOnly) 'toleranceOnly': true,
+    if (valueFormat != EstimationValueFormat.number)
+      'valueFormat': valueFormat.name,
   };
   @override
   List<Object?> get props => [
@@ -995,6 +1015,7 @@ final class EstimationQuestion extends Question {
     minAccepted,
     maxAccepted,
     toleranceOnly,
+    valueFormat,
   ];
 }
 

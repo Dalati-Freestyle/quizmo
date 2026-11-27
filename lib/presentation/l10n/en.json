@@ -1568,5 +1568,13 @@
   "Toleranz": "Tolerance",
   "Pflichtfeld bei „Nur Toleranz“.": "Required for \"tolerance only\".",
   "Für „Nur Toleranz“ Unter- und Obergrenze angeben.": "Enter a lower and an upper limit for \"tolerance only\".",
-  "The scoring mode \"tolerance only\" needs schemaVersion 17.": "The scoring mode \"tolerance only\" needs schemaVersion 17."
+  "The scoring mode \"tolerance only\" needs schemaVersion 17.": "The scoring mode \"tolerance only\" needs schemaVersion 17.",
+  "Als {0} eingeben, z. B. {1}.": "Enter as {0}, e.g. {1}.",
+  "Zahl eingeben, z. B. {0}.": "Enter a number, e.g. {0}.",
+  "Schätzt die Zeit und gebt sie als {0} ein.": "Estimate the time and enter it as {0}.",
+  "Schätz die Zeit und gib sie als {0} ein.": "Estimate the time and enter it as {0}.",
+  "Korrekte Zeit ({0})": "Correct time ({0})",
+  "Zeit ({0})": "Time ({0})",
+  "Format": "Format",
+  "Zahl": "Number"
 }

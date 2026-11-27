@@ -109,9 +109,16 @@ TvInstruction? tvInstruction(InstructionTr tr, GameState game) {
                     'Ordne jedem Begriff den passenden zu.',
                   ),
           ),
-          EstimationQuestion(:final unit) => (
-            icon: Icons.numbers,
-            text: unit.trim().isEmpty
+          EstimationQuestion(:final unit, :final valueFormat) => (
+            icon: valueFormat.isTime ? Icons.timer_outlined : Icons.numbers,
+            text: valueFormat.isTime
+                ? tr(
+                    teams
+                        ? 'Schätzt die Zeit und gebt sie als {0} ein.'
+                        : 'Schätz die Zeit und gib sie als {0} ein.',
+                    [valueFormat.pattern],
+                  )
+                : unit.trim().isEmpty
                 ? say(
                     'Schätzt und gebt eine Zahl ein.',
                     'Schätz und gib eine Zahl ein.',

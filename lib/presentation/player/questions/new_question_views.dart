@@ -401,10 +401,8 @@ class EstimationQuestionView extends StatefulWidget {
 
 class _EstimationQuestionViewState extends State<EstimationQuestionView> {
   String text = '';
-  double? get value {
-    final v = double.tryParse(text.replaceAll(',', '.'));
-    return v != null && v.isFinite ? v : null;
-  }
+  EstimationValueFormat get format => widget.question.valueFormat;
+  double? get value => format.parse(text);
 
   bool get sent => switch (widget.team) {
     null => widget.submitted,
@@ -418,14 +416,27 @@ class _EstimationQuestionViewState extends State<EstimationQuestionView> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       TextField(
+        key: const ValueKey('estimation-input'),
         enabled: widget.enabled,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
+        // A time needs the colon, which number pads often lack.
+        keyboardType: format.isTime
+            ? TextInputType.datetime
+            : const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
         decoration: InputDecoration(
           labelText: context.tr("Deine Schätzung"),
+          hintText: format.isTime ? format.pattern : null,
           suffixText: widget.question.unit,
+          errorText: text.trim().isEmpty || value != null
+              ? null
+              : format.isTime
+              ? context.tr('Als {0} eingeben, z. B. {1}.', [
+                  format.pattern,
+                  format.example,
+                ])
+              : context.tr('Zahl eingeben, z. B. {0}.', [format.example]),
         ),
         onChanged: (v) {
           setState(() => text = v);

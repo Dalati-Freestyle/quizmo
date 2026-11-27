@@ -76,6 +76,7 @@ const englishMessages = <String, String>{
   "Allow spectators": "Allow spectators",
   "Als PDF herunterladen": "Download as PDF",
   "Als nicht erforderlich markieren": "Mark as not required",
+  "Als {0} eingeben, z. B. {1}.": "Enter as {0}, e.g. {1}.",
   "Am Quizende": "At the end of the quiz",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "At the end: Solutions, verdicts and scores stay hidden from players and TVs until the quiz is over. The host can still see them.",
   "Am einfachsten passt du die Ansicht direkt in der Admin-Ansicht an („Ansicht anpassen“). Hier siehst du dasselbe Raster mit allen Bereichen. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.": "The easiest way is to customise the view right in the admin view (“Customise view”). Here you see the same grid with every section. Required sections cannot be hidden, but they can be minimised. The layout applies to this device; export and import transfer it.",
@@ -659,6 +660,7 @@ const englishMessages = <String, String>{
   "Fixed points": "Fixed points",
   "Fixed {0} pts": "Fixed {0} pts",
   "Forget": "Forget",
+  "Format": "Format",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Question complete. Solutions will be revealed at the end of the quiz.",
   "Frage abschließen": "Finish question",
@@ -857,6 +859,7 @@ const englishMessages = <String, String>{
       "No connection to the place search. Check the internet connection.",
   "Keine Zwischenfolien. Sie zeigen zwischen den Fragen z. B. eine Pause, eine Kategorie oder „Das Ergebnis ist unterwegs“ – ohne Wertung.": "No interstitial slides. Between the questions they show e.g. a break, a category or \"the results are coming\" – without scoring.",
   "Korrekte Zahl": "Correct number",
+  "Korrekte Zeit ({0})": "Correct time ({0})",
   "Korrektur als Gegenkorrektur zurückgenommen.":
       "Correction undone with a counter-correction.",
   "Korrektur anwenden": "Apply correction",
@@ -1333,10 +1336,14 @@ const englishMessages = <String, String>{
   "Scan to join with your phone": "Scan to join with your phone",
   "Schiefergrau": "Slate",
   "Schließen": "Close",
+  "Schätz die Zeit und gib sie als {0} ein.":
+      "Estimate the time and enter it as {0}.",
   "Schätz und gib eine Zahl ein (in {0}).":
       "Estimate and enter a number (in {0}).",
   "Schätz und gib eine Zahl ein.": "Estimate and enter a number.",
   "Schätzfrage": "Estimation",
+  "Schätzt die Zeit und gebt sie als {0} ein.":
+      "Estimate the time and enter it as {0}.",
   "Schätzt und gebt eine Zahl ein (in {0}).":
       "Estimate and enter a number (in {0}).",
   "Schätzt und gebt eine Zahl ein.": "Estimate and enter a number.",
@@ -1740,8 +1747,11 @@ const englishMessages = <String, String>{
   "Your name": "Your name",
   "Your team already answered.": "Your team already answered.",
   "Your team answers.": "Your team answers.",
+  "Zahl": "Number",
+  "Zahl eingeben, z. B. {0}.": "Enter a number, e.g. {0}.",
   "Zeigen": "Show",
   "Zeit": "Time",
+  "Zeit ({0})": "Time ({0})",
   "Zeit abgelaufen · Der Spielleiter beendet die Runde.":
       "Time is up · The host will end the round.",
   "Zeit abgelaufen. Antworten sind geschlossen.":
@@ -2004,6 +2014,7 @@ const germanMessages = <String, String>{
   "Allow spectators": "Zuschauer zulassen",
   "Als PDF herunterladen": "Als PDF herunterladen",
   "Als nicht erforderlich markieren": "Als nicht erforderlich markieren",
+  "Als {0} eingeben, z. B. {1}.": "Als {0} eingeben, z. B. {1}.",
   "Am Quizende": "Am Quizende",
   "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.": "Am Quizende: Lösungen, Bewertungen und Punktestände bleiben für Spieler und TV bis zum Schluss verborgen. Der Spielleiter sieht sie weiterhin.",
   "Am einfachsten passt du die Ansicht direkt in der Admin-Ansicht an („Ansicht anpassen“). Hier siehst du dasselbe Raster mit allen Bereichen. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.": "Am einfachsten passt du die Ansicht direkt in der Admin-Ansicht an („Ansicht anpassen“). Hier siehst du dasselbe Raster mit allen Bereichen. Pflichtbereiche lassen sich nicht ausblenden, aber minimieren. Die Anpassung gilt auf diesem Gerät; per Export und Import lässt sie sich übertragen.",
@@ -2591,6 +2602,7 @@ const germanMessages = <String, String>{
   "Fixed points": "Feste Punkte",
   "Fixed {0} pts": "Fest {0} Punkte",
   "Forget": "Vergessen",
+  "Format": "Format",
   "Frage abgeschlossen. Die Auflösung folgt am Quizende.":
       "Frage abgeschlossen. Die Auflösung folgt am Quizende.",
   "Frage abschließen": "Frage abschließen",
@@ -2789,6 +2801,7 @@ const germanMessages = <String, String>{
       "Keine Verbindung zur Ortssuche. Prüfe die Internetverbindung.",
   "Keine Zwischenfolien. Sie zeigen zwischen den Fragen z. B. eine Pause, eine Kategorie oder „Das Ergebnis ist unterwegs“ – ohne Wertung.": "Keine Zwischenfolien. Sie zeigen zwischen den Fragen z. B. eine Pause, eine Kategorie oder „Das Ergebnis ist unterwegs“ – ohne Wertung.",
   "Korrekte Zahl": "Korrekte Zahl",
+  "Korrekte Zeit ({0})": "Korrekte Zeit ({0})",
   "Korrektur als Gegenkorrektur zurückgenommen.":
       "Korrektur als Gegenkorrektur zurückgenommen.",
   "Korrektur anwenden": "Korrektur anwenden",
@@ -3264,10 +3277,14 @@ const germanMessages = <String, String>{
   "Scan to join with your phone": "Scannen und mit dem Handy beitreten",
   "Schiefergrau": "Schiefergrau",
   "Schließen": "Schließen",
+  "Schätz die Zeit und gib sie als {0} ein.":
+      "Schätz die Zeit und gib sie als {0} ein.",
   "Schätz und gib eine Zahl ein (in {0}).":
       "Schätz und gib eine Zahl ein (in {0}).",
   "Schätz und gib eine Zahl ein.": "Schätz und gib eine Zahl ein.",
   "Schätzfrage": "Schätzfrage",
+  "Schätzt die Zeit und gebt sie als {0} ein.":
+      "Schätzt die Zeit und gebt sie als {0} ein.",
   "Schätzt und gebt eine Zahl ein (in {0}).":
       "Schätzt und gebt eine Zahl ein (in {0}).",
   "Schätzt und gebt eine Zahl ein.": "Schätzt und gebt eine Zahl ein.",
@@ -3669,8 +3686,11 @@ const germanMessages = <String, String>{
   "Your name": "Dein Name",
   "Your team already answered.": "Dein Team hat bereits geantwortet.",
   "Your team answers.": "Dein Team antwortet.",
+  "Zahl": "Zahl",
+  "Zahl eingeben, z. B. {0}.": "Zahl eingeben, z. B. {0}.",
   "Zeigen": "Zeigen",
   "Zeit": "Zeit",
+  "Zeit ({0})": "Zeit ({0})",
   "Zeit abgelaufen · Der Spielleiter beendet die Runde.":
       "Zeit abgelaufen · Der Spielleiter beendet die Runde.",
   "Zeit abgelaufen. Antworten sind geschlossen.":

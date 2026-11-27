@@ -38,7 +38,7 @@ EstimationQuestion estimation({double? target = 655, double scale = 1}) =>
     );
 
 void main() {
-  final zeroScale = find.byKey(const ValueKey('estimation-zero-scale'));
+  final zeroScale = find.byKey(const ValueKey('estimation-zero-scale-number'));
 
   testWidgets('the zero scale only shows for the target 0', (tester) async {
     await pumpFields(tester, estimation())();
@@ -100,7 +100,10 @@ void main() {
     expect(fields['toleranceOnly'], isTrue);
     expect(zeroScale, findsNothing);
     expect(find.textContaining('relative Abweichung'), findsNothing);
-    await tester.enterText(find.byKey(const ValueKey('estimation-min')), '');
+    await tester.enterText(
+      find.byKey(const ValueKey('estimation-min-number')),
+      '',
+    );
     expect(formKey.currentState!.validate(), isFalse);
     await tester.pump();
     expect(find.text('Pflichtfeld bei „Nur Toleranz“.'), findsOneWidget);
@@ -111,5 +114,53 @@ void main() {
     await tester.enterText(find.byType(TextFormField).first, '33:58x');
     await tester.pump();
     expect(find.text('Endliche Zahl angeben.'), findsOneWidget);
+  });
+
+  testWidgets('a time format rewrites the values and validates mm:ss', (
+    tester,
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    var fields = <String, Object?>{};
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: NewQuestionFields(
+                question: const EstimationQuestion(
+                  id: 'q',
+                  prompt: 'Wie lange?',
+                  correctValue: 2038,
+                  minAccepted: 1980,
+                  maxAccepted: 2100,
+                ),
+                onChanged: (value) => fields = value,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('estimation-format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zeit (mm:ss)').last);
+    await tester.pumpAndSettle();
+    expect(find.text('33:58'), findsOneWidget);
+    expect(find.text('33:00'), findsOneWidget);
+    expect(find.text('35:00'), findsOneWidget);
+    expect(fields['valueFormat'], 'minutesSeconds');
+    expect(fields['correctValue'], 2038);
+    final target = find.byKey(
+      const ValueKey('estimation-target-minutesSeconds'),
+    );
+    await tester.enterText(target, '33:75');
+    await tester.pump();
+    expect(find.text('Als mm:ss eingeben, z. B. 33:58.'), findsOneWidget);
+    expect(fields['correctValue'], isNull);
+    await tester.enterText(target, '34:10');
+    await tester.pump();
+    expect(fields['correctValue'], 2050);
+    expect(formKey.currentState!.validate(), isTrue);
   });
 }
