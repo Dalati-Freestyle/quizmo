@@ -186,6 +186,7 @@ the release pipeline does this automatically.
 2. The TV only ever renders the redacted snapshot; never add host-only data to it.
 3. `lib/presentation/spectator/` renders on a fixed 1920×1080 canvas (`TvScreen`) scaled with `FittedBox`.
    Keep text ≥ 22 px, show at most 8 leaderboard rows and switch exhaustively over the sealed `Question` hierarchy.
+   The question text goes through `TvPrompt`: a long prompt gets a smaller type size, it is never cut off.
 4. `SpectatorSessionCubit` must keep reconnecting forever (the TV runs unattended) and keep the last snapshot.
 5. `main()` decides via `isTvLaunchUri(Uri.base)` *before* `runApp`, because Flutter Web rewrites the address bar.
 6. Guest Wi-Fi (`GuestWifi`, `GuestWifiCubit`) is host-owned and reaches TVs only as `GuestWifiMessage` from the

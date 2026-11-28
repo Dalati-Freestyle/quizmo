@@ -29,6 +29,7 @@ import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_texts.dart';
 import 'tv_category_stage.dart';
+import 'tv_prompt.dart';
 import '../common/question_media_view.dart';
 import '../common/quizmo_logo.dart';
 import '../common/question_result_view.dart';
@@ -1595,15 +1596,15 @@ class _QuestionStage extends StatelessWidget {
           ],
         ),
         SizedBox(height: hasMedia ? 16 : 32),
-        QuizMarkdown(
-          question.prompt,
-          maxLines: hasMedia ? 3 : 5,
-          overflow: TextOverflow.ellipsis,
+        TvPrompt(
+          key: const ValueKey('tv-prompt'),
+          prompt: question.prompt,
+          // Media are the centre of attention.
+          lines: hasMedia ? 3 : 6,
           style: theme.textTheme.displaySmall?.copyWith(
             fontSize: math.min(
               // The visible text decides, not the Markdown characters.
               _promptSize(markdownToPlain(question.prompt).length),
-              // Media are the centre of attention.
               hasMedia ? 48 : double.infinity,
             ),
             fontWeight: FontWeight.w800,
@@ -1752,23 +1753,35 @@ class _QuestionStage extends StatelessWidget {
                   flex: hasMedia ? 2 : 3,
                   // Exhaustive over the sealed hierarchy: a new question type
                   // does not compile until the TV knows how to render it.
-                  child: _ShrinkToFit(
-                    minHeight: hasMedia ? 520 : _ShrinkToFit.defaultMinHeight,
-                    child: switch (current) {
+                  // Boards fill their space and are shrunk as a whole when
+                  // little is left; text lists only shrink as far as needed.
+                  child: switch (current) {
                       // A revealed snowflake round has no right option to mark;
                       // it shows the answers by rarity like every other kind.
                       MultipleChoiceQuestion()
                           when !(isRevealed && round.snowflake != null) =>
-                        _ChoiceBoard(
-                          question: current,
-                          game: game,
-                          columns: hasMedia ? 1 : 2,
-                          chosenColor: Color(picker?.colorValue ?? 0xff1565c0),
+                        _ShrinkToFit(
+                          minHeight: hasMedia
+                              ? 520
+                              : _ShrinkToFit.defaultMinHeight,
+                          child: _ChoiceBoard(
+                            question: current,
+                            game: game,
+                            columns: hasMedia ? 1 : 2,
+                            chosenColor: Color(
+                              picker?.colorValue ?? 0xff1565c0,
+                            ),
+                          ),
                         ),
-                      LocationQuestion() when isRevealed => LocationResultView(
-                        game: game,
-                        question: current,
-                        large: true,
+                      LocationQuestion() when isRevealed => _ShrinkToFit(
+                        minHeight: hasMedia
+                            ? 520
+                            : _ShrinkToFit.defaultMinHeight,
+                        child: LocationResultView(
+                          game: game,
+                          question: current,
+                          large: true,
+                        ),
                       ),
                       MultipleChoiceQuestion() ||
                       ShortAnswerQuestion() ||
@@ -1783,12 +1796,13 @@ class _QuestionStage extends StatelessWidget {
                           tv: true,
                         ),
                       ),
-                      BuzzerQuestion() => _BuzzerBoard(
-                        question: current,
-                        game: game,
+                      BuzzerQuestion() => _ShrinkToFit(
+                        minHeight: hasMedia
+                            ? 520
+                            : _ShrinkToFit.defaultMinHeight,
+                        child: _BuzzerBoard(question: current, game: game),
                       ),
                     },
-                  ),
                 ),
               if (!isRevealed)
                 if (round.shownHints.lastWithMedia case final hint?) ...[
