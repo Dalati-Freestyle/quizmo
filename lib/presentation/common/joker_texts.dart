@@ -16,7 +16,7 @@ const List<Joker> kJokerTemplates = [CreditJoker(), ForcedStakeJoker()];
 /// Display name of [joker].
 String jokerName(BuildContext context, Joker joker) => switch (joker) {
   CreditJoker() => context.tr("Kredit-Joker"),
-  ForcedStakeJoker() => context.tr("Angriffs-Joker (50/50 Chance)"),
+  ForcedStakeJoker() => context.tr("Angriffs-Joker (Zwangseinsatz)"),
 };
 
 /// Icon of [joker].
@@ -32,7 +32,7 @@ String jokerRule(BuildContext context, Joker joker) => switch (joker) {
     [maxLoss],
   ),
   ForcedStakeJoker(:final stake, :final cost, :final lossFactor) => context.tr(
-    "Zwingt ein anderes Team, {0} Chips zu setzen. Richtig: übliche Auszahlung. Falsch: das {1}-Fache des Einsatzes weg. Kostet den Angreifer {2} Chips. In der Einsatzphase spielen.",
+    "Euer Team zwingt ein anderes Team, genau {0} Chips zu setzen (hat es weniger, geht es all-in). Antwortet es richtig, gibt es die übliche Auszahlung; antwortet es falsch, verliert es das {1}-Fache des Einsatzes. Der Angriff kostet euer Team {2} Chips. Nur in der Einsatzphase spielbar.",
     [stake, lossFactor, cost],
   ),
 };

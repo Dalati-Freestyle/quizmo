@@ -268,7 +268,7 @@ the release pipeline does this automatically.
 * Players play jokers with `UseJokerMessage` → `UseJokerEvent`; the host may play or take back
   (`RevokeJokerEvent`) on behalf of a team. A cancelled question returns its jokers and their price.
 * Poker jokers (played while betting): `CreditJoker` ("Kredit", a miss only costs `maxLoss`) and
-  `ForcedStakeJoker` ("50/50 Chance": forces `stake` on another team, locked; a miss costs `lossFactor` × the
+  `ForcedStakeJoker` ("Zwangseinsatz": forces `stake` on another team, locked; a miss costs `lossFactor` × the
   stake; the attacker pays `cost`). Settlement goes through `pokerSettlement` in `scoring_rules.dart`.
 * Category phase: with a joker that has `beforeReveal`, every poker question starts with
   `PokerState.questionHidden` (guest snapshots carry no question, only `PokerState.category`). Order:

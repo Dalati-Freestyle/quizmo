@@ -141,7 +141,7 @@ exist in the Pokerchips format only and are played while betting:
 | Joker | Entry | Effect |
 | --- | --- | --- |
 | Credit (defensive) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | If the stake is lost, the team only loses `maxLoss` chips of it. |
-| 50/50 chance (attack) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Forces another team to bet `stake` chips (all-in if it has fewer). Correct = the usual payout, wrong = `lossFactor` × the stake lost. Costs the attacker `cost` chips. |
+| Attack joker (forced stake) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Forces another team to bet `stake` chips (all-in if it has fewer). Correct = the usual payout, wrong = `lossFactor` × the stake lost. Costs the attacker `cost` chips. |
 
 With a joker that is played **before the reveal** (`forcedStake`), every poker
 question starts with a category phase: players and TV only see the question's

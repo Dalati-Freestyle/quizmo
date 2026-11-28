@@ -144,7 +144,7 @@ Einsatzphase gespielt:
 | Joker | Eintrag | Wirkung |
 | --- | --- | --- |
 | Kredit (defensiv) | `{"type": "credit", "usesPerTeam": 1, "maxLoss": 1}` | Geht der Einsatz verloren, verliert das Team nur `maxLoss` Chips davon. |
-| 50/50 Chance (Angriff) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Zwingt ein anderes Team, `stake` Chips zu setzen (all-in, wenn es weniger hat). Richtig = übliche Auszahlung, falsch = `lossFactor` × Einsatz weg. Kostet den Angreifer `cost` Chips. |
+| Angriffs-Joker (Zwangseinsatz) | `{"type": "forcedStake", "usesPerTeam": 1, "stake": 3, "cost": 2, "lossFactor": 2}` | Zwingt ein anderes Team, `stake` Chips zu setzen (all-in, wenn es weniger hat). Richtig = übliche Auszahlung, falsch = `lossFactor` × Einsatz weg. Kostet den Angreifer `cost` Chips. |
 
 Ist ein Joker dabei, der **vor dem Aufdecken** gespielt wird (`forcedStake`),
 beginnt jede Poker-Frage mit einer Kategorie-Phase: Spieler und TV sehen nur

@@ -106,7 +106,7 @@ final class CreditJoker extends Joker {
   List<Object?> get props => [usesPerTeam, maxLoss];
 }
 
-/// Aggressive poker joker "50/50 Chance": forces another team to bet [stake].
+/// Aggressive poker joker "Zwangseinsatz": forces another team to bet [stake].
 ///
 /// The attacker pays [cost] chips. A correct answer of the target pays as
 /// usual (twice the stake back); a miss costs [lossFactor] times the stake.

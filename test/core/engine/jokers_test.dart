@@ -1,4 +1,4 @@
-/// Poker jokers "Kredit" and "50/50 Chance" (quiz schema 12).
+/// Poker jokers "Kredit" and "Zwangseinsatz" (quiz schema 12).
 library;
 
 import 'dart:convert';
