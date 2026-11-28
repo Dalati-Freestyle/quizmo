@@ -108,6 +108,41 @@ void main() {
     );
   });
 
+  test('media of shown hints belong to the question side', () {
+    final onlyHints = TrueFalseQuestion(
+      id: 'h',
+      prompt: '?',
+      solutionMedia: [solutionAudio],
+    );
+    expect(offersRevealMediaToggle(onlyHints, RoundStatus.revealed), isFalse);
+    expect(
+      offersRevealMediaToggle(onlyHints, RoundStatus.revealed, hintMedia: true),
+      isTrue,
+    );
+    final after = visibleQuestionMedia(
+      onlyHints,
+      RoundStatus.revealed,
+      hintMedia: true,
+    );
+    expect((after.hints, after.solution), (false, true));
+    final back = visibleQuestionMedia(
+      onlyHints,
+      RoundStatus.revealed,
+      questionSide: true,
+      hintMedia: true,
+    );
+    expect((back.hints, back.solution), (true, false));
+    // Before the reveal, or without solution media, hints keep their media.
+    expect(
+      visibleQuestionMedia(onlyHints, RoundStatus.acceptingAnswers).hints,
+      isTrue,
+    );
+    expect(
+      visibleQuestionMedia(next, RoundStatus.revealed, hintMedia: true).hints,
+      isTrue,
+    );
+  });
+
   group('TV', () {
     Future<void> show(WidgetTester tester, GameState game) async {
       tester.view.physicalSize = const Size(1920, 1080);

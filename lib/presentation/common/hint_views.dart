@@ -54,10 +54,19 @@ String hintTitle(BuildContext context, GameState game, int index) {
 /// The shown hints on a player device, plus how many are left.
 class PlayerHintsView extends StatelessWidget {
   /// Creates the view for the round on stage of [game].
-  const PlayerHintsView({required this.game, this.baseUri, super.key});
+  const PlayerHintsView({
+    required this.game,
+    this.baseUri,
+    this.showMedia = true,
+    super.key,
+  });
 
   final GameState game;
   final Uri? baseUri;
+
+  /// Whether the media of the hints are shown; after the reveal the solution
+  /// media replace them unless the player switches back to the question.
+  final bool showMedia;
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +110,7 @@ class PlayerHintsView extends StatelessWidget {
               ),
               if (!isBlankMarkdown(hint.text))
                 QuizMarkdown(hint.text, style: theme.textTheme.bodyLarge),
-              if (hint.media.isNotEmpty) ...[
+              if (showMedia && hint.media.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 QuestionMediaView(
                   key: ValueKey('hint-media-$index'),

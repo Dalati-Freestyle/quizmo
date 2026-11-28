@@ -935,74 +935,78 @@ class _QuestionStage extends StatelessWidget {
       ),
     };
 
-    final view = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (state.roundStatus == RoundStatus.revealed)
-          Card(
-            // Keeps the verdict off the answer controls (e.g. the buzzer).
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+    // After the reveal only the solution media show; each player may
+    // switch back to the media of the question (and its hints) on the own
+    // device.
+    final view = LocalRevealMedia(
+      key: ValueKey('reveal-media-${question.id}'),
+      question: question,
+      status: state.roundStatus,
+      hintMedia:
+          state.game?.round.shownHints.any((h) => h.media.isNotEmpty) ?? false,
+      builder: (context, visible, toggle) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (state.roundStatus == RoundStatus.revealed)
+            Card(
+              // Keeps the verdict off the answer controls (e.g. the buzzer).
+              margin: const EdgeInsets.only(bottom: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  roundFeedback(state.game!, state.playerId!, context: context),
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+            ),
+          // A locked round disables every input; without this line the player
+          // only sees dead controls (for example after the timer ran out while
+          // reconnecting).
+          if (state.roundStatus == RoundStatus.locked &&
+              question is! BuzzerQuestion &&
+              state.lastSubmittedOptionId == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: Text(
-                roundFeedback(state.game!, state.playerId!, context: context),
-                style: theme.textTheme.titleMedium,
+                context.tr('Antworten sind geschlossen.'),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
               ),
             ),
-          ),
-        // A locked round disables every input; without this line the player
-        // only sees dead controls (for example after the timer ran out while
-        // reconnecting).
-        if (state.roundStatus == RoundStatus.locked &&
-            question is! BuzzerQuestion &&
-            state.lastSubmittedOptionId == null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              context.tr('Antworten sind geschlossen.'),
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
+          if (state.game?.round.answerDeadlineMicros case final deadline?)
+            AnswerCountdownBanner(
+              deadlineMicros: deadline,
+              hostNowMicros: cubit.hostNowMicros,
             ),
-          ),
-        if (state.game?.round.answerDeadlineMicros case final deadline?)
-          AnswerCountdownBanner(
-            deadlineMicros: deadline,
-            hostNowMicros: cubit.hostNowMicros,
-          ),
-        input,
-        AdoptedAnswerCard(state: state),
-        TeamAnswerCard(state: state, onResend: cubit.resend),
-        TeamInputsView(state: state, hostNowMicros: cubit.hostNowMicros),
-        if (state.roundStatus != RoundStatus.revealed &&
-            question is! BuzzerQuestion)
-          AwaitingHostCard(state: state),
-        // Below the answers: a new hint must not move them under a finger.
-        if (state.game case final game?)
-          PlayerHintsView(
-            key: ValueKey('hints-${question.id}'),
-            game: game,
-            baseUri: cubit.mediaBaseUri,
-          ),
-        const SizedBox(height: 16),
-        if (question is! MultipleChoiceQuestion &&
-            question is! BuzzerQuestion) ...[
-          QuizMarkdown(
-            question.prompt,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          if ((state.game?.round.manualGrading ?? false) &&
-              state.roundStatus != RoundStatus.revealed)
-            Text(context.tr('Der Spielleiter bewertet die Antworten.')),
-          const SizedBox(height: 24),
-        ],
-        // After the reveal only the solution media show; each player may
-        // switch back to the media of the question on the own device.
-        LocalRevealMedia(
-          key: ValueKey('reveal-media-${question.id}'),
-          question: question,
-          status: state.roundStatus,
-          builder: (context, visible, toggle) => Column(
+          input,
+          AdoptedAnswerCard(state: state),
+          TeamAnswerCard(state: state, onResend: cubit.resend),
+          TeamInputsView(state: state, hostNowMicros: cubit.hostNowMicros),
+          if (state.roundStatus != RoundStatus.revealed &&
+              question is! BuzzerQuestion)
+            AwaitingHostCard(state: state),
+          // Below the answers: a new hint must not move them under a finger.
+          if (state.game case final game?)
+            PlayerHintsView(
+              key: ValueKey('hints-${question.id}'),
+              game: game,
+              baseUri: cubit.mediaBaseUri,
+              showMedia: visible.hints,
+            ),
+          const SizedBox(height: 16),
+          if (question is! MultipleChoiceQuestion &&
+              question is! BuzzerQuestion) ...[
+            QuizMarkdown(
+              question.prompt,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            if ((state.game?.round.manualGrading ?? false) &&
+                state.roundStatus != RoundStatus.revealed)
+              Text(context.tr('Der Spielleiter bewertet die Antworten.')),
+            const SizedBox(height: 24),
+          ],
+          Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (state.roundStatus == RoundStatus.revealed &&
@@ -1053,8 +1057,8 @@ class _QuestionStage extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
     if (state.game?.poker case final poker?) {
       return Column(

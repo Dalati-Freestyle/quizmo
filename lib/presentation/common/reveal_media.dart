@@ -6,26 +6,34 @@ import '../l10n/app_localizations.dart';
 /// Which media of [question] are on screen in a round with [status].
 ///
 /// After the reveal only the solution media are shown, when there are some;
-/// [questionSide] switches back to the media of the question. Before the
-/// reveal, or without solution media, the question media stay as they are.
-({bool question, bool solution}) visibleQuestionMedia(
+/// [questionSide] switches back to the media of the question and of the shown
+/// hints ([hintMedia]: whether shown hints have media). Before the reveal, or
+/// without solution media, the question and hint media stay as they are.
+({bool question, bool solution, bool hints}) visibleQuestionMedia(
   Question question,
   RoundStatus status, {
   bool questionSide = false,
+  bool hintMedia = false,
 }) {
   final revealed = status == RoundStatus.revealed;
   final solution = revealed && question.solutionMedia.isNotEmpty;
+  final hasQuestionSide = question.media.isNotEmpty || hintMedia;
   return (
     question: question.media.isNotEmpty && (!solution || questionSide),
-    solution: solution && !(questionSide && question.media.isNotEmpty),
+    solution: solution && !(questionSide && hasQuestionSide),
+    hints: !solution || questionSide,
   );
 }
 
 /// Whether a [RevealMediaToggle] is offered: revealed, with media on both
-/// sides.
-bool offersRevealMediaToggle(Question question, RoundStatus status) =>
+/// sides (the question side includes the media of shown hints, [hintMedia]).
+bool offersRevealMediaToggle(
+  Question question,
+  RoundStatus status, {
+  bool hintMedia = false,
+}) =>
     status == RoundStatus.revealed &&
-    question.media.isNotEmpty &&
+    (question.media.isNotEmpty || hintMedia) &&
     question.solutionMedia.isNotEmpty;
 
 /// Switches between the media of the question and of the solution after the
@@ -71,16 +79,20 @@ class LocalRevealMedia extends StatefulWidget {
     required this.question,
     required this.status,
     required this.builder,
+    this.hintMedia = false,
     super.key,
   });
 
   final Question question;
   final RoundStatus status;
 
+  /// Whether shown hints have media; they belong to the question side.
+  final bool hintMedia;
+
   /// Builds the media; [toggle] is `null` when there is nothing to switch.
   final Widget Function(
     BuildContext context,
-    ({bool question, bool solution}) visible,
+    ({bool question, bool solution, bool hints}) visible,
     Widget? toggle,
   )
   builder;
@@ -108,8 +120,13 @@ class _LocalRevealMediaState extends State<LocalRevealMedia> {
       widget.question,
       widget.status,
       questionSide: _questionSide,
+      hintMedia: widget.hintMedia,
     ),
-    offersRevealMediaToggle(widget.question, widget.status)
+    offersRevealMediaToggle(
+          widget.question,
+          widget.status,
+          hintMedia: widget.hintMedia,
+        )
         ? RevealMediaToggle(
             questionSide: _questionSide,
             onChanged: (value) => setState(() => _questionSide = value),

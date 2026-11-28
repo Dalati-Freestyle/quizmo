@@ -307,6 +307,7 @@ the release pipeline does this automatically.
   `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
 * After the reveal only the solution media are on screen when there are some (`visibleQuestionMedia` in
   `common/reveal_media.dart`); the hidden side is removed, so question and solution audio never play together.
+  Media of shown hints belong to the question side (players hide them after the reveal, the TV drops hints).
   `RevealMediaToggle` switches back: on the host it sends `ShowRevealMediaEvent` and the TV follows
   `RoundState.showsQuestionMedia`, players switch locally (`LocalRevealMedia`). Every new question starts again.
 * Audio, MP4 and YouTube share one control row: `MediaTimeline` (times only, never a title) and on the TV
