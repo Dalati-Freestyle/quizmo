@@ -36,4 +36,32 @@ void main() {
     expect(original.validationErrors(), isEmpty);
     expect(Quiz.fromJson(original.toJson()), original);
   });
+
+  test('all stakes are in once every team that can bet placed one', () {
+    const betting = PokerState(
+      startingChips: 10,
+      chips: {'a': 10, 'b': 10, 'broke': 0},
+      betting: true,
+    );
+    const teams = ['a', 'b', 'broke'];
+    expect(betting.allStakesIn(teams), isFalse);
+    final one = betting.copyWith(
+      chips: {'a': 7, 'b': 10, 'broke': 0},
+      wagers: {'a': 3},
+    );
+    expect(one.allStakesIn(teams), isFalse);
+    // Sitting out (0) is a placed stake; bankrupt teams are not waited for.
+    final all = one.copyWith(wagers: {'a': 3, 'b': 0});
+    expect(all.allStakesIn(teams), isTrue);
+    // A withdrawn stake hides the notice again.
+    expect(all.copyWith(wagers: {'b': 0}).allStakesIn(teams), isFalse);
+    // Nobody can bet: nothing to announce.
+    expect(
+      const PokerState(
+        startingChips: 10,
+        chips: {'broke': 0},
+      ).allStakesIn(['broke']),
+      isFalse,
+    );
+  });
 }

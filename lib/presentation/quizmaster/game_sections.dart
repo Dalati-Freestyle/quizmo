@@ -206,13 +206,15 @@ Map<DashboardSection, Widget> buildGameSections(
                 onPressed: () => engine.add(const RevealPokerQuestionEvent()),
                 child: Text(context.tr("Frage aufdecken")),
               ),
-            ] else if (poker.betting)
+            ] else if (poker.betting) ...[
+              if (poker.allStakesIn(game.teams.keys)) const AllStakesInNotice(),
               FilledButton(
                 onPressed: () => engine.add(const OpenPokerAnswersEvent()),
                 child: Text(
                   context.tr("Einsätze schließen & Antworten öffnen"),
                 ),
               ),
+            ],
             if (game.jokers case final jokers?) ...[
               const Divider(),
               for (final team in game.teams.values)
@@ -505,4 +507,41 @@ class _BlockedTvNotice extends StatelessWidget {
           )
         : const SizedBox.shrink(),
   );
+}
+
+/// Tells the host that every team that can bet placed its stake, so the
+/// betting can be closed.
+class AllStakesInNotice extends StatelessWidget {
+  const AllStakesInNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('all-stakes-in'),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle, color: scheme.onPrimaryContainer),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              context.tr(
+                "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.",
+              ),
+              style: TextStyle(
+                color: scheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

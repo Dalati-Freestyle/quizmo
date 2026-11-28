@@ -58,6 +58,8 @@ const englishMessages = <String, String>{
   "Aktueller Einsatz: {0} Chips. Bis zur Schließung durch den Spielleiter beliebig änderbar.": "Current wager: {0} chips. Change it as often as you like until the host closes betting.",
   "Aktueller Stand: {0} Chips": "Current balance: {0} chips",
   "Akzeptierte Antworten – eine pro Zeile": "Accepted answers — one per line",
+  "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.":
+      "All stakes are in. You can close the betting now.",
   "Alle Fragen": "All questions",
   "Alle Fragen und Lösungen im Überblick.":
       "An overview of all questions and solutions.",
@@ -2031,6 +2033,8 @@ const germanMessages = <String, String>{
   "Aktueller Stand: {0} Chips": "Aktueller Stand: {0} Chips",
   "Akzeptierte Antworten – eine pro Zeile":
       "Akzeptierte Antworten – eine pro Zeile",
+  "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.":
+      "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.",
   "Alle Fragen": "Alle Fragen",
   "Alle Fragen und Lösungen im Überblick.":
       "Alle Fragen und Lösungen im Überblick.",

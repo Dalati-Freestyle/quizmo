@@ -136,6 +136,16 @@ final class PokerState extends Equatable {
   int availableFor(String? teamId) =>
       (chips[teamId] ?? 0) + (wagers[teamId] ?? 0);
 
+  /// Whether every team of [teamIds] that can bet (it has chips) placed a
+  /// stake; `false` while no team can bet. Bankrupt teams are not waited for.
+  bool allStakesIn(Iterable<String> teamIds) {
+    final bettors = [
+      for (final id in teamIds)
+        if (availableFor(id) > 0) id,
+    ];
+    return bettors.isNotEmpty && bettors.every(wagers.containsKey);
+  }
+
   /// The lowest stake a team with [available] chips may place.
   ///
   /// A team that has fewer chips than [minStake] has to go all-in.

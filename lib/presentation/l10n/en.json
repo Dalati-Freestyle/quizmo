@@ -1605,5 +1605,6 @@
   "Unbegrenzt": "No limit",
   "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.": "The quiz ({0}) is larger than your preload limit: media load when a question needs them.",
   "{0} / {1} Teams": "{0} / {1} teams",
-  "{0} von {1} Teams haben geantwortet": "{0} of {1} teams answered"
+  "{0} von {1} Teams haben geantwortet": "{0} of {1} teams answered",
+  "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.": "All stakes are in. You can close the betting now."
 }
