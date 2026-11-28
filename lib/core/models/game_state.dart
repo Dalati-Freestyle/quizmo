@@ -115,6 +115,7 @@ final class GameState extends Equatable {
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
     this.tvMediaCommandRevision = 0,
+    this.tvMediaSeek,
     this.allAnswersRevision = 0,
     this.isFinished = false,
     this.isStarted = false,
@@ -198,6 +199,10 @@ final class GameState extends Equatable {
     tvMediaCommandRevision: json['tvMediaCommandRevision'] == null
         ? 0
         : json.readInt('tvMediaCommandRevision'),
+    tvMediaSeek: switch (json.readObjectOrNull('tvMediaSeek')) {
+      final JsonMap seek => TvMediaSeek.fromJson(seek),
+      null => null,
+    },
   );
 
   /// Active competition mode.
@@ -415,6 +420,9 @@ final class GameState extends Equatable {
   final bool tvMediaPaused;
   final int tvMediaRevision;
   final int tvMediaCommandRevision;
+
+  /// The last jump of the host in a medium; the TV follows it. Public.
+  final TvMediaSeek? tvMediaSeek;
   final int allAnswersRevision;
   final bool isFinished;
   final bool isStarted;
@@ -612,6 +620,7 @@ final class GameState extends Equatable {
     bool? tvMediaPaused,
     int? tvMediaRevision,
     int? tvMediaCommandRevision,
+    Object? tvMediaSeek = _unset,
     int? allAnswersRevision,
     bool? isFinished,
     bool? isStarted,
@@ -651,6 +660,9 @@ final class GameState extends Equatable {
     tvMediaRevision: tvMediaRevision ?? this.tvMediaRevision,
     tvMediaCommandRevision:
         tvMediaCommandRevision ?? this.tvMediaCommandRevision,
+    tvMediaSeek: identical(tvMediaSeek, _unset)
+        ? this.tvMediaSeek
+        : tvMediaSeek as TvMediaSeek?,
     allAnswersRevision: allAnswersRevision ?? this.allAnswersRevision,
     isFinished: isFinished ?? this.isFinished,
     isStarted: isStarted ?? this.isStarted,
@@ -691,6 +703,7 @@ final class GameState extends Equatable {
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
     'tvMediaCommandRevision': tvMediaCommandRevision,
+    if (tvMediaSeek != null) 'tvMediaSeek': tvMediaSeek!.toJson(),
     'allAnswersRevision': allAnswersRevision,
     'isFinished': isFinished,
     'isStarted': isStarted,
@@ -725,6 +738,7 @@ final class GameState extends Equatable {
     tvMediaPaused,
     tvMediaRevision,
     tvMediaCommandRevision,
+    tvMediaSeek,
     allAnswersRevision,
     isFinished,
     isStarted,
@@ -735,4 +749,36 @@ final class GameState extends Equatable {
     reportRounds,
     protocol,
   ];
+}
+
+/// A jump of the host to [positionMicros] in the medium [mediaKey] (the
+/// asset ID of an upload, `youtube:<id>` for a YouTube video). The TV seeks
+/// whenever [revision] grows.
+final class TvMediaSeek extends Equatable {
+  const TvMediaSeek({
+    required this.mediaKey,
+    required this.positionMicros,
+    required this.revision,
+  });
+
+  factory TvMediaSeek.fromJson(JsonMap json) => TvMediaSeek(
+    mediaKey: json.readString('mediaKey'),
+    positionMicros: json.readInt('positionMicros'),
+    revision: json.readInt('revision'),
+  );
+
+  final String mediaKey;
+  final int positionMicros;
+  final int revision;
+
+  Duration get position => Duration(microseconds: positionMicros);
+
+  JsonMap toJson() => {
+    'mediaKey': mediaKey,
+    'positionMicros': positionMicros,
+    'revision': revision,
+  };
+
+  @override
+  List<Object?> get props => [mediaKey, positionMicros, revision];
 }

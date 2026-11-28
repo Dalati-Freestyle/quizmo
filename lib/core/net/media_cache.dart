@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/media_attachment.dart';
+import 'media_preloader.dart';
 import 'session_uri.dart';
 
 Uri sessionMediaUri(Uri base, MediaAsset asset) => base.replace(
@@ -29,10 +30,14 @@ final class SessionMediaCache {
     required this.baseUri,
     this.maxBytes = 60 * 1024 * 1024,
     this.timeout = const Duration(seconds: 30),
+    this.preloader,
     http.Client Function()? createClient,
   }) : _createClient = createClient ?? http.Client.new;
 
   final Uri baseUri;
+
+  /// Media preloaded in the lobby; asked before anything is downloaded.
+  final MediaPreloader? preloader;
   final int maxBytes;
   final Duration timeout;
   final http.Client Function() _createClient;
@@ -59,6 +64,11 @@ final class SessionMediaCache {
     }
     return _pending.putIfAbsent(asset.id, () async {
       try {
+        if (await preloader?.take(asset) case final preloaded?) {
+          if (_closed) throw StateError('Media session closed.');
+          _remember(preloaded);
+          return preloaded;
+        }
         await _acquireDownload();
         try {
           if (_closed) throw StateError('Media session closed.');
@@ -173,14 +183,7 @@ final class SessionMediaCache {
           mimeType: asset.mimeType,
           data: base64Encode(bytes),
         );
-        if (!_closed && loaded.data!.length <= maxBytes) {
-          while (_assets.isNotEmpty &&
-              _bytes + loaded.data!.length > maxBytes) {
-            _bytes -= _assets.remove(_assets.keys.first)!.data!.length;
-          }
-          _assets[asset.id] = loaded;
-          _bytes += loaded.data!.length;
-        }
+        _remember(loaded);
         return loaded;
       })();
       if (_closed) throw StateError('Media session closed.');
@@ -190,6 +193,16 @@ final class SessionMediaCache {
       client.close();
       _clients.remove(client);
     }
+  }
+
+  /// Keeps [loaded] in the LRU, evicting the oldest entries.
+  void _remember(MediaAsset loaded) {
+    if (_closed || loaded.data!.length > maxBytes) return;
+    while (_assets.isNotEmpty && _bytes + loaded.data!.length > maxBytes) {
+      _bytes -= _assets.remove(_assets.keys.first)!.data!.length;
+    }
+    _assets[loaded.id] = loaded;
+    _bytes += loaded.data!.length;
   }
 
   void dispose() {

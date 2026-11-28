@@ -24,7 +24,9 @@ void main() {
       const PlayerSessionState(
         status: QuizClientStatus.connected,
         playerId: 'p',
-        game: GameState(players: {'p': Player(id: 'p', name: 'Ada')}),
+        game: GameState(
+          players: {'p': Player(id: 'p', name: 'Ada')},
+        ),
         deviceCheckId: 'check-1',
       ),
     );

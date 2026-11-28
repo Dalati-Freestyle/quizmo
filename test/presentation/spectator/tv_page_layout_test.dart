@@ -8,8 +8,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
 import 'package:quizmo/presentation/app.dart';
+import 'package:quizmo/presentation/common/media_volume.dart';
 import 'package:quizmo/presentation/l10n/app_localizations.dart';
 import 'package:quizmo/presentation/spectator/tv_page.dart';
+
+import '../media_volume_test.dart';
 
 void main() {
   testWidgets('the canvas keeps the full screen once the TV is connected', (
@@ -37,6 +40,35 @@ void main() {
     expect(find.byType(TextField), findsNothing);
     expect(tester.getSize(find.byType(TvScreen)), const Size(1920, 1080));
     expect(tester.getSize(find.byType(FittedBox).first), const Size(1280, 720));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
+  testWidgets('the TV plays every medium with its stored volume', (
+    tester,
+  ) async {
+    final store = MemoryVolumeStore((level: 0.25, muted: false));
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: const [AppLocalizations.delegate],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: TvPage(
+          hostUri: Uri.parse('http://127.0.0.1:1'),
+          clientFactory: _ConnectedClient.new,
+          volumeStore: store,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    final scope = tester.widget<MediaVolumeScope>(
+      find.byType(MediaVolumeScope),
+    );
+    expect(scope.notifier!.effective, 0.25);
+    scope.notifier!.toggleMute();
+    await tester.pump();
+    expect(store.stored, (level: 0.25, muted: true));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

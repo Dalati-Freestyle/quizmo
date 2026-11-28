@@ -202,7 +202,17 @@ void main() {
     await showTv(tester);
     await tester.pump(const Duration(milliseconds: 400));
     expect(playbackOf(tester, 'dQw4w9WgXcA'), MediaPlayback.automatic);
-    expect(playbackOf(tester, 'dQw4w9WgXcQ'), MediaPlayback.stopped);
+    // The solution replaces the media of the question.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is QuestionMediaView &&
+            w.media.any(
+              (m) => m is VideoAttachment && m.youtubeId == 'dQw4w9WgXcQ',
+            ),
+      ),
+      findsNothing,
+    );
   }, variant: windows);
 
   testWidgets('the host device never starts, controls also serve slides', (

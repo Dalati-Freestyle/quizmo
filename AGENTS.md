@@ -289,17 +289,37 @@ the release pipeline does this automatically.
 * Matching: right items with the same label are interchangeable (`MatchingQuestion._rightKey`), in accuracy and in
   `uniquenessKey`.
 
+### Media preloading
+* In the lobby players (unless switched off in their settings, `MediaPreloadSettings`) and TVs download every upload
+  of the quiz **encrypted** (`MediaPreloader`, ChaCha20 in `core/net/chacha20.dart`). The host offers them once per
+  connection (`MediaPreloadMessage`) under random handles at `/api/media/<handle>` (`MediaPreloadRegistry`, one random
+  key per upload, created per session); the plain route keeps serving only visible media.
+* Keys travel with the snapshot (`GameSnapshotMessage.mediaKeys`) only for media guests may see now
+  (`visibleGuestMedia`, the same rule as `serveMedia`); never send a key earlier. The client checks the SHA-256 asset ID
+  after decrypting; `SessionMediaCache` asks the preloader before it downloads.
+* Devices report their progress (`MediaPreloadReport`, at most once a second) to `engine.mediaPreloadStatuses`; the
+  host sees it in the start panel (`MediaPreloadStatusView`). YouTube and maps cannot be preloaded and count as online.
+
 ### Media playback
 * `MediaPlayback` (`presentation/common/media_playback.dart`) states what a view may do: the TV plays `automatic`, player
   devices and the host's device only `onDemand` (never by themselves, whatever the host pressed), `stopped` media stand
   still but may be started, `paused` (host command, buzzer) locks playback on every device. Always derive it with
   `MediaPlayback.onTv` / `onDevice`; the commands also serve slides, and the pause ends with the next question or slide.
+* After the reveal only the solution media are on screen when there are some (`visibleQuestionMedia` in
+  `common/reveal_media.dart`); the hidden side is removed, so question and solution audio never play together.
+  `RevealMediaToggle` switches back: on the host it sends `ShowRevealMediaEvent` and the TV follows
+  `RoundState.showsQuestionMedia`, players switch locally (`LocalRevealMedia`). Every new question starts again.
+* Audio, MP4 and YouTube share one control row: `MediaTimeline` (times only, never a title) and on the TV
+  `MediaVolumeControl` (`MediaVolume`, stored on the TV). A jump on the host (`MediaSeekReporter` around the live
+  round) becomes `SeekTvMediaEvent` → `GameState.tvMediaSeek`, which the TV follows (`MediaSeekCommand`,
+  `FollowsHostSeek`); jumps of players stay on their device.
 * A TV whose browser refuses to start sound reports it (`MediaBlockedReport` → `QuizEngineBloc.mediaScreens`).
 
 ### Media size
 * `QuestionMediaView` shows media as large as the space allows. In scrolling pages: full width, at most `maxMediaHeight`
-  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling or
-  "enlarge". Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
+  (default 60 % of the screen); with `fill` (TV) media share the bounded space of the parent, without scrolling.
+  On the TV pictures (with zoom), MP4 videos and maps have a corner button that shows them on almost the whole screen
+  (`_Enlargeable`, moved with a `GlobalKey` so a video keeps running); never replace it by a dialog with a new player. Every picture, video and map gets a bounded box whose height is reserved from `MediaAsset.aspectRatio`
   (read from the bytes, sent with references in `forWire`, never stored in quiz files) while it loads.
 * On the TV media are always the first child of the row in `_QuestionStage`, so a video keeps running when the layout
   changes; answers stand next to them and scale down instead of scrolling.

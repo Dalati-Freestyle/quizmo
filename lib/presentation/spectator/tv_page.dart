@@ -21,6 +21,10 @@
 /// * `Esc` closes the preview when it was opened from the host dashboard.
 library;
 
+import '../common/media_preload_view.dart';
+import '../common/media_timeline.dart';
+import '../common/media_volume.dart';
+import '../common/reveal_media.dart';
 import '../common/hint_views.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_texts.dart';
@@ -81,8 +85,13 @@ class TvPage extends StatelessWidget {
     this.brightness,
     this.launchUri,
     this.clientFactory,
+    this.volumeStore,
     super.key,
   });
+
+  /// Replaces the storage of the TV volume (tests).
+  @visibleForTesting
+  final MediaVolumeStore? volumeStore;
 
   /// Replaces the network client; widget tests inject a fake host here.
   @visibleForTesting
@@ -113,6 +122,7 @@ class TvPage extends StatelessWidget {
         return cubit;
       },
       child: _TvView(
+        volumeStore: volumeStore,
         joinUri: joinUri ?? host,
         initialBrightness: brightness ?? tvBrightnessFor(launchUri ?? Uri.base),
       ),
@@ -135,8 +145,13 @@ class TvPage extends StatelessWidget {
 }
 
 class _TvView extends StatefulWidget {
-  const _TvView({required this.joinUri, required this.initialBrightness});
+  const _TvView({
+    required this.joinUri,
+    required this.initialBrightness,
+    this.volumeStore,
+  });
 
+  final MediaVolumeStore? volumeStore;
   final Uri? joinUri;
   final Brightness initialBrightness;
 
@@ -154,9 +169,15 @@ class _TvViewState extends State<_TvView> {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
+  /// The TV's own volume for every medium, kept between visits.
+  late final _volume = MediaVolume(
+    store: widget.volumeStore ?? MediaVolumeStore(),
+  );
+
   @override
   void initState() {
     super.initState();
+    unawaited(_volume.load());
     if (_isHandheldApp) {
       // The canvas is 16:9, so a phone in portrait would show a tiny strip.
       unawaited(
@@ -173,6 +194,7 @@ class _TvViewState extends State<_TvView> {
 
   @override
   void dispose() {
+    _volume.dispose();
     if (_isHandheldApp) {
       unawaited(SystemChrome.setPreferredOrientations(const []));
       unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
@@ -254,13 +276,19 @@ class _TvViewState extends State<_TvView> {
                           >(
                             builder: (context, state) => SessionMediaAccess(
                               baseUri: state.mediaBaseUri,
-                              child: MediaBlockReporter(
-                                onChanged: context
-                                    .read<SpectatorSessionCubit>()
-                                    .mediaBlocked,
-                                child: TvScreen(
-                                  state: state,
-                                  joinUri: widget.joinUri,
+                              preloader: context
+                                  .read<SpectatorSessionCubit>()
+                                  .preloader,
+                              child: MediaVolumeScope(
+                                volume: _volume,
+                                child: MediaBlockReporter(
+                                  onChanged: context
+                                      .read<SpectatorSessionCubit>()
+                                      .mediaBlocked,
+                                  child: TvScreen(
+                                    state: state,
+                                    joinUri: widget.joinUri,
+                                  ),
                                 ),
                               ),
                             ),
@@ -350,7 +378,11 @@ class TvScreen extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        _content(context),
+        // Jumps of the host in a medium; still pictures never follow.
+        MediaSeekCommand(
+          seek: state.game?.tvMediaSeek,
+          child: _content(context),
+        ),
         if (state.deviceCheckActive)
           Positioned(
             left: 0,
@@ -1064,6 +1096,11 @@ class _LobbyStage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
+              if (isPregame(game))
+                const SizedBox(
+                  width: 900,
+                  child: MediaPreloadView(large: true),
+                ),
               const SizedBox(height: 40),
               if (wifi case final wifi? when isPregame(game))
                 Row(
@@ -1488,9 +1525,14 @@ class _QuestionStage extends StatelessWidget {
     final boardCategory = jeopardy?.board.categoryNameOf(question.id);
     final picker = game.teams[jeopardy?.currentTeamId];
     final pickerName = game.participantName(jeopardy?.currentTeamId);
-    final hasMedia =
-        question.media.isNotEmpty ||
-        (isRevealed && question.solutionMedia.isNotEmpty);
+    // After the reveal the solution media replace those of the question,
+    // unless the host switches back to them.
+    final visible = visibleQuestionMedia(
+      question,
+      round.status,
+      questionSide: round.showsQuestionMedia,
+    );
+    final hasMedia = visible.question || visible.solution;
     // Next to media only what has something to read: options, items, who
     // buzzed, the solution.
     final listsAnswers =
@@ -1657,7 +1699,7 @@ class _QuestionStage extends StatelessWidget {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (question.media.isNotEmpty)
+                            if (visible.question)
                               Expanded(
                                 flex: 2,
                                 child: QuestionMediaView(
@@ -1667,19 +1709,14 @@ class _QuestionStage extends StatelessWidget {
                                   media: question.media,
                                   fill: true,
                                   playback: _playback(
-                                    silent:
-                                        latestHintPlays(round) ||
-                                        (isRevealed &&
-                                            question.solutionMedia.isNotEmpty),
+                                    silent: latestHintPlays(round),
                                   ),
                                   playbackRevision: game.tvMediaRevision,
                                   commandRevision: game.tvMediaCommandRevision,
                                 ),
                               ),
-                            if (isRevealed &&
-                                question.solutionMedia.isNotEmpty) ...[
-                              if (question.media.isNotEmpty)
-                                const SizedBox(width: 24),
+                            if (visible.solution) ...[
+                              if (visible.question) const SizedBox(width: 24),
                               Expanded(
                                 flex: 3,
                                 child: QuestionMediaView(

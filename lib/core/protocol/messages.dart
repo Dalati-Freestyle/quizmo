@@ -51,6 +51,9 @@ sealed class ClientMessage extends Equatable {
     ),
     LeaveNotice._type => const LeaveNotice(),
     MediaBlockedReport._type => MediaBlockedReport(json.readBool('blocked')),
+    MediaPreloadReport._type => MediaPreloadReport(
+      MediaPreloadStatus.fromJson(json.readObject('status')),
+    ),
     DeviceCheckReply._type => DeviceCheckReply(json.readString('checkId')),
     final unknown => throw JsonContractException(
       'Unknown client message "$unknown".',
@@ -268,6 +271,21 @@ final class MediaBlockedReport extends ClientMessage {
   List<Object?> get props => [blocked];
 }
 
+/// How far this device got with preloading the media of the quiz.
+final class MediaPreloadReport extends ClientMessage {
+  const MediaPreloadReport(this.status);
+
+  static const String _type = 'mediaPreload';
+
+  final MediaPreloadStatus status;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'status': status.toJson()};
+
+  @override
+  List<Object?> get props => [status];
+}
+
 /// Announces a graceful disconnect.
 final class LeaveNotice extends ClientMessage {
   /// Creates a leave notice.
@@ -318,6 +336,9 @@ sealed class ServerMessage extends Equatable {
     ),
     SyncPong._type => SyncPong.fromJson(json),
     GameSnapshotMessage._type => GameSnapshotMessage.fromJson(json),
+    MediaPreloadMessage._type => MediaPreloadMessage(
+      MediaPreloadManifest.fromJson(json.readObject('manifest')),
+    ),
     TeamDraftsMessage._type => TeamDraftsMessage.fromJson(json),
     ProtocolErrorMessage._type => ProtocolErrorMessage.fromJson(json),
     final unknown => throw JsonContractException(
@@ -485,6 +506,21 @@ final class SyncPong extends ServerMessage {
   List<Object?> get props => [clientSentAtMicros, hostTimeMicros];
 }
 
+/// The encrypted media a guest may preload; sent once after joining.
+final class MediaPreloadMessage extends ServerMessage {
+  const MediaPreloadMessage(this.manifest);
+
+  static const String _type = 'mediaPreload';
+
+  final MediaPreloadManifest manifest;
+
+  @override
+  JsonMap toJson() => {'type': _type, 'manifest': manifest.toJson()};
+
+  @override
+  List<Object?> get props => [manifest];
+}
+
 /// Broadcasts the redacted session state after every engine transition.
 final class GameSnapshotMessage extends ServerMessage {
   /// Wraps [game] for transport.
@@ -492,6 +528,7 @@ final class GameSnapshotMessage extends ServerMessage {
     this.game, {
     this.ownSubmissionAccepted,
     this.answers,
+    this.mediaKeys = const [],
   });
 
   /// Restores the frame from [json].
@@ -504,6 +541,9 @@ final class GameSnapshotMessage extends ServerMessage {
       final value? => PlayerAnswers.fromJson(value),
       null => null,
     },
+    mediaKeys: json['mediaKeys'] == null
+        ? const []
+        : json.readList('mediaKeys', MediaPreloadKey.fromJson),
   );
 
   static const String _type = 'snapshot';
@@ -516,6 +556,10 @@ final class GameSnapshotMessage extends ServerMessage {
   /// of older versions.
   final PlayerAnswers? answers;
 
+  /// Keys of the preloaded media guests may see now (see
+  /// [MediaPreloadMessage]); never one of a hidden medium.
+  final List<MediaPreloadKey> mediaKeys;
+
   @override
   JsonMap toJson() => {
     'type': _type,
@@ -523,10 +567,12 @@ final class GameSnapshotMessage extends ServerMessage {
     if (ownSubmissionAccepted != null)
       'ownSubmissionAccepted': ownSubmissionAccepted,
     if (answers != null) 'answers': answers!.toJson(),
+    if (mediaKeys.isNotEmpty)
+      'mediaKeys': [for (final key in mediaKeys) key.toJson()],
   };
 
   @override
-  List<Object?> get props => [game, ownSubmissionAccepted, answers];
+  List<Object?> get props => [game, ownSubmissionAccepted, answers, mediaKeys];
 }
 
 /// What the members of the own team enter right now. Sent only to them, never

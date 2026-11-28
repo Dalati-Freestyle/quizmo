@@ -126,4 +126,38 @@ void main() {
     await tester.tap(find.text('Schätzung senden'));
     expect(answer, 12.5);
   });
+
+  testWidgets('a time estimation takes mm:ss and explains mistakes', (
+    tester,
+  ) async {
+    double? answer;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: EstimationQuestionView(
+            question: const EstimationQuestion(
+              id: 'q',
+              prompt: '?',
+              valueFormat: EstimationValueFormat.minutesSeconds,
+            ),
+            enabled: true,
+            onSubmit: (v) => answer = v,
+          ),
+        ),
+      ),
+    );
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.keyboardType, TextInputType.datetime);
+    expect(field.decoration!.hintText, 'mm:ss');
+    await tester.enterText(find.byType(TextField), '33:75');
+    await tester.pump();
+    expect(find.text('Als mm:ss eingeben, z. B. 33:58.'), findsOneWidget);
+    await tester.tap(find.text('Schätzung senden'));
+    expect(answer, isNull);
+    await tester.enterText(find.byType(TextField), '34:10');
+    await tester.pump();
+    expect(find.text('Als mm:ss eingeben, z. B. 33:58.'), findsNothing);
+    await tester.tap(find.text('Schätzung senden'));
+    expect(answer, 2050);
+  });
 }

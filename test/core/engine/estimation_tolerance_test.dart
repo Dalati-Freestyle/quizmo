@@ -14,6 +14,7 @@ EstimationQuestion question({
   double? min = 320,
   double? max = 340,
   String unit = 'm',
+  bool toleranceOnly = false,
 }) => EstimationQuestion(
   id: 'q',
   prompt: 'Eiffelturm?',
@@ -21,6 +22,7 @@ EstimationQuestion question({
   minAccepted: min,
   maxAccepted: max,
   unit: unit,
+  toleranceOnly: toleranceOnly,
   timeLimit: Duration.zero,
 );
 
@@ -135,6 +137,61 @@ void main() {
     await send(SubmitAnswerEvent(answer(341, player: 'pb')));
     await send(const RevealRoundEvent());
     expect(engine.state.game.poker!.chips, {'a': 140, 'b': 60});
+  });
+
+  group('tolerance only', () {
+    test('scores the range fully and everything else with nothing', () {
+      final q = question(toleranceOnly: true);
+      for (final value in [320.0, 330.0, 340.0]) {
+        expect(q.accuracy(answer(value)), 1, reason: '$value');
+      }
+      for (final value in [319.9, 340.1, 0.0, 1e9]) {
+        expect(q.accuracy(answer(value)), 0, reason: '$value');
+      }
+    });
+
+    test('needs both limits and ignores the zero scale', () {
+      expect(
+        question(toleranceOnly: true, min: null, max: null).solutionErrors,
+        hasLength(1),
+      );
+      expect(question(toleranceOnly: true).contentErrors, isEmpty);
+      expect(question(target: 0).usesZeroScale, isTrue);
+      expect(question(target: 655).usesZeroScale, isFalse);
+      expect(question(target: 0, toleranceOnly: true).usesZeroScale, isFalse);
+    });
+
+    test('is public, round-trips and stays out of older files', () {
+      final q = question(toleranceOnly: true);
+      expect(q.redacted().toleranceOnly, isTrue);
+      expect(Question.fromJson(q.toJson()), q);
+      expect(question().toJson(), isNot(contains('toleranceOnly')));
+    });
+
+    test('schema 16 imports unchanged and may not use the mode', () {
+      final source = File(
+        p.join('test', 'fixtures', 'quiz_v16_with_media.quizmo.json'),
+      ).readAsStringSync();
+      final quiz = parseQuizImport(source);
+      expect(quiz.schemaVersion, Quiz.currentSchemaVersion);
+      final estimation = quiz.questions.whereType<EstimationQuestion>().last;
+      expect(estimation.toleranceOnly, isFalse);
+      expect(estimation.maxAccepted, 340);
+      expect(quiz.questions.whereType<LocationQuestion>(), hasLength(1));
+      expect(parseQuizImport(exportQuizJson(quiz)).questions, quiz.questions);
+      final json = jsonDecode(source) as JsonMap;
+      ((json['questions'] as List).last as JsonMap)['toleranceOnly'] = true;
+      expect(() => Quiz.fromJson(json), throwsA(isA<JsonContractException>()));
+      final current = Quiz.fromJson({...json, 'schemaVersion': 17});
+      expect(
+        (current.questions.last as EstimationQuestion).toleranceOnly,
+        isTrue,
+      );
+      expect(
+        parseQuizImport(exportQuizJson(current)).questions,
+        current.questions,
+      );
+    });
   });
 
   group('schema 13', () {

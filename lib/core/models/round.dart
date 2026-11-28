@@ -62,6 +62,7 @@ final class RoundState extends Equatable {
     this.replacedAnswers = const [],
     this.answerDeadlineMicros,
     this.adoptedPlayerIds = const {},
+    this.showsQuestionMedia = false,
   });
 
   /// Restores a round from [json].
@@ -78,6 +79,7 @@ final class RoundState extends Equatable {
     adoptedPlayerIds: json['adoptedPlayerIds'] == null
         ? const {}
         : json.readStringList('adoptedPlayerIds').toSet(),
+    showsQuestionMedia: json.readBool('showsQuestionMedia', orElse: false),
     snowflake: switch (json.readStringOrNull('snowflake')) {
       final name? => SnowflakeScoring.fromName(name),
       null => null,
@@ -174,6 +176,10 @@ final class RoundState extends Equatable {
   /// Host instants at which the hints of the question were shown, in order;
   /// its length is the number of hints on stage.
   final List<int> hintTimesMicros;
+
+  /// After the reveal the TV shows the solution media; the host may switch
+  /// back to the media of the question. Public, reset with every question.
+  final bool showsQuestionMedia;
 
   /// Answers of the round that a team replaced, in no particular order.
   /// Host only: guests never receive them in a snapshot.
@@ -363,8 +369,10 @@ final class RoundState extends Equatable {
     List<AnswerSubmission>? replacedAnswers,
     Object? answerDeadlineMicros = _unset,
     Set<String>? adoptedPlayerIds,
+    bool? showsQuestionMedia,
   }) => RoundState(
     adoptedPlayerIds: adoptedPlayerIds ?? this.adoptedPlayerIds,
+    showsQuestionMedia: showsQuestionMedia ?? this.showsQuestionMedia,
     replacedAnswers: replacedAnswers ?? this.replacedAnswers,
     answerDeadlineMicros: identical(answerDeadlineMicros, _unset)
         ? this.answerDeadlineMicros
@@ -430,6 +438,7 @@ final class RoundState extends Equatable {
       'adoptedPlayerIds': adoptedPlayerIds.toList(growable: false),
     if (answerDeadlineMicros != null)
       'answerDeadlineMicros': answerDeadlineMicros,
+    if (showsQuestionMedia) 'showsQuestionMedia': true,
   };
 
   @override
@@ -456,5 +465,6 @@ final class RoundState extends Equatable {
     replacedAnswers,
     answerDeadlineMicros,
     adoptedPlayerIds,
+    showsQuestionMedia,
   ];
 }

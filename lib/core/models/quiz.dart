@@ -48,7 +48,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 16;
+  static const int currentSchemaVersion = 18;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -81,6 +81,8 @@ final class Quiz extends Equatable {
       14 => Quiz._fromJsonV14(json),
       15 => Quiz._fromJsonV15(json),
       16 => Quiz._fromJsonV16(json),
+      17 => Quiz._fromJsonV17(json),
+      18 => Quiz._fromJsonV18(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -231,7 +233,32 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV16(json);
   }
 
+  /// Schema 16 has no scoring mode "tolerance only" for estimation questions;
+  /// everything else is equal.
   factory Quiz._fromJsonV16(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question['toleranceOnly'] == true) {
+        throw const JsonContractException(
+          'The scoring mode "tolerance only" needs schemaVersion 17.',
+        );
+      }
+    }
+    return Quiz._fromJsonV17(json);
+  }
+
+  /// Schema 17 only knows decimal estimations; everything else is equal.
+  factory Quiz._fromJsonV17(JsonMap json) {
+    for (final question in json.readList('questions', (q) => q)) {
+      if (question['valueFormat'] != null) {
+        throw const JsonContractException(
+          'Time values in estimation questions need schemaVersion 18.',
+        );
+      }
+    }
+    return Quiz._fromJsonV18(json);
+  }
+
+  factory Quiz._fromJsonV18(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),

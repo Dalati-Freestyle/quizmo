@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:shelf/shelf.dart';
 
 import '../../core/engine/quiz_engine_bloc.dart';
@@ -30,34 +32,26 @@ Response serveMedia(
   if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(id)) {
     return Response.notFound('Unknown asset');
   }
-  final game = engine.publishedGame;
-  final round = game.round;
-  final question = round.question;
-  final media = [
-    ...?game.activeSlide?.media,
-    if (question != null) ...[
-      ...question.media,
-      for (final hint in round.shownHints) ...hint.media,
-      if (round.status == RoundStatus.revealed && !game.resultsHidden)
-        ...question.solutionMedia,
-    ],
-    if (game.showFinalReview)
-      for (final completed in game.roundHistory)
-        if (completed.question case final archived?) ...[
-          ...archived.media,
-          for (final hint in completed.shownHints) ...hint.media,
-          ...archived.solutionMedia,
-        ],
-  ];
-  final asset = media
-      .map((m) => m.asset)
-      .whereType<MediaAsset>()
-      .where((a) => a.id == id)
-      .firstOrNull;
+  // A preload handle: any upload of the quiz, but encrypted; its key only
+  // travels once the medium is visible.
+  final preload = engine.mediaPreload.byHandle(id);
+  final asset =
+      preload?.asset ??
+      visibleGuestMedia(engine.publishedGame)
+          .map((m) => m.asset)
+          .whereType<MediaAsset>()
+          .where((a) => a.id == id)
+          .firstOrNull;
   final bytes = asset?.bytes;
   if (asset == null || bytes == null) return Response.notFound('Unknown asset');
+  Uint8List body(int start, int end) => preload == null
+      ? bytes.sublist(start, end + 1)
+      : preload.encryptedRange(start, end);
   final headers = <String, String>{
-    'content-type': asset.mimeType,
+    // Nothing about an encrypted file tells what it contains.
+    'content-type': preload == null
+        ? asset.mimeType
+        : 'application/octet-stream',
     'x-content-type-options': 'nosniff',
     'content-security-policy': "default-src 'none'; sandbox",
     'cache-control': 'no-store',
@@ -69,7 +63,12 @@ Response serveMedia(
   final range =
       request.headers['range'] ??
       (maxBodyBytes != null && bytes.length > maxBodyBytes ? 'bytes=0-' : null);
-  if (range == null) return Response.ok(bytes, headers: headers);
+  if (range == null) {
+    return Response.ok(
+      bytes.isEmpty ? bytes : body(0, bytes.length - 1),
+      headers: headers,
+    );
+  }
   final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(range);
   Response invalid() => Response(
     416,
@@ -102,7 +101,7 @@ Response serveMedia(
   if (start >= bytes.length || end < start) return invalid();
   return Response(
     206,
-    body: bytes.sublist(start, end + 1),
+    body: body(start, end),
     headers: {
       ...headers,
       'content-range': 'bytes $start-$end/${bytes.length}',

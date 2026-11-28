@@ -161,7 +161,11 @@ String answerLabel(
   ShortAnswer(:final text) => text,
   EstimationAnswer(:final value) =>
     question is EstimationQuestion
-        ? question.valueLabel(value)
+        ? [
+            question.valueLabel(value),
+            // Only known after the reveal, like the distance on a map.
+            ?question.deviationLabel(value),
+          ].join(' · ')
         : formatNumber(value),
   LocationAnswer(:final latitude, :final longitude) => [
     GeoPoint(latitude, longitude).label,

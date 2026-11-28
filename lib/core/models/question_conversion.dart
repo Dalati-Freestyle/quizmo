@@ -2,7 +2,6 @@
 /// over, nothing is guessed, and everything that gets lost is listed first.
 library;
 
-import '../engine/answer_evaluation.dart';
 import 'json.dart';
 import 'question.dart';
 
@@ -140,10 +139,7 @@ _Essence _essenceOf(Question question) => switch (question) {
   EstimationQuestion(:final correctValue, :final unit) => _Essence(
     number: correctValue,
     unit: unit,
-    answers: [
-      if (correctValue != null)
-        '${formatNumber(correctValue)} $unit'.trimRight(),
-    ],
+    answers: [if (correctValue != null) question.valueLabel(correctValue)],
   ),
   TrueFalseQuestion(:final correctAnswer) => _Essence(
     truth: correctAnswer,

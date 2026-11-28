@@ -11,12 +11,14 @@ import 'package:bloc/bloc.dart';
 
 import '../models/models.dart';
 import '../sync/clock.dart';
+import 'media_preload_registry.dart';
 import 'media_screens.dart';
 import 'quiz_engine_event.dart';
 import 'quiz_engine_state.dart';
 import 'scoring_rules.dart';
 import 'session_access.dart';
 
+export 'media_preload_registry.dart';
 export 'media_screens.dart';
 export 'quiz_engine_event.dart';
 export 'quiz_engine_state.dart';
@@ -259,6 +261,41 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             tvMediaRevision:
                 game.tvMediaRevision +
                 (event.action == TvMediaAction.restart ? 1 : 0),
+          ),
+        ),
+      );
+    });
+    on<SeekTvMediaEvent>((event, emit) {
+      final game = state.game;
+      if (game.round.question == null && !game.showsSlide) return;
+      if (event.mediaKey.isEmpty || event.position.isNegative) return;
+      emit(
+        _publish(
+          game.copyWith(
+            tvMediaSeek: TvMediaSeek(
+              mediaKey: event.mediaKey,
+              positionMicros: event.position.inMicroseconds,
+              revision: (game.tvMediaSeek?.revision ?? 0) + 1,
+            ),
+          ),
+        ),
+      );
+    });
+    on<ShowRevealMediaEvent>((event, emit) {
+      final game = state.game;
+      final round = game.round;
+      final question = round.question;
+      if (question == null ||
+          round.status != RoundStatus.revealed ||
+          question.media.isEmpty ||
+          question.solutionMedia.isEmpty ||
+          round.showsQuestionMedia == event.questionMedia) {
+        return;
+      }
+      emit(
+        _publish(
+          game.copyWith(
+            round: round.copyWith(showsQuestionMedia: event.questionMedia),
           ),
         ),
       );
@@ -631,6 +668,15 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   /// TVs whose browser refuses to start media with sound.
   final MediaScreens mediaScreens = MediaScreens();
 
+  /// Handles and keys of the uploads guests preload in the lobby; created
+  /// with the first guest, the question bank never changes afterwards.
+  late final MediaPreloadRegistry mediaPreload = MediaPreloadRegistry(
+    state.game,
+  );
+
+  /// How far every device got with preloading.
+  final MediaPreloadStatuses mediaPreloadStatuses = MediaPreloadStatuses();
+
   /// Whether the answers are closed but drafts under way may still arrive.
   bool get isWaitingForDrafts => _draftWait != null;
 
@@ -774,6 +820,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     _draftTimer?.cancel();
     unawaited(_draftChanges.close());
     mediaScreens.close();
+    mediaPreloadStatuses.close();
     unawaited(access.close());
     return super.close();
   }

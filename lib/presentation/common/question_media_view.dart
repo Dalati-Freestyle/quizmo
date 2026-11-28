@@ -3,10 +3,13 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import 'media_playback.dart';
 import 'media_playback_source.dart';
+import 'media_timeline.dart';
+import 'media_volume.dart';
 
 import 'package:flutter/material.dart';
 
@@ -28,15 +31,26 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/models.dart';
 import '../../core/net/media_cache.dart';
+import '../../core/net/media_preloader.dart';
 
 class SessionMediaAccess extends StatefulWidget {
   const SessionMediaAccess({
     required this.baseUri,
     required this.child,
+    this.preloader,
     super.key,
   });
   final Uri? baseUri;
   final Widget child;
+
+  /// Media preloaded in the lobby, used before anything is downloaded.
+  final MediaPreloader? preloader;
+
+  /// The preloader of the surrounding session, if any.
+  static MediaPreloader? preloaderOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_SessionMediaScope>()
+      ?.cache
+      .preloader;
   @override
   State<SessionMediaAccess> createState() => _SessionMediaAccessState();
 }
@@ -47,15 +61,21 @@ class _SessionMediaAccessState extends State<SessionMediaAccess> {
   @override
   void initState() {
     super.initState();
-    cache = SessionMediaCache(baseUri: widget.baseUri ?? Uri.base);
+    cache = _create();
   }
+
+  SessionMediaCache _create() => SessionMediaCache(
+    baseUri: widget.baseUri ?? Uri.base,
+    preloader: widget.preloader,
+  );
 
   @override
   void didUpdateWidget(SessionMediaAccess oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.baseUri != oldWidget.baseUri) {
+    if (widget.baseUri != oldWidget.baseUri ||
+        widget.preloader != oldWidget.preloader) {
       cache.dispose();
-      cache = SessionMediaCache(baseUri: widget.baseUri ?? Uri.base);
+      cache = _create();
     }
   }
 
@@ -100,7 +120,9 @@ class QuestionMediaView extends StatelessWidget {
   final int commandRevision;
   final double? maxMediaHeight;
 
-  /// Fills the parent: no scrolling and no "enlarge" button.
+  /// Fills the parent without scrolling (TV). Pictures, videos and maps get
+  /// a small button that shows them on (almost) the whole screen instead of
+  /// the "enlarge" button below them.
   final bool fill;
   final List<MediaAttachment> media;
   final Uri? baseUri;
@@ -451,10 +473,16 @@ class _ReadyMediaView extends QuestionMediaView {
                   playbackRevision: playbackRevision,
                   commandRevision: commandRevision,
                 ),
+                // Our timeline below the player replaces YouTube's own
+                // controls, which "hide details" switches off.
+                extra: _youtubeOpensBrowser || !attachment.hideDetails
+                    ? 0
+                    : _videoControls,
               )
             : _bounded(
                 _PlaybackRetry(
                   builder: (retry) => _VideoView(
+                    mediaKey: attachment.asset!.id,
                     source: source(attachment.asset!, context),
                     onRetry: retry,
                     playback: playback,
@@ -468,6 +496,16 @@ class _ReadyMediaView extends QuestionMediaView {
       GeoAttachment() => _bounded(_map(attachment)),
     };
     final grows = fill && attachment is! AudioAttachment;
+    final enlargeable =
+        fill &&
+        !StillMedia.of(context) &&
+        switch (attachment) {
+          ImageAttachment(:final zoom) => zoom,
+          // YouTube has a full screen button of its own.
+          VideoAttachment(:final youtubeId) => youtubeId == null,
+          GeoAttachment() => true,
+          AudioAttachment() || CodeAttachment() => false,
+        };
     return Padding(
       key: ValueKey('${attachment.hashCode}'),
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -475,7 +513,12 @@ class _ReadyMediaView extends QuestionMediaView {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: grows ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          if (grows) Expanded(child: content) else content,
+          if (grows)
+            Expanded(
+              child: enlargeable ? _Enlargeable(child: content) : content,
+            )
+          else
+            content,
           if (playback == MediaPlayback.paused &&
               (attachment is AudioAttachment || attachment is VideoAttachment))
             const _PausedByHost(),
@@ -580,6 +623,106 @@ class _ReadyMediaView extends QuestionMediaView {
       ],
     ),
   );
+}
+
+/// A medium on the TV that can be shown on (almost) the whole screen.
+///
+/// The medium moves into the overlay with a [GlobalKey], so a running video
+/// keeps its position and nothing loads again. Closes with the button, Esc
+/// or a click next to it, and by itself when the medium leaves the stage.
+class _Enlargeable extends StatefulWidget {
+  const _Enlargeable({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_Enlargeable> createState() => _EnlargeableState();
+}
+
+class _EnlargeableState extends State<_Enlargeable> {
+  final _controller = OverlayPortalController();
+  final _medium = GlobalKey();
+  bool _enlarged = false;
+
+  void _toggle(bool enlarged) {
+    setState(() => _enlarged = enlarged);
+    enlarged ? _controller.show() : _controller.hide();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final medium = KeyedSubtree(key: _medium, child: widget.child);
+    return OverlayPortal(
+      controller: _controller,
+      overlayChildBuilder: (context) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () =>
+              _toggle(false),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Stack(
+            key: const ValueKey('media-enlarged'),
+            children: [
+              Positioned.fill(
+                child: GestureDetector(
+                  key: const ValueKey('media-enlarged-backdrop'),
+                  onTap: () => _toggle(false),
+                  child: const ColoredBox(color: Colors.black87),
+                ),
+              ),
+              Positioned.fill(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Material(
+                      color: Colors.black,
+                      child: _enlarged ? medium : null,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 32,
+                top: 32,
+                child: SafeArea(
+                  child: PointerInterceptor(
+                    child: IconButton.filledTonal(
+                      key: const ValueKey('media-shrink'),
+                      iconSize: 36,
+                      tooltip: context.tr('Schließen'),
+                      onPressed: () => _toggle(false),
+                      icon: const Icon(Icons.fullscreen_exit),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (!_enlarged) medium,
+          Positioned(
+            right: 8,
+            top: 8,
+            // A video is a platform view on the web; it would take the click.
+            child: PointerInterceptor(
+              child: IconButton.filledTonal(
+                key: const ValueKey('media-enlarge'),
+                iconSize: 32,
+                tooltip: context.tr('Vergrößern'),
+                onPressed: _enlarged ? null : () => _toggle(true),
+                icon: const Icon(Icons.fullscreen),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Stands for audio or video in a picture of another screen: no player is
@@ -811,8 +954,35 @@ class _AudioView extends StatefulWidget {
   State<_AudioView> createState() => _AudioViewState();
 }
 
-class _AudioViewState extends State<_AudioView> with _BlockedStartState {
+class _AudioViewState extends State<_AudioView>
+    with _BlockedStartState, FollowsHostSeek {
   final player = AudioPlayer();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The TV's own volume; elsewhere the device decides.
+    if (MediaVolumeScope.of(context) case final volume?) {
+      unawaited(player.setVolume(volume.effective).catchError((Object _) {}));
+    }
+    followHostSeek(widget.attachment.asset.id, (position) {
+      unawaited(_seekTo(position));
+    });
+  }
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) {
+      MediaSeekReporter.of(context)
+          ?.onSeek(widget.attachment.asset.id, position);
+    }
+    try {
+      await player.seek(position);
+    } on Object {
+      /* Not loaded yet: the next jump works. */
+    }
+  }
+
   @override
   void didUpdateWidget(_AudioView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -975,14 +1145,28 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
                   : () => unawaited(_restartHere()),
             ),
             Expanded(
-              child: StreamBuilder<Duration>(
-                stream: player.positionStream,
-                builder: (context, snapshot) => Text(
-                  '${(snapshot.data ?? Duration.zero).inSeconds} s${widget.attachment.playbackLimitSeconds == null ? '' : ' / ${widget.attachment.playbackLimitSeconds} s'}',
-                  style: const TextStyle(fontSize: 22),
+              child: StreamBuilder<Duration?>(
+                stream: player.durationStream,
+                initialData: player.duration,
+                builder: (context, duration) => StreamBuilder<Duration>(
+                  stream: player.positionStream,
+                  builder: (context, snapshot) => MediaTimeline(
+                    position: snapshot.data ?? Duration.zero,
+                    duration: duration.data,
+                    onSeek: locked || still
+                        ? null
+                        : (position) =>
+                              unawaited(_seekTo(position, report: true)),
+                  ),
                 ),
               ),
             ),
+            if (widget.attachment.playbackLimitSeconds case final limit?)
+              Text(
+                context.tr('Limit: {0} s', [limit]),
+                style: const TextStyle(fontSize: 18),
+              ),
+            const MediaVolumeControl(),
           ],
         );
       },
@@ -992,6 +1176,7 @@ class _AudioViewState extends State<_AudioView> with _BlockedStartState {
 
 class _VideoView extends StatefulWidget {
   const _VideoView({
+    required this.mediaKey,
     required this.source,
     required this.onRetry,
     this.playback = MediaPlayback.onDemand,
@@ -1002,12 +1187,45 @@ class _VideoView extends StatefulWidget {
   final int playbackRevision;
   final int commandRevision;
   final Uri source;
+  final String mediaKey;
   final VoidCallback onRetry;
   @override
   State<_VideoView> createState() => _VideoViewState();
 }
 
-class _VideoViewState extends State<_VideoView> with _BlockedStartState {
+class _VideoViewState extends State<_VideoView>
+    with _BlockedStartState, FollowsHostSeek {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyVolume();
+    followHostSeek(widget.mediaKey, (position) {
+      unawaited(_seekTo(position));
+    });
+  }
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) {
+      MediaSeekReporter.of(context)?.onSeek(widget.mediaKey, position);
+    }
+    final video = controller;
+    if (video == null || !video.value.isInitialized) return;
+    try {
+      await video.seekTo(position);
+    } on Object {
+      /* The next jump works. */
+    }
+  }
+
+  /// The TV's own volume; elsewhere the device decides.
+  void _applyVolume() {
+    final volume = MediaVolumeScope.of(context);
+    final video = controller;
+    if (volume == null || video == null || !video.value.isInitialized) return;
+    unawaited(video.setVolume(volume.effective).catchError((Object _) {}));
+  }
+
   @override
   void didUpdateWidget(_VideoView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1064,6 +1282,7 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
       controller = video;
       video.addListener(_update);
       await video.initialize().timeout(const Duration(seconds: 30));
+      if (mounted) _applyVolume();
       if (mounted) await _applyPlayback(false);
       _update();
     } on Object {
@@ -1142,21 +1361,34 @@ class _VideoViewState extends State<_VideoView> with _BlockedStartState {
             ),
           ),
         ),
-        VideoProgressIndicator(controller, allowScrubbing: !locked && !still),
-        IconButton(
-          tooltip: locked
-              ? context.tr('Von der Spielleitung pausiert')
-              : controller.value.isPlaying
-              ? context.tr("Pause")
-              : context.tr("Abspielen"),
-          onPressed: locked || still
-              ? null
-              : () => controller.value.isPlaying
-                    ? controller.pause()
-                    : controller.play(),
-          icon: Icon(
-            controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-          ),
+        Row(
+          children: [
+            IconButton(
+              tooltip: locked
+                  ? context.tr('Von der Spielleitung pausiert')
+                  : controller.value.isPlaying
+                  ? context.tr("Pause")
+                  : context.tr("Abspielen"),
+              onPressed: locked || still
+                  ? null
+                  : () => controller.value.isPlaying
+                        ? controller.pause()
+                        : controller.play(),
+              icon: Icon(
+                controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+              ),
+            ),
+            Expanded(
+              child: MediaTimeline(
+                position: controller.value.position,
+                duration: controller.value.duration,
+                onSeek: locked || still
+                    ? null
+                    : (position) => unawaited(_seekTo(position, report: true)),
+              ),
+            ),
+            const MediaVolumeControl(),
+          ],
         ),
       ],
     );
@@ -1180,7 +1412,47 @@ class _YoutubeView extends StatefulWidget {
   State<_YoutubeView> createState() => _YoutubeViewState();
 }
 
-class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
+class _YoutubeViewState extends State<_YoutubeView>
+    with _BlockedStartState, FollowsHostSeek {
+  MediaVolume? _volume;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _volume = MediaVolumeScope.of(context);
+    _applyVolume();
+    followHostSeek(_mediaKey, (position) => unawaited(_seekTo(position)));
+  }
+
+  String get _mediaKey => 'youtube:${widget.id}';
+
+  /// Jumps to [position]; a jump of the host is passed on to the TV.
+  Future<void> _seekTo(Duration position, {bool report = false}) async {
+    if (report) MediaSeekReporter.of(context)?.onSeek(_mediaKey, position);
+    try {
+      await controller?.seekTo(
+        seconds: position.inMilliseconds / 1000,
+        allowSeekAhead: true,
+      );
+    } on Object {
+      /* The next jump works. */
+    }
+  }
+
+  /// The TV's own volume; elsewhere the device decides.
+  void _applyVolume() {
+    final volume = _volume;
+    final player = controller;
+    if (volume == null || player == null) return;
+    final level = (volume.effective * 100).round();
+    unawaited(
+      (level == 0
+              ? player.mute()
+              : player.unMute().then((_) => player.setVolume(level)))
+          .catchError((Object _) {}),
+    );
+  }
+
   @override
   void didUpdateWidget(_YoutubeView oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1217,6 +1489,7 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
   }
 
   YoutubePlayerController? controller;
+  bool _volumeApplied = false;
   StreamSubscription<YoutubePlayerValue>? _errors;
   Timer? _startWatch;
 
@@ -1261,6 +1534,11 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
         setState(() => _error = value.error);
       }
       if (value.playerState == youtube.PlayerState.playing) {
+        // The iframe only takes a volume once its player exists.
+        if (!_volumeApplied) {
+          _volumeApplied = true;
+          _applyVolume();
+        }
         setStartBlocked(false);
         // A press on YouTube's own controls must not undo the host's pause.
         if (widget.playback == MediaPlayback.paused ||
@@ -1311,23 +1589,64 @@ class _YoutubeViewState extends State<_YoutubeView> with _BlockedStartState {
           error: _error,
           hideDetails: widget.hideDetails,
         )
-      : Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                YoutubePlayer(controller: controller!),
-                // While the host paused, nobody may press play in the frame.
-                if (widget.playback == MediaPlayback.paused ||
-                    StillMedia.of(context))
-                  PointerInterceptor(
-                    child: const AbsorbPointer(child: SizedBox.expand()),
-                  ),
-              ],
+      : _withControls(
+          Center(
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  YoutubePlayer(controller: controller!),
+                  // While the host paused, nobody may press play in the frame.
+                  if (widget.playback == MediaPlayback.paused ||
+                      StillMedia.of(context))
+                    PointerInterceptor(
+                      child: const AbsorbPointer(child: SizedBox.expand()),
+                    ),
+                ],
+              ),
             ),
           ),
         );
+
+  /// The player with our timeline (and the TV's volume) below it. The
+  /// timeline only stands in for YouTube's own controls, which "hide details"
+  /// switches off; it shows no title.
+  Widget _withControls(Widget player) {
+    final locked =
+        widget.playback == MediaPlayback.paused || StillMedia.of(context);
+    final timeline = widget.hideDetails;
+    if (!timeline && _volume == null) return player;
+    return Column(
+      children: [
+        Expanded(child: player),
+        Row(
+          children: [
+            if (!timeline)
+              const Spacer()
+            else
+              Expanded(
+                child: StreamBuilder<YoutubeVideoState>(
+                  stream: controller!.videoStateStream,
+                  builder: (context, snapshot) {
+                    final duration = controller!.value.metaData.duration;
+                    return MediaTimeline(
+                      position: snapshot.data?.position ?? Duration.zero,
+                      duration: duration == Duration.zero ? null : duration,
+                      onSeek: locked
+                          ? null
+                          : (position) =>
+                                unawaited(_seekTo(position, report: true)),
+                    );
+                  },
+                ),
+              ),
+            const MediaVolumeControl(),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 /// Opens the video on youtube.com (desktop hosts and refused embeds).

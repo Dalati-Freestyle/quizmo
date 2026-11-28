@@ -1,6 +1,8 @@
 /// Spectator side controller: a read-only, self-healing view of the session.
 library;
 
+import '../../core/net/media_preloader.dart';
+
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
@@ -172,6 +174,11 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
   final QuizClientFactory _clientFactory;
   final DateTime Function() _now;
 
+  /// Media of the quiz, preloaded encrypted in the lobby; a TV always
+  /// preloads. Kept across reconnects.
+  final MediaPreloader preloader = MediaPreloader();
+  late final _preloadLink = MediaPreloadLink(preloader);
+
   QuizClient? _client;
   StreamSubscription<GameState>? _gameSubscription;
   StreamSubscription<QuizClientStatus>? _statusSubscription;
@@ -213,6 +220,8 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
     _retryTimer?.cancel();
     _retryTimer = null;
     await _teardown();
+    _preloadLink.dispose();
+    preloader.dispose();
     return super.close();
   }
 
@@ -233,6 +242,7 @@ class SpectatorSessionCubit extends Cubit<SpectatorSessionState> {
 
     final client = _clientFactory(baseUri);
     _client = client;
+    _preloadLink.attach(client);
     _gameSubscription = client.games.listen(_onSnapshot);
     _guestWifiSubscription = client.guestWifi.listen((wifi) {
       if (isClosed || _client != client) return;

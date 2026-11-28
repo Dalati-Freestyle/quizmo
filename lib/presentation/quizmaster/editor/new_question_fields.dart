@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 
-import '../../../core/engine/answer_evaluation.dart';
 import '../../../core/models/models.dart';
 
 /// Shown where a solution would be entered in a quiz without solutions.
@@ -33,6 +32,8 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
   late String scale;
   late String minAccepted;
   late String maxAccepted;
+  late bool toleranceOnly;
+  late EstimationValueFormat valueFormat;
 
   /// `null`: not chosen yet (after a change of the kind).
   late bool? truth;
@@ -44,6 +45,9 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
   void initState() {
     super.initState();
     final q = widget.question;
+    valueFormat = q is EstimationQuestion
+        ? q.valueFormat
+        : EstimationValueFormat.number;
     content = switch (q) {
       ShortAnswerQuestion(:final acceptedAnswers) =>
         (acceptedAnswers ?? []).join('\n'),
@@ -63,7 +67,7 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
           for (final (index, i) in leftItems.indexed)
             '${i.label} = ${(correctPairs == null ? rightItems.elementAtOrNull(index) : rightItems.where((r) => r.id == correctPairs[i.id]).firstOrNull)?.label ?? ''}',
         ].join('\n'),
-      EstimationQuestion(:final correctValue) => _number(correctValue),
+      EstimationQuestion(:final correctValue) => _value(correctValue),
       LocationQuestion() ||
       TrueFalseQuestion() ||
       MultipleChoiceQuestion() ||
@@ -72,23 +76,56 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
     edits = q is ShortAnswerQuestion ? q.maxEdits : 1;
     manualGrading = q is ShortAnswerQuestion && q.manualGrading;
     unit = q is EstimationQuestion ? q.unit : '';
-    scale = q is EstimationQuestion ? _number(q.zeroScale) : '1';
-    minAccepted = q is EstimationQuestion ? _number(q.minAccepted) : '';
-    maxAccepted = q is EstimationQuestion ? _number(q.maxAccepted) : '';
+    scale = q is EstimationQuestion ? _value(q.zeroScale) : '1';
+    minAccepted = q is EstimationQuestion ? _value(q.minAccepted) : '';
+    maxAccepted = q is EstimationQuestion ? _value(q.maxAccepted) : '';
+    toleranceOnly = q is EstimationQuestion && q.toleranceOnly;
     truth = q is TrueFalseQuestion ? q.correctAnswer : true;
     orderConfirmed = q is! OrderingQuestion || q.correctOrder != null;
   }
 
-  static String _number(double? value) =>
-      value == null ? '' : formatNumber(value);
+  /// [value] in the chosen format: `33:58` for a time, `655` for a number.
+  String _value(double? value) =>
+      value == null ? '' : valueFormat.format(value);
 
-  static double? _parse(String text) =>
-      double.tryParse(text.trim().replaceAll(',', '.'));
+  double? _parse(String text) => valueFormat.parse(text);
 
   String? _optionalNumber(String? text) =>
-      (text ?? '').trim().isEmpty || (_parse(text!)?.isFinite ?? false)
+      (text ?? '').trim().isEmpty || _parse(text!) != null
       ? null
+      : valueFormat.isTime
+      ? context.tr('Als {0} eingeben, z. B. {1}.', [
+          valueFormat.pattern,
+          valueFormat.example,
+        ])
       : context.tr('Endliche Zahl angeben.');
+
+  /// Rewrites every value in [format]; values that do not parse stay as
+  /// they are, so the editor still reports them.
+  void _changeFormat(EstimationValueFormat format) {
+    String convert(String text) {
+      final value = _parse(text);
+      return value == null ? text : format.format(value);
+    }
+
+    setState(() {
+      content = convert(content);
+      scale = convert(scale);
+      minAccepted = convert(minAccepted);
+      maxAccepted = convert(maxAccepted);
+      valueFormat = format;
+    });
+    changed();
+  }
+
+  /// Text fields of values are rebuilt when the format changes.
+  Key _valueKey(String name) => ValueKey('$name-${valueFormat.name}');
+
+  /// The limits are required in the mode "tolerance only".
+  String? _boundary(String? text) =>
+      toleranceOnly && (text ?? '').trim().isEmpty
+      ? context.tr('Pflichtfeld bei „Nur Toleranz“.')
+      : _optionalNumber(text);
 
   List<String> get lines => content
       .split('\n')
@@ -110,6 +147,10 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
         'zeroScale': _parse(scale),
         'minAccepted': _parse(minAccepted),
         'maxAccepted': _parse(maxAccepted),
+        'toleranceOnly': toleranceOnly,
+        'valueFormat': valueFormat == EstimationValueFormat.number
+            ? null
+            : valueFormat.name,
       },
       TrueFalseQuestion() => <String, Object?>{
         if (widget.showSolution) 'correctAnswer': truth,
@@ -208,6 +249,9 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
             )
           else
             TextFormField(
+              key: widget.question is EstimationQuestion
+                  ? _valueKey('estimation-target')
+                  : null,
               initialValue: content,
               minLines: widget.question is EstimationQuestion ? 1 : 3,
               maxLines: 12,
@@ -228,15 +272,27 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                         : context.tr(
                             "Elemente – pro Zeile: links = rechts (die Zuordnung wird nicht gespeichert)",
                           ),
-                  EstimationQuestion() => context.tr("Korrekte Zahl"),
+                  EstimationQuestion() =>
+                    valueFormat.isTime
+                        ? context.tr('Korrekte Zeit ({0})', [
+                            valueFormat.pattern,
+                          ])
+                        : context.tr("Korrekte Zahl"),
                   LocationQuestion() ||
                   TrueFalseQuestion() ||
                   MultipleChoiceQuestion() ||
                   BuzzerQuestion() => 'Lösung',
                 },
               ),
+              validator: widget.question is EstimationQuestion
+                  ? _optionalNumber
+                  : null,
+              autovalidateMode: widget.question is EstimationQuestion
+                  ? AutovalidateMode.onUserInteraction
+                  : null,
               onChanged: (v) {
-                content = v;
+                // The field for the target 0 appears and disappears.
+                setState(() => content = v);
                 changed();
               },
             ),
@@ -317,6 +373,30 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
             ),
           ],
           if (widget.question is EstimationQuestion) ...[
+            DropdownButtonFormField<EstimationValueFormat>(
+              key: const ValueKey('estimation-format'),
+              initialValue: valueFormat,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: context.tr('Format')),
+              items: [
+                for (final format in EstimationValueFormat.values)
+                  DropdownMenuItem(
+                    value: format,
+                    child: Text(
+                      format.isTime
+                          ? context.tr('Zeit ({0})', [format.pattern])
+                          : context.tr('Zahl'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (format) {
+                if (format != null && format != valueFormat) {
+                  _changeFormat(format);
+                }
+              },
+            ),
+            const SizedBox(height: 20),
             TextFormField(
               initialValue: unit,
               decoration: InputDecoration(
@@ -328,25 +408,70 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               },
             ),
             const SizedBox(height: 20),
-            TextFormField(
-              initialValue: scale,
-              decoration: InputDecoration(
-                labelText: context.tr("Abweichung für 0 Punkte bei Zielwert 0"),
-              ),
-              onChanged: (v) {
-                scale = v;
+            DropdownButtonFormField<bool>(
+              key: const ValueKey('estimation-mode'),
+              initialValue: toleranceOnly,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: context.tr('Wertung')),
+              items: [
+                DropdownMenuItem(
+                  value: false,
+                  child: Text(
+                    context.tr('Nach Abweichung'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: true,
+                  child: Text(
+                    context.tr('Nur Toleranz (richtig/falsch)'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => toleranceOnly = value);
                 changed();
               },
             ),
             const SizedBox(height: 12),
-            Text(
-              context.tr(
-                "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+            if (toleranceOnly)
+              Text(
+                context.tr(
+                  'Innerhalb der Grenzen volle Punkte, außerhalb keine.',
+                ),
+              )
+            else ...[
+              Text(
+                context.tr(
+                  "Punkte = Maximalpunkte × max(0, 1 − relative Abweichung).",
+                ),
               ),
-            ),
+              // Only the target 0 needs a scale: the relative deviation is
+              // undefined there. A stored scale is kept while hidden.
+              if (_parse(content) == 0) ...[
+                const SizedBox(height: 20),
+                TextFormField(
+                  key: _valueKey('estimation-zero-scale'),
+                  initialValue: scale,
+                  decoration: InputDecoration(
+                    labelText: context.tr(
+                      "Abweichung für 0 Punkte bei Zielwert 0",
+                    ),
+                  ),
+                  onChanged: (v) {
+                    scale = v;
+                    changed();
+                  },
+                ),
+              ],
+            ],
             const SizedBox(height: 20),
             Text(
-              context.tr('Toleranz (optional)'),
+              toleranceOnly
+                  ? context.tr('Toleranz')
+                  : context.tr('Toleranz (optional)'),
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 4),
@@ -362,12 +487,12 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
               children: [
                 Expanded(
                   child: TextFormField(
-                    key: const ValueKey('estimation-min'),
+                    key: _valueKey('estimation-min'),
                     initialValue: minAccepted,
                     decoration: InputDecoration(
                       labelText: context.tr('Untergrenze'),
                     ),
-                    validator: _optionalNumber,
+                    validator: _boundary,
                     onChanged: (v) {
                       minAccepted = v;
                       changed();
@@ -377,12 +502,12 @@ class _NewQuestionFieldsState extends State<NewQuestionFields> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextFormField(
-                    key: const ValueKey('estimation-max'),
+                    key: _valueKey('estimation-max'),
                     initialValue: maxAccepted,
                     decoration: InputDecoration(
                       labelText: context.tr('Obergrenze'),
                     ),
-                    validator: _optionalNumber,
+                    validator: _boundary,
                     onChanged: (v) {
                       maxAccepted = v;
                       changed();

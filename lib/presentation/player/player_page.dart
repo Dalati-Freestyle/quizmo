@@ -16,6 +16,8 @@ import '../../core/net/session_uri.dart';
 import '../../core/sync/clock.dart';
 import '../../backend/server_launcher.dart' show defaultServerPort;
 import '../common/hint_views.dart';
+import '../common/media_preload_view.dart';
+import '../common/reveal_media.dart';
 import '../common/info_slide_view.dart';
 import '../common/joker_play_form.dart';
 import 'poker_category_view.dart';
@@ -33,6 +35,7 @@ import 'player_session_cubit.dart';
 import 'team_join_view.dart';
 import 'questions/buzzer_question_view.dart';
 import 'questions/new_question_views.dart';
+import 'your_turn.dart';
 import '../common/question_media_view.dart';
 import '../common/question_result_view.dart';
 import '../common/snowflake_result_view.dart';
@@ -106,8 +109,14 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(context.tr(state.error!)))),
       builder: (context, state) {
+        final scheme = Theme.of(context).colorScheme;
+        // Red while the host waits for this device.
+        final yourTurn = pendingTurn(state) != null;
         return Scaffold(
           appBar: AppBar(
+            key: const ValueKey('player-app-bar'),
+            backgroundColor: yourTurn ? scheme.error : null,
+            foregroundColor: yourTurn ? scheme.onError : null,
             title: Row(
               children: [
                 const QuizmoLogo(size: 32),
@@ -163,6 +172,7 @@ class _PlayerViewState extends State<_PlayerView> with WidgetsBindingObserver {
             baseUri: state.playerId == null
                 ? null
                 : context.read<PlayerSessionCubit>().mediaBaseUri,
+            preloader: context.read<PlayerSessionCubit>().preloader,
             child: SessionNotifications(
               game: state.game,
               playerId: state.playerId,
@@ -559,27 +569,30 @@ class PlayerGameColumn extends StatelessWidget {
   final Widget notJoined;
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      ...header,
-      SubmissionStatusView(state: state),
-      if (state.deviceCheckId != null && state.isConnected)
-        const DeviceCheckBanner(),
-      Expanded(
-        child:
-            state.playerId != null &&
-                state.game?.isFinished == true &&
-                state.game?.protocol != null
-            // Stays usable after the host closed the room.
-            ? PlayerFinalPage(game: state.game!, playerId: state.playerId)
-            : state.playerId != null && state.game != null
-            ? AbsorbPointer(
-                absorbing: !state.isConnected,
-                child: _GameBoard(state: state),
-              )
-            : notJoined,
-      ),
-    ],
+  Widget build(BuildContext context) => YourTurnSignal(
+    state: state,
+    child: Column(
+      children: [
+        ...header,
+        SubmissionStatusView(state: state),
+        if (state.deviceCheckId != null && state.isConnected)
+          const DeviceCheckBanner(),
+        Expanded(
+          child:
+              state.playerId != null &&
+                  state.game?.isFinished == true &&
+                  state.game?.protocol != null
+              // Stays usable after the host closed the room.
+              ? PlayerFinalPage(game: state.game!, playerId: state.playerId)
+              : state.playerId != null && state.game != null
+              ? AbsorbPointer(
+                  absorbing: !state.isConnected,
+                  child: _GameBoard(state: state),
+                )
+              : notJoined,
+        ),
+      ],
+    ),
   );
 }
 
@@ -690,6 +703,8 @@ class _QuestionStage extends StatelessWidget {
               color: theme.colorScheme.outline,
             ),
           ),
+          const SizedBox(height: 16),
+          const MediaPreloadView(),
         ],
       );
     }
@@ -981,46 +996,64 @@ class _QuestionStage extends StatelessWidget {
             Text(context.tr('Der Spielleiter bewertet die Antworten.')),
           const SizedBox(height: 24),
         ],
-        if (question.media.isNotEmpty) ...[
-          QuestionMediaView(
-            media: question.media,
-            baseUri: cubit.mediaBaseUri,
-            playback: MediaPlayback.onDevice(
-              state.game,
-              stopped:
-                  latestHintPlays(state.game?.round ?? RoundState.idle) ||
-                  (state.roundStatus == RoundStatus.revealed &&
-                      question.solutionMedia.isNotEmpty),
-            ),
-            playbackRevision: state.game?.tvMediaRevision ?? 0,
-            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+        // After the reveal only the solution media show; each player may
+        // switch back to the media of the question on the own device.
+        LocalRevealMedia(
+          key: ValueKey('reveal-media-${question.id}'),
+          question: question,
+          status: state.roundStatus,
+          builder: (context, visible, toggle) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (state.roundStatus == RoundStatus.revealed &&
+                  toggle != null) ...[
+                toggle,
+                const SizedBox(height: 12),
+              ],
+              if (visible.question) ...[
+                QuestionMediaView(
+                  media: question.media,
+                  baseUri: cubit.mediaBaseUri,
+                  playback: MediaPlayback.onDevice(
+                    state.game,
+                    stopped: latestHintPlays(
+                      state.game?.round ?? RoundState.idle,
+                    ),
+                  ),
+                  playbackRevision: state.game?.tvMediaRevision ?? 0,
+                  commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (state.roundStatus == RoundStatus.revealed) ...[
+                const SizedBox(height: 24),
+                if (state.game case final game?
+                    when game.round.snowflake != null)
+                  SnowflakeResultView(game: game, fontSize: 16)
+                else if (question case final LocationQuestion location
+                    when state.game != null)
+                  LocationResultView(game: state.game!, question: location)
+                else if (question is! MultipleChoiceQuestion &&
+                    question is! BuzzerQuestion)
+                  Text(
+                    context.tr("Lösung: {0}", [
+                      question is TrueFalseQuestion
+                          ? context.tr(question.solutionLabel)
+                          : question.solutionLabel,
+                    ]),
+                  ),
+                if (visible.solution)
+                  QuestionMediaView(
+                    media: question.solutionMedia,
+                    baseUri: cubit.mediaBaseUri,
+                    playback: MediaPlayback.onDevice(state.game),
+                    playbackRevision: state.game?.tvMediaRevision ?? 0,
+                    commandRevision: state.game?.tvMediaCommandRevision ?? 0,
+                  ),
+              ],
+            ],
           ),
-          const SizedBox(height: 16),
-        ],
-        if (state.roundStatus == RoundStatus.revealed) ...[
-          const SizedBox(height: 24),
-          if (state.game case final game? when game.round.snowflake != null)
-            SnowflakeResultView(game: game, fontSize: 16)
-          else if (question case final LocationQuestion location
-              when state.game != null)
-            LocationResultView(game: state.game!, question: location)
-          else if (question is! MultipleChoiceQuestion &&
-              question is! BuzzerQuestion)
-            Text(
-              context.tr("Lösung: {0}", [
-                question is TrueFalseQuestion
-                    ? context.tr(question.solutionLabel)
-                    : question.solutionLabel,
-              ]),
-            ),
-          QuestionMediaView(
-            media: question.solutionMedia,
-            baseUri: cubit.mediaBaseUri,
-            playback: MediaPlayback.onDevice(state.game),
-            playbackRevision: state.game?.tvMediaRevision ?? 0,
-            commandRevision: state.game?.tvMediaCommandRevision ?? 0,
-          ),
-        ],
+        ),
       ],
     );
     if (state.game?.poker case final poker?) {

@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import 'app_version_label.dart';
 import 'locale_cubit.dart';
 import 'example_quiz_settings.dart' deferred as advanced;
+import 'media_preload_settings.dart';
 import 'media_upload_settings.dart';
 import '../quizmaster/layout/dashboard_layout_settings_page.dart'
     deferred as admin_layout;
@@ -147,6 +148,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   context.read<LocaleCubit>().select(state.preference),
               child: Text(context.tr('Retry')),
             ),
+          ],
+          if (!widget.hostSettings) ...[
+            const Divider(height: 48),
+            Text(
+              context.tr('Medien'),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const MediaPreloadSwitch(),
           ],
           if (widget.hostSettings) ...[
             const Divider(height: 48),
