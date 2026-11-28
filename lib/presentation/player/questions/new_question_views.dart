@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -163,8 +162,8 @@ class _OrderingQuestionViewState extends State<OrderingQuestionView> {
   @override
   void initState() {
     super.initState();
-    items = [...widget.question.items]
-      ..shuffle(Random(widget.question.id.hashCode));
+    // The same mixed order as on every other device, never the solution.
+    items = widget.question.displayItems;
   }
 
   void move(int index, int offset) {
@@ -268,20 +267,17 @@ class _MatchingQuestionViewState extends State<MatchingQuestionView> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final left in widget.question.leftItems)
+          for (final left in widget.question.displayLeftItems)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Builder(
                 builder: (context) {
                   final label = Text(left.label);
                   final used = pairs.values.toSet();
+                  final right = widget.question.displayRightItems;
                   final options = [
-                    ...widget.question.rightItems.where(
-                      (r) => !used.contains(r.id),
-                    ),
-                    ...widget.question.rightItems.where(
-                      (r) => used.contains(r.id),
-                    ),
+                    ...right.where((r) => !used.contains(r.id)),
+                    ...right.where((r) => used.contains(r.id)),
                   ];
                   final selected = options
                       .where((r) => r.id == pairs[left.id])

@@ -10,6 +10,7 @@ import 'package:equatable/equatable.dart';
 import '../engine/scoring_rules.dart';
 import 'json.dart';
 import 'answer.dart';
+import 'display_order.dart';
 import 'estimation_format.dart';
 import 'media_attachment.dart';
 import 'question_hint.dart';
@@ -605,6 +606,12 @@ final class OrderingQuestion extends Question {
   });
   final List<AnswerOption> items;
   final List<String>? correctOrder;
+
+  /// [items] as every device shows them: mixed per question, the same on
+  /// all devices, never in the entered order (only public data decides, so
+  /// host and guests agree).
+  List<AnswerOption> get displayItems => displayOrder(items, id);
+
   factory OrderingQuestion.fromJson(JsonMap json) => OrderingQuestion(
     id: json.readString('id'),
     prompt: json.readString('prompt'),
@@ -714,6 +721,21 @@ final class MatchingQuestion extends Question {
   final List<AnswerOption> leftItems;
   final List<AnswerOption> rightItems;
   final Map<String, String>? correctPairs;
+
+  /// [leftItems] as every device shows them, mixed per question.
+  List<AnswerOption> get displayLeftItems => displayOrder(leftItems, '$id/a');
+
+  /// [rightItems] as every device shows them, mixed per question. They never
+  /// stand next to their left item as entered (the n-th right item beside
+  /// the n-th left one); only public data decides, so host and guests agree.
+  List<AnswerOption> get displayRightItems {
+    final left = displayLeftItems;
+    final aligned = leftItems.length == rightItems.length
+        ? [for (final item in left) rightItems[leftItems.indexOf(item)]]
+        : rightItems;
+    return displayOrder(rightItems, '$id/b', avoid: aligned);
+  }
+
   factory MatchingQuestion.fromJson(JsonMap json) => MatchingQuestion(
     id: json.readString('id'),
     prompt: json.readString('prompt'),

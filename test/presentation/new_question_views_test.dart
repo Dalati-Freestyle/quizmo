@@ -8,22 +8,26 @@ void main() {
     tester,
   ) async {
     Map<String, String>? answer;
+    const question = MatchingQuestion(
+      id: 'q',
+      prompt: '?',
+      leftItems: [
+        AnswerOption(id: 'a', label: 'A'),
+        AnswerOption(id: 'b', label: 'B'),
+      ],
+      rightItems: [
+        AnswerOption(id: 'x', label: 'X'),
+        AnswerOption(id: 'y', label: 'Y'),
+      ],
+    );
+    // The rows follow the mixed order every device shows.
+    final a = question.displayLeftItems.indexWhere((i) => i.id == 'a');
+    final b = 1 - a;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: MatchingQuestionView(
-            question: const MatchingQuestion(
-              id: 'q',
-              prompt: '?',
-              leftItems: [
-                AnswerOption(id: 'a', label: 'A'),
-                AnswerOption(id: 'b', label: 'B'),
-              ],
-              rightItems: [
-                AnswerOption(id: 'x', label: 'X'),
-                AnswerOption(id: 'y', label: 'Y'),
-              ],
-            ),
+            question: question,
             enabled: true,
             onSubmit: (v) => answer = v,
           ),
@@ -37,8 +41,8 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    await choose(0, 'X');
-    await tester.tap(find.byType(OutlinedButton).at(1));
+    await choose(a, 'X');
+    await tester.tap(find.byType(OutlinedButton).at(b));
     await tester.pumpAndSettle();
     final remaining = tester
         .widgetList<ListTile>(find.byType(ListTile))
@@ -48,10 +52,10 @@ void main() {
     expect(remaining.last.enabled, isFalse);
     Navigator.of(tester.element(find.byType(ListTile).first)).pop();
     await tester.pumpAndSettle();
-    await choose(1, 'Y');
-    await choose(1, 'Auswahl löschen');
-    await choose(0, 'Y');
-    await choose(1, 'X');
+    await choose(b, 'Y');
+    await choose(b, 'Auswahl löschen');
+    await choose(a, 'Y');
+    await choose(b, 'X');
     await tester.tap(find.text('Zuordnung senden'));
     expect(answer, {'a': 'y', 'b': 'x'});
   });

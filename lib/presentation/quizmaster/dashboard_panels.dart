@@ -1812,10 +1812,13 @@ class _QuestionContent extends StatelessWidget {
         for (final (index, option) in options.indexed)
           '${String.fromCharCode(0x41 + index)}  ${option.label}',
       ],
-      OrderingQuestion(:final items) => [for (final item in items) item.label],
-      MatchingQuestion(:final leftItems, :final rightItems) => [
-        for (var i = 0; i < leftItems.length; i++)
-          '${leftItems[i].label}  ·  ${i < rightItems.length ? rightItems[i].label : ''}',
+      // The order the players and the TV see (the solution is in its card).
+      OrderingQuestion(:final displayItems) => [
+        for (final item in displayItems) item.label,
+      ],
+      MatchingQuestion(:final displayLeftItems, :final displayRightItems) => [
+        for (final (i, left) in displayLeftItems.indexed)
+          '${left.label}  ·  ${i < displayRightItems.length ? displayRightItems[i].label : ''}',
       ],
       ShortAnswerQuestion() ||
       LocationQuestion() ||

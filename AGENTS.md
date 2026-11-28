@@ -170,8 +170,10 @@ views MUST be checked in both, and the views are shared structurally:
 * `tvInstruction` (`presentation/common/tv_instruction.dart`) tells the room what to do in the current phase, with one
   sentence per question kind in an exhaustive switch (a new kind must add its own). It is built from the guest
   snapshot only, never mentions the solution (or how many answers are right) and replaces the former "team answers" /
-  "verbal" pills; the TV keeps its slot even when it is empty. Ordering items and matching terms are mixed on the TV
-  (`mixed`, a seed per question) so they never look like the solution.
+  "verbal" pills; the TV keeps its slot even when it is empty. Ordering items and matching terms are mixed on every device
+  (`OrderingQuestion.displayItems`, `MatchingQuestion.displayLeftItems` / `displayRightItems` from
+  `core/models/display_order.dart`: a seed per question, a platform independent generator, never the entered order),
+  so players, TV, host and preview show the same order and it never looks like the solution.
 
 ### Changing the TV (Spectator) Screen
 `http://<host>:8080/tv` is a read-only big-screen view (smart TV browser,

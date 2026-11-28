@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/models/models.dart';
 import 'package:quizmo/core/net/quiz_client.dart';
-import 'package:quizmo/presentation/common/question_result_view.dart';
 import 'package:quizmo/presentation/common/tv_instruction.dart';
 import 'package:quizmo/presentation/l10n/app_localizations.dart';
 import 'package:quizmo/presentation/spectator/spectator_session_cubit.dart';
@@ -243,8 +242,8 @@ void main() {
         }
       }
     }
-    final once = mixed(_options, 'q');
-    expect(mixed(_options, 'q'), once, reason: 'stable per question');
+    final once = displayOrder(_options, 'q');
+    expect(displayOrder(_options, 'q'), once, reason: 'stable per question');
     expect(once.toSet(), _options.toSet());
   });
 }

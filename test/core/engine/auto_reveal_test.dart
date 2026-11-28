@@ -1,5 +1,5 @@
-/// Every automatically scored question kind closes and reveals by itself once
-/// all teams (or players) answered, like free text (issue #70).
+// Every automatically scored question kind closes and reveals by itself once
+// all teams (or players) answered, like free text (issue #70).
 import 'package:flutter_test/flutter_test.dart';
 import 'package:quizmo/core/engine/quiz_engine_bloc.dart';
 import 'package:quizmo/core/models/models.dart';

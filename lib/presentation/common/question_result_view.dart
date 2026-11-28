@@ -1,4 +1,3 @@
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -51,18 +50,18 @@ class QuestionResultView extends StatelessWidget {
               '${revealed && solutionOptionIds.contains(option.id) ? '✓ ' : '• '}${option.label}',
               style: const TextStyle(fontSize: 24),
             ),
-        if (question case OrderingQuestion(:final items))
-          for (final item in tv ? mixed(items, question.id) : items)
+        if (question case final OrderingQuestion ordering)
+          for (final item in ordering.displayItems)
             Text('• ${item.label}', style: const TextStyle(fontSize: 24)),
-        if (question case MatchingQuestion(:final leftItems, :final rightItems))
+        if (question case final MatchingQuestion matching)
           if (tv)
             Row(
               key: const ValueKey('tv-matching-lists'),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final (side, items) in [
-                  ('a', leftItems),
-                  ('b', rightItems),
+                  ('a', matching.displayLeftItems),
+                  ('b', matching.displayRightItems),
                 ]) ...[
                   if (side == 'b') const SizedBox(width: 32),
                   Expanded(
@@ -78,10 +77,7 @@ class QuestionResultView extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            for (final item in mixed(
-                              items,
-                              '${question.id}/$side',
-                            ))
+                            for (final item in items)
                               Text(
                                 '• ${item.label}',
                                 style: const TextStyle(fontSize: 24),
@@ -95,9 +91,9 @@ class QuestionResultView extends StatelessWidget {
               ],
             )
           else
-            for (var i = 0; i < leftItems.length; i++)
+            for (final (i, left) in matching.displayLeftItems.indexed)
               Text(
-                '${leftItems[i].label}    |    ${i < rightItems.length ? rightItems[i].label : ''}',
+                '${left.label}    |    ${i < matching.rightItems.length ? matching.displayRightItems[i].label : ''}',
                 style: const TextStyle(fontSize: 24),
               ),
         if ((host || revealed) && game.round.snowflake != null) ...[
@@ -158,15 +154,6 @@ String answerProgressText(
     },
     [answered, expected],
   );
-}
-
-/// [items] in an order that only depends on [seed], on every platform.
-List<AnswerOption> mixed(List<AnswerOption> items, String seed) {
-  var hash = 17;
-  for (final unit in seed.codeUnits) {
-    hash = (hash * 31 + unit) & 0x7fffffff;
-  }
-  return [...items]..shuffle(Random(hash));
 }
 
 /// "C · Indonesien" for the option [optionId] of [question]: letter and
