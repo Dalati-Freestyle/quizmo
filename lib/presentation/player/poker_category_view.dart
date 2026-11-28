@@ -4,14 +4,16 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../common/info_slide_view.dart';
 import '../common/joker_play_form.dart';
 import '../common/joker_texts.dart';
+import '../common/media_playback.dart';
 import '../l10n/app_localizations.dart';
 import 'player_page.dart';
 import 'player_session_cubit.dart';
 
-/// Shows only the category of the coming question: the question itself is
-/// still hidden. Teams
+/// Shows only the category of the coming question, with the slide of the
+/// category when there is one: the question itself is still hidden. Teams
 /// decide on the jokers played before the reveal, and with category slides
 /// they place their stakes on the category.
 class PokerCategoryView extends StatelessWidget {
@@ -47,6 +49,17 @@ class PokerCategoryView extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
+        if (game.activeSlide case final slide?) ...[
+          const SizedBox(height: 12),
+          InfoSlideView(
+            key: ValueKey('category-slide-${slide.id}'),
+            slide: slide,
+            baseUri: cubit.mediaBaseUri,
+            playback: MediaPlayback.onDevice(game),
+            playbackRevision: game.tvMediaRevision,
+            commandRevision: game.tvMediaCommandRevision,
+          ),
+        ],
         const SizedBox(height: 8),
         Text(
           context.tr(

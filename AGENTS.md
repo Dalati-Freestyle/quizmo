@@ -345,7 +345,8 @@ the release pipeline does this automatically.
   `PokerState.stakesBeforeReveal`: teams bet on the category (`PokerState.acceptsStakes`, wagers addressed by
   `roundStartedAt`), and closing the betting (`OpenPokerAnswersEvent`) reveals the question. Jeopardy boards ignore it.
   During a category phase `activeSlide` is the category slide, `showsSlide` is false, and guests may not fetch the
-  hidden question's media (`visibleGuestMedia`).
+  hidden question's media (`visibleGuestMedia`). Every category phase (also the one of `beforeReveal` jokers) shows
+  the text and media of the category slide: `PokerCategoryView` on players, `TvCategoryStage` on the TV.
 
 ### Biggest Snowflake format
 * `SnowflakeFormat` (quiz schema 10) stores **no solutions**: the rarest answer of a round wins. `scoring` is `winnerOnly` (only the rarest answer scores) or `graded` (the share falls linearly with every step of more common answers; the most common one earns nothing). The shares come from `snowflakeShares` in `scoring_rules.dart`: equally rare answers share a step, and when at least two participants answer and all agree nobody scores.
