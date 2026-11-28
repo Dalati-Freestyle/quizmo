@@ -153,6 +153,15 @@ List<AnswerOption> mixed(List<AnswerOption> items, String seed) {
   return [...items]..shuffle(Random(hash));
 }
 
+/// "C · Indonesien" for the option [optionId] of [question]: letter and
+/// text, as on the TV; never the internal ID while the option exists.
+String choiceLabel(MultipleChoiceQuestion question, String optionId) {
+  final index = question.options.indexWhere((o) => o.id == optionId);
+  return index < 0
+      ? optionId
+      : '${String.fromCharCode(0x41 + index)} · ${question.options[index].label}';
+}
+
 String answerLabel(
   AnswerSubmission answer,
   Question question, {
@@ -198,9 +207,14 @@ String answerLabel(
               )
               .join(', ')
         : pairs.toString(),
-  MultipleChoiceAnswer(:final selectedOptionIds) => selectedOptionIds.join(
-    ', ',
-  ),
+  MultipleChoiceAnswer(:final selectedOptionIds) =>
+    selectedOptionIds
+        .map(
+          (id) => question is MultipleChoiceQuestion
+              ? choiceLabel(question, id)
+              : id,
+        )
+        .join(', '),
   BuzzerPress() => context?.tr("Buzzer") ?? 'Buzzer',
   VerbalAnswer() =>
     context?.tr("Mündlich beantwortet") ?? 'Mündlich beantwortet',
