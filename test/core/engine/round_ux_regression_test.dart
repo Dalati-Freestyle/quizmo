@@ -46,7 +46,8 @@ void main() {
         );
         expect(engine.state.game.round.answers.length, soft ? 1 : 0);
         if (soft) {
-          expect(engine.state.game.round.status, RoundStatus.acceptingAnswers);
+          // Everybody answered: every kind reveals by itself (#70).
+          expect(engine.state.game.round.status, RoundStatus.revealed);
         }
         await send(engine, const RevealRoundEvent());
         expect(engine.state.game.round.status, RoundStatus.revealed);

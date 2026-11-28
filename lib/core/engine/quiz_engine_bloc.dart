@@ -1411,8 +1411,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
           game.allAnswersRevision +
           (round.answerDeadlineMicros == null ? 1 : 0),
     );
-    final closes = round.manualGrading || !round.hasSoftTimer;
-    if (closes && teamId != null && answerCountdown > Duration.zero) {
+    // Every kind closes once everybody answered, also with a soft time
+    // limit: host graded rounds go to grading, the others are revealed.
+    if (teamId != null && answerCountdown > Duration.zero) {
       emit(
         _publish(
           announced.copyWith(
@@ -1431,7 +1432,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   void _closeAnswered(GameState game, Emitter<QuizEngineState> emit) {
     if (!game.round.manualGrading) {
       emit(_publish(game));
-      if (!game.round.hasSoftTimer) add(const RevealRoundEvent());
+      add(const RevealRoundEvent());
       return;
     }
     emit(

@@ -237,7 +237,8 @@ the release pipeline does this automatically.
   holds at most that one answer per team, earlier ones are in `replacedAnswers` (host only); `_withValidTeamAnswers` in
   the engine restores this after every change (also team changes and removals). A judged answer is final.
 * When every team answered, `RoundState.answerDeadlineMicros` starts a countdown (`answerCountdown`) before the answers
-  close; replacing restarts it.
+  close; replacing restarts it. This holds for every question kind, also with a soft time limit: host graded rounds
+  then go to grading, all others are revealed. Who must answer is `GameState.expectedAnswerers` (one entry per team).
 * Guest snapshots withhold all answers in every format until the reveal. What one player may see (own and team answers)
   travels as `PlayerAnswers` per connection (`GameSnapshotMessage.answers`), in the preview through
   `PlayerSessionCubit.local(answers:)`.
