@@ -133,15 +133,31 @@ class QuestionResultView extends StatelessWidget {
         ],
         const SizedBox(height: 12),
         Text(
-          context.tr("{0} / {1} Antworten", [
-            game.round.answerCount,
-            game.connectedPlayers.length,
-          ]),
+          answerProgressText(context, game),
           style: const TextStyle(fontSize: 22),
         ),
       ],
     );
   }
+}
+
+/// "3 / 5 Antworten", or "3 / 3 Teams" when every team counts as one
+/// answer; [sentence] gives "3 von 3 Teams haben geantwortet".
+String answerProgressText(
+  BuildContext context,
+  GameState game, {
+  bool sentence = false,
+}) {
+  final (:answered, :expected, :teams) = game.answerProgress;
+  return context.tr(
+    switch ((sentence, teams)) {
+      (false, false) => "{0} / {1} Antworten",
+      (false, true) => "{0} / {1} Teams",
+      (true, false) => "{0} of {1} answered",
+      (true, true) => "{0} von {1} Teams haben geantwortet",
+    },
+    [answered, expected],
+  );
 }
 
 /// [items] in an order that only depends on [seed], on every platform.

@@ -345,10 +345,14 @@ class AnswersCard extends StatelessWidget {
       subtitle: subtitle,
       trailing: question == null || question is BuzzerQuestion
           ? null
-          : Text(
-              '${round.answerCount} / ${game.connectedPlayers.length}',
-              style: theme.textTheme.labelLarge,
-            ),
+          : Text(switch (game.answerProgress) {
+              (:final answered, :final expected, teams: true) => context.tr(
+                '{0} / {1} Teams',
+                [answered, expected],
+              ),
+              (:final answered, :final expected, teams: false) =>
+                '$answered / $expected',
+            }, style: theme.textTheme.labelLarge),
       child: round.replacedAnswers.isEmpty || question == null
           ? body
           : Column(

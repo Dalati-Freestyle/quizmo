@@ -2772,33 +2772,8 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
 
   /// Whether everybody (with shared answers: every team) that may answer did.
   bool _everyoneAnswered(GameState game) {
-    if (game.poker case final poker?) {
-      final teams = game.teams.keys.where(
-        (id) => (poker.wagers[id] ?? 0) > 0 || (poker.chips[id] ?? 0) == 0,
-      );
-      return teams.isNotEmpty &&
-          teams.every(
-            (team) => game.round.answers.keys.any(
-              (id) => game.players[id]?.teamId == team,
-            ),
-          );
-    }
-    final jeopardy = game.jeopardy;
-    final eligible = game.connectedPlayers
-        .where(
-          (player) =>
-              (jeopardy?.mayAnswer(game.participantId(player)) ?? true) &&
-              (game.poker == null ||
-                  (game.poker!.wagers[player.teamId] ?? 0) > 0),
-        )
-        .toList(growable: false);
-    if (eligible.isEmpty) return false;
-    return eligible.every((player) {
-      final teamId = game.sharedAnswerTeamOf(player.id);
-      return teamId == null
-          ? game.round.answers.containsKey(player.id)
-          : game.teamAnswerOf(teamId) != null;
-    });
+    final expected = game.expectedAnswerers;
+    return expected.isNotEmpty && expected.every(game.hasAnswered);
   }
 
   /// The team that picks after [currentId], following the roster order.

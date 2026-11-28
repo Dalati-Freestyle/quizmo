@@ -1739,10 +1739,7 @@ class _QuestionStage extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 12),
                           child: Text(
-                            context.tr('{0} / {1} Antworten', [
-                              round.answerCount,
-                              game.connectedPlayers.length,
-                            ]),
+                            answerProgressText(context, game),
                             style: const TextStyle(fontSize: 26),
                           ),
                         ),
@@ -2130,10 +2127,7 @@ class _ChoiceBoard extends StatelessWidget {
         if (!isRevealed) ...[
           const SizedBox(height: 24),
           Text(
-            context.tr("{0} of {1} answered", [
-              round.answerCount,
-              game.connectedPlayers.length,
-            ]),
+            answerProgressText(context, game, sentence: true),
             style: theme.textTheme.headlineSmall?.copyWith(
               fontSize: 32,
               color: theme.colorScheme.onSurfaceVariant,

@@ -310,6 +310,43 @@ final class GameState extends Equatable {
   String? sharedAnswerTeamOf(String? playerId) =>
       sharesTeamAnswers ? players[playerId]?.teamId : null;
 
+  /// Who is expected to answer the round on stage: one entry per team when
+  /// teams share their answer (and in Pokerchips, the teams with a stake or
+  /// without chips), otherwise one per connected player who may answer.
+  Set<({String id, bool team})> get expectedAnswerers {
+    if (poker case final poker?) {
+      return {
+        for (final id in teams.keys)
+          if ((poker.wagers[id] ?? 0) > 0 || (poker.chips[id] ?? 0) == 0)
+            (id: id, team: true),
+      };
+    }
+    return {
+      for (final player in connectedPlayers)
+        if (jeopardy?.mayAnswer(participantId(player)) ?? true)
+          if (sharedAnswerTeamOf(player.id) case final teamId?)
+            (id: teamId, team: true)
+          else
+            (id: player.id, team: false),
+    };
+  }
+
+  /// Whether [answerer] (from [expectedAnswerers]) answered the round.
+  bool hasAnswered(({String id, bool team}) answerer) => answerer.team
+      ? teamAnswerOf(answerer.id) != null
+      : round.answers.containsKey(answerer.id);
+
+  /// How many answered out of how many expected; [teams] when every team
+  /// counts as one answer (`sharesTeamAnswers`).
+  ({int answered, int expected, bool teams}) get answerProgress {
+    final expected = expectedAnswerers;
+    return (
+      answered: round.answerCount,
+      expected: expected.length,
+      teams: expected.isNotEmpty && expected.every((e) => e.team),
+    );
+  }
+
   /// The answer that counts for [teamId], if it gave one.
   AnswerSubmission? teamAnswerOf(String? teamId) {
     if (teamId == null) return null;
