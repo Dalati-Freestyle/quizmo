@@ -979,7 +979,12 @@ class _QuestionStage extends StatelessWidget {
               deadlineMicros: deadline,
               hostNowMicros: cubit.hostNowMicros,
             ),
-          input,
+          // Only the input is locked for a team that sits out or was
+          // settled; media (and their zoom) stay usable.
+          if (state.game?.poker == null)
+            input
+          else
+            AbsorbPointer(absorbing: !state.mayAnswerPoker, child: input),
           AdoptedAnswerCard(state: state),
           TeamAnswerCard(state: state, onResend: cubit.resend),
           TeamInputsView(state: state, hostNowMicros: cubit.hostNowMicros),
@@ -1088,7 +1093,7 @@ class _QuestionStage extends StatelessWidget {
               context.tr("Dein Team setzt aus oder wurde bereits gewertet."),
             ),
           const SizedBox(height: 12),
-          AbsorbPointer(absorbing: !state.mayAnswerPoker, child: view),
+          view,
         ],
       );
     }
