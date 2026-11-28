@@ -1484,7 +1484,7 @@ class _PokerWagerViewState extends State<PokerWagerView> {
           ),
         ],
         const SizedBox(height: 16),
-        Text(
+        QuizMarkdown(
           state.question!.prompt,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
