@@ -515,7 +515,12 @@ class _ReadyMediaView extends QuestionMediaView {
         children: [
           if (grows)
             Expanded(
-              child: enlargeable ? _Enlargeable(child: content) : content,
+              child: enlargeable
+                  ? _Enlargeable(
+                      zoomable: attachment is ImageAttachment,
+                      child: content,
+                    )
+                  : content,
             )
           else
             content,
@@ -631,33 +636,109 @@ class _ReadyMediaView extends QuestionMediaView {
 /// keeps its position and nothing loads again. Closes with the button, Esc
 /// or a click next to it, and by itself when the medium leaves the stage.
 class _Enlargeable extends StatefulWidget {
-  const _Enlargeable({required this.child});
+  const _Enlargeable({required this.child, this.zoomable = false});
 
   final Widget child;
+
+  /// Pictures can be zoomed into and moved while they are enlarged (mouse
+  /// wheel, pinch, dragging, the buttons or + / − / 0 on a keyboard or
+  /// remote).
+  final bool zoomable;
 
   @override
   State<_Enlargeable> createState() => _EnlargeableState();
 }
 
 class _EnlargeableState extends State<_Enlargeable> {
+  static const _maxScale = 8.0;
+
   final _controller = OverlayPortalController();
   final _medium = GlobalKey();
+  final _zoom = TransformationController();
+  Size _viewport = Size.zero;
   bool _enlarged = false;
 
   void _toggle(bool enlarged) {
+    // Every enlargement starts with the whole picture.
+    _zoom.value = Matrix4.identity();
     setState(() => _enlarged = enlarged);
     enlarged ? _controller.show() : _controller.hide();
   }
 
+  /// Zooms by [factor] around the centre of the visible area.
+  void _zoomBy(double factor) {
+    final current = _zoom.value.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(1.0, _maxScale);
+    if (target == 1.0) {
+      _zoom.value = Matrix4.identity();
+      return;
+    }
+    final scale = target / current;
+    final cx = _viewport.width / 2;
+    final cy = _viewport.height / 2;
+    _zoom.value = Matrix4.identity()
+      ..translateByDouble(cx, cy, 0, 1)
+      ..scaleByDouble(scale, scale, 1, 1)
+      ..translateByDouble(-cx, -cy, 0, 1)
+      ..multiply(_zoom.value);
+  }
+
+  void _resetZoom() => _zoom.value = Matrix4.identity();
+
+  @override
+  void dispose() {
+    _zoom.dispose();
+    super.dispose();
+  }
+
+  Widget _button(
+    String key,
+    IconData icon,
+    String tooltip,
+    VoidCallback onPressed,
+  ) => PointerInterceptor(
+    child: IconButton.filledTonal(
+      key: ValueKey(key),
+      iconSize: 36,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final medium = KeyedSubtree(key: _medium, child: widget.child);
+    final enlarged = !widget.zoomable
+        ? medium
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              _viewport = constraints.biggest;
+              return InteractiveViewer(
+                key: const ValueKey('media-enlarged-zoom'),
+                transformationController: _zoom,
+                minScale: 1,
+                maxScale: _maxScale,
+                child: SizedBox.fromSize(size: _viewport, child: medium),
+              );
+            },
+          );
     return OverlayPortal(
       controller: _controller,
       overlayChildBuilder: (context) => CallbackShortcuts(
         bindings: {
           const SingleActivator(LogicalKeyboardKey.escape): () =>
               _toggle(false),
+          if (widget.zoomable) ...{
+            // Characters, so + works with every keyboard layout.
+            const CharacterActivator('+'): () => _zoomBy(1.5),
+            const CharacterActivator('-'): () => _zoomBy(1 / 1.5),
+            const CharacterActivator('0'): _resetZoom,
+            const SingleActivator(LogicalKeyboardKey.numpadAdd): () =>
+                _zoomBy(1.5),
+            const SingleActivator(LogicalKeyboardKey.numpadSubtract): () =>
+                _zoomBy(1 / 1.5),
+          },
         },
         child: Focus(
           autofocus: true,
@@ -677,7 +758,8 @@ class _EnlargeableState extends State<_Enlargeable> {
                     padding: const EdgeInsets.all(24),
                     child: Material(
                       color: Colors.black,
-                      child: _enlarged ? medium : null,
+                      clipBehavior: Clip.hardEdge,
+                      child: _enlarged ? enlarged : null,
                     ),
                   ),
                 ),
@@ -686,14 +768,39 @@ class _EnlargeableState extends State<_Enlargeable> {
                 right: 32,
                 top: 32,
                 child: SafeArea(
-                  child: PointerInterceptor(
-                    child: IconButton.filledTonal(
-                      key: const ValueKey('media-shrink'),
-                      iconSize: 36,
-                      tooltip: context.tr('Schließen'),
-                      onPressed: () => _toggle(false),
-                      icon: const Icon(Icons.fullscreen_exit),
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _button(
+                        'media-shrink',
+                        Icons.fullscreen_exit,
+                        context.tr('Schließen'),
+                        () => _toggle(false),
+                      ),
+                      if (widget.zoomable) ...[
+                        const SizedBox(height: 12),
+                        _button(
+                          'media-zoom-in',
+                          Icons.zoom_in,
+                          context.tr('Hineinzoomen'),
+                          () => _zoomBy(1.5),
+                        ),
+                        const SizedBox(height: 12),
+                        _button(
+                          'media-zoom-out',
+                          Icons.zoom_out,
+                          context.tr('Herauszoomen'),
+                          () => _zoomBy(1 / 1.5),
+                        ),
+                        const SizedBox(height: 12),
+                        _button(
+                          'media-zoom-reset',
+                          Icons.fit_screen,
+                          context.tr('Ganzes Bild'),
+                          _resetZoom,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),

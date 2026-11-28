@@ -100,6 +100,66 @@ void main() {
     expect(enlarged, findsNothing);
   });
 
+  testWidgets('an enlarged picture can be zoomed into and reset', (
+    tester,
+  ) async {
+    await show(tester, playing(question));
+    await tester.tap(enlarge);
+    await tester.pump();
+    final viewer = find.byKey(const ValueKey('media-enlarged-zoom'));
+    expect(viewer, findsOneWidget);
+    double scale() => tester
+        .widget<InteractiveViewer>(viewer)
+        .transformationController!
+        .value
+        .getMaxScaleOnAxis();
+    expect(scale(), 1);
+
+    await tester.tap(find.byKey(const ValueKey('media-zoom-in')));
+    await tester.pump();
+    expect(scale(), closeTo(1.5, 0.001));
+    // The remote's + key zooms further, the picture can then be moved.
+    await tester.sendKeyEvent(LogicalKeyboardKey.numpadAdd);
+    await tester.pump();
+    expect(scale(), closeTo(2.25, 0.001));
+    await tester.drag(viewer, const Offset(200, 0));
+    await tester.pump();
+    expect(scale(), closeTo(2.25, 0.001));
+
+    await tester.tap(find.byKey(const ValueKey('media-zoom-out')));
+    await tester.pump();
+    expect(scale(), closeTo(1.5, 0.001));
+    await tester.tap(find.byKey(const ValueKey('media-zoom-reset')));
+    await tester.pump();
+    expect(scale(), 1);
+
+    // Closing forgets the zoom: the next enlargement shows the whole picture.
+    await tester.tap(find.byKey(const ValueKey('media-zoom-in')));
+    await tester.tap(find.byKey(const ValueKey('media-shrink')));
+    await tester.pump();
+    await tester.tap(enlarge);
+    await tester.pump();
+    expect(scale(), 1);
+  });
+
+  testWidgets('maps and videos get no zoom buttons', (tester) async {
+    await show(
+      tester,
+      playing(
+        const TrueFalseQuestion(
+          id: 'm',
+          prompt: 'Wo?',
+          correctAnswer: true,
+          media: [GeoAttachment(latitude: 52.5, longitude: 13.4)],
+        ),
+      ),
+    );
+    await tester.tap(enlarge);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('media-zoom-in')), findsNothing);
+    expect(find.byKey(const ValueKey('media-shrink')), findsOneWidget);
+  });
+
   testWidgets('the reveal keeps the enlarged picture of the question', (
     tester,
   ) async {

@@ -1606,5 +1606,8 @@
   "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.": "Das Quiz ({0}) ist größer als dein Limit fürs Vorladen: Medien laden, wenn eine Frage sie braucht.",
   "{0} / {1} Teams": "{0} / {1} Teams",
   "{0} von {1} Teams haben geantwortet": "{0} von {1} Teams haben geantwortet",
-  "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.": "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen."
+  "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.": "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.",
+  "Hineinzoomen": "Hineinzoomen",
+  "Herauszoomen": "Herauszoomen",
+  "Ganzes Bild": "Ganzes Bild"
 }
