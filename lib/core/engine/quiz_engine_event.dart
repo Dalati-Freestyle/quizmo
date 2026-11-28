@@ -260,6 +260,17 @@ final class SetVerbalAnswersEvent extends QuizEngineEvent {
   List<Object?> get props => [enabled];
 }
 
+/// Switches "category slide before every question" (`GameState.categorySlides`).
+/// Applies from the next question on.
+final class SetCategorySlidesEvent extends QuizEngineEvent {
+  const SetCategorySlidesEvent(this.enabled);
+
+  final bool enabled;
+
+  @override
+  List<Object?> get props => [enabled];
+}
+
 /// Reason stored by the "no reason" button of the point change dialog.
 const kNoReasonGiven = '🤷';
 
@@ -448,14 +459,26 @@ final class SetJeopardyTurnEvent extends QuizEngineEvent {
 final class PlacePokerWagerEvent extends QuizEngineEvent {
   const PlacePokerWagerEvent({
     required this.playerId,
-    required this.questionId,
     required this.wager,
+    this.questionId,
+    this.roundStartedAt,
   });
   final String playerId;
-  final String questionId;
+
+  /// The question the stake is for, when the player knows it.
+  final String? questionId;
+
+  /// Start of the round the stake is for; guests use it while the question
+  /// is hidden behind its category.
+  final int? roundStartedAt;
   final int wager;
+
+  /// Whether the stake belongs to [round].
+  bool addresses(RoundState round) =>
+      (questionId != null && questionId == round.question?.id) ||
+      (roundStartedAt != null && roundStartedAt == round.startedAtHostMicros);
   @override
-  List<Object?> get props => [playerId, questionId, wager];
+  List<Object?> get props => [playerId, questionId, roundStartedAt, wager];
 }
 
 final class OpenPokerAnswersEvent extends QuizEngineEvent {

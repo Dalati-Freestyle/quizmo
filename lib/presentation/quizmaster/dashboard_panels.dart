@@ -1,6 +1,7 @@
 /// Panels of the quizmaster dashboard.
 library;
 
+import '../common/category_slides_warning.dart';
 import '../common/answer_countdown.dart';
 import '../common/hint_views.dart';
 import '../common/reveal_media.dart';
@@ -1124,6 +1125,7 @@ class LiveRoundPanel extends StatelessWidget {
     this.onEndRound,
     this.onJudgeBuzzer,
     this.onSetVerbalAnswers,
+    this.onSetCategorySlides,
     this.onShowHint,
     this.onTakeBackHint,
     this.onShowRevealMedia,
@@ -1149,6 +1151,52 @@ class LiveRoundPanel extends StatelessWidget {
 
   /// Switches the verbal answer mode; `null` hides the switch.
   final ValueChanged<bool>? onSetVerbalAnswers;
+
+  /// Switches "category slide before every question"; `null` hides it.
+  final ValueChanged<bool>? onSetCategorySlides;
+
+  /// The host switch "category slide before every question", offered when
+  /// the quiz has category slides (not on a Jeopardy board, whose columns
+  /// are the categories).
+  Widget? _categorySlidesSwitch(BuildContext context, GameState game) {
+    final onChanged = onSetCategorySlides;
+    if (onChanged == null ||
+        game.jeopardy != null ||
+        game.isFinished ||
+        !game.slides.any((slide) => slide.category != null)) {
+      return null;
+    }
+    final missing = [
+      for (final question in game.questionBank)
+        if (game.categorySlideFor(question) == null) question,
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          key: const ValueKey('category-slides-switch'),
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          value: game.categorySlides,
+          onChanged: onChanged,
+          secondary: const Icon(Icons.slideshow_outlined),
+          title: Text(context.tr('Kategorie-Folie vor jeder Frage zeigen')),
+          subtitle: Text(
+            context.tr(
+              game.poker != null
+                  ? 'Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.'
+                  : 'Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.',
+            ),
+          ),
+        ),
+        if (missing.isNotEmpty)
+          CategorySlidesWarning(
+            missing: missing.length,
+            total: game.questionBank.length,
+          ),
+      ],
+    );
+  }
 
   /// Current engine state.
   final QuizEngineState state;
@@ -1329,6 +1377,7 @@ class LiveRoundPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 AnswersCard(game: game),
                 ?_verbalSwitch(context, game),
+                ?_categorySlidesSwitch(context, game),
               ],
             )
           : Column(
@@ -1404,6 +1453,7 @@ class LiveRoundPanel extends StatelessWidget {
                   ),
                 AnswersCard(game: game),
                 ?_verbalSwitch(context, game),
+                ?_categorySlidesSwitch(context, game),
                 const SizedBox(height: 12),
                 _RoundActions(
                   state: state,

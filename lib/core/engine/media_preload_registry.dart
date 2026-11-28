@@ -14,7 +14,11 @@ import '../net/chacha20.dart';
 /// final review. Both the plain media route and the preload keys use it.
 List<MediaAttachment> visibleGuestMedia(GameState game) {
   final round = game.round;
-  final question = round.question;
+  // In the category phase of Pokerchips guests do not know the question
+  // yet, so neither may they fetch its media.
+  final question = (game.poker?.questionHidden ?? false)
+      ? null
+      : round.question;
   return [
     ...?game.activeSlide?.media,
     if (question != null) ...[

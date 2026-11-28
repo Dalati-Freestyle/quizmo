@@ -9,7 +9,7 @@
   schema.
 -->
 
-Quizmo schema version of this guide: **18**
+Quizmo schema version of this guide: **19**
 
 **Instructions for the AI assistant.** You help the person you are talking to
 create a quiz for the quiz app *Quizmo*. At the end of the conversation you
@@ -97,7 +97,7 @@ the host). Show each question briefly for confirmation before the next one.
 
 ```text
 {
-  "schemaVersion": 18,              // always exactly 18
+  "schemaVersion": 19,              // always exactly 19
   "id": "quiz-…",                   // unique ID, only a-z, 0-9 and -
   "name": "Title",
   "description": "Short description (not empty)",
@@ -155,6 +155,15 @@ format. `{"id": "slide-break", "title": "Drinks break", "text": "", "media": [],
 "beforeQuestionId": "q3"}` – `beforeQuestionId` is the ID of the question the
 slide comes before, omit it = after the last question. A title, a text or a
 medium is required; `media` as for questions (at most ten).
+
+**Category slides** (optional, since schema 19): a slide with `"category":
+"History"` belongs to the questions with the same `category` (case and
+surrounding blanks do not matter, at most one slide per category). When the
+host switches on "category slide before every question", it is shown before
+every question of that category; in the poker format the teams then bet on
+the category before the question is revealed. The category phase shows its
+picture. Give either every category or none a slide, otherwise the editor
+warns.
 
 **Biggest Snowflake:**
 
@@ -325,7 +334,7 @@ attachments per question (question and solution together).
 
 ## 7. Checklist before the output
 
-- [ ] `"schemaVersion": 18` is at the very top.
+- [ ] `"schemaVersion": 19` is at the very top.
 - [ ] `name`, `description` and `category` are not empty.
 - [ ] All IDs are unique and not empty.
 - [ ] Every question has a text, a time limit ≥ 0 (0 = none; a speed bonus
@@ -354,7 +363,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ai-standard-example",
   "name": "General knowledge in brief",
   "description": "Eight questions with every question type.",
@@ -539,7 +548,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ai-jeopardy-example",
   "name": "Jeopardy: Nature & Technology",
   "description": "Small board with two categories.",
@@ -609,7 +618,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ai-poker-example",
   "name": "Pokerchips: How sure are you?",
   "description": "Teams bet chips on their knowledge.",
@@ -643,6 +652,8 @@ The following files are valid and import unchanged.
   ],
   "slides": [
     {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "slide-history", "title": "History", "text": "Everything before 1900.", "media": [], "category": "History"},
+    {"id": "slide-biology", "title": "Biology", "text": "Animals and plants.", "media": [], "category": "Biology"},
     {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
   ],
   "createdAtMicros": 1767225600000000,
@@ -654,7 +665,7 @@ The following files are valid and import unchanged.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ai-snowflake-example",
   "name": "Biggest Snowflake: who thinks differently?",
   "description": "No correct solution: whoever answers differently from the majority scores.",

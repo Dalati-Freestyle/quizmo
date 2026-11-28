@@ -48,7 +48,8 @@ class TvCategoryStage extends StatelessWidget {
           Text(
             [
               ?tvInstruction(context.tr, game)?.text,
-              context.tr('Die Frage folgt gleich.'),
+              if (!(game.poker?.stakesBeforeReveal ?? false))
+                context.tr('Die Frage folgt gleich.'),
             ].join(' '),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 34, color: scheme.onSurfaceVariant),

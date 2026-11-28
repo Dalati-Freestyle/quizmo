@@ -739,13 +739,18 @@ class SocketHub {
             roundStartedAt: roundStartedAt,
           ),
         );
-      case PokerWagerMessage(:final questionId, :final wager):
+      case PokerWagerMessage(
+        :final questionId,
+        :final roundStartedAt,
+        :final wager,
+      ):
         final playerId = connection.playerId;
         if (playerId == null || connection.isSpectator) return;
         _engine.add(
           PlacePokerWagerEvent(
             playerId: playerId,
             questionId: questionId,
+            roundStartedAt: roundStartedAt,
             wager: wager,
           ),
         );

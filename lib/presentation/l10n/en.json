@@ -1609,5 +1609,22 @@
   "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.": "All stakes are in. You can close the betting now.",
   "Hineinzoomen": "Zoom in",
   "Herauszoomen": "Zoom out",
-  "Ganzes Bild": "Whole picture"
+  "Ganzes Bild": "Whole picture",
+  "Setzt eure Chips auf diese Kategorie.": "Bet your chips on this category.",
+  "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.": "The question is still hidden. Bet on the category now; the question is revealed when the host closes the betting.",
+  "Kategorie-Folie vor jeder Frage zeigen": "Show the category slide before every question",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.": "Every question is preceded by the slide of its category; the teams bet before the question is revealed.",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.": "Every question is preceded by the slide of its category; starting again shows the question.",
+  "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.": "{0} of {1} questions have no slide for their category. They start without a category slide.",
+  "Ohne Folie: {0}": "Without a slide: {0}",
+  "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.": "Phase 1 · category “{0}”: the teams bet on the category, the question is still hidden.",
+  "Einsätze schließen & Frage aufdecken": "Close the betting & reveal the question",
+  "Kategorie-Folie": "Category slide",
+  "Kategorie (optional)": "Category (optional)",
+  "Bestehende Kategorie wählen": "Choose an existing category",
+  "Folie einer Kategorie (optional)": "Slide of a category (optional)",
+  "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.": "With a category the slide is shown before every question of that category when the host switches on “category slide before every question”.",
+  "Kategorie-Folie: {0}": "Category slide: {0}",
+  "Jede Kategorie kann nur eine Kategorie-Folie haben.": "Each category can only have one category slide.",
+  "Category slides need schemaVersion 19.": "Category slides need schemaVersion 19."
 }

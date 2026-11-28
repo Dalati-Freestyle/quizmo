@@ -27,10 +27,21 @@ enum PlayerTurn {
 PlayerTurn? pendingTurn(PlayerSessionState state) {
   final game = state.game;
   final question = state.question;
-  if (!state.isConnected || game == null || question == null) return null;
+  if (!state.isConnected || game == null) return null;
   if (game.showsSlide || game.isFinished || game.recoveryPaused) return null;
   final round = game.round;
   final team = state.me?.teamId;
+  // Teams bet on a category before its question is revealed.
+  if (game.poker case final poker?
+      when poker.questionHidden && poker.stakesBeforeReveal) {
+    return poker.betting &&
+            team != null &&
+            (poker.chips[team] ?? 0) > 0 &&
+            !poker.wagers.containsKey(team)
+        ? PlayerTurn.stake
+        : null;
+  }
+  if (question == null) return null;
   if (game.poker case final poker?) {
     if (poker.betting) {
       // The category phase only offers jokers, which are optional.

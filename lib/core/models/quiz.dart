@@ -48,7 +48,7 @@ final class Quiz extends Equatable {
   });
 
   /// The newest file format this version of Quizmo can read and write.
-  static const int currentSchemaVersion = 18;
+  static const int currentSchemaVersion = 19;
 
   /// Restores and validates a quiz definition from [json].
   factory Quiz.fromJson(JsonMap json) {
@@ -83,6 +83,7 @@ final class Quiz extends Equatable {
       16 => Quiz._fromJsonV16(json),
       17 => Quiz._fromJsonV17(json),
       18 => Quiz._fromJsonV18(json),
+      19 => Quiz._fromJsonV19(json),
       final unsupported => throw JsonContractException(
         'Unsupported quiz schemaVersion $unsupported. '
         'This app supports schema versions 1 through $currentSchemaVersion.',
@@ -258,7 +259,21 @@ final class Quiz extends Equatable {
     return Quiz._fromJsonV18(json);
   }
 
+  /// Schema 18 has no category slides; everything else is equal.
   factory Quiz._fromJsonV18(JsonMap json) {
+    if (json['slides'] case final List<Object?> slides) {
+      for (final slide in slides) {
+        if (slide is Map && slide['category'] != null) {
+          throw const JsonContractException(
+            'Category slides need schemaVersion 19.',
+          );
+        }
+      }
+    }
+    return Quiz._fromJsonV19(json);
+  }
+
+  factory Quiz._fromJsonV19(JsonMap json) {
     // Files written before formats existed have no entry: plain quiz.
     final format = switch (json.readObjectOrNull('format')) {
       final JsonMap value => QuizFormat.fromJson(value),
@@ -335,6 +350,49 @@ final class Quiz extends Equatable {
 
   /// Teams keyed by their stable IDs for the quiz engine.
   Map<String, Team> get teamsById => {for (final team in teams) team.id: team};
+
+  /// Every category of the questions and slides, each once (the first
+  /// spelling wins), in the order they appear.
+  List<String> get categories {
+    final seen = <String>{};
+    return [
+      for (final category in [
+        for (final question in questions) question.category,
+        for (final slide in slides) slide.category,
+      ])
+        if (normalizedCategory(category) case final name?)
+          if (seen.add(name.toLowerCase())) name,
+    ];
+  }
+
+  /// Which questions have a slide for their category (`covered`) and which
+  /// do not (`uncovered`, also questions without a category), plus the
+  /// categories that lack a slide.
+  ({int covered, int uncovered, List<String> missing})
+  get categorySlideCoverage {
+    var covered = 0;
+    var uncovered = 0;
+    final missing = <String>[];
+    for (final question in questions) {
+      if (categorySlideOf(slides, question.category) != null) {
+        covered++;
+      } else {
+        uncovered++;
+        if (normalizedCategory(question.category) case final name?
+            when !missing.any((m) => sameCategory(m, name))) {
+          missing.add(name);
+        }
+      }
+    }
+    return (covered: covered, uncovered: uncovered, missing: missing);
+  }
+
+  /// Whether some questions have a category slide and others do not: then
+  /// "category slide before every question" would only work for some.
+  bool get hasPartialCategorySlides {
+    final coverage = categorySlideCoverage;
+    return coverage.covered > 0 && coverage.uncovered > 0;
+  }
 
   /// Reports every content violation that prevents a safe save or import.
   List<String> validationErrors() {
@@ -424,6 +482,14 @@ final class Quiz extends Equatable {
     }
     if (slides.map((slide) => slide.id).toSet().length != slides.length) {
       errors.add('Jede Zwischenfolie braucht eine eigene ID.');
+    }
+    final introduced = [
+      for (final slide in slides)
+        if (normalizedCategory(slide.category) case final category?)
+          category.toLowerCase(),
+    ];
+    if (introduced.toSet().length != introduced.length) {
+      errors.add('Jede Kategorie kann nur eine Kategorie-Folie haben.');
     }
     return List.unmodifiable(errors);
   }

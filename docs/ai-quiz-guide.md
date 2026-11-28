@@ -9,7 +9,7 @@
   das neue Schema anpassen.
 -->
 
-Quizmo-Schema-Version dieser Anleitung: **18**
+Quizmo-Schema-Version dieser Anleitung: **19**
 
 **Anleitung für den KI-Assistenten.** Du hilfst der Person, mit der du sprichst,
 ein Quiz für die Quiz-App *Quizmo* zu erstellen. Am Ende des Gesprächs gibst du
@@ -98,7 +98,7 @@ Bestätigung, bevor du zur nächsten gehst.
 
 ```text
 {
-  "schemaVersion": 18,              // immer genau 18
+  "schemaVersion": 19,              // immer genau 19
   "id": "quiz-…",                   // eindeutige ID, nur a-z, 0-9 und -
   "name": "Titel",
   "description": "Kurze Beschreibung (nicht leer)",
@@ -158,6 +158,15 @@ Fragen (Pause, Kategorie-Titel, „Das Ergebnis ist unterwegs“), in jedem Form
 "beforeQuestionId": "q3"}` – `beforeQuestionId` ist die ID der Frage, vor der
 die Folie steht, weglassen = nach der letzten Frage. Titel, Text oder ein
 Medium ist Pflicht; `media` wie bei Fragen (höchstens zehn).
+
+**Kategorie-Folien** (optional, ab Schema 19): Eine Folie mit `"category":
+"Geschichte"` gehört zur Kategorie der Fragen mit derselben `category`
+(Groß-/Kleinschreibung und Leerzeichen am Rand egal, höchstens eine Folie pro
+Kategorie). Schaltet der Spielleiter „Kategorie-Folie vor jeder Frage“ ein,
+erscheint sie vor jeder Frage dieser Kategorie; im Pokerformat setzen die
+Teams dann auf die Kategorie, bevor die Frage aufgedeckt wird. In der
+Kategorie-Phase zeigt sie ihr Bild. Gib entweder allen oder keiner Kategorie
+eine Folie, sonst warnt der Editor.
 
 **Biggest Snowflake:**
 
@@ -328,7 +337,7 @@ Höchstens 10 Anhänge pro Frage (Frage und Lösung zusammen).
 
 ## 7. Checkliste vor der Ausgabe
 
-- [ ] `"schemaVersion": 18` steht ganz oben.
+- [ ] `"schemaVersion": 19` steht ganz oben.
 - [ ] `name`, `description` und `category` sind nicht leer.
 - [ ] Alle IDs sind eindeutig und nicht leer.
 - [ ] Jede Frage hat einen Text, ein Zeitlimit ≥ 0 (0 = keins; ein
@@ -358,7 +367,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ki-standard-beispiel",
   "name": "Allgemeinwissen kompakt",
   "description": "Acht Fragen mit allen Fragetypen.",
@@ -543,7 +552,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ki-jeopardy-beispiel",
   "name": "Jeopardy: Natur & Technik",
   "description": "Kleines Board mit zwei Kategorien.",
@@ -613,7 +622,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ki-poker-beispiel",
   "name": "Pokerchips: Wie sicher bist du?",
   "description": "Teams setzen Chips auf ihr Wissen.",
@@ -647,6 +656,8 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
   ],
   "slides": [
     {"id": "folie-start", "title": "Willkommen!", "text": "Gleich geht es los.", "media": [], "beforeQuestionId": "p1"},
+    {"id": "folie-geschichte", "title": "Geschichte", "text": "Alles vor 1900.", "media": [], "category": "Geschichte"},
+    {"id": "folie-biologie", "title": "Biologie", "text": "Tiere und Pflanzen.", "media": [], "category": "Biologie"},
     {"id": "folie-ende", "title": "Das Ergebnis ist unterwegs!", "text": "", "media": []}
   ],
   "createdAtMicros": 1767225600000000,
@@ -658,7 +669,7 @@ Die folgenden Dateien sind gültig und lassen sich unverändert importieren.
 
 ```json quizmo-example
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "id": "quiz-ki-snowflake-beispiel",
   "name": "Biggest Snowflake: Wer tickt anders?",
   "description": "Keine richtige Lösung: Es punktet, wer anders antwortet als die Mehrheit.",

@@ -111,6 +111,7 @@ final class GameState extends Equatable {
     this.shownSlideIds = const {},
     this.snowflake,
     this.verbalAnswers = false,
+    this.categorySlides = false,
     this.hostTimeMicros = 0,
     this.tvMediaPaused = false,
     this.tvMediaRevision = 0,
@@ -191,6 +192,7 @@ final class GameState extends Equatable {
       null => null,
     },
     verbalAnswers: json.readBool('verbalAnswers', orElse: false),
+    categorySlides: json.readBool('categorySlides', orElse: false),
     hostTimeMicros: json.readInt('hostTimeMicros'),
     tvMediaPaused: json.readBool('tvMediaPaused', orElse: false),
     tvMediaRevision: json['tvMediaRevision'] == null
@@ -285,9 +287,12 @@ final class GameState extends Equatable {
   /// Slides the host already showed.
   final Set<String> shownSlideIds;
 
-  /// Whether guests see [activeSlide] instead of the round on stage.
+  /// Whether guests see [activeSlide] instead of the round on stage. In
+  /// the category phase of Pokerchips the slide of the category belongs to
+  /// that phase instead (guests have no question then).
   bool get showsSlide =>
       activeSlide != null &&
+      !(poker?.questionHidden ?? false) &&
       (round.question == null || round.status == RoundStatus.revealed);
 
   /// Scoring of a "Biggest Snowflake" session, else `null`. A static rule of
@@ -297,6 +302,16 @@ final class GameState extends Equatable {
   /// Host setting: new rounds take their answers aloud (`RoundState.verbal`).
   /// Not part of the quiz, the host toggles it while playing.
   final bool verbalAnswers;
+
+  /// Host setting: before every question the slide of its category is shown
+  /// (`InfoSlide.category`); in Pokerchips the teams then bet on the category
+  /// before the question is revealed. Questions without such a slide start
+  /// as before.
+  final bool categorySlides;
+
+  /// The slide that introduces the category of [question], if any.
+  InfoSlide? categorySlideFor(Question? question) =>
+      categorySlideOf(slides, question?.category);
 
   /// Whether every team gives one answer together in the round on stage, the
   /// last one its members sent. Biggest Snowflake compares each player, and a
@@ -668,9 +683,11 @@ final class GameState extends Equatable {
     List<ReportRound>? reportRounds,
     Object? protocol = _unset,
     bool? verbalAnswers,
+    bool? categorySlides,
   }) => GameState(
     snowflake: snowflake,
     verbalAnswers: verbalAnswers ?? this.verbalAnswers,
+    categorySlides: categorySlides ?? this.categorySlides,
     protocol: identical(protocol, _unset)
         ? this.protocol
         : protocol as GameProtocol?,
@@ -736,6 +753,7 @@ final class GameState extends Equatable {
     // Only written when set: saved games of older versions stay complete.
     if (snowflake != null) 'snowflake': snowflake!.name,
     if (verbalAnswers) 'verbalAnswers': true,
+    if (categorySlides) 'categorySlides': true,
     'hostTimeMicros': hostTimeMicros,
     'tvMediaPaused': tvMediaPaused,
     'tvMediaRevision': tvMediaRevision,
@@ -771,6 +789,7 @@ final class GameState extends Equatable {
     shownSlideIds,
     snowflake,
     verbalAnswers,
+    categorySlides,
     hostTimeMicros,
     tvMediaPaused,
     tvMediaRevision,

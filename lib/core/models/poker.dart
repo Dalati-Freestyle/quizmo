@@ -14,6 +14,7 @@ final class PokerState extends Equatable {
     this.betting = false,
     this.questionHidden = false,
     this.category,
+    this.stakesBeforeReveal = false,
   });
 
   factory PokerState.start(
@@ -54,6 +55,7 @@ final class PokerState extends Equatable {
       betting: json.readBool('betting'),
       questionHidden: json.readBool('questionHidden'),
       category: json.readStringOrNull('category'),
+      stakesBeforeReveal: json.readBool('stakesBeforeReveal', orElse: false),
     );
   }
 
@@ -108,6 +110,14 @@ final class PokerState extends Equatable {
   /// (`Joker.beforeReveal`). Always part of the betting.
   final bool questionHidden;
 
+  /// The category phase comes from a category slide (host setting "category
+  /// slide before every question"): teams bet on the category while the
+  /// question is hidden, and closing the betting reveals it.
+  final bool stakesBeforeReveal;
+
+  /// Whether teams may place stakes now.
+  bool get acceptsStakes => betting && (!questionHidden || stakesBeforeReveal);
+
   /// Category of the question on stage while [questionHidden].
   final String? category;
 
@@ -119,6 +129,7 @@ final class PokerState extends Equatable {
     bool? betting,
     bool? questionHidden,
     Object? category = _unset,
+    bool? stakesBeforeReveal,
   }) => PokerState(
     startingChips: startingChips,
     minStake: minStake,
@@ -130,6 +141,7 @@ final class PokerState extends Equatable {
     betting: betting ?? this.betting,
     questionHidden: questionHidden ?? this.questionHidden,
     category: identical(category, _unset) ? this.category : category as String?,
+    stakesBeforeReveal: stakesBeforeReveal ?? this.stakesBeforeReveal,
   );
 
   /// Chips [teamId] can bet: its balance plus the stake it already reserved.
@@ -171,6 +183,7 @@ final class PokerState extends Equatable {
     'betting': betting,
     if (questionHidden) 'questionHidden': true,
     if (category != null) 'category': category,
+    if (stakesBeforeReveal) 'stakesBeforeReveal': true,
   };
 
   @override
@@ -185,6 +198,7 @@ final class PokerState extends Equatable {
     betting,
     questionHidden,
     category,
+    stakesBeforeReveal,
   ];
 }
 

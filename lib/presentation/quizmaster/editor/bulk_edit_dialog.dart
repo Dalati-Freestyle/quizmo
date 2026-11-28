@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'category_field.dart';
+
 import '../../../core/engine/scoring_rules.dart';
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
@@ -327,12 +329,11 @@ class _QuestionBulkEditDialogState extends State<QuestionBulkEditDialog> {
                     setState(() => _setCategory = value ?? false),
               ),
               if (_setCategory)
-                TextField(
+                CategoryField(
                   key: const ValueKey('bulk-category'),
                   controller: _category,
-                  decoration: InputDecoration(
-                    labelText: context.tr("Kategorie"),
-                  ),
+                  categories: widget.quiz.categories,
+                  label: context.tr("Kategorie"),
                 ),
               _section(context.tr("Wertung")),
               DropdownButtonFormField<_Rule>(

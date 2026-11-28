@@ -23,6 +23,12 @@ TvInstruction? tvInstruction(InstructionTr tr, GameState game) {
 
   if (game.showsSlide || game.isFinished) return null;
   if (poker != null && poker.questionHidden) {
+    if (poker.stakesBeforeReveal && poker.betting) {
+      return (
+        icon: Icons.casino_outlined,
+        text: tr('Setzt eure Chips auf diese Kategorie.'),
+      );
+    }
     final jokers = game.jokers;
     final possible =
         jokers != null &&

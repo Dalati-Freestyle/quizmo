@@ -196,6 +196,18 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     on<JudgeBuzzerEvent>(_onJudgeBuzzer);
     on<JudgeAnswerEvent>(_onJudgeAnswer);
     on<SetVerbalAnswersEvent>(_onSetVerbalAnswers);
+    on<SetCategorySlidesEvent>((event, emit) {
+      final game = state.game;
+      if (game.categorySlides == event.enabled) return;
+      emit(
+        _publish(
+          game.copyWith(categorySlides: event.enabled),
+          notice: event.enabled
+              ? 'Vor jeder Frage erscheint die Folie ihrer Kategorie.'
+              : 'Kategorie-Folien vor den Fragen aus.',
+        ),
+      );
+    });
     on<CorrectScoreEvent>(_onCorrectScore);
     on<UndoCorrectionEvent>(_onUndoCorrection);
     on<RevealRoundEvent>(_onRevealRound);
@@ -358,7 +370,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       emit(
         _publish(
           game.copyWith(
-            poker: poker.copyWith(questionHidden: false, category: null),
+            poker: poker.copyWith(
+              questionHidden: false,
+              category: null,
+              stakesBeforeReveal: false,
+            ),
+            activeSlide: null,
           ),
           notice: 'Frage aufgedeckt. Jetzt setzen.',
         ),
@@ -1303,7 +1320,33 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
       return;
     }
 
+    // "Category slide before every question": the slide comes first, the
+    // next start shows the question. Pokerchips shows it in its category
+    // phase instead.
+    final categorySlide = game.categorySlideFor(question);
+    final running =
+        game.round.question != null &&
+        game.round.status != RoundStatus.revealed;
+    if (game.categorySlides &&
+        game.poker == null &&
+        categorySlide != null &&
+        !running &&
+        !game.recoveryPaused &&
+        game.activeSlide?.id != categorySlide.id) {
+      emit(
+        _publish(
+          game.copyWith(
+            activeSlide: categorySlide,
+            shownSlideIds: {...game.shownSlideIds, categorySlide.id},
+          ),
+          notice: 'Kategorie-Folie gezeigt. Erneut starten zeigt die Frage.',
+        ),
+      );
+      return;
+    }
+
     _graceTimer?.cancel();
+    final phase = _categoryPhase(game, question);
     emit(
       _publish(
         game.copyWith(
@@ -1311,11 +1354,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             wagers: const {},
             settledTeamIds: const {},
             betting: true,
-            questionHidden: _announcesCategory(game),
-            category: _announcesCategory(game) ? question.category : null,
+            questionHidden: phase.hidden,
+            category: phase.hidden ? question.category : null,
+            stakesBeforeReveal: phase.stakesFirst,
           ),
           jokers: game.jokers?.copyWith(plays: const []),
-          activeSlide: null,
+          activeSlide: phase.slide,
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -1326,6 +1370,27 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         ),
         notice: 'Round started: ${markdownToPlain(question.prompt)}',
       ),
+    );
+  }
+
+  /// How a Pokerchips question starts: hidden behind its category when a
+  /// joker is played before the reveal, or when the host shows category
+  /// slides and the category has one (then the teams bet first). The slide
+  /// of the category accompanies the phase.
+  ({bool hidden, bool stakesFirst, InfoSlide? slide}) _categoryPhase(
+    GameState game,
+    Question question,
+  ) {
+    if (game.poker == null) {
+      return (hidden: false, stakesFirst: false, slide: null);
+    }
+    final slide = game.categorySlideFor(question);
+    final stakesFirst = game.categorySlides && slide != null;
+    final hidden = stakesFirst || _announcesCategory(game);
+    return (
+      hidden: hidden,
+      stakesFirst: stakesFirst,
+      slide: hidden ? slide : null,
     );
   }
 
@@ -2679,6 +2744,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   }) {
     _graceTimer?.cancel();
     final jeopardy = game.jeopardy!;
+    final phase = _categoryPhase(game, question);
     emit(
       _publish(
         game.copyWith(
@@ -2686,11 +2752,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
             wagers: const {},
             settledTeamIds: const {},
             betting: true,
-            questionHidden: _announcesCategory(game),
-            category: _announcesCategory(game) ? question.category : null,
+            questionHidden: phase.hidden,
+            category: phase.hidden ? question.category : null,
+            stakesBeforeReveal: phase.stakesFirst,
           ),
           jokers: game.jokers?.copyWith(plays: const []),
-          activeSlide: null,
+          activeSlide: phase.slide,
           round: RoundState(
             question: question,
             status: RoundStatus.acceptingAnswers,
@@ -3193,8 +3260,9 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
         !poker.betting ||
         teamId == null ||
         !game.teams.containsKey(teamId) ||
-        game.round.question?.id != event.questionId ||
-        poker.questionHidden ||
+        game.round.question == null ||
+        !event.addresses(game.round) ||
+        !poker.acceptsStakes ||
         !poker.allowsStake(event.wager, poker.availableFor(teamId)) ||
         game.jokers?.playAimedAt(teamId) != null) {
       return;
@@ -3223,10 +3291,7 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
   ) {
     final game = state.game;
     final poker = game.poker;
-    if (poker == null ||
-        !poker.betting ||
-        poker.questionHidden ||
-        game.round.question == null) {
+    if (poker == null || !poker.acceptsStakes || game.round.question == null) {
       return;
     }
     // With a minimum stake nobody may sit out: teams that bet too little (or
@@ -3245,7 +3310,16 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     emit(
       _publish(
         game.copyWith(
-          poker: poker.copyWith(betting: false, wagers: wagers, chips: chips),
+          // Teams that bet on the category see the question only now.
+          poker: poker.copyWith(
+            betting: false,
+            wagers: wagers,
+            chips: chips,
+            questionHidden: false,
+            category: null,
+            stakesBeforeReveal: false,
+          ),
+          activeSlide: poker.questionHidden ? null : game.activeSlide,
           round: game.round.copyWith(
             startedAtHostMicros: _now(),
             timerRestartedAtHostMicros: null,
@@ -3293,8 +3367,12 @@ class QuizEngineBloc extends Bloc<QuizEngineEvent, QuizEngineState> {
     }
     final poker = game.poker;
     // Jokers played before the reveal belong to the category phase, all
-    // others to the betting once the question is known.
-    if (poker != null && poker.questionHidden != joker.beforeReveal) {
+    // others to the betting once the question is known. Teams that bet on
+    // the category (category slides) play every joker in that phase.
+    if (poker != null &&
+        (poker.questionHidden
+            ? !joker.beforeReveal && !poker.stakesBeforeReveal
+            : joker.beforeReveal)) {
       return reject(
         joker.beforeReveal
             ? 'Dieser Joker muss vor dem Aufdecken der Frage gespielt werden.'

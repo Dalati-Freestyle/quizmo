@@ -41,7 +41,8 @@ sealed class ClientMessage extends Equatable {
       wager: json.readInt('wager'),
     ),
     'pokerWager' => PokerWagerMessage(
-      questionId: json.readString('questionId'),
+      questionId: json.readStringOrNull('questionId'),
+      roundStartedAt: json.readIntOrNull('roundStartedAt'),
       wager: json.readInt('wager'),
     ),
     UseJokerMessage._type => UseJokerMessage(
@@ -692,17 +693,28 @@ final class AdmissionPendingMessage extends ServerMessage {
 }
 
 final class PokerWagerMessage extends ClientMessage {
-  const PokerWagerMessage({required this.questionId, required this.wager});
-  final String questionId;
+  const PokerWagerMessage({
+    required this.wager,
+    this.questionId,
+    this.roundStartedAt,
+  });
+
+  /// The question, when the player knows it.
+  final String? questionId;
+
+  /// Start of the round on stage: while teams bet on a category the question
+  /// is still hidden from guests.
+  final int? roundStartedAt;
   final int wager;
   @override
   JsonMap toJson() => {
     'type': 'pokerWager',
-    'questionId': questionId,
+    if (questionId != null) 'questionId': questionId,
+    if (roundStartedAt != null) 'roundStartedAt': roundStartedAt,
     'wager': wager,
   };
   @override
-  List<Object?> get props => [questionId, wager];
+  List<Object?> get props => [questionId, roundStartedAt, wager];
 }
 
 /// A player plays a joker for their team in the question on stage.

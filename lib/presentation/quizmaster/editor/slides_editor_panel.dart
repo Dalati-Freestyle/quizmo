@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../../../core/models/models.dart';
 import '../../common/adaptive_layout.dart';
+import '../../common/category_slides_warning.dart';
 import '../../l10n/app_localizations.dart';
+import 'category_field.dart';
 import 'media_editor.dart';
 import 'markdown_field.dart';
 
@@ -55,6 +57,7 @@ class SlidesEditorPanel extends StatelessWidget {
       quiz.slides,
       (question) => question.id,
     ).whereType<InfoSlide>();
+    final coverage = quiz.categorySlideCoverage;
     return PanelCard(
       title: context.tr("Zwischenfolien (optional)"),
       icon: Icons.slideshow_outlined,
@@ -72,6 +75,14 @@ class SlidesEditorPanel extends StatelessWidget {
             )
           : Column(
               children: [
+                // Category slides for some questions only: "category slide
+                // before every question" would work for those only.
+                if (quiz.hasPartialCategorySlides)
+                  CategorySlidesWarning(
+                    missing: coverage.uncovered,
+                    total: quiz.questions.length,
+                    categories: coverage.missing,
+                  ),
                 for (final slide in ordered)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -84,7 +95,11 @@ class SlidesEditorPanel extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      _position(context, slide),
+                      [
+                        if (slide.category case final category?)
+                          context.tr("Kategorie-Folie: {0}", [category]),
+                        _position(context, slide),
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -115,6 +130,15 @@ class SlideEditorDialog extends StatefulWidget {
 
 class _SlideEditorDialogState extends State<SlideEditorDialog> {
   late InfoSlide _slide = widget.slide;
+  late final _category = TextEditingController(
+    text: widget.slide.category ?? '',
+  );
+
+  @override
+  void dispose() {
+    _category.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +167,18 @@ class _SlideEditorDialogState extends State<SlideEditorDialog> {
                 label: context.tr("Text"),
                 onChanged: (value) =>
                     setState(() => _slide = _slide.copyWith(text: value)),
+              ),
+              const SizedBox(height: 12),
+              CategoryField(
+                key: const ValueKey('slide-category'),
+                controller: _category,
+                categories: widget.quiz.categories,
+                label: context.tr("Folie einer Kategorie (optional)"),
+                helperText: context.tr(
+                  "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.",
+                ),
+                onChanged: (value) =>
+                    setState(() => _slide = _slide.copyWith(category: value)),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(

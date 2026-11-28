@@ -336,6 +336,16 @@ the release pipeline does this automatically.
 * `GameState.slides` is host-only (stripped like the question bank); `GameState.activeSlide` is public
   (`forWire`) and its media are served like question media. `ShowSlideEvent` works only between questions,
   starting a question hides the slide. TV and player render `InfoSlideView` while `GameState.showsSlide`.
+* Category slides (schema 19): `InfoSlide.category` ties a slide to the questions of that category (`sameCategory`,
+  one slide per category, `categorySlideOf`). Categories are picked in the editor with `CategoryField` (existing ones
+  from `Quiz.categories`, or a new one); `Quiz.hasPartialCategorySlides` drives the warning in editor and host.
+  The host setting `GameState.categorySlides` ("Kategorie-Folie vor jeder Frage", `SetCategorySlidesEvent`, not part
+  of the quiz) makes `StartRoundEvent` show the category slide first and start the question on the next start; a
+  question without slide starts as before. In Pokerchips it starts the category phase instead with
+  `PokerState.stakesBeforeReveal`: teams bet on the category (`PokerState.acceptsStakes`, wagers addressed by
+  `roundStartedAt`), and closing the betting (`OpenPokerAnswersEvent`) reveals the question. Jeopardy boards ignore it.
+  During a category phase `activeSlide` is the category slide, `showsSlide` is false, and guests may not fetch the
+  hidden question's media (`visibleGuestMedia`).
 
 ### Biggest Snowflake format
 * `SnowflakeFormat` (quiz schema 10) stores **no solutions**: the rarest answer of a round wins. `scoring` is `winnerOnly` (only the rarest answer scores) or `graded` (the share falls linearly with every step of more common answers; the most common one earns nothing). The shares come from `snowflakeShares` in `scoring_rules.dart`: equally rare answers share a step, and when at least two participants answer and all agree nobody scores.

@@ -932,23 +932,31 @@ class PlayerSessionCubit extends Cubit<PlayerSessionState> {
   }
 
   void placePokerWager(int wager) {
-    final question = state.question;
+    // While the teams bet on a category the question is still hidden; the
+    // start of the round identifies it then.
+    final questionId = state.question?.id;
+    final startedAt = state.game?.round.startedAtHostMicros;
     if (!state.isConnected ||
         state.game?.recoveryPaused == true ||
-        question == null ||
-        !(state.game?.poker?.betting ?? false)) {
+        (questionId == null && startedAt == null) ||
+        !(state.game?.poker?.acceptsStakes ?? false)) {
       return;
     }
     if (_localSend case final send?) {
       send(
         PlacePokerWagerEvent(
           playerId: state.playerId!,
-          questionId: question.id,
+          questionId: questionId,
+          roundStartedAt: startedAt,
           wager: wager,
         ),
       );
     } else {
-      _client?.placePokerWager(questionId: question.id, wager: wager);
+      _client?.placePokerWager(
+        questionId: questionId,
+        roundStartedAt: startedAt,
+        wager: wager,
+      );
     }
   }
 

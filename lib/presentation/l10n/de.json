@@ -1609,5 +1609,22 @@
   "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.": "Alle Einsätze sind da. Du kannst die Einsätze jetzt schließen.",
   "Hineinzoomen": "Hineinzoomen",
   "Herauszoomen": "Herauszoomen",
-  "Ganzes Bild": "Ganzes Bild"
+  "Ganzes Bild": "Ganzes Bild",
+  "Setzt eure Chips auf diese Kategorie.": "Setzt eure Chips auf diese Kategorie.",
+  "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.": "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.",
+  "Kategorie-Folie vor jeder Frage zeigen": "Kategorie-Folie vor jeder Frage zeigen",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.": "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.": "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.",
+  "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.": "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.",
+  "Ohne Folie: {0}": "Ohne Folie: {0}",
+  "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.": "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.",
+  "Einsätze schließen & Frage aufdecken": "Einsätze schließen & Frage aufdecken",
+  "Kategorie-Folie": "Kategorie-Folie",
+  "Kategorie (optional)": "Kategorie (optional)",
+  "Bestehende Kategorie wählen": "Bestehende Kategorie wählen",
+  "Folie einer Kategorie (optional)": "Folie einer Kategorie (optional)",
+  "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.": "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.",
+  "Kategorie-Folie: {0}": "Kategorie-Folie: {0}",
+  "Jede Kategorie kann nur eine Kategorie-Folie haben.": "Jede Kategorie kann nur eine Kategorie-Folie haben.",
+  "Category slides need schemaVersion 19.": "Kategorie-Folien brauchen schemaVersion 19."
 }

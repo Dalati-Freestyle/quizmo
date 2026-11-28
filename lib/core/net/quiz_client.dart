@@ -375,9 +375,19 @@ class QuizClient {
     );
   }
 
-  void placePokerWager({required String questionId, required int wager}) {
+  void placePokerWager({
+    required int wager,
+    String? questionId,
+    int? roundStartedAt,
+  }) {
     if (_playerId == null) return;
-    _send(PokerWagerMessage(questionId: questionId, wager: wager));
+    _send(
+      PokerWagerMessage(
+        questionId: questionId,
+        roundStartedAt: roundStartedAt,
+        wager: wager,
+      ),
+    );
   }
 
   void submitAnswer(

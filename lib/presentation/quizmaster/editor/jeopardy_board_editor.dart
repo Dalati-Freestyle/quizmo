@@ -221,8 +221,11 @@ class JeopardyBoardEditorPanel extends StatelessWidget {
 
     final edited = await Navigator.of(context).push<Question>(
       MaterialPageRoute<Question>(
-        builder: (_) =>
-            QuestionEditorPage(question: question!, format: quiz.format),
+        builder: (_) => QuestionEditorPage(
+          question: question!,
+          format: quiz.format,
+          categories: quiz.categories,
+        ),
       ),
     );
     if (edited == null) return;

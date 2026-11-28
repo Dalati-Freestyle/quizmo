@@ -438,6 +438,7 @@ class _QuizEditorViewState extends State<_QuizEditorView> {
         builder: (_) => QuestionEditorPage(
           question: question,
           format: cubit.state.draft.format,
+          categories: cubit.state.draft.categories,
         ),
       ),
     );

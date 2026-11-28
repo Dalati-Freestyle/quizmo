@@ -182,6 +182,7 @@ const englishMessages = <String, String>{
   "Bericht kopiert.": "Report copied.",
   "Beschriftung (optional)": "Caption (optional)",
   "Beschädigtes Medien-Asset.": "Corrupted media asset.",
+  "Bestehende Kategorie wählen": "Choose an existing category",
   "Bestätigen": "Confirm",
   "Bestätigen (noch {0})": "Confirm ({0} left)",
   "Bestätigung zurücknehmen": "Withdraw confirmation",
@@ -257,6 +258,8 @@ const englishMessages = <String, String>{
   "Category \"{0}\" has more cells than the board has rows.":
       "Category \"{0}\" has more cells than the board has rows.",
   "Category name": "Category name",
+  "Category slides need schemaVersion 19.":
+      "Category slides need schemaVersion 19.",
   "Category {0}": "Category {0}",
   "Category {0} needs a name.": "Category {0} needs a name.",
   "Chips": "chips",
@@ -447,6 +450,7 @@ const englishMessages = <String, String>{
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "The question remains open until ended manually, even after a correct answer.",
   "Die Frage folgt gleich.": "The question follows shortly.",
   "Die Frage ist noch verdeckt. Jetzt ist die Zeit für Angriffs-Joker; gesetzt wird erst nach dem Aufdecken.": "The question is still hidden. Now is the time for attack jokers; stakes are placed after the reveal.",
+  "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.": "The question is still hidden. Bet on the category now; the question is revealed when the host closes the betting.",
   "Die Grenzwerte konnten nicht gespeichert werden.":
       "The thresholds could not be saved.",
   "Die Karte konnte nicht geladen werden. Sie braucht Internet.":
@@ -572,6 +576,8 @@ const englishMessages = <String, String>{
       "Betting closed. Answers are now open.",
   "Einsätze pro Team": "Uses per team",
   "Einsätze schließen & Antworten öffnen": "Close betting & open answers",
+  "Einsätze schließen & Frage aufdecken":
+      "Close the betting & reveal the question",
   "Elemente brauchen eindeutige IDs und Beschriftungen.":
       "Items need unique IDs and labels.",
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
@@ -669,6 +675,7 @@ const englishMessages = <String, String>{
   "First-buzzer points": "First-buzzer points",
   "Fixed points": "Fixed points",
   "Fixed {0} pts": "Fixed {0} pts",
+  "Folie einer Kategorie (optional)": "Slide of a category (optional)",
   "Forget": "Forget",
   "Format": "Format",
   "Frage": "Question",
@@ -819,6 +826,8 @@ const englishMessages = <String, String>{
   "Invitation": "Invitation",
   "Isolated preview: unsaved draft, no room, no saved scores.":
       "Isolated preview: unsaved draft, no room, no saved scores.",
+  "Jede Kategorie kann nur eine Kategorie-Folie haben.":
+      "Each category can only have one category slide.",
   "Jede Zwischenfolie braucht eine eigene ID.":
       "Every interstitial slide needs its own ID.",
   "Jeder Joker darf nur einmal pro Quiz vorkommen.":
@@ -847,7 +856,12 @@ const englishMessages = <String, String>{
   "Kacheln am Griff auf eine andere Kachel ziehen, um sie umzuordnen. Farbe und Sichtbarkeit direkt an der Kachel ändern.": "Drag a tile by its handle onto another tile to reorder. Change colour and visibility right on the tile.",
   "Kartenausschnitt": "Map section",
   "Kategorie": "Category",
+  "Kategorie (optional)": "Category (optional)",
   "Kategorie setzen (leer = entfernen)": "Set category (empty = remove)",
+  "Kategorie-Folie": "Category slide",
+  "Kategorie-Folie vor jeder Frage zeigen":
+      "Show the category slide before every question",
+  "Kategorie-Folie: {0}": "Category slide: {0}",
   "Kategorie: {0}": "Category: {0}",
   "Keep invitation links, join codes and resume tokens confidential.":
       "Keep invitation links, join codes and resume tokens confidential.",
@@ -991,6 +1005,7 @@ const englishMessages = <String, String>{
   "Minimum delay (ms)": "Minimum delay (ms)",
   "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.",
   "Missing required field \"{0}\".": "Missing required field \"{0}\".",
+  "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.": "With a category the slide is shown before every question of that category when the host switches on “category slide before every question”.",
   "Mit einem Smartphone im selben WLAN über den QR-Code beitreten. Klappt das nicht: andere Adresse wählen, Firewall und Gäste-Isolation des WLANs prüfen.": "Join with a smartphone on the same Wi-Fi through the QR code. If that fails: choose another address, check the firewall and the Wi-Fi's client isolation.",
   "Mit einem Smartphone über den Einladungslink beitreten.":
       "Join with a smartphone through the invitation link.",
@@ -1108,6 +1123,7 @@ const englishMessages = <String, String>{
   "Ohne Bezug zu einer Frage": "Not tied to a question",
   "Ohne Einsatz: keine Wertung": "No wager: not scored",
   "Ohne Export verlassen": "Leave without exporting",
+  "Ohne Folie: {0}": "Without a slide: {0}",
   "Ohne Kategorie": "No category",
   "Ohne Zeitlimit": "No time limit",
   "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.":
@@ -1159,6 +1175,7 @@ const englishMessages = <String, String>{
   "Pflichtbereich, nur minimierbar": "Required section, can only be minimised",
   "Pflichtfeld bei „Nur Toleranz“.": "Required for \"tolerance only\".",
   "Phase 1 · Kategorie": "Phase 1 · Category",
+  "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.": "Phase 1 · category “{0}”: the teams bet on the category, the question is still hidden.",
   "Phase 1 · Kategorie „{0}“: Spieler und TV sehen nur die Kategorie. Angriffs-Joker jetzt, danach die Frage aufdecken.": "Phase 1 · category \"{0}\": players and TV only see the category. Attack jokers now, then reveal the question.",
   "Pick a name": "Pick a name",
   "Pick the next question on the board.":
@@ -1403,6 +1420,7 @@ const englishMessages = <String, String>{
   "Set join code": "Set join code",
   "Settings": "Settings",
   "Setz jetzt deine Chips.": "Place your chips now.",
+  "Setzt eure Chips auf diese Kategorie.": "Bet your chips on this category.",
   "Setzt eure Chips.": "Place your chips.",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Share the invitation or TV link. Keep this tab open and this device awake while hosting.",
   "Short answer": "Short answer",
@@ -1681,6 +1699,8 @@ const englishMessages = <String, String>{
       "Provide a complete, unique matching.",
   "Von der Spielleitung pausiert": "Paused by the host",
   "Vor Frage {0}: {1}": "Before question {0}: {1}",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.": "Every question is preceded by the slide of its category; the teams bet before the question is revealed.",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.": "Every question is preceded by the slide of its category; starting again shows the question.",
   "Vorherige Lösung": "Previous solution",
   "Vorladen deaktiviert": "preloading switched off",
   "Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.":
@@ -1941,6 +1961,7 @@ const englishMessages = <String, String>{
   "{0} spielt den Kredit-Joker.": "{0} plays the credit joker.",
   "{0} verbunden.": "{0} connected.",
   "{0} verschieben": "Move {0}",
+  "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.": "{0} of {1} questions have no slide for their category. They start without a category slide.",
   "{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test.":
       "{0} of {1} players have not tapped yet; {2} TV view(s) show the test.",
   "{0} von {1} Spielern sind nicht verbunden oder antworten nicht.":
@@ -2157,6 +2178,7 @@ const germanMessages = <String, String>{
   "Bericht kopiert.": "Bericht kopiert.",
   "Beschriftung (optional)": "Beschriftung (optional)",
   "Beschädigtes Medien-Asset.": "Beschädigtes Medien-Asset.",
+  "Bestehende Kategorie wählen": "Bestehende Kategorie wählen",
   "Bestätigen": "Bestätigen",
   "Bestätigen (noch {0})": "Bestätigen (noch {0})",
   "Bestätigung zurücknehmen": "Bestätigung zurücknehmen",
@@ -2230,6 +2252,8 @@ const germanMessages = <String, String>{
   "Category \"{0}\" has more cells than the board has rows.":
       "Kategorie „{0}“ hat mehr Felder als das Spielfeld Zeilen.",
   "Category name": "Kategoriename",
+  "Category slides need schemaVersion 19.":
+      "Kategorie-Folien brauchen schemaVersion 19.",
   "Category {0}": "Kategorie {0}",
   "Category {0} needs a name.": "Kategorie {0} benötigt einen Namen.",
   "Chips": "Chips",
@@ -2420,6 +2444,7 @@ const germanMessages = <String, String>{
   "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.": "Die Frage bleibt bis zum manuellen Beenden offen, auch nach einer richtigen Antwort.",
   "Die Frage folgt gleich.": "Die Frage folgt gleich.",
   "Die Frage ist noch verdeckt. Jetzt ist die Zeit für Angriffs-Joker; gesetzt wird erst nach dem Aufdecken.": "Die Frage ist noch verdeckt. Jetzt ist die Zeit für Angriffs-Joker; gesetzt wird erst nach dem Aufdecken.",
+  "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.": "Die Frage ist noch verdeckt. Setzt jetzt auf die Kategorie; die Frage wird aufgedeckt, wenn der Spielleiter die Einsätze schließt.",
   "Die Grenzwerte konnten nicht gespeichert werden.":
       "Die Grenzwerte konnten nicht gespeichert werden.",
   "Die Karte konnte nicht geladen werden. Sie braucht Internet.":
@@ -2550,6 +2575,8 @@ const germanMessages = <String, String>{
   "Einsätze pro Team": "Einsätze pro Team",
   "Einsätze schließen & Antworten öffnen":
       "Einsätze schließen & Antworten öffnen",
+  "Einsätze schließen & Frage aufdecken":
+      "Einsätze schließen & Frage aufdecken",
   "Elemente brauchen eindeutige IDs und Beschriftungen.":
       "Elemente brauchen eindeutige IDs und Beschriftungen.",
   "Elemente in korrekter Reihenfolge – eines pro Zeile":
@@ -2650,6 +2677,7 @@ const germanMessages = <String, String>{
   "First-buzzer points": "Punkte für den ersten Buzzer",
   "Fixed points": "Feste Punkte",
   "Fixed {0} pts": "Fest {0} Punkte",
+  "Folie einer Kategorie (optional)": "Folie einer Kategorie (optional)",
   "Forget": "Vergessen",
   "Format": "Format",
   "Frage": "Frage",
@@ -2801,6 +2829,8 @@ const germanMessages = <String, String>{
   "Invalid saved quiz.": "Ungültiges gespeichertes Quiz.",
   "Invitation": "Einladung",
   "Isolated preview: unsaved draft, no room, no saved scores.": "Isolierte Vorschau: ungespeicherter Entwurf, kein Raum, keine gespeicherten Ergebnisse.",
+  "Jede Kategorie kann nur eine Kategorie-Folie haben.":
+      "Jede Kategorie kann nur eine Kategorie-Folie haben.",
   "Jede Zwischenfolie braucht eine eigene ID.":
       "Jede Zwischenfolie braucht eine eigene ID.",
   "Jeder Joker darf nur einmal pro Quiz vorkommen.":
@@ -2830,7 +2860,12 @@ const germanMessages = <String, String>{
   "Kacheln am Griff auf eine andere Kachel ziehen, um sie umzuordnen. Farbe und Sichtbarkeit direkt an der Kachel ändern.": "Kacheln am Griff auf eine andere Kachel ziehen, um sie umzuordnen. Farbe und Sichtbarkeit direkt an der Kachel ändern.",
   "Kartenausschnitt": "Kartenausschnitt",
   "Kategorie": "Kategorie",
+  "Kategorie (optional)": "Kategorie (optional)",
   "Kategorie setzen (leer = entfernen)": "Kategorie setzen (leer = entfernen)",
+  "Kategorie-Folie": "Kategorie-Folie",
+  "Kategorie-Folie vor jeder Frage zeigen":
+      "Kategorie-Folie vor jeder Frage zeigen",
+  "Kategorie-Folie: {0}": "Kategorie-Folie: {0}",
   "Kategorie: {0}": "Kategorie: {0}",
   "Keep invitation links, join codes and resume tokens confidential.": "Einladungslinks, Beitrittscodes und Resume-Tokens vertraulich behandeln.",
   "Keep original": "Original behalten",
@@ -2969,6 +3004,7 @@ const germanMessages = <String, String>{
   "Minimum delay (ms)": "Minimale Verzögerung (ms)",
   "Missing private credentials? Join as a new participant, compare the verification ID on their screen, then explicitly reassign the original identity.": "Private Zugangsdaten fehlen? Als neuer Teilnehmer beitreten, die Prüf-ID auf dessen Bildschirm vergleichen und dann die ursprüngliche Identität ausdrücklich zuordnen.",
   "Missing required field \"{0}\".": "Pflichtfeld „{0}“ fehlt.",
+  "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.": "Mit Kategorie wird die Folie vor jeder Frage dieser Kategorie gezeigt, wenn der Spielleiter „Kategorie-Folie vor jeder Frage“ einschaltet.",
   "Mit einem Smartphone im selben WLAN über den QR-Code beitreten. Klappt das nicht: andere Adresse wählen, Firewall und Gäste-Isolation des WLANs prüfen.": "Mit einem Smartphone im selben WLAN über den QR-Code beitreten. Klappt das nicht: andere Adresse wählen, Firewall und Gäste-Isolation des WLANs prüfen.",
   "Mit einem Smartphone über den Einladungslink beitreten.":
       "Mit einem Smartphone über den Einladungslink beitreten.",
@@ -3088,6 +3124,7 @@ const germanMessages = <String, String>{
   "Ohne Bezug zu einer Frage": "Ohne Bezug zu einer Frage",
   "Ohne Einsatz: keine Wertung": "Ohne Einsatz: keine Wertung",
   "Ohne Export verlassen": "Ohne Export verlassen",
+  "Ohne Folie: {0}": "Ohne Folie: {0}",
   "Ohne Kategorie": "Ohne Kategorie",
   "Ohne Zeitlimit": "Ohne Zeitlimit",
   "Ohne Zeitlimit läuft keine Uhr; der Spielleiter beendet die Runde.":
@@ -3140,6 +3177,7 @@ const germanMessages = <String, String>{
   "Pflichtbereich, nur minimierbar": "Pflichtbereich, nur minimierbar",
   "Pflichtfeld bei „Nur Toleranz“.": "Pflichtfeld bei „Nur Toleranz“.",
   "Phase 1 · Kategorie": "Phase 1 · Kategorie",
+  "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.": "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.",
   "Phase 1 · Kategorie „{0}“: Spieler und TV sehen nur die Kategorie. Angriffs-Joker jetzt, danach die Frage aufdecken.": "Phase 1 · Kategorie „{0}“: Spieler und TV sehen nur die Kategorie. Angriffs-Joker jetzt, danach die Frage aufdecken.",
   "Pick a name": "Gib einen Namen ein.",
   "Pick the next question on the board.":
@@ -3382,6 +3420,8 @@ const germanMessages = <String, String>{
   "Set join code": "Beitrittscode setzen",
   "Settings": "Einstellungen",
   "Setz jetzt deine Chips.": "Setz jetzt deine Chips.",
+  "Setzt eure Chips auf diese Kategorie.":
+      "Setzt eure Chips auf diese Kategorie.",
   "Setzt eure Chips.": "Setzt eure Chips.",
   "Share the invitation or TV link. Keep this tab open and this device awake while hosting.": "Teile den Einladungs- oder TV-Link. Lass diesen Tab geöffnet und das Gerät während des Spiels wach.",
   "Short answer": "Freitext",
@@ -3659,6 +3699,8 @@ const germanMessages = <String, String>{
       "Vollständige eindeutige Zuordnung angeben.",
   "Von der Spielleitung pausiert": "Von der Spielleitung pausiert",
   "Vor Frage {0}: {1}": "Vor Frage {0}: {1}",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.": "Vor jeder Frage erscheint die Folie ihrer Kategorie; die Teams setzen, bevor die Frage aufgedeckt wird.",
+  "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.": "Vor jeder Frage erscheint die Folie ihrer Kategorie; erneut starten zeigt die Frage.",
   "Vorherige Lösung": "Vorherige Lösung",
   "Vorladen deaktiviert": "Vorladen deaktiviert",
   "Vorladen ist aus: Medien laden, wenn eine Frage sie braucht.":
@@ -3920,6 +3962,7 @@ const germanMessages = <String, String>{
   "{0} spielt den Kredit-Joker.": "{0} spielt den Kredit-Joker.",
   "{0} verbunden.": "{0} verbunden.",
   "{0} verschieben": "{0} verschieben",
+  "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.": "{0} von {1} Fragen haben keine Folie zu ihrer Kategorie. Sie starten ohne Kategorie-Folie.",
   "{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test.": "{0} von {1} Spielern haben noch nicht getippt; {2} TV-Ansicht(en) zeigen den Test.",
   "{0} von {1} Spielern sind nicht verbunden oder antworten nicht.":
       "{0} von {1} Spielern sind nicht verbunden oder antworten nicht.",

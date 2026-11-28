@@ -1488,18 +1488,21 @@ class _PokerWagerViewState extends State<PokerWagerView> {
                 .useJoker(jokerId, targetTeamId: target),
           ),
         ],
-        const SizedBox(height: 16),
-        QuizMarkdown(
-          state.question!.prompt,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        QuestionResultView(question: state.question!, game: state.game!),
-        if (state.question!.media.isNotEmpty)
-          QuestionMediaView(
-            media: state.question!.media,
-            baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
-            playback: MediaPlayback.stopped,
+        // Unknown while the teams bet on its category.
+        if (state.question case final question?) ...[
+          const SizedBox(height: 16),
+          QuizMarkdown(
+            question.prompt,
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
+          QuestionResultView(question: question, game: state.game!),
+          if (question.media.isNotEmpty)
+            QuestionMediaView(
+              media: question.media,
+              baseUri: context.read<PlayerSessionCubit>().mediaBaseUri,
+              playback: MediaPlayback.stopped,
+            ),
+        ],
       ],
     );
   }

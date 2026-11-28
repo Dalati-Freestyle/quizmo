@@ -92,6 +92,8 @@ Map<DashboardSection, Widget> buildGameSections(
         onShowRevealMedia: engine.add,
         onSetVerbalAnswers: (enabled) =>
             engine.add(SetVerbalAnswersEvent(enabled)),
+        onSetCategorySlides: (enabled) =>
+            engine.add(SetCategorySlidesEvent(enabled)),
         onReveal: () => engine.add(const RevealRoundEvent()),
         onLock: () => engine.add(const LockBuzzerEvent()),
         onReopenBuzzer: () => engine.add(const ReopenBuzzerEvent()),
@@ -195,7 +197,22 @@ Map<DashboardSection, Widget> buildGameSections(
                   poker.wagers[team.id] ?? "–",
                 ]),
               ),
-            if (poker.betting && poker.questionHidden) ...[
+            if (poker.betting &&
+                poker.questionHidden &&
+                poker.stakesBeforeReveal) ...[
+              Text(
+                context.tr(
+                  "Phase 1 · Kategorie „{0}“: Die Teams setzen auf die Kategorie, die Frage ist noch verdeckt.",
+                  [poker.category ?? "–"],
+                ),
+              ),
+              if (poker.allStakesIn(game.teams.keys)) const AllStakesInNotice(),
+              FilledButton(
+                key: const ValueKey('close-stakes-reveal'),
+                onPressed: () => engine.add(const OpenPokerAnswersEvent()),
+                child: Text(context.tr("Einsätze schließen & Frage aufdecken")),
+              ),
+            ] else if (poker.betting && poker.questionHidden) ...[
               Text(
                 context.tr(
                   "Phase 1 · Kategorie „{0}“: Spieler und TV sehen nur die Kategorie. Angriffs-Joker jetzt, danach die Frage aufdecken.",

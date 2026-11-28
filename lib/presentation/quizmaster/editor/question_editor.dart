@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'category_field.dart';
+
 import '../../l10n/app_localizations.dart';
 
 import '../../../core/engine/scoring_rules.dart';
@@ -206,11 +208,15 @@ class QuestionEditorPage extends StatefulWidget {
   const QuestionEditorPage({
     required this.question,
     required this.format,
+    this.categories = const [],
     super.key,
   });
 
   final Question question;
   final QuizFormat format;
+
+  /// Categories that already exist in the quiz.
+  final List<String> categories;
 
   @override
   State<QuestionEditorPage> createState() => _QuestionEditorPageState();
@@ -263,6 +269,7 @@ class _QuestionEditorPageState extends State<QuestionEditorPage> {
     key: ValueKey(_generation),
     question: _question,
     format: widget.format,
+    categories: widget.categories,
     onKindChanged: _changeKind,
   );
 }
@@ -347,8 +354,12 @@ class _QuestionForm extends StatefulWidget {
     required this.question,
     required this.format,
     required this.onKindChanged,
+    this.categories = const [],
     super.key,
   });
+
+  /// Categories that already exist in the quiz.
+  final List<String> categories;
 
   /// Called with the current, unsaved input; `false` keeps the kind.
   final Future<bool> Function(Question draft, QuestionTemplate kind)
@@ -595,11 +606,11 @@ class _QuestionFormState extends State<_QuestionForm> {
                     label: context.tr("Admin-Notizen (nur Spielleiter)"),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  CategoryField(
+                    key: const ValueKey('question-category'),
                     controller: _categoryController,
-                    decoration: InputDecoration(
-                      labelText: context.tr("Question category (optional)"),
-                    ),
+                    categories: widget.categories,
+                    label: context.tr("Question category (optional)"),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
